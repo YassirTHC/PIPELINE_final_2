@@ -1,0 +1,63 @@
+# Configuration du système de vérification des B-rolls
+# Ce fichier contrôle le comportement de vérification avant suppression
+
+# Activation du système de vérification
+verification_enabled: true
+
+# Paramètres de vérification
+verification_settings:
+  # Seuil de confiance pour l'insertion des B-rolls (0.0 à 1.0)
+  insertion_confidence_threshold: 0.8
+  
+  # Seuil maximum de doublons autorisés (0.0 à 1.0)
+  max_duplicate_threshold: 0.3
+  
+  # Qualité minimale des B-rolls (0 à 100)
+  min_quality_threshold: 40.0
+  
+  # Pertinence contextuelle minimale (0.0 à 1.0)
+  min_context_relevance: 0.5
+
+# Comportement en cas d'échec de vérification
+failure_behavior:
+  # Supprimer quand même les B-rolls si la vérification échoue
+  delete_on_verification_failure: false
+  
+  # Créer un rapport détaillé des problèmes
+  create_detailed_report: true
+  
+  # Notifier l'utilisateur des problèmes
+  notify_user: true
+
+# Métadonnées et traçabilité
+traceability:
+  # Sauvegarder les métadonnées de vérification
+  save_verification_metadata: true
+  
+  # Conserver l'historique des vérifications
+  keep_verification_history: true
+  
+  # Dossier de sauvegarde des métadonnées
+  metadata_directory: "verification_metadata"
+
+# Performance et ressources
+performance:
+  # Nombre de frames analysées pour la détection de scènes
+  scene_detection_frame_step: 10
+  
+  # Seuil de détection des changements de scène
+  scene_change_threshold: 50
+  
+  # Taille maximale des images pour l'analyse de qualité
+  max_frame_size: 1920x1080
+
+# Logging et débogage
+logging:
+  # Niveau de log pour le système de vérification
+  log_level: "INFO"
+  
+  # Sauvegarder les logs de vérification
+  save_verification_logs: true
+  
+  # Afficher les détails de vérification dans la console
+  verbose_output: true 

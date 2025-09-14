@@ -1,0 +1,273 @@
+# 🚀 GÉNÉRATEUR DE MÉTADONNÉES VIRALES AVEC LLM DIRECT - VERSION SPLIT
+# Titres, descriptions et hashtags TikTok/Instagram optimisés en 2 appels séparés
+
+import json
+import logging
+import time
+from typing import List, Dict, Any, Optional
+import requests
+
+logger = logging.getLogger(__name__)
+
+class LLMMetadataGenerator:
+    """Générateur de métadonnées virales utilisant directement le LLM local avec split en 2 appels"""
+    
+    def __init__(self, model: str = "gemma3:4b", timeout: int = 120):
+        self.model = model
+        self.timeout = timeout
+        self.api_url = "http://localhost:11434/api/generate"
+    
+    def generate_viral_metadata(self, transcript: str) -> Dict[str, Any]:
+        """Génère des métadonnées virales en 2 appels séparés pour éviter les timeouts"""
+        
+        try:
+            print(f"🧠 [LLM] SPLIT METADATA pour {self.model} (2 appels)")
+            print(f"🧠 [LLM] Génération métadonnées virales pour {len(transcript)} caractères")
+            print(f"🎯 Modèle: {self.model}")
+            
+            start_time = time.time()
+            
+            # 🚀 APPEL 1: Titre + Description
+            title_desc = self._generate_title_description(transcript)
+            
+            # 🚀 NOUVEAU: Délai de libération mémoire GPU
+            print(f"⏳ [LLM] Libération mémoire GPU (2s)...")
+            time.sleep(2)
+
+            # 🚀 APPEL 2: Hashtags
+            hashtags = self._generate_hashtags(transcript)
+            
+            # Combiner les résultats
+            metadata = {
+                "title": title_desc.get("title", ""),
+                "description": title_desc.get("description", ""),
+                "hashtags": hashtags
+            }
+            
+            duration = time.time() - start_time
+            print(f"✅ [MÉTADONNÉES SPLIT] Titre: {metadata.get('title', 'N/A')[:50]}...")
+            print(f"📖 Description: {metadata.get('description', 'N/A')[:50]}...")
+            print(f"#️⃣ Hashtags: {len(metadata.get('hashtags', []))} générés")
+            print(f"⏱️ Temps total: {duration:.1f}s")
+            
+            return {
+                'success': True,
+                'title': metadata['title'],
+                'description': metadata['description'],
+                'hashtags': metadata['hashtags'],
+                'processing_time': duration,
+                'model_used': self.model,
+                'method': 'split_calls_with_delay'
+            }
+            
+        except Exception as e:
+            print(f"🔄 [FALLBACK] Erreur split metadata: {str(e)}")
+            return self._generate_fallback_metadata(transcript, str(e))
+    
+    def _generate_title_description(self, transcript: str) -> Dict[str, str]:
+        """Génère titre et description en un appel"""
+        try:
+            # Prompt optimisé pour titre + description
+            title_desc_prompt = """Generate VIRAL TikTok/Instagram title and description.
+
+REQUIREMENTS:
+- Title: ≤60 chars, start with 🔥💡🚀😱🤯, be EXTREMELY catchy
+- Description: ≤180 chars, include "Watch NOW", "You won't BELIEVE"
+
+JSON format: {"title": "🔥 Title", "description": "Description"}
+
+Transcript:"""
+            
+            full_prompt = title_desc_prompt + transcript
+            print(f"📝 [APPEL 1] Titre+Description: {len(full_prompt)} chars")
+            
+            # Timeout réduit pour appel simple
+            timeout = 75 if self.model in ["gemma3:4b", "qwen3:4b"] else 90
+            
+            response = self._call_llm(full_prompt, timeout)
+            
+            if response:
+                parsed = self._parse_title_description(response)
+                if parsed:
+                    print(f"✅ [APPEL 1] Titre+Description générés")
+                    return parsed
+            
+            # Fallback
+            return {
+                "title": "🔥 Amazing Content That Will BLOW Your Mind!",
+                "description": "You won't BELIEVE what happens next! Watch NOW to discover the truth! 🔥"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ [APPEL 1] Erreur: {e}")
+            return {
+                "title": "🔥 Amazing Content That Will BLOW Your Mind!",
+                "description": "You won't BELIEVE what happens next! Watch NOW to discover the truth! 🔥"
+            }
+    
+    def _generate_hashtags(self, transcript: str) -> List[str]:
+        """Génère hashtags en un appel séparé"""
+        try:
+            # Prompt optimisé pour hashtags (ULTRA-COURT)
+            hashtags_prompt = """Generate 10-15 viral hashtags for TikTok/Instagram.
+
+Mix: trending + niche + engagement + community.
+
+JSON: {"hashtags": ["#tag1", "#tag2"]}
+
+Transcript:"""
+
+            full_prompt = hashtags_prompt + transcript
+            print(f"📝 [APPEL 2] Hashtags: {len(full_prompt)} chars")
+            
+            # Timeout réduit pour appel simple
+            timeout = 60 if self.model in ["gemma3:4b", "qwen3:4b"] else 75
+            
+            response = self._call_llm(full_prompt, timeout)
+            
+            if response:
+                parsed = self._parse_hashtags(response)
+                if parsed:
+                    print(f"✅ [APPEL 2] {len(parsed)} hashtags générés")
+                    return parsed
+            
+            # Fallback
+            return ["#fyp", "#viral", "#trending", "#foryou", "#explore", "#shorts", "#reels", "#tiktok", "#content", "#video", "#fypage"]
+            
+        except Exception as e:
+            print(f"⚠️ [APPEL 2] Erreur: {e}")
+            return ["#fyp", "#viral", "#trending", "#foryou", "#explore", "#shorts", "#reels", "#tiktok", "#content", "#video", "#fypage"]
+    
+    def _call_llm(self, prompt: str, timeout: int) -> Optional[str]:
+        """Appel LLM générique"""
+        try:
+            response = requests.post(
+                self.api_url,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=timeout
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get('response', '').strip()
+            else:
+                print(f"⚠️ LLM HTTP {response.status_code}")
+                return None
+                
+        except requests.exceptions.Timeout:
+            print(f"⏱️ [LLM] Timeout après {timeout}s")
+            return None
+        except Exception as e:
+            print(f"⚠️ [LLM] Erreur: {e}")
+            return None
+    
+    def _parse_title_description(self, response: str) -> Optional[Dict[str, str]]:
+        """Parse la réponse titre + description"""
+        try:
+            # Nettoyer la réponse
+            cleaned = self._clean_llm_response(response)
+            parsed = json.loads(cleaned)
+            
+            if isinstance(parsed, dict) and 'title' in parsed and 'description' in parsed:
+                return {
+                    'title': parsed['title'].strip(),
+                    'description': parsed['description'].strip()
+                }
+        except Exception as e:
+            print(f"⚠️ Erreur parsing titre/description: {e}")
+        return None
+    
+    def _parse_hashtags(self, response: str) -> Optional[List[str]]:
+        """Parse la réponse hashtags"""
+        try:
+            # Nettoyer la réponse
+            cleaned = self._clean_llm_response(response)
+            parsed = json.loads(cleaned)
+            
+            if isinstance(parsed, dict) and 'hashtags' in parsed:
+                hashtags = parsed['hashtags']
+                if isinstance(hashtags, list):
+                    # Nettoyer et valider les hashtags
+                    clean_hashtags = []
+                    for tag in hashtags:
+                        if isinstance(tag, str):
+                            tag = tag.strip()
+                            if not tag.startswith('#'):
+                                tag = '#' + tag
+                            clean_hashtags.append(tag)
+                    return clean_hashtags[:15]  # Limiter à 15 max
+        except Exception as e:
+            print(f"⚠️ Erreur parsing hashtags: {e}")
+        return None
+    
+    def _clean_llm_response(self, response: str) -> str:
+        """Nettoie la réponse LLM pour extraire le JSON"""
+        try:
+            # Supprimer les marqueurs de code
+            response = response.replace('```json', '').replace('```', '').strip()
+            
+            # Chercher le premier { et le dernier }
+            start = response.find('{')
+            end = response.rfind('}')
+            
+            if start != -1 and end != -1 and end > start:
+                return response[start:end+1]
+            
+            return response
+            
+        except Exception:
+            return response
+    
+    def _generate_fallback_metadata(self, transcript: str, error_reason: str = "Unknown") -> Dict[str, Any]:
+        """Génère des métadonnées de fallback virales"""
+        
+        # Analyse simple du transcript pour générer du contenu pertinent
+        words = transcript.lower().split()
+        
+        # Mots communs à ignorer
+        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'her', 'its', 'our', 'their'}
+        
+        # Extraire les mots pertinents
+        relevant_words = []
+        for word in words:
+            word = word.strip('.,!?";:')
+            if len(word) > 3 and word not in common_words:
+                relevant_words.append(word)
+        
+        # Prendre les mots les plus fréquents
+        from collections import Counter
+        word_counts = Counter(relevant_words)
+        top_words = [word for word, _ in word_counts.most_common(5)]
+        
+        # Générer un titre viral de fallback
+        if top_words:
+            main_topic = top_words[0].title()
+            title = f"🔥 {main_topic} Secrets That Will BLOW Your Mind!"
+        else:
+            title = "🔥 Amazing Content - You Won't BELIEVE This!"
+        
+        # Générer une description virale
+        description = f"You won't BELIEVE what happens next! Watch NOW to discover the truth about {top_words[0] if top_words else 'success'}! 🔥"
+        
+        # Hashtags viraux de fallback
+        hashtags = ['#fyp', '#viral', '#trending', '#foryou', '#explore', '#shorts', '#reels', '#tiktok', '#content', '#video', '#fypage']
+        
+        print(f"🔄 [FALLBACK] Métadonnées virales générées par fallback")
+        
+        return {
+            'success': True,
+            'title': title,
+            'description': description,
+            'hashtags': hashtags,
+            'processing_time': 0.1,
+            'model_used': 'fallback_system',
+            'fallback_reason': error_reason
+        }
+
+def create_llm_metadata_generator(model: str = "gemma3:4b") -> LLMMetadataGenerator:
+    """Factory pour créer un générateur de métadonnées LLM"""
+    return LLMMetadataGenerator(model=model) 

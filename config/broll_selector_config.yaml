@@ -1,0 +1,57 @@
+# Configuration du Sélecteur B-roll Générique
+# Configuration par défaut pour n'importe quel domaine
+
+# Poids du scoring mixte
+weights:
+  embedding: 0.4      # Similarité sémantique (embeddings)
+  token: 0.2          # Overlap lexical (tokens)
+  domain: 0.15        # Correspondance domaine
+  freshness: 0.1      # Fraîcheur des assets
+  quality: 0.1        # Qualité technique
+  diversity: 0.05     # Pénalité diversité
+
+# Seuils de sélection
+thresholds:
+  global_min: 0.15           # Score minimum absolu (réduit de 0.45 à 0.15)
+  relative_factor: 0.6       # Facteur relatif au top score
+  min_delay_seconds: 4.0     # Délai minimum entre B-rolls
+
+# Paramètres de fraîcheur
+freshness_half_life_days: 60  # Demi-vie pour le calcul de fraîcheur
+
+# Paramètres de sélection
+desired_broll_count: 6        # Nombre de B-rolls souhaités par vidéo (augmenté de 3 à 6)
+max_candidates: 200           # Nombre maximum de candidats à évaluer
+
+# Configuration des fallbacks
+fallback:
+  tier_a_expansion_factor: 2.0    # Expansion forte pour Tier A
+  tier_b_safe_tags:               # Tags sûrs pour Tier B
+    - people
+    - family
+    - walking
+    - talking
+    - working
+    - thinking
+    - emotion
+    - gesture
+  tier_c_neutral_tags:            # Tags neutres pour Tier C
+    - landscape
+    - texture
+    - abstract
+    - nature
+    - city
+    - architecture
+
+# Logging et diagnostics
+logging:
+  level: INFO
+  save_reports: true
+  reports_directory: "output/reports"
+  save_detailed_logs: true
+
+# Intégration avec le pipeline existant
+integration:
+  preserve_existing_logic: true
+  fallback_to_legacy: true
+  compatibility_mode: true 

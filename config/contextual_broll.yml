@@ -1,0 +1,40 @@
+# Configuration par défaut pour la génération de B-rolls contextuels
+
+broll:
+  context_analysis:
+    sentence_window: 2
+    min_confidence: 0.6
+    emotion_detection: true
+    keywords_boost: 1.5
+
+  relevance_scoring:
+    weights:
+      text_match: 0.45
+      visual_quality: 0.35
+      quality: 0.15
+      diversity_penalty: 0.05
+    min_score: 0.60
+
+  sources:
+    providers:
+      - name: pexels
+        enabled: true
+      - name: pixabay
+        enabled: true
+      - name: archive_org
+        enabled: true
+    parallel_requests: true
+    max_results_per_provider: 12
+
+meta_generation:
+  enabled: true
+  hashtags_count: 12
+  output_dir: "./meta"
+  format: json
+
+llm:
+  provider: ollama
+  base_url: http://localhost:11434
+  model: mistral:7b-instruct
+  temperature: 0.7
+  max_tokens: 512 

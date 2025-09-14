@@ -1,0 +1,41 @@
+﻿# Configuration LLM pour le pipeline vidéo
+# Modèle recommandé: Gemma 3 4B (optimisé pour RTX 2050 4GB VRAM)
+
+llm:
+  # Modèle principal - Gemma 3 4B quantifié
+  model: "gemma3:4b"
+  
+  # Modèle de fallback
+  fallback_model: "gemma3:4b"
+  
+  # Configuration des requêtes
+  request_timeout: 120       # Timeout optimisé pour Gemma 3 4B
+  max_tokens: 1500          # Réduit pour éviter les réponses trop longues
+  max_memory_gb: 4          # Optimisé pour 4GB VRAM
+  
+  # Paramètres de génération optimisés pour Gemma 3 4B
+  temperature: 0.1          # Température basse pour plus de cohérence
+  top_p: 0.8               # Top-p réduit pour plus de précision
+  top_k: 20                # Top-k réduit pour éviter les réponses verbeuses
+  repeat_penalty: 1.05     # Pénalité légère pour éviter la répétition
+  
+  # Prompts
+  max_prompt_length: 1500   # Longueur optimisée pour Gemma 3 4B
+  json_mode: true
+  system_prompt: ""
+  
+  # Fallback et gestion d'erreur
+  enable_fallback: true
+  max_retries: 2
+  retry_delay: 2
+
+  # Monitoring et debug
+  enable_logging: true
+  log_level: "INFO"
+  performance_monitoring: true
+  
+  # Clés utilisées par temp_function
+  json_retry_attempts: 3
+  log_prompt: true
+  log_response_time: true
+  log_response_size: true

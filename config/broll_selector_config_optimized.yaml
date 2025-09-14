@@ -1,0 +1,41 @@
+# Configuration optimisée du sélecteur B-roll
+# Ajustements basés sur l'analyse des performances et retours utilisateur
+
+# 🧠 NOUVEAU: Mode hybride intelligent (décision automatique)
+direct_api_mode: false  # DÉSACTIVÉ → Décision intelligente automatique
+smart_hybrid_mode: true # Mode hybride : direct pour concepts concrets, sélection pour abstraits
+direct_api_limit: 5     # Nombre de B-rolls à prendre directement
+smart_crop_mode: true   # Recadrage intelligent pour format 9:16
+
+# Seuils de performance
+thresholds:
+  min_score: 0.3                # Seuil minimum pour accepter un B-roll
+  min_delay_seconds: 1.5        # RÉDUIT: 2.0s → 1.5s pour plus de B-rolls
+  quality_threshold: 0.5        # Seuil de qualité minimum
+
+# Paramètres de sélection
+desired_broll_count: 6  # OPTIMISÉ: 7→6 pour gain performance          # RÉDUIT: 7 → 5 pour équilibre optimal
+max_candidates: 50              # Nombre maximum de candidats à évaluer
+
+# Poids pour le scoring (mode sélection intelligente)
+scoring_weights:
+  embedding: 0.4                # Similarité sémantique
+  token: 0.2                    # Correspondance des mots-clés
+  domain: 0.15                  # Correspondance du domaine
+  freshness: 0.1                # Fraîcheur des assets
+  quality: 0.1                  # Qualité technique
+  diversity: 0.05               # Diversité des sources
+
+# Fallback et robustesse
+enable_fallback: true
+fallback_tiers:
+  - "high_quality"
+  - "medium_quality" 
+  - "any_available"
+
+# Gestion de la diversité
+diversity_penalty_factor: 0.1   # Pénalité pour réduire la duplication
+
+# Paramètres techniques
+freshness_half_life_days: 90    # Demi-vie pour le calcul de fraîcheur
+enable_experimental_features: false 
