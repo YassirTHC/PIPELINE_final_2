@@ -1829,8 +1829,8 @@ class VideoProcessor:
                 for kw in llm_broll_keywords[:8]:  # Limiter à 8 mots-clés principaux
                     enhanced_prompts.append(kw)
                     # Créer des combinaisons avec le thème principal
-                    if 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
-                        enhanced_prompts.append(f"{global_analysis.main_theme} {kw}")
+                    if 'global_analysis' in globals() and 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
+                        enhanced_prompts.append(f"{getattr(global_analysis, 'main_theme', 'general')} {kw}")
                 
                 # Ajouter les prompts existants
                 enhanced_prompts.extend(prompts)
@@ -2019,19 +2019,35 @@ class VideoProcessor:
                 kw_pool: list[str] = []
                 
                 # 🧠 PRIORITÉ 1: Mots-clés LLM si disponibles
-                if 'broll_keywords' in locals() and broll_keywords:
-                    print(f"    🚀 Utilisation des mots-clés LLM pour le fetch: {len(broll_keywords)} termes")
-                    # Ajouter TOUS les mots-clés LLM en priorité
-                    for kw in broll_keywords:
-                        low = (kw or '').strip().lower()
-                        if low and len(low) >= 3:
-                            kw_pool.append(low)
-                            # Ajouter des variations pour enrichir
-                            if ' ' in low:  # Mots composés
-                                parts = low.split()
-                                kw_pool.extend(parts)
+                if broll_keywords:
+                    try:
+                        if not isinstance(broll_keywords, (list, tuple)):
+                            print(f"    ❌ Format invalide broll_keywords: {type(broll_keywords)}")
+                            broll_keywords = []
+                        else:
+                            # Normalisation/filtrage
+                            broll_keywords = [
+                                (kw.strip() if isinstance(kw, str) else "")
+                                for kw in broll_keywords
+                                if isinstance(kw, str) and kw and kw.strip()
+                            ]
+                    except (TypeError, AttributeError):
+                        broll_keywords = []
                     
-                    print(f"    🎯 Mots-clés LLM ajoutés: {', '.join(broll_keywords[:8])}")
+                    if broll_keywords:
+                        print(f"    🚀 Utilisation des mots-clés LLM pour le fetch: {len(broll_keywords)} termes")
+                        # Ajouter TOUS les mots-clés LLM en priorité
+                        for kw in broll_keywords:
+                            low = (kw or '').strip().lower()
+                            if low and len(low) >= 3:
+                                kw_pool.append(low)
+                                # Ajouter des variations pour enrichir
+                                if ' ' in low:  # Mots composés
+                                    parts = low.split()
+                                    kw_pool.extend(parts)
+                        print(f"    🎯 Mots-clés LLM ajoutés: {', '.join(broll_keywords[:8])}")
+                    else:
+                        print("    ⚠️ Mots-clés LLM indisponibles après validation, fallback basique")
                 
                 # 🔄 PRIORITÉ 2: Extraction des mots-clés du transcript
                 for s in subtitles:
@@ -2212,8 +2228,29 @@ class VideoProcessor:
                         print("    📊 Configuration optimisée: 25 assets max + images activées (Archive.org)")
                 except Exception:
                     pass
-                # Déclencher le fetch dans le dossier unique du clip
-                ensure_assets_for_keywords(cfg, top_kws)
+                
+                # Déclencher le fetch par mot-clé avec limites dynamiques (5 générique, 8 spécifique)
+                def _is_generic_fetch_keyword(kw: str) -> bool:
+                    if not isinstance(kw, str):
+                        return True
+                    k = kw.strip().lower()
+                    # Expressions multi-mots = spécifiques
+                    if ' ' in k:
+                        return False
+                    GENERIC_SIMPLE = {
+                        'people','person','start','thing','stuff','your','once','figure',
+                        'they','them','this','that','what','when','where','how','any','some'
+                    }
+                    return (k in GENERIC_SIMPLE) or (len(k) <= 6)
+                
+                for _kw in top_kws:
+                    per_kw_limit = 5 if _is_generic_fetch_keyword(_kw) else 8
+                    try:
+                        setattr(cfg, 'fetch_max_per_keyword', per_kw_limit)
+                        print(f"    🔧 Limite par mot-clé '{_kw}': {per_kw_limit} assets")
+                    except Exception:
+                        pass
+                    ensure_assets_for_keywords(cfg, [_kw])
                 
                 # 🚨 CORRECTION CRITIQUE: SYSTÈME D'UNICITÉ DES B-ROLLS
                 # Éviter la duplication des B-rolls entre vidéos différentes

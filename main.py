@@ -550,11 +550,27 @@ def main():
 			transcription_time = time.time() - transcription_start
 			print(f"    ✅ {len(subtitles)} segments de sous-titres générés ({transcription_time:.1f}s)", flush=True)
 			
+			print(f"🧠 Étape 2.5/4: Génération des métadonnées et mots-clés B-roll...", flush=True)
+			metadata_start = time.time()
+			
+			# 🚀 CORRECTION PRINCIPALE: Générer les mots-clés LLM
+			title, description, hashtags, broll_keywords = processor.generate_caption_and_hashtags(subtitles)
+			
+			# Validation des mots-clés LLM
+			if not broll_keywords:
+				print(f"    ⚠️ LLM n'a pas généré de mots-clés, fallback activé", flush=True)
+			else:
+				print(f"    ✅ {len(broll_keywords)} mots-clés B-roll LLM générés", flush=True)
+				print(f"    🎯 Exemples: {', '.join(broll_keywords[:5])}...", flush=True)
+			
+			metadata_time = time.time() - metadata_start
+			print(f"    ✅ Métadonnées générées ({metadata_time:.1f}s)", flush=True)
+			
 			print(f"🎞️ Étape 3/4: Insertion des B-rolls (activée)...", flush=True)
 			broll_start = time.time()
 			
-			# B-rolls avec monitoring temps réel
-			broll_path = processor.insert_brolls_if_enabled(reframed_path, subtitles, [])
+			# B-rolls avec les mots-clés LLM (CORRIGÉ)
+			broll_path = processor.insert_brolls_if_enabled(reframed_path, subtitles, broll_keywords)
 			broll_time = time.time() - broll_start
 			print(f"    ✅ B-roll insérés avec succès ({broll_time:.1f}s)", flush=True)
 			
@@ -570,7 +586,7 @@ def main():
 			print(f"    ✅ Sous-titres Hormozi ajoutés : {final_path} ({subtitles_time:.1f}s)", flush=True)
 			
 			total_time = time.time() - start_time
-			print(f"  📤 Export terminé: final_{video_path.stem}.mp4", flush=True)
+			print(f"  Export terminé: final_{video_path.stem}.mp4", flush=True)
 			print(f"✅ Clip {video_path.name} traité avec succès (TOTAL: {total_time:.1f}s)", flush=True)
 			print(f"📊 Détail: Reframe {reframe_time:.1f}s | Transcription {transcription_time:.1f}s | B-roll {broll_time:.1f}s | Sous-titres {subtitles_time:.1f}s", flush=True)
 		except Exception as e:
