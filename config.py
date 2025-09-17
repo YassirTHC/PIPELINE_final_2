@@ -23,6 +23,8 @@ class Config:
     # Options
     USE_HARDLINKS = True
     ENABLE_BROLL = True
+    ENABLE_PIPELINE_CORE_FETCHER = False
+
 
 
 
@@ -232,3 +234,5 @@ class BrollConfig:
         self.enable_crossfade = kwargs.get('enable_crossfade', True)
         self.crossfade_duration_s = kwargs.get('crossfade_duration_s', 0.2)
         self.occlude_main_under_broll = kwargs.get('occlude_main_under_broll', True)
+
+

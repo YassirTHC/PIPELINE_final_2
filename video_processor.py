@@ -1,8 +1,22 @@
 import sys
+from pathlib import Path
+
+# ensure project-root is first
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(1, str(PROJECT_ROOT / 'AI-B-roll'))
+sys.path.insert(2, str(PROJECT_ROOT / 'AI-B-roll' / 'src'))
+
+if 'utils' in sys.modules:
+    del sys.modules['utils']
+
 import logging
+import concurrent.futures
+import subprocess
+import shlex
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Sequence, Set
 import gc
 
 # 🚀 NOUVEAU: Configuration des logs temps réel + suppression warnings non-critiques
@@ -28,21 +42,123 @@ def print_realtime(message):
     print(message, flush=True)
     logger.info(message)
 
+SEEN_URLS: Set[str] = set()
+SEEN_PHASHES: List[int] = []
+PHASH_DISTANCE = 6
+
+
+def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
+    if timeout_s <= 0:
+        return fn(*args, **kwargs)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(fn, *args, **kwargs)
+        try:
+            return future.result(timeout=timeout_s)
+        except concurrent.futures.TimeoutError:
+            return None
+
+
+def dedupe_by_url(candidates):
+    unique = []
+    hits = 0
+    for candidate in candidates or []:
+        url = getattr(candidate, 'url', None)
+        if url and url in SEEN_URLS:
+            hits += 1
+            continue
+        unique.append(candidate)
+    return unique, hits
+
+
+def dedupe_by_phash(candidates):
+    unique = []
+    hits = 0
+    for candidate in candidates or []:
+        preview = getattr(candidate, 'thumb_url', None)
+        media_url = getattr(candidate, 'url', None)
+        phash = compute_phash(preview, media_url=media_url)
+        if phash is None:
+            unique.append(candidate)
+            continue
+        if any(hamming_distance(phash, seen) <= PHASH_DISTANCE for seen in SEEN_PHASHES):
+            hits += 1
+            continue
+        setattr(candidate, '_phash', phash)
+        unique.append(candidate)
+    return unique, hits
+
+
+def _try_overlay_http_direct(broll_url: str, t0: float, t1: float, render_cfg, base_cmd: list[str]) -> bool:
+    duration = max(0.1, float(t1 - t0))
+    cmd = base_cmd + [
+        '-ss', f"{max(0.0, t0):.3f}",
+        '-to', f"{max(0.0, t0 + duration):.3f}",
+        '-i', broll_url,
+    ]
+    try:
+        proc = subprocess.run(cmd, check=True)
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+
+def _overlay_via_pipe(broll_url: str, t0: float, t1: float, render_cfg, base_cmd: list[str]) -> bool:
+    duration = max(0.1, float(t1 - t0))
+    extract_cmd = f'ffmpeg -hide_banner -loglevel error -ss {t0:.3f} -i "{broll_url}" -t {duration:.3f} -an -c:v libx264 -preset veryfast -f mpegts -'
+    try:
+        extractor = subprocess.Popen(shlex.split(extract_cmd), stdout=subprocess.PIPE)
+    except Exception:
+        return False
+
+    try:
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix='.ts', delete=False) as tmp:
+            tmp_path = tmp.name
+            while True:
+                chunk = extractor.stdout.read(65536)
+                if not chunk:
+                    break
+                tmp.write(chunk)
+        extractor.wait(timeout=30)
+        cmd = base_cmd + ['-i', tmp_path]
+        try:
+            proc = subprocess.run(cmd, check=True)
+            return proc.returncode == 0
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+    except Exception:
+        try:
+            extractor.kill()
+        except Exception:
+            pass
+    return False
+
+
+def overlay_http_or_pipe(broll_url: str, t0: float, t1: float, render_cfg, base_cmd: list[str]) -> bool:
+    if _try_overlay_http_direct(broll_url, t0, t1, render_cfg, base_cmd):
+        return True
+    return _overlay_via_pipe(broll_url, t0, t1, render_cfg, base_cmd)
+
+
 import os
 import json
-import subprocess
-import logging
 import random
 import numpy as np
 import shutil
-import time  # NEW: pour timestamps uniques
 from datetime import datetime  # NEW: pour métadonnées intelligentes
 from temp_function import _llm_generate_caption_hashtags_fixed
-from pathlib import Path
-from typing import List, Dict, Optional
 import whisper
 import requests
 import cv2
+
+from pipeline_core.configuration import PipelineConfigBundle
+from pipeline_core.fetchers import FetcherOrchestrator
+from pipeline_core.dedupe import compute_phash, hamming_distance
+from pipeline_core.logging import JsonlLogger, log_broll_decision
+from pipeline_core.llm_service import LLMMetadataGeneratorService
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
@@ -492,6 +608,8 @@ def generate_broll_prompts_ai(keyword_analysis: Dict) -> List[Dict]:
         return ['general content', 'people working', 'modern technology']
 
 class VideoProcessor:
+    _shared_llm_service = None
+
     """Classe principale pour traiter les vidéos"""
     
     def __init__(self):
@@ -499,1099 +617,223 @@ class VideoProcessor:
         self._setup_directories()
         # Cache éventuel pour spaCy
         self._spacy_model = None
-    
-    def _setup_directories(self):
-        """Crée les dossiers nécessaires"""
-        for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
-            folder.mkdir(exist_ok=True)
-    
-    def _generate_unique_output_dir(self, clip_stem: str) -> Path:
-        """Crée un dossier unique pour ce clip sous output/clips/<stem>[-NNN]"""
-        root = Config.OUTPUT_FOLDER / 'clips'
-        root.mkdir(parents=True, exist_ok=True)
-        base = root / clip_stem
-        if not base.exists():
-            base.mkdir(parents=True, exist_ok=True)
-            return base
-        # Trouver suffixe -001, -002, ...
-        for i in range(1, 1000):
-            candidate = root / f"{clip_stem}-{i:03d}"
-            if not candidate.exists():
-                candidate.mkdir(parents=True, exist_ok=True)
-                return candidate
-        # Fallback timestamp
-        from datetime import datetime
-        ts = datetime.now().strftime('%Y%m%d-%H%M%S')
-        cand = root / f"{clip_stem}-{ts}"
-        cand.mkdir(parents=True, exist_ok=True)
-        return cand
-    
-    def _safe_copy(self, src: Path, dst: Path) -> None:
-        try:
-            if src and Path(src).exists():
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(src), str(dst))
-        except Exception:
-            pass
 
-    def _hardlink_or_copy(self, src: Path, dst: Path) -> None:
-        """Crée un hardlink si possible, sinon copie le fichier."""
-        try:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            if getattr(Config, 'USE_HARDLINKS', True):
-                os.link(str(src), str(dst))
-            else:
-                shutil.copy2(str(src), str(dst))
-        except Exception:
+        if VideoProcessor._shared_llm_service is None:
             try:
-                shutil.copy2(str(src), str(dst))
+                VideoProcessor._shared_llm_service = LLMMetadataGeneratorService()
+            except Exception as exc:
+                logger.warning("LLM service initialisation failed: %s", exc)
+        self._llm_service = VideoProcessor._shared_llm_service
+        self._pipeline_config = PipelineConfigBundle()
+        self._broll_event_logger = None
+
+
+
+def _setup_directories(self):
+    for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
+        folder.mkdir(parents=True, exist_ok=True)
+
+def _get_broll_event_logger(self):
+    if self._broll_event_logger is None:
+        log_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_pipeline_events.jsonl'
+        self._broll_event_logger = JsonlLogger(log_file)
+    return self._broll_event_logger
+
+def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> None:
+    global SEEN_URLS, SEEN_PHASHES
+    SEEN_URLS.clear()
+    SEEN_PHASHES.clear()
+    logger.info("[BROLL] pipeline_core orchestrator engaged")
+    config_bundle = self._pipeline_config
+    orchestrator = FetcherOrchestrator(config_bundle.fetcher)
+    selection_cfg = config_bundle.selection
+    timeboxing_cfg = config_bundle.timeboxing
+    event_logger = self._get_broll_event_logger()
+
+    fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
+
+    for idx, segment in enumerate(segments):
+        seg_duration = max(0.0, segment.end - segment.start)
+        llm_hints = None
+        llm_healthy = True
+        if getattr(self, '_llm_service', None):
+            try:
+                llm_hints = self._llm_service.generate_hints_for_segment(segment.text, segment.start, segment.end)
             except Exception:
-                pass
- 
-    def _unique_path(self, directory: Path, base_name: str, extension: str) -> Path:
-        """Retourne un chemin unique dans directory en ajoutant -NNN si collision."""
-        directory.mkdir(parents=True, exist_ok=True)
-        candidate = directory / f"{base_name}{extension}"
-        if not candidate.exists():
-            return candidate
-        for i in range(1, 1000):
-            alt = directory / f"{base_name}-{i:03d}{extension}"
-            if not alt.exists():
-                return alt
-        from datetime import datetime
-        ts = datetime.now().strftime('%Y%m%d-%H%M%S')
-        return directory / f"{base_name}-{ts}{extension}"
-    
-    def _cleanup_files(self, paths: List[Path]) -> None:
-        for p in paths:
-            try:
-                if p and Path(p).exists():
-                    Path(p).unlink()
-            except Exception:
-                pass
- 
-    def _purge_broll_caches(self) -> None:
-        try:
-            broll_lib = Path('AI-B-roll') / 'broll_library'
-            broll_cache = Path('AI-B-roll') / '.cache'
-            if broll_lib.exists():
-                for item in broll_lib.glob('*'):
-                    try:
-                        if item.is_dir():
-                            # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                            safe_remove_tree(item)
-                        else:
-                            item.unlink(missing_ok=True)
-                    except Exception:
-                        pass
-            if broll_cache.exists():
-                # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                safe_remove_tree(broll_cache)
-        except Exception:
-            pass
+                llm_hints = None
+                llm_healthy = False
 
-    def _cleanup_broll_duplicates(self) -> None:
-        """Nettoie les doublons B-roll avec timestamp pour économiser l'espace"""
-        try:
-            broll_lib = Path('AI-B-roll') / 'broll_library'
-            if not broll_lib.exists():
-                return
-            
-            print("🧹 Nettoyage automatique des doublons B-roll...")
-            
-            # Grouper les dossiers par nom de clip
-            clip_groups = {}
-            for folder in broll_lib.iterdir():
-                if folder.is_dir() and folder.name.startswith('clip_'):
-                    # Extraire le nom du clip de base
-                    parts = folder.name.split('_')
-                    if len(parts) >= 2:
-                        # Si le dernier élément est un timestamp (nombre), on l'ignore
-                        if parts[-1].isdigit() and len(parts) >= 3:
-                            clip_base = '_'.join(parts[1:-1])
-                        else:
-                            clip_base = '_'.join(parts[1:])
-                        
-                        if clip_base not in clip_groups:
-                            clip_groups[clip_base] = []
-                        clip_groups[clip_base].append(folder)
-            
-            # Nettoyer les doublons (garder le plus récent)
-            cleaned_size = 0.0
-            for clip_base, folders in clip_groups.items():
-                if len(folders) > 1:
-                    # Trier par date de modification (plus récent d'abord)
-                    folders.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-                    
-                    # Garder le premier (plus récent), supprimer les autres
-                    keep_folder = folders[0]
-                    remove_folders = folders[1:]
-                    
-                    print(f"    🔄 Clip '{clip_base}': gardé {keep_folder.name}, suppression de {len(remove_folders)} doublons")
-                    
-                    for folder in remove_folders:
-                        try:
-                            # Calculer la taille avant suppression
-                            folder_size = sum(f.stat().st_size for f in folder.rglob('*') if f.is_file()) / (1024**3)
-                            # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                            if safe_remove_tree(folder):
-                                cleaned_size += folder_size
-                                print(f"      ✅ Supprimé {folder.name} ({folder_size:.2f} GB)")
-                            else:
-                                print(f"      ⚠️ Suppression partielle {folder.name}")
-                        except Exception as e:
-                            print(f"      ❌ Erreur suppression {folder.name}: {e}")
-            
-            if cleaned_size > 0:
-                print(f"    💾 Espace libéré: {cleaned_size:.2f} GB")
-            else:
-                print(f"    ✅ Aucun doublon trouvé")
-        
-        except Exception as e:
-            print(f"⚠️ Erreur nettoyage doublons: {e}")
+        segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
+        queries: List[str] = []
+        if llm_hints and isinstance(llm_hints.get('queries'), list):
+            queries = [q.strip() for q in llm_hints['queries'] if isinstance(q, str) and q.strip()]
+        if not queries:
+            queries = segment_keywords[:4]
+        if not queries:
+            log_broll_decision(
+                event_logger,
+                segment_idx=idx,
+                start=segment.start,
+                end=segment.end,
+                query_count=0,
+                candidate_count=0,
+                unique_candidates=0,
+                url_dedup_hits=0,
+                phash_dedup_hits=0,
+                selected_url=None,
+                selected_score=None,
+                provider=None,
+                latency_ms=0,
+                llm_healthy=llm_healthy,
+                reject_reasons=['no_keywords'],
+            )
+            continue
 
-    def _cleanup_all_temp_broll(self) -> None:
-        """Nettoie tous les dossiers B-roll temporaires (temp_clip_*)"""
-        try:
-            broll_lib = Path('AI-B-roll') / 'broll_library'
-            if not broll_lib.exists():
-                return
-            
-            # Chercher tous les dossiers temporaires
-            temp_folders = []
-            for folder in broll_lib.iterdir():
-                if folder.is_dir() and folder.name.startswith('temp_clip_'):
-                    temp_folders.append(folder)
-            
-            if not temp_folders:
-                print("    ✅ Aucun cache temporaire à nettoyer")
-                return
-            
-            total_size = 0.0
-            for folder in temp_folders:
-                try:
-                    # Calculer la taille
-                    folder_size = sum(f.stat().st_size for f in folder.rglob('*') if f.is_file()) / (1024**2)  # MB
-                    total_size += folder_size
-                    
-                    # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                    if safe_remove_tree(folder):
-                        print(f"    🗑️ Supprimé: {folder.name} ({folder_size:.1f} MB)")
-                    else:
-                        print(f"    ⚠️ Suppression partielle: {folder.name}")
-                except Exception as e:
-                    print(f"    ❌ Erreur suppression {folder.name}: {e}")
-            
-            print(f"    💾 Total libéré: {total_size:.1f} MB")
-            
-        except Exception as e:
-            print(f"⚠️ Erreur nettoyage fichiers temporaires: {e}")
+        filters = {}
+        if llm_hints and isinstance(llm_hints.get('filters'), dict):
+            filters = llm_hints['filters'] or {}
 
-    # 🚨 CORRECTION CRITIQUE: Méthodes manquantes pour le sélecteur B-roll
-    def _load_broll_selector_config(self):
-        """Charge la configuration du sélecteur B-roll depuis le fichier YAML"""
-        try:
-            import yaml
-            if Config.BROLL_SELECTOR_CONFIG_PATH.exists():
-                with open(Config.BROLL_SELECTOR_CONFIG_PATH, 'r', encoding='utf-8') as f:
-                    return yaml.safe_load(f) or {}
-            else:
-                print(f"    ⚠️ Fichier de configuration introuvable: {Config.BROLL_SELECTOR_CONFIG_PATH}")
-                return {}
-        except Exception as e:
-            print(f"    ⚠️ Erreur chargement configuration: {e}")
-            return {}
+        start_time = time.perf_counter()
 
-    def _calculate_asset_hash(self, asset_path: Path) -> str:
-        """Calcule un hash unique pour un asset B-roll basé sur son contenu et métadonnées"""
-        try:
-            import hashlib
-            import os
-            from datetime import datetime
-            
-            # Hash basé sur le nom, la taille et la date de modification
-            stat = asset_path.stat()
-            hash_data = f"{asset_path.name}_{stat.st_size}_{stat.st_mtime}"
-            return hashlib.md5(hash_data.encode()).hexdigest()
-        except Exception:
-            # Fallback sur le nom du fichier
-            return str(asset_path.name)
+        def _do_fetch():
+            return orchestrator.fetch_candidates(
+                queries,
+                duration_hint=seg_duration,
+                filters=filters,
+            )
 
-    def _extract_keywords_for_segment_spacy(self, text: str) -> List[str]:
-        """Extraction optionnelle (spaCy) de mots-clés (noms/verbes/entités). Fallback heuristique si indisponible."""
-        try:
-            import re as _re
-            
-            # 🚨 CORRECTION IMMÉDIATE: Filtre des mots génériques inutiles
-            GENERIC_WORDS = {
-                'very', 'much', 'many', 'some', 'any', 'all', 'each', 'every', 'few', 'several',
-                'reflexes', 'speed', 'clear', 'good', 'bad', 'big', 'small', 'new', 'old', 'high', 'low',
-                'fast', 'slow', 'hard', 'easy', 'strong', 'weak', 'hot', 'cold', 'warm', 'cool',
-                'right', 'wrong', 'true', 'false', 'yes', 'no', 'maybe', 'perhaps', 'probably',
-                'thing', 'stuff', 'way', 'time', 'place', 'person', 'people', 'man', 'woman', 'child',
-                'work', 'make', 'do', 'get', 'go', 'come', 'see', 'look', 'hear', 'feel', 'think',
-                'know', 'want', 'need', 'like', 'love', 'hate', 'hope', 'wish', 'try', 'help'
-            }
-            
-            if self._spacy_model is None:
-                try:
-                    import spacy as _spacy
-                    for _model in ['en_core_web_sm', 'fr_core_news_sm', 'xx_ent_wiki_sm']:
-                        try:
-                            self._spacy_model = _spacy.load(_model, disable=['parser','lemmatizer'])
-                            break
-                        except Exception:
-                            continue
-                    if self._spacy_model is None:
-                        self._spacy_model = _spacy.blank('en')
-                except Exception:
-                    self._spacy_model = None
-            doc = None
-            if self._spacy_model is not None:
-                try:
-                    doc = self._spacy_model(text)
-                except Exception:
-                    doc = None
-            keywords: List[str] = []
-            if doc is not None and hasattr(doc, 'ents'):
-                for ent in doc.ents:
-                    val = ent.text.strip()
-                    if len(val) >= 3 and val.lower() not in keywords and val.lower() not in GENERIC_WORDS:
-                        keywords.append(val.lower())
-            # POS si dispo
-            if doc is not None and getattr(doc, 'has_annotation', lambda *_: False)('TAG'):
-                for tok in doc:
-                    if tok.pos_ in ('NOUN','PROPN','VERB') and len(tok.text) >= 3:
-                        lemma = (tok.lemma_ or tok.text).lower()
-                        if lemma not in keywords and lemma not in GENERIC_WORDS:
-                            keywords.append(lemma)
-            # Fallback heuristique simple avec filtre
-            if not keywords:
-                for w in _re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']{4,}", text or ""):
-                    lw = w.lower()
-                    if lw not in keywords and lw not in GENERIC_WORDS:
-                        keywords.append(lw)
-            
-            # 🚨 CORRECTION IMMÉDIATE: Prioriser les mots contextuels importants
-            PRIORITY_WORDS = {
-                'neuroscience', 'brain', 'mind', 'consciousness', 'cognitive', 'mental', 'psychology',
-                'medical', 'health', 'treatment', 'research', 'science', 'discovery', 'innovation',
-                'technology', 'digital', 'future', 'ai', 'artificial', 'intelligence', 'machine',
-                'business', 'success', 'growth', 'strategy', 'leadership', 'entrepreneur', 'startup'
-            }
-            
-            # Réorganiser pour prioriser les mots importants
-            priority_keywords = [kw for kw in keywords if kw in PRIORITY_WORDS]
-            other_keywords = [kw for kw in keywords if kw not in PRIORITY_WORDS]
-            
-            # Retourner d'abord les mots prioritaires, puis les autres
-            final_keywords = priority_keywords + other_keywords
-            return final_keywords[:12]
-        except Exception:
-            return []
+        candidates = run_with_timeout(_do_fetch, fetch_timeout) if fetch_timeout else _do_fetch()
+        if candidates is None:
+            candidates = []
 
-    def process_all_clips(self, input_video_path: str):
-        """Pipeline principal de traitement"""
-        logger.info("🚀 Début du pipeline de traitement")
-        print("🎬 Démarrage du pipeline de traitement...")
-        
-        # Étape 1: Découpage (votre IA existante)
-        
-        # Étape 2: Traitement de chaque clip
-        clip_files = list(Config.CLIPS_FOLDER.glob("*.mp4"))
-        total_clips = len(clip_files)
-        
-        print(f"📁 {total_clips} clips trouvés dans le dossier clips/")
-        
-        for i, clip_path in enumerate(clip_files):
-            print(f"\n🎬 [{i+1}/{total_clips}] Traitement de: {clip_path.name}")
-            logger.info(f"🎬 Traitement du clip {i+1}/{total_clips}: {clip_path.name}")
-            
-            # Skip si déjà traité
-            stem = Path(clip_path).stem
-            final_dir = Config.OUTPUT_FOLDER / 'final'
-            processed_already = False
-            if final_dir.exists():
-                matches = list(final_dir.glob(f"final_{stem}*.mp4"))
-                processed_already = len(matches) > 0
-            if processed_already:
-                print(f"⏩ Clip déjà traité, ignoré : {clip_path.name}")
-                logger.info(f"⏩ Clip déjà traité, ignoré : {clip_path.name}")
+        unique_candidates, url_hits = dedupe_by_url(candidates)
+        unique_candidates, phash_hits = dedupe_by_phash(unique_candidates)
+
+        best_candidate = None
+        best_score = -1.0
+        best_provider = None
+        reject_reasons: List[str] = []
+
+        for candidate in unique_candidates:
+            score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
+            if score < selection_cfg.min_score:
+                reject_reasons.append('low_score')
                 continue
+            if score > best_score:
+                best_candidate = candidate
+                best_score = score
+                best_provider = getattr(candidate, 'provider', None)
 
-            # Verrou concurrentiel par clip
-            locks_dir = Config.OUTPUT_FOLDER / 'locks'
-            locks_dir.mkdir(parents=True, exist_ok=True)
-            lock_file = locks_dir / f"{stem}.lock"
-            if lock_file.exists():
-                print(f"⏭️ Verrou détecté, saut du clip: {clip_path.name}")
-                continue
-            try:
-                lock_file.write_text("locked", encoding='utf-8')
-                self.process_single_clip(clip_path)
-                print(f"✅ Clip {clip_path.name} traité avec succès")
-                logger.info(f"✅ Clip {clip_path.name} traité avec succès")
-            except Exception as e:
-                print(f"❌ Erreur lors du traitement de {clip_path.name}: {e}")
-                logger.error(f"❌ Erreur lors du traitement de {clip_path.name}: {e}")
-            finally:
-                try:
-                    if lock_file.exists():
-                        lock_file.unlink()
-                except Exception:
-                    pass
-        
-        print(f"\n🎉 Pipeline terminé ! {total_clips} clips traités.")
-        logger.info("🎉 Pipeline terminé avec succès")
-        # 🧹 NETTOYAGE AUTOMATIQUE AGRESSIF pour éviter l'accumulation
-        try:
-            # 🚀 NOUVEAU: Nettoyage systématique après chaque session
-            if getattr(Config, 'BROLL_CLEANUP_PER_VIDEO', True):
-                print("🧹 Nettoyage automatique de tous les caches B-roll temporaires...")
-                self._cleanup_all_temp_broll()
-            
-            # Nettoyage traditionnel si activé
-            if getattr(Config, 'BROLL_PURGE_AFTER_RUN', False):
-                self._purge_broll_caches()
-            
-            # Nettoyage des doublons résiduels
-            self._cleanup_broll_duplicates()
-        except Exception as e:
-            print(f"⚠️ Erreur nettoyage automatique: {e}")
-        # Agréger un rapport global même sans --json-report
-        try:
-            final_dir = (Config.OUTPUT_FOLDER / 'final')
-            items = []
-            if final_dir.exists():
-                for jf in final_dir.glob('final_*.json'):
-                    try:
-                        items.append(json.loads(jf.read_text(encoding='utf-8')))
-                    except Exception:
-                        pass
-            report_path = Config.OUTPUT_FOLDER / 'report.json'
-            report_path.write_text(json.dumps({'clips': items}, ensure_ascii=False, indent=2), encoding='utf-8')
-        except Exception:
-            pass
-
-    def cut_viral_clips(self, input_video_path: str):
-        """
-        Interface pour votre IA de découpage existante
-        Remplacez cette méthode par votre implémentation
-        """
-        logger.info("📼 Découpage des clips avec IA...")
-        
-        # Exemple basique - remplacez par votre IA
-        video = VideoFileClip(input_video_path)
-        duration = video.duration
-        
-        # Découpage adaptatif selon la durée
-        if duration <= 30:
-            # Vidéo courte : utiliser toute la vidéo
-            segment_duration = duration
-            segments = 1
+        if best_candidate is None:
+            if not candidates:
+                reject_reasons.append('timeout' if fetch_timeout else 'no_candidates')
+            elif url_hits or phash_hits:
+                reject_reasons.append('deduped')
+            elif not reject_reasons:
+                reject_reasons.append('no_candidates')
         else:
-            # Vidéo longue : découper en segments de 30 secondes
-            segment_duration = 30
-            segments = max(1, int(duration // segment_duration))
-        
-        for i in range(min(segments, 5)):  # Max 5 clips pour test
-            start_time = i * segment_duration
-            end_time = min((i + 1) * segment_duration, duration)
-            
-            clip = video.subclip(start_time, end_time)
-            output_path = Config.CLIPS_FOLDER / f"clip_{i+1:02d}.mp4"
-            clip.write_videofile(str(output_path), verbose=False, logger=None)
-        
-        video.close()
-        logger.info(f"✅ {segments} clips générés")
-    
-    def process_single_clip(self, clip_path: Path):
-        """Traite un clip individuel (reframe -> transcription (pour B-roll) -> B-roll -> sous-titres)"""
-        
-        # Dossier de sortie dédié et unique
-        per_clip_dir = self._generate_unique_output_dir(clip_path.stem)
-        
-        print(f"  📐 Étape 1/4: Reframe dynamique IA...")
-        reframed_path = self.reframe_to_vertical(clip_path)
-        # Déplacer artefact reframed dans le dossier du clip
-        try:
-            dst_reframed = per_clip_dir / 'reframed.mp4'
-            if Path(reframed_path).exists():
-                shutil.move(str(reframed_path), str(dst_reframed))
-            reframed_path = dst_reframed
-        except Exception:
-            pass
-        
-        print(f"  🗣️ Étape 2/4: Transcription Whisper (guide B-roll)...")
-        # Transcrire tôt pour guider la sélection B-roll (SRT disponible)
-        subtitles = self.transcribe_segments(reframed_path)
-        try:
-            # Écrire un SRT à côté de la vidéo reframée
-            srt_reframed = reframed_path.with_suffix('.srt')
-            write_srt(subtitles, srt_reframed)
-            # Sauvegarder transcription segments JSON
-            seg_json = per_clip_dir / f"{clip_path.stem}_segments.json"
-            with open(seg_json, 'w', encoding='utf-8') as f:
-                json.dump(subtitles, f, ensure_ascii=False)
-        except Exception:
-            pass
-        
-        print(f"  🎞️ Étape 3/4: Insertion des B-rolls {'(activée)' if getattr(Config, 'ENABLE_BROLL', False) else '(désactivée)'}...")
-        
-        # 🚀 CORRECTION: Générer les mots-clés LLM AVANT l'insertion des B-rolls
-        broll_keywords = []
-        try:
-            print("    🤖 Génération précoce des mots-clés LLM pour B-rolls...")
-            title, description, hashtags, broll_keywords = self.generate_caption_and_hashtags(subtitles)
-            print(f"    ✅ Mots-clés B-roll LLM générés: {len(broll_keywords)} termes")
-            print(f"    🎯 Exemples: {', '.join(broll_keywords[:5])}")
-        except Exception as e:
-            print(f"    ⚠️ Erreur génération mots-clés LLM: {e}")
-            broll_keywords = []
-        
-        # Maintenant insérer les B-rolls avec les mots-clés LLM disponibles
-        with_broll_path = self.insert_brolls_if_enabled(reframed_path, subtitles, broll_keywords)
-        
-        # Copier artefact with_broll si différent
-        try:
-            if with_broll_path and with_broll_path != reframed_path:
-                self._safe_copy(with_broll_path, per_clip_dir / 'with_broll.mp4')
-        except Exception:
-            pass
-        
-        print(f"  ✨ Étape 4/4: Ajout des sous-titres Hormozi 1...")
-        # Générer meta (titre/hashtags) depuis transcription (déjà fait)
-        try:
-            # Réutiliser les données déjà générées
-            if not broll_keywords:  # Fallback si pas encore généré
-                title, description, hashtags, broll_keywords = self.generate_caption_and_hashtags(subtitles)
-            
-            print(f"  📝 Title: {title}")
-            print(f"  📝 Description: {description}")
-            print(f"  #️⃣ Hashtags: {' '.join(hashtags)}")
-            meta_path = per_clip_dir / 'meta.txt'
-            with open(meta_path, 'w', encoding='utf-8') as f:
-                f.write(
-                    "Title: " + title + "\n\n" +
-                    "Description: " + description + "\n\n" +
-                    "Hashtags: " + ' '.join(hashtags) + "\n\n" +
-                    "B-roll Keywords: " + ', '.join(broll_keywords) + "\n"
-                )
-            print(f"  📝 [MÉTADONNÉES] Fichier meta.txt sauvegardé: {meta_path}")
-        except Exception as e:
-            print(f"  ⚠️ [ERREUR MÉTADONNÉES] {e}")
-            # Fallback: créer des métadonnées basiques
-            try:
-                meta_path = per_clip_dir / 'meta.txt'
-                with open(meta_path, 'w', encoding='utf-8') as f:
-                    f.write("Title: Vidéo générée automatiquement\n\nDescription: Contenu généré par pipeline vidéo\n\nHashtags: #video #auto\n\nB-roll Keywords: video, content\n")
-                print(f"  📝 [FALLBACK] Métadonnées de base sauvegardées: {meta_path}")
-            except Exception as e2:
-                print(f"  ❌ [ERREUR FALLBACK] {e2}")
-        
-        # Appliquer style Hormozi sur la vidéo post B-roll
-        subtitled_out_dir = per_clip_dir
-        subtitled_out_dir.mkdir(parents=True, exist_ok=True)
-        final_subtitled_path = subtitled_out_dir / 'final_subtitled.mp4'
-        try:
-            span_style_map = {
-                # Business & Croissance
-                "croissance": {"color": "#39FF14", "bold": True, "emoji": "📈"},
-                "growth": {"color": "#39FF14", "bold": True, "emoji": "📈"},
-                "opportunité": {"color": "#FFD700", "bold": True, "emoji": "��"},
-                "opportunite": {"color": "#FFD700", "bold": True, "emoji": "🔑"},
-                "innovation": {"color": "#00E5FF", "emoji": "⚡"},
-                "idée": {"color": "#00E5FF", "emoji": "💡"},
-                "idee": {"color": "#00E5FF", "emoji": "💡"},
-                "stratégie": {"color": "#FF73FA", "emoji": "🧭"},
-                "strategie": {"color": "#FF73FA", "emoji": "🧭"},
-                "plan": {"color": "#FF73FA", "emoji": "🗺️"},
-                # Argent & Finance
-                "argent": {"color": "#FFD700", "bold": True, "emoji": "💰"},
-                "money": {"color": "#FFD700", "bold": True, "emoji": "💰"},
-                "cash": {"color": "#FFD700", "bold": True, "emoji": "💰"},
-                "investissement": {"color": "#8AFF00", "bold": True, "emoji": "📊"},
-                "investissements": {"color": "#8AFF00", "bold": True, "emoji": "📊"},
-                "revenu": {"color": "#8AFF00", "emoji": "🏦"},
-                "revenus": {"color": "#8AFF00", "emoji": "🏦"},
-                "profit": {"color": "#8AFF00", "bold": True, "emoji": "💰"},
-                "profits": {"color": "#8AFF00", "bold": True, "emoji": "💰"},
-                "perte": {"color": "#FF3131", "emoji": "📉"},
-                "pertes": {"color": "#FF3131", "emoji": "📉"},
-                "échec": {"color": "#FF3131", "emoji": "❌"},
-                "echec": {"color": "#FF3131", "emoji": "❌"},
-                "budget": {"color": "#FFD700", "emoji": "🧾"},
-                "gestion": {"color": "#FFD700", "emoji": "🪙"},
-                "roi": {"color": "#8AFF00", "bold": True, "emoji": "📈"},
-                "chiffre": {"color": "#FFD700", "emoji": "💰"},
-                "ca": {"color": "#FFD700", "emoji": "💰"},
-                # Relation & Client
-                "client": {"color": "#00E5FF", "underline": True, "emoji": "🤝"},
-                "clients": {"color": "#00E5FF", "underline": True, "emoji": "🤝"},
-                "collaboration": {"color": "#00E5FF", "emoji": "🫱🏼‍🫲🏽"},
-                "collaborations": {"color": "#00E5FF", "emoji": "🫱🏼‍🫲🏽"},
-                "communauté": {"color": "#39FF14", "emoji": "🌍"},
-                "communaute": {"color": "#39FF14", "emoji": "🌍"},
-                "confiance": {"color": "#00E5FF", "emoji": "🔒"},
-                "vente": {"color": "#FF73FA", "emoji": "🛒"},
-                "ventes": {"color": "#FF73FA", "emoji": "🛒"},
-                "deal": {"color": "#FF73FA", "emoji": "📦"},
-                "deals": {"color": "#FF73FA", "emoji": "📦"},
-                "prospect": {"color": "#00E5FF", "emoji": "🤝"},
-                "prospects": {"color": "#00E5FF", "emoji": "🤝"},
-                "contrat": {"color": "#FF73FA", "emoji": "📋"},
-                # Motivation & Succès
-                "succès": {"color": "#39FF14", "italic": True, "emoji": "🏆"},
-                "succes": {"color": "#39FF14", "italic": True, "emoji": "🏆"},
-                "motivation": {"color": "#FF73FA", "bold": True, "emoji": "🔥"},
-                "énergie": {"color": "#FF73FA", "emoji": "⚡"},
-                "energie": {"color": "#FF73FA", "emoji": "⚡"},
-                "victoire": {"color": "#39FF14", "emoji": "🎯"},
-                "discipline": {"color": "#FFD700", "emoji": "⏳"},
-                "viral": {"color": "#FF73FA", "bold": True, "emoji": "🚀"},
-                "viralité": {"color": "#FF73FA", "bold": True, "emoji": "🌐"},
-                "viralite": {"color": "#FF73FA", "bold": True, "emoji": "🌐"},
-                "impact": {"color": "#FF73FA", "emoji": "💥"},
-                "explose": {"color": "#FF73FA", "emoji": "💥"},
-                "explosion": {"color": "#FF73FA", "emoji": "💥"},
-                # Risque & Erreurs
-                "erreur": {"color": "#FF3131", "emoji": "⚠️"},
-                "erreurs": {"color": "#FF3131", "emoji": "⚠️"},
-                "warning": {"color": "#FF3131", "emoji": "⚠️"},
-                "obstacle": {"color": "#FF3131", "emoji": "🧱"},
-                "obstacles": {"color": "#FF3131", "emoji": "🧱"},
-                "solution": {"color": "#00E5FF", "emoji": "🔧"},
-                "solutions": {"color": "#00E5FF", "emoji": "🔧"},
-                "leçon": {"color": "#00E5FF", "emoji": "📚"},
-                "lecon": {"color": "#00E5FF", "emoji": "📚"},
-                "apprentissage": {"color": "#00E5FF", "emoji": "🧠"},
-                "problème": {"color": "#FF3131", "emoji": "🛑"},
-                "probleme": {"color": "#FF3131", "emoji": "🛑"},
-            }
-            add_hormozi_subtitles(
-                str(with_broll_path), subtitles, str(final_subtitled_path),
-                brand_kit=getattr(Config, 'BRAND_KIT_ID', 'default'),
-                span_style_map=span_style_map
-            )
-        except Exception as e:
-            print(f"  ❌ Erreur ajout sous-titres Hormozi: {e}")
-            # Pas de retour anticipé: continuer export simple
-        
-        # Export final accumulé dans output/final/ et sous-titré (burn-in) dans output/subtitled/
-        final_dir = Config.OUTPUT_FOLDER / 'final'
-        subtitled_dir = Config.OUTPUT_FOLDER / 'subtitled'
-        # Noms de base sans extension
-        base_name = clip_path.stem
-        output_path = self._unique_path(final_dir, f"final_{base_name}", ".mp4")
-        try:
-            # Choisir source finale: si sous-titrée existe sinon with_broll sinon reframed
-            source_final = None
-            if final_subtitled_path.exists():
-                source_final = final_subtitled_path
-            elif with_broll_path and Path(with_broll_path).exists():
-                source_final = with_broll_path
+            url = getattr(best_candidate, 'url', None)
+            if url:
+                SEEN_URLS.add(url)
+            ph = getattr(best_candidate, '_phash', None)
+            if ph is not None:
+                SEEN_PHASHES.append(ph)
+
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        log_broll_decision(
+            event_logger,
+            segment_idx=idx,
+            start=segment.start,
+            end=segment.end,
+            query_count=len(queries),
+            candidate_count=len(candidates),
+            unique_candidates=len(unique_candidates),
+            url_dedup_hits=url_hits,
+            phash_dedup_hits=phash_hits,
+            selected_url=getattr(best_candidate, 'url', None) if best_candidate else None,
+            selected_score=best_score if best_candidate else None,
+            provider=best_provider if best_candidate else None,
+            latency_ms=latency_ms,
+            llm_healthy=llm_healthy,
+            reject_reasons=sorted(set(reject_reasons)),
+        )
+
+    log_broll_decision(
+        event_logger,
+        segment_idx=-1,
+        start=0.0,
+        end=0.0,
+        query_count=0,
+        candidate_count=0,
+        unique_candidates=0,
+        url_dedup_hits=0,
+        phash_dedup_hits=0,
+        selected_url=None,
+        selected_score=None,
+        provider=None,
+        latency_ms=0,
+        llm_healthy=True,
+        reject_reasons=['summary'],
+    )
+
+def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
+    keywords: List[str] = []
+    if global_keywords:
+        keywords.extend(global_keywords[:4])
+    segment_words = [w.strip().lower() for w in segment.text.split() if len(w.strip()) > 3]
+    unique_segment_words: List[str] = []
+    for word in segment_words:
+        if word not in unique_segment_words:
+            unique_segment_words.append(word)
+    keywords.extend(unique_segment_words[:3])
+    result: List[str] = []
+    for word in keywords:
+        if word and word not in result:
+            result.append(word)
+    return result
+
+def _estimate_candidate_score(self, candidate, selection_cfg, segment_duration: float) -> float:
+    base_score = 0.6
+    width = getattr(candidate, 'width', 0) or 0
+    height = getattr(candidate, 'height', 0) or 0
+    duration = getattr(candidate, 'duration', None)
+
+    if selection_cfg.prefer_landscape and width and height and width < height:
+        return 0.0
+    if not selection_cfg.prefer_landscape and width and height and height < width:
+        base_score -= 0.1
+
+    if duration is not None:
+        if duration < max(selection_cfg.min_duration_s, 0.0):
+            base_score -= 0.2
+        elif duration >= selection_cfg.min_duration_s:
+            base_score += 0.05
+        if segment_duration > 0:
+            ratio = duration / max(segment_duration, 1e-3)
+            if ratio < 0.6:
+                base_score -= 0.1
+            elif ratio > 1.4:
+                base_score -= 0.05
             else:
-                source_final = reframed_path
-            if source_final and Path(source_final).exists():
-                self._hardlink_or_copy(source_final, output_path)
-                # Ecrire SRT: éviter le doublon si la vidéo finale a déjà les sous-titres incrustés
-                is_burned = (final_subtitled_path.exists() and Path(source_final) == Path(final_subtitled_path))
-                if not is_burned:
-                    srt_out = output_path.with_suffix('.srt')
-                    write_srt(subtitles, srt_out)
-                    self._hardlink_or_copy(srt_out, per_clip_dir / 'final.srt')
-                    # WebVTT
-                    try:
-                        vtt_out = output_path.with_suffix('.vtt')
-                        write_vtt(subtitles, vtt_out)
-                    except Exception:
-                        pass
-                else:
-                    # Produire uniquement une SRT dans le dossier du clip, pas à côté du MP4 final
-                    try:
-                        write_srt(subtitles, per_clip_dir / 'final.srt')
-                    except Exception:
-                        pass
-                # Toujours produire un VTT à côté du final pour compat
-                try:
-                    vtt_out = output_path.with_suffix('.vtt')
-                    write_vtt(subtitles, vtt_out)
-                except Exception:
-                    pass
-                # Copier final dans dossier clip
-                self._hardlink_or_copy(output_path, per_clip_dir / 'final.mp4')
-                # Si une version sous-titrée burn-in existe, la dupliquer dans output/subtitled/
-                if final_subtitled_path.exists():
-                    subtitled_out = self._unique_path(subtitled_dir, f"{base_name}_subtitled", ".mp4")
-                    self._hardlink_or_copy(final_subtitled_path, subtitled_out)
-                # Copier meta.txt à côté du final accumulé
-                try:
-                    meta_src = per_clip_dir / 'meta.txt'
-                    if meta_src.exists():
-                        self._hardlink_or_copy(meta_src, output_path.with_suffix('.txt'))
-                except Exception:
-                    pass
-                # Ecrire un JSON récap par clip
-                try:
-                    # Durée et hash final
-                    final_duration = None
-                    try:
-                        with VideoFileClip(str(output_path)) as vc:
-                            final_duration = float(vc.duration)
-                    except Exception:
-                        final_duration = None
-                    media_hash = None
-                    try:
-                        from src.pipeline.utils import hash_media  # type: ignore
-                    except Exception:
-                        hash_media = None  # type: ignore
-                    if hash_media:
-                        try:
-                            media_hash = hash_media(str(output_path))
-                        except Exception:
-                            media_hash = None
-                    summary = {
-                        'clip': base_name,
-                        'final_mp4': str(output_path.resolve()),
-                        'final_srt': str(output_path.with_suffix('.srt').resolve()) if (not is_burned) and output_path.with_suffix('.srt').exists() else None,
-                        'final_vtt': str(output_path.with_suffix('.vtt').resolve()) if (not is_burned) and output_path.with_suffix('.vtt').exists() else None,
-                        'subtitled_mp4': str((subtitled_out.resolve() if final_subtitled_path.exists() else '')) if final_subtitled_path.exists() else None,
-                        'meta_txt': str(output_path.with_suffix('.txt').resolve()) if output_path.with_suffix('.txt').exists() else None,
-                        'per_clip_dir': str(per_clip_dir.resolve()),
-                        'duration_s': final_duration,
-                        'media_hash': media_hash,
-                        'events': [
-                            {
-                                'id': getattr(ev, 'id', ev.get('id') if isinstance(ev, dict) else ''),
-                                'start_s': float(getattr(ev, 'start_s', ev.get('start_s') if isinstance(ev, dict) else 0.0) or 0.0),
-                                'end_s': float(getattr(ev, 'end_s', ev.get('end_s') if isinstance(ev, dict) else 0.0) or 0.0),
-                                'media_path': getattr(ev, 'media_path', ev.get('media_path') if isinstance(ev, dict) else ''),
-                                'transition': getattr(ev, 'transition', ev.get('transition') if isinstance(ev, dict) else None),
-                                'transition_duration': float(getattr(ev, 'transition_duration', ev.get('transition_duration') if isinstance(ev, dict) else 0.0) or 0.0),
-                            } for ev in ([] if 'valid_events' not in locals() else valid_events or [])
-                        ]
-                    }
-                    with open(output_path.with_suffix('.json'), 'w', encoding='utf-8') as jf:
-                        json.dump(summary, jf, ensure_ascii=False, indent=2)
-                    # JSONL log
-                    try:
-                        jsonl = (Config.OUTPUT_FOLDER / 'pipeline.log.jsonl')
-                        with open(jsonl, 'a', encoding='utf-8') as lf:
-                            lf.write(json.dumps(summary, ensure_ascii=False) + '\n')
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-                print(f"  📤 Export terminé: {output_path.name}")
-                # Nettoyage des intermédiaires pour limiter l'empreinte disque
-                self._cleanup_files([
-                    with_broll_path if with_broll_path and with_broll_path != output_path else None,
-                ])
-                return output_path
-            else:
-                print(f"  ⚠️ Fichier final introuvable")
-                return None
-        except Exception as e:
-            print(f"  ❌ Erreur export: {e}")
-            return None
+                base_score += 0.05
 
-    def _get_sample_times(self, duration: float, fps: int) -> List[float]:
-        if duration <= 10:
-            return list(np.arange(0, duration, 1/fps))
-        elif duration <= 30:
-            return list(np.arange(0, duration, 2/fps))
-        else:
-            return list(np.arange(0, duration, 4/fps))
+    tags = getattr(candidate, 'tags', None) or ()
+    keyword_hits = sum(1 for t in tags if isinstance(t, str) and t)
+    if keyword_hits:
+        base_score += min(0.1, keyword_hits * 0.02)
 
-    def _smooth_trajectory(self, x_centers: List[float], window_size: int = 15) -> List[float]:
-        # Fenêtre plus grande pour un lissage plus smooth
-        window_size = max(window_size, 31)
-        if len(x_centers) < window_size:
-            kernel = np.ones(min(9, len(x_centers))) / max(1, min(9, len(x_centers)))
-            return np.convolve(x_centers, kernel, mode='same').tolist()
-        try:
-            from scipy.signal import savgol_filter
-            smoothed = savgol_filter(x_centers, window_size, 3).tolist()
-        except Exception:
-            kernel = np.ones(window_size) / window_size
-            smoothed = np.convolve(x_centers, kernel, mode='same').tolist()
-        # EMA additionnel pour atténuer le jitter haute fréquence
-        alpha = 0.15  # plus petit = plus lisse
-        ema = []
-        last = smoothed[0] if smoothed else 0.5
-        for v in smoothed:
-            last = (1 - alpha) * last + alpha * v
-            ema.append(last)
-        return ema
+    return max(0.0, min(1.0, base_score))
 
-    def _interpolate_trajectory(self, x_centers: List[float], sample_times: List[float], duration: float, fps: int) -> List[float]:
-        if not x_centers:
-            return [0.5] * int(duration * fps)
-        target_times = np.arange(0, duration, 1/fps)
-        if len(x_centers) == 1:
-            return [x_centers[0]] * len(target_times)
-        try:
-            return np.interp(target_times, sample_times, x_centers).tolist()
-        except Exception:
-            return [x_centers[-1]] * len(target_times)
+def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_duration: float) -> float:
+    base_score = self._estimate_candidate_score(candidate, selection_cfg, segment_duration)
+    title = (getattr(candidate, 'title', '') or '').lower()
+    tokens = {tok for tok in segment_text.lower().split() if len(tok) > 2}
+    if title and tokens:
+        overlap = sum(1 for tok in tokens if tok in title)
+        if overlap:
+            base_score += min(0.1, overlap * 0.02)
+    return max(0.0, min(1.0, base_score))
 
-    def _detect_single_frame(self, image_rgb: np.ndarray) -> float:
-        # Détecteurs MediaPipe
-        mp_pose = mp.solutions.pose
-        mp_face = mp.solutions.face_detection
-        h, w = image_rgb.shape[:2]
-        with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
-            pose_results = pose.process(image_rgb)
-            if pose_results.pose_landmarks:
-                landmarks = pose_results.pose_landmarks.landmark
-                key_points = [
-                    landmarks[mp_pose.PoseLandmark.NOSE],
-                    landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
-                    landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-                ]
-                valid_points = [p.x for p in key_points if p.visibility > 0.5]
-                if valid_points:
-                    return sum(valid_points) / len(valid_points)
-            face_results = face_detection.process(image_rgb)
-            if face_results.detections:
-                detection = face_results.detections[0]
-                bbox = detection.location_data.relative_bounding_box
-                return bbox.xmin + bbox.width / 2
-        gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
-            if moments:
-                centroids_x = [m['m10']/m['m00'] for m in moments if m['m00'] > 0]
-                if centroids_x:
-                    return sum(centroids_x) / len(centroids_x) / w
-        return 0.5
-
-    def _detect_focus_points(self, video: VideoFileClip, fps: int, duration: float) -> List[float]:
-        x_centers = []
-        sample_times = self._get_sample_times(duration, fps)
-        
-        # Guard: check if Mediapipe is available
-        if not MEDIAPIPE_AVAILABLE or mp is None:
-            # Fallback to OpenCV center detection
-            for t in sample_times:
-                try:
-                    frame = video.get_frame(t)
-                    x_center = self._detect_single_frame(frame)
-                    x_centers.append(x_center)
-                except Exception:
-                    x_centers.append(0.5)  # Default center
-            return x_centers
-            
-        mp_pose = mp.solutions.pose
-        mp_face = mp.solutions.face_detection
-        with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
-            for t in tqdm(sample_times, desc="🔎 IA focus", leave=False):
-                try:
-                    frame = video.get_frame(t)  # MoviePy retourne des frames RGB
-                    image_rgb = frame
-                    # Pose
-                    pose_results = pose.process(image_rgb)
-                    if pose_results.pose_landmarks:
-                        landmarks = pose_results.pose_landmarks.landmark
-                        key_points = [
-                            landmarks[mp_pose.PoseLandmark.NOSE],
-                            landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
-                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-                        ]
-                        valid_points = [p.x for p in key_points if p.visibility > 0.5]
-                        if valid_points:
-                            x_centers.append(sum(valid_points)/len(valid_points))
-                            continue
-                    # Face fallback
-                    face_results = face_detection.process(image_rgb)
-                    if face_results.detections:
-                        detection = face_results.detections[0]
-                        bbox = detection.location_data.relative_bounding_box
-                        x_centers.append(bbox.xmin + bbox.width/2)
-                        continue
-                    # Mouvement fallback
-                    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-                    edges = cv2.Canny(gray, 50, 150)
-                    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    if contours:
-                        moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
-                        centroids_x = [m['m10']/m['m00'] for m in moments if m['m00'] > 0]
-                        if centroids_x:
-                            x_centers.append(sum(centroids_x)/len(centroids_x)/image_rgb.shape[1])
-                            continue
-                    x_centers.append(0.5)
-                except Exception:
-                    x_centers.append(0.5)
-        return self._interpolate_trajectory(x_centers, sample_times, duration, fps)
-
-    def reframe_to_vertical(self, clip_path: Path) -> Path:
-        """Reframe dynamique basé sur détection IA optimisée"""
-        logger.info("🎯 Reframe dynamique avec IA (optimisé)")
-        print("    🎯 Détection IA en cours...")
-        video = VideoFileClip(str(clip_path))
-        fps = int(video.fps)
-        duration = video.duration
-        # Détection des centres d'intérêt
-        x_centers = self._detect_focus_points(video, fps, duration)
-        x_centers_smooth = self._smooth_trajectory(x_centers, window_size=min(15, max(5, len(x_centers)//4)))
-        frame_index = 0
-        applied_x_center_px = None
-        beta = 0.85  # amortissement (0.85 = très smooth)
-        def crop_frame(frame):
-            nonlocal frame_index
-            nonlocal applied_x_center_px
-            h, w, _ = frame.shape
-            if frame_index < len(x_centers_smooth):
-                x_target_px = x_centers_smooth[frame_index] * w
-            else:
-                x_target_px = w * 0.5
-            frame_index += 1
-            # Initialisation EMA
-            if applied_x_center_px is None:
-                applied_x_center_px = x_target_px
-            # Clamp vitesse de déplacement + deadband
-            shift = x_target_px - applied_x_center_px
-            deadband_px = w * 0.003
-            if abs(shift) < deadband_px:
-                shift = 0.0
-            max_shift_px = w * 0.02
-            if shift > max_shift_px:
-                shift = max_shift_px
-            elif shift < -max_shift_px:
-                shift = -max_shift_px
-            x_clamped = applied_x_center_px + shift
-            # EMA amorti
-            applied_x_center_px = beta * applied_x_center_px + (1 - beta) * x_clamped
-            
-            # 🚨 CORRECTION BUG: Forcer des dimensions paires pour H.264
-            target_width = Config.TARGET_WIDTH
-            target_height = Config.TARGET_HEIGHT
-            
-            # Calcul du crop avec ratio 9:16
-            crop_width = int(target_width * h / target_height)
-            crop_width = min(crop_width, w)
-            
-            # 🚨 CORRECTION: S'assurer que crop_width est pair
-            if crop_width % 2 != 0:
-                crop_width = crop_width - 1 if crop_width > 1 else crop_width + 1
-            
-            x1 = int(max(0, min(w - crop_width, applied_x_center_px - crop_width / 2)))
-            x2 = x1 + crop_width
-            cropped = frame[:, x1:x2]
-            
-            # 🚨 CORRECTION: S'assurer que les dimensions finales sont paires
-            final_width = target_width
-            final_height = target_height
-            
-            # Vérifier et corriger si nécessaire
-            if final_width % 2 != 0:
-                final_width = final_width - 1 if final_width > 1 else final_width + 1
-            if final_height % 2 != 0:
-                final_height = final_height - 1 if final_height > 1 else final_height + 1
-            
-            return cv2.resize(cropped, (final_width, final_height), interpolation=cv2.INTER_LANCZOS4)
-        reframed = video.fl_image(crop_frame)
-        output_path = Config.TEMP_FOLDER / f"reframed_{clip_path.name}"
-        try:
-            # Prefer AMD AMF hardware encoder on this system; boost quality slightly with QP=18
-            reframed.write_videofile(
-                str(output_path),
-                fps=fps,
-                codec='h264_nvenc',
-                audio_codec='aac',
-                verbose=False,
-                logger=None,
-                preset=None,
-                ffmpeg_params=['-rc','vbr','-cq','19','-b:v','0','-maxrate','0','-pix_fmt','yuv420p','-movflags','+faststart']
-            )
-        except Exception:
-            # Fallback to CPU x264 with stable CRF
-            reframed.write_videofile(
-                str(output_path),
-                fps=fps,
-                codec='libx264',
-                audio_codec='aac',
-                verbose=False,
-                logger=None,
-                preset='medium',
-                ffmpeg_params=['-pix_fmt','yuv420p','-movflags','+faststart','-crf','20']
-            )
-        video.close(); reframed.close()
-        print("    ✅ Reframe terminé")
-        return output_path
-    
-    def transcribe_audio(self, video_path: Path) -> str:
-        """Transcription avec Whisper"""
-        logger.info("📝 Transcription audio avec Whisper")
-        print("    📝 Transcription Whisper en cours...")
-        
-        result = self.whisper_model.transcribe(str(video_path))
-        print("    ✅ Transcription terminée")
-        return result["text"]
-    
-    def transcribe_segments(self, video_path: Path) -> List[Dict]:
-        """
-        Transcrit l'audio en segments avec timestamps (sans rendu visuel).
-        Retourne une liste de segments {'text', 'start', 'end'} et conserve les mots si fournis.
-        """
-        logger.info("⏱️ Transcription avec timestamps")
-        print("    ⏱️ Génération des timestamps...")
-        result = self.whisper_model.transcribe(str(video_path), word_timestamps=True)
-        bias = getattr(Config, 'SUBTITLE_TIMING_BIAS_S', 0.0)
-        subtitles: List[Dict] = []
-        for segment in result.get("segments", []):
-            seg_start = max(0.0, (segment.get("start") or 0.0) + bias)
-            seg_end = max(seg_start, (segment.get("end") or seg_start) + bias)
-            subtitle: Dict = {
-                "text": (segment.get("text") or "").strip(),
-                "start": seg_start,
-                "end": seg_end
-            }
-            words = segment.get("words")
-            if words:
-                precise_words = []
-                for w in words:
-                    ws = max(0.0, (w.get("start") or seg_start) + bias)
-                    we = max(ws, (w.get("end") or ws) + bias)
-                    wt = (w.get("word") or w.get("text") or "").strip()
-                    if wt:
-                        precise_words.append({"text": wt, "start": ws, "end": we})
-                if precise_words:
-                    subtitle["words"] = precise_words
-            subtitles.append(subtitle)
-        print(f"    ✅ {len(subtitles)} segments de sous-titres générés")
-        return subtitles
-
-    def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> (str, str, List[str], List[str]):
-        """Génère une légende, des hashtags et des mots-clés B-roll avec le système LLM industriel."""
-        full_text = ' '.join(s.get('text', '') for s in subtitles)
-        
-        # 🚀 NOUVEAU: Utilisation du système LLM industriel
-        try:
-            # Import du nouveau système
-            import sys
-            from pathlib import Path
-            sys.path.insert(0, str(Path(__file__).parent / "utils"))
-            
-            from pipeline_integration import create_pipeline_integration
-            
-            # Créer l'intégration LLM
-            llm_integration = create_pipeline_integration()
-            
-            print(f"    🚀 [LLM INDUSTRIEL] Génération de métadonnées pour {len(full_text)} caractères")
-            
-            # 🚀 CORRECTION: Vérification robuste des timestamps pour éviter les slice objects
-            safe_timestamps = []
-            for s in subtitles:
-                if isinstance(s, dict) and 'start' in s and 'end' in s:
-                    try:
-                        start_val = s.get('start', 0)
-                        end_val = s.get('end', 0)
-                        
-                        # Convertir slice objects ou autres types en float
-                        if hasattr(start_val, 'start'):  # Si c'est un slice
-                            start_val = start_val.start or 0
-                        if hasattr(end_val, 'start'):  # Si c'est un slice  
-                            end_val = end_val.start or 0
-                            
-                        start_float = float(start_val)
-                        end_float = float(end_val)
-                        safe_timestamps.append((start_float, end_float))
-                    except (ValueError, TypeError, AttributeError):
-                        # Skip les segments avec des timestamps invalides
-                        continue
-            
-            # Traitement avec le nouveau système
-            result = llm_integration.process_video_transcript(
-                transcript=full_text,
-                video_id=f"video_{int(time.time())}",
-                segment_timestamps=safe_timestamps
-            )
-            
-            if result.get('success', False):
-                metadata = result.get('metadata', {})
-                broll_data = result.get('broll_data', {})
-                
-                title = metadata.get('title', '').strip()
-                description = metadata.get('description', '').strip()
-                hashtags = [h for h in (metadata.get('hashtags') or []) if h]
-                broll_keywords = broll_data.get('keywords', [])
-                
-                print(f"    ✅ [LLM INDUSTRIEL] Métadonnées générées avec succès")
-                print(f"    🎯 Titre: {title}")
-                print(f"    📝 Description: {description[:100]}...")
-                print(f"    #️⃣ Hashtags: {len(hashtags)} générés")
-                print(f"    🎬 Mots-clés B-roll: {len(broll_keywords)} termes optimisés")
-                
-                return title, description, hashtags, broll_keywords
-            else:
-                print(f"    ⚠️ [LLM INDUSTRIEL] Échec, fallback vers ancien système")
-                raise Exception("LLM industriel échoué")
-                
-        except Exception as e:
-            print(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")
-            # Fallback vers l'ancien système
-            llm_res = _llm_generate_caption_hashtags_fixed(full_text)
-            if llm_res and (llm_res.get('title') or llm_res.get('description') or llm_res.get('hashtags')):
-                title = (llm_res.get('title') or '').strip()
-                description = (llm_res.get('description') or '').strip()
-                hashtags = [h for h in (llm_res.get('hashtags') or []) if h]
-                
-                # 🚀 NOUVEAU: Extraction des mots-clés B-roll du LLM
-                broll_keywords = llm_res.get('broll_keywords', [])
-                if broll_keywords:
-                    print(f"    🤖 [LLM] Titre/description/hashtags + {len(broll_keywords)} mots-clés B-roll générés par LLM local")
-                    print(f"    🎯 Mots-clés B-roll LLM: {', '.join(broll_keywords[:8])}...")
-                else:
-                    print("    🤖 [LLM] Titre/description/hashtags générés par LLM local")
-                    # Fallback: extraire des mots-clés basiques du titre et de la description
-                    fallback_text = f"{title} {description}".lower()
-                    broll_keywords = [word for word in fallback_text.split() if len(word) > 3 and word.isalpha()]
-                    broll_keywords = list(set(broll_keywords))[:10]
-                    print(f"    🔄 Fallback mots-clés B-roll: {', '.join(broll_keywords[:5])}...")
-                
-                # Back-compat: si titre vide mais description présente, promouvoir description en titre court
-                if not title and description:
-                    title = (description[:60] + ('…' if len(description) > 60 else ''))
-                return title, description, hashtags, broll_keywords
-        
-        # Fallback heuristic
-        words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9éèàùçêîôâ]+", full_text) if len(w) > 2]
-        from collections import Counter
-        counts = Counter(words)
-        common = [w for w,_ in counts.most_common(12) if w.isalpha()]
-        hashtags = [f"#{w}" for w in common[:12]]
-        
-        # 🚀 NOUVEAU: Mots-clés B-roll de fallback basés sur les mots communs
-        # Intelligent visual keywords fallback
-        text_lower = full_text.lower()
-        visual_keywords = []
-        
-        # Domain-specific visual keywords
-        if any(word in text_lower for word in ['scientific', 'research', 'study', 'paper', 'published']):
-            visual_keywords.extend(['scientist', 'research', 'laboratory', 'study', 'analysis', 'discovery'])
-        if any(word in text_lower for word in ['behavior', 'cognitive', 'psychology', 'mental']):
-            visual_keywords.extend(['therapy', 'counseling', 'brain', 'mind', 'psychology', 'behavior'])
-        if any(word in text_lower for word in ['work', 'effort', 'exert', 'challenge']):
-            visual_keywords.extend(['working', 'focusing', 'concentrating', 'determined', 'motivated'])
-        if any(word in text_lower for word in ['human', 'animal', 'species', 'evolution']):
-            visual_keywords.extend(['people', 'professional', 'teamwork', 'collaboration'])
-        
-        # Add high-value generic B-roll keywords
-        visual_keywords.extend(['modern office', 'workspace', 'business', 'success', 'achievement', 
-                               'technology', 'digital', 'innovation', 'professional', 'focused'])
-        
-        # Remove duplicates and limit
-        broll_keywords = list(dict.fromkeys(visual_keywords))[:20]
-        
-        # Heuristic title/description
-        title = (full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
-        description = (full_text.strip()[:180] + ("…" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
-        print("    🧩 [Heuristics] Meta générées en fallback")
-        print(f"    🔑 Mots-clés B-roll fallback: {', '.join(broll_keywords[:5])}...")
-        return title, description, hashtags, broll_keywords
 
     def insert_brolls_if_enabled(self, input_path: Path, subtitles: List[Dict], broll_keywords: List[str]) -> Path:
         """Point d'extension B-roll: retourne le chemin vidéo après insertion si activée."""
@@ -1855,6 +1097,10 @@ class VideoProcessor:
             if not segments:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
+
+            if getattr(Config, 'ENABLE_PIPELINE_CORE_FETCHER', False):
+                self._insert_brolls_pipeline_core(segments, broll_keywords, subtitles=subtitles, input_path=input_path)
+
             
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
             cfg = BrollConfig(
