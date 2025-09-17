@@ -1,0 +1,51 @@
+{
+  "timestamp": "2025-08-28T08:48:07.959242",
+  "diagnostics": {
+    "initialisation_pipeline": {
+      "context_analyzer": "❌ Non initialisé",
+      "broll_selector": "❌ Non initialisé",
+      "probleme": "Méthode initialize_async_components() non appelée"
+    },
+    "base_donnees_broll": {
+      "db_status": "✅ Disponible",
+      "db_path": "broll_database.db",
+      "db_file_exists": true
+    },
+    "classes_manquantes": {
+      "enhanced_fetcher_missing": true,
+      "enhanced_scoring_missing": true,
+      "fetchers_classes": [
+        "BrollAsset",
+        "FetchResult",
+        "EnhancedFreeFetcher"
+      ],
+      "scoring_classes": [
+        "ScoringWeights",
+        "QualityThresholds",
+        "AdaptiveScoringSystem"
+      ]
+    },
+    "verification_complete": {
+      "components_status": {
+        "advanced_broll_pipeline": "✅ Disponible",
+        "advanced_context_analyzer": "✅ Disponible",
+        "advanced_broll_selector": "✅ Disponible",
+        "enhanced_keyword_expansion": "✅ Disponible",
+        "broll_verification_system": "✅ Disponible",
+        "enhanced_fetchers": "✅ Disponible",
+        "enhanced_scoring": "✅ Disponible",
+        "broll_diversity_manager": "✅ Disponible"
+      },
+      "availability_rate": 100.0,
+      "available_count": 8,
+      "total_count": 8
+    }
+  },
+  "solutions": {
+    "initialisation_pipeline": "Appeler initialize_async_components() après création",
+    "base_donnees_broll": "Base de données opérationnelle",
+    "enhanced_fetcher": "Utiliser EnhancedFreeFetcher ou renommer la classe",
+    "enhanced_scoring": "Utiliser AdaptiveScoringSystem ou renommer la classe"
+  },
+  "overall_status": "BON"
+}

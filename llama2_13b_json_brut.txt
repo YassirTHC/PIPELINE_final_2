@@ -1,0 +1,32 @@
+{
+"title": "EMDR Movement Sensation Reprocessing for Stress Relief",
+"description": "Reprocess traumatic experiences with lateralized movements in a clinic setting. Reduce stress and discomfort while reshaping your relationship with trauma.",
+"hashtags": ["#EMDR", "#MovementSensation", "#StressRelief", "#Trauma"],
+"broll_keywords": [
+{
+"category": "VISUAL ACTIONS",
+"base": "running",
+"synonyms": ["exercising", "meditating"]
+},
+{
+"category": "PEOPLE & ROLES",
+"base": "therapist",
+"synonyms": ["professional", "family"]
+},
+{
+"category": "ENVIRONMENTS",
+"base": "hospital",
+"synonyms": ["clinic", "gym", "office", "nature"]
+},
+{
+"category": "OBJECTS",
+"base": "equipment",
+"synonyms": ["notebook", "phone", "weights"]
+},
+{
+"category": "EMOTIONS",
+"base": "healing",
+"synonyms": ["stress relief", "growth", "recovery"]
+}
+]
+}

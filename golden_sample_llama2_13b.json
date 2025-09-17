@@ -1,0 +1,380 @@
+{
+  "title": "EMDR Movement Sensation: Transform Trauma Through Motion",
+  "description": "Discover how lateralized movements and EMDR therapy can reshape your relationship with trauma and unlock lasting stress relief.",
+  "hashtags": [
+    "#EMDRtherapy",
+    "#traumarecovery",
+    "#stressrelief",
+    "#mentalhealth",
+    "#movementtherapy",
+    "#healing",
+    "#mindfulness",
+    "#wellness",
+    "#therapy",
+    "#growth",
+    "#recovery",
+    "#mentalwellness"
+  ],
+  "broll_keywords": [
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "lateralized movements",
+      "synonyms": [
+        "side-to-side",
+        "front-to-back",
+        "up-down",
+        "diagonal"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "exercising",
+      "synonyms": [
+        "stretching",
+        "yoga",
+        "meditation",
+        "breathing"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "writing",
+      "synonyms": [
+        "journaling",
+        "note-taking",
+        "planning",
+        "reflecting"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "walking",
+      "synonyms": [
+        "strolling",
+        "hiking",
+        "jogging",
+        "running"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "talking",
+      "synonyms": [
+        "conversing",
+        "discussing",
+        "sharing",
+        "communicating"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "crying",
+      "synonyms": [
+        "sobbing",
+        "weeping",
+        "emotional release",
+        "tears"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "laughing",
+      "synonyms": [
+        "smiling",
+        "chuckling",
+        "joy",
+        "happiness"
+      ]
+    },
+    {
+      "category": "VISUAL ACTIONS",
+      "base": "cooking",
+      "synonyms": [
+        "preparing",
+        "chopping",
+        "stirring",
+        "serving"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "therapist",
+      "synonyms": [
+        "counselor",
+        "mental health professional",
+        "coach",
+        "guide"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "patient",
+      "synonyms": [
+        "client",
+        "individual",
+        "person",
+        "seeker"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "family",
+      "synonyms": [
+        "parents",
+        "children",
+        "siblings",
+        "loved ones"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "athlete",
+      "synonyms": [
+        "runner",
+        "yogi",
+        "fitness enthusiast",
+        "active person"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "student",
+      "synonyms": [
+        "learner",
+        "scholar",
+        "apprentice",
+        "knowledge seeker"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "professional",
+      "synonyms": [
+        "expert",
+        "specialist",
+        "practitioner",
+        "consultant"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "elderly",
+      "synonyms": [
+        "senior",
+        "mature adult",
+        "wise person",
+        "experienced"
+      ]
+    },
+    {
+      "category": "PEOPLE & ROLES",
+      "base": "child",
+      "synonyms": [
+        "young person",
+        "kid",
+        "youth",
+        "minor"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "clinic",
+      "synonyms": [
+        "hospital",
+        "medical office",
+        "therapy room",
+        "treatment center"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "gym",
+      "synonyms": [
+        "fitness center",
+        "training facility",
+        "workout space",
+        "exercise room"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "nature trail",
+      "synonyms": [
+        "hiking path",
+        "forest",
+        "park",
+        "outdoor space"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "city street",
+      "synonyms": [
+        "urban landscape",
+        "downtown",
+        "metropolitan area",
+        "city center"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "home office",
+      "synonyms": [
+        "workspace",
+        "desk",
+        "computer area",
+        "study room"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "hospital room",
+      "synonyms": [
+        "medical facility",
+        "examination room",
+        "treatment area",
+        "healthcare space"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "therapy office",
+      "synonyms": [
+        "counseling room",
+        "mental health space",
+        "consultation area",
+        "healing environment"
+      ]
+    },
+    {
+      "category": "ENVIRONMENTS & PLACES",
+      "base": "outdoor space",
+      "synonyms": [
+        "open air",
+        "natural setting",
+        "landscape",
+        "environment"
+      ]
+    },
+    {
+      "category": "OBJECTS & PROPS",
+      "base": "equipment",
+      "synonyms": [
+        "medical devices",
+        "therapy tools",
+        "instruments",
+        "apparatus"
+      ]
+    },
+    {
+      "category": "OBJECTS & PROPS",
+      "base": "notebook",
+      "synonyms": [
+        "journal",
+        "planner",
+        "writing pad",
+        "diary"
+      ]
+    },
+    {
+      "category": "OBJECTS & PROPS",
+      "base": "phone",
+      "synonyms": [
+        "mobile device",
+        "smartphone",
+        "telephone",
+        "communication device"
+      ]
+    },
+    {
+      "category": "OBJECTS & PROPS",
+      "base": "exercise mat",
+      "synonyms": [
+        "yoga mat",
+        "fitness mat",
+        "pilates mat",
+        "workout surface"
+      ]
+    },
+    {
+      "category": "OBJECTS & PROPS",
+      "base": "weights",
+      "synonyms": [
+        "dumbbells",
+        "resistance equipment",
+        "fitness tools",
+        "strength equipment"
+      ]
+    },
+    {
+      "category": "OBJECTS & PROPS",
+      "base": "car",
+      "synonyms": [
+        "vehicle",
+        "automobile",
+        "transportation",
+        "motor vehicle"
+      ]
+    },
+    {
+      "category": "EMOTIONAL/CONTEXTUAL",
+      "base": "healing",
+      "synonyms": [
+        "recovery",
+        "therapy",
+        "treatment",
+        "restoration"
+      ]
+    },
+    {
+      "category": "EMOTIONAL/CONTEXTUAL",
+      "base": "stress relief",
+      "synonyms": [
+        "relaxation",
+        "calmness",
+        "peace",
+        "tranquility"
+      ]
+    },
+    {
+      "category": "EMOTIONAL/CONTEXTUAL",
+      "base": "growth",
+      "synonyms": [
+        "self-improvement",
+        "personal development",
+        "advancement",
+        "progress"
+      ]
+    },
+    {
+      "category": "EMOTIONAL/CONTEXTUAL",
+      "base": "trauma recovery",
+      "synonyms": [
+        "overcoming trauma",
+        "resilience",
+        "empowerment",
+        "transformation"
+      ]
+    },
+    {
+      "category": "EMOTIONAL/CONTEXTUAL",
+      "base": "wellness",
+      "synonyms": [
+        "health",
+        "well-being",
+        "self-care",
+        "vitality"
+      ]
+    },
+    {
+      "category": "EMOTIONAL/CONTEXTUAL",
+      "base": "mindfulness",
+      "synonyms": [
+        "awareness",
+        "presence",
+        "consciousness",
+        "attentiveness"
+      ]
+    }
+  ]
+}

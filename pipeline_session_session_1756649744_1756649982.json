@@ -1,0 +1,41 @@
+{
+  "session_id": "session_1756649744",
+  "timestamp": 1756649982.5916903,
+  "summary": {
+    "videos_processed": 5,
+    "total_processing_time": 238.11818289756775,
+    "successful_generations": 5,
+    "failed_generations": 0,
+    "avg_keywords_per_video": 5.2,
+    "domain_distribution": {
+      "medical_psychology": 1,
+      "business_entrepreneurship": 1,
+      "technology_ai": 1,
+      "lifestyle_wellness": 1,
+      "finance_investment": 1
+    },
+    "avg_processing_time": 47.62363657951355,
+    "success_rate": 1.0
+  },
+  "system_metrics": {
+    "total_segments": 5,
+    "successful_segments": 5,
+    "fallback_rate": 0.0,
+    "avg_response_time": 47.62363657951355,
+    "p95_response_time": 55.307098150253296,
+    "avg_keywords_per_segment": 5.2,
+    "domain_distribution": {
+      "medical_psychology": 1,
+      "business_entrepreneurship": 1,
+      "technology_ai": 1,
+      "lifestyle_wellness": 1,
+      "finance_investment": 1
+    },
+    "quality_distribution": {
+      "high": 4,
+      "medium": 1,
+      "low": 0
+    },
+    "error_distribution": {}
+  }
+}
