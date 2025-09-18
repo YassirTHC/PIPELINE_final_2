@@ -342,6 +342,20 @@ def _to_bool(v, default=False) -> bool:
     return s in {"1","true","yes","on"}
 
 
+def _pipeline_core_fetcher_enabled() -> bool:
+    """Resolve the pipeline_core toggle at runtime (env/UI overrides)."""
+    override = os.getenv("ENABLE_PIPELINE_CORE_FETCHER")
+    if override is not None:
+        return _to_bool(override)
+    legacy = os.getenv("AI_PIPELINE_CORE_FETCHER")
+    if legacy is not None:
+        return _to_bool(legacy)
+    ui_value = _UI_SETTINGS.get("pipeline_core_fetcher") if isinstance(_UI_SETTINGS, dict) else None
+    if ui_value is not None:
+        return _to_bool(ui_value)
+    return getattr(Config, "ENABLE_PIPELINE_CORE_FETCHER", False)
+
+
 # Load optional UI overrides once
 _UI_SETTINGS = _read_ui_settings()
 
@@ -649,6 +663,14 @@ def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, i
     selection_cfg = config_bundle.selection
     timeboxing_cfg = config_bundle.timeboxing
     event_logger = self._get_broll_event_logger()
+    event_logger.log(
+        {
+            "event": "broll_session_start",
+            "segment": -1,
+            "total_segments": len(segments),
+            "llm_healthy": bool(self._llm_service),
+        }
+    )
 
     fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
@@ -1098,7 +1120,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
-            if getattr(Config, 'ENABLE_PIPELINE_CORE_FETCHER', False):
+            if _pipeline_core_fetcher_enabled():
                 self._insert_brolls_pipeline_core(segments, broll_keywords, subtitles=subtitles, input_path=input_path)
 
             

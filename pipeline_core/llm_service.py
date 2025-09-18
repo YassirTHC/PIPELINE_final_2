@@ -7,6 +7,7 @@ import logging
 import sys
 from pathlib import Path
 import importlib.util
+import re
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -81,12 +82,20 @@ class LLMMetadataGeneratorService:
             with self._lock:
                 if self._shared_integration is None:
                     logger.info("[LLM] Initialising shared pipeline integration")
-                    self._shared_integration = create_pipeline_integration()
+                    try:
+                        self._shared_integration = create_pipeline_integration()
+                    except Exception:  # pragma: no cover - defensive logging
+                        logger.exception("[LLM] Failed to initialise shared pipeline integration")
+                        raise
                     LLMMetadataGeneratorService._init_count += 1
             return self._shared_integration
         if self._integration is None:
             logger.info("[LLM] Initialising local pipeline integration")
-            self._integration = create_pipeline_integration()
+            try:
+                self._integration = create_pipeline_integration()
+            except Exception:  # pragma: no cover - defensive logging
+                logger.exception("[LLM] Failed to initialise local pipeline integration")
+                raise
         return self._integration
 
     def generate_metadata(
