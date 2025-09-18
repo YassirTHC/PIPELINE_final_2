@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 
-def test_process_single_clip_smoke(tmp_path, monkeypatch):
+@pytest.fixture
+def video_processor_module(monkeypatch):
     os.environ["FAST_TESTS"] = "1"
 
     dummy_cv2 = types.ModuleType("cv2")
@@ -80,7 +81,12 @@ def test_process_single_clip_smoke(tmp_path, monkeypatch):
     repo_root = Path(__file__).resolve().parents[1]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
-    video_processor = importlib.import_module("video_processor")
+
+    return importlib.import_module("video_processor")
+
+
+def test_process_single_clip_smoke(tmp_path, monkeypatch, video_processor_module):
+    video_processor = video_processor_module
 
     clips_dir = tmp_path / "clips"
     output_dir = tmp_path / "output"
@@ -190,3 +196,34 @@ def test_process_single_clip_smoke(tmp_path, monkeypatch):
     meta_path = output_dir / "clips" / "sample" / "meta.txt"
     assert meta_path.exists()
     assert (output_dir / "final" ).exists()
+
+
+def test_pipeline_core_single_provider_warns(monkeypatch, caplog, tmp_path, video_processor_module):
+    video_processor = video_processor_module
+
+    processor = video_processor.VideoProcessor.__new__(video_processor.VideoProcessor)
+    fetcher_cfg = types.SimpleNamespace(providers=types.SimpleNamespace(name="solo", enabled=True))
+    processor._pipeline_config = types.SimpleNamespace(fetcher=fetcher_cfg)
+    processor._llm_service = None
+
+    monkeypatch.setattr(video_processor, "_pipeline_core_fetcher_enabled", lambda: True)
+
+    called = False
+
+    def fake_insert(*args, **kwargs):
+        nonlocal called
+        called = True
+
+    processor._insert_brolls_pipeline_core = fake_insert  # type: ignore[attr-defined]
+
+    caplog.set_level("WARNING")
+    used = processor._maybe_use_pipeline_core(
+        segments=[types.SimpleNamespace(start=0.0, end=1.0, text="hello")],
+        broll_keywords=["kw"],
+        subtitles=[{"start": 0.0, "end": 1.0, "text": "hello"}],
+        input_path=tmp_path / "video.mp4",
+    )
+
+    assert used is False
+    assert called is False
+    assert any("pipeline_core fetcher misconfigured" in record.message for record in caplog.records)
