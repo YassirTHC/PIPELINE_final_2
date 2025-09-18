@@ -46,21 +46,24 @@ def log_broll_decision(
     llm_healthy: bool,
     reject_reasons: List[str],
 ) -> None:
-    logger.log(
-        {
-            "segment": segment_idx,
-            "t0": start,
-            "t1": end,
-            "q_count": query_count,
-            "candidates": candidate_count,
-            "unique_candidates": unique_candidates,
-            "dedup_url_hits": url_dedup_hits,
-            "dedup_phash_hits": phash_dedup_hits,
-            "selected_url": selected_url,
-            "selected_score": selected_score,
-            "provider": provider,
-            "latency_ms": latency_ms,
-            "llm_healthy": llm_healthy,
-            "reject_reasons": reject_reasons,
-        }
-    )
+    event_name = "broll_segment_decision"
+    if segment_idx < 0:
+        event_name = "broll_session_summary"
+    payload = {
+        "event": event_name,
+        "segment": segment_idx,
+        "t0": start,
+        "t1": end,
+        "q_count": query_count,
+        "candidates": candidate_count,
+        "unique_candidates": unique_candidates,
+        "dedup_url_hits": url_dedup_hits,
+        "dedup_phash_hits": phash_dedup_hits,
+        "selected_url": selected_url,
+        "selected_score": selected_score,
+        "provider": provider,
+        "latency_ms": latency_ms,
+        "llm_healthy": llm_healthy,
+        "reject_reasons": sorted(set(reject_reasons or [])),
+    }
+    logger.log(payload)
