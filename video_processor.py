@@ -673,6 +673,62 @@ class VideoProcessor:
             self._broll_event_logger = JsonlLogger(log_file)
         return self._broll_event_logger
 
+    def _maybe_use_pipeline_core(
+        self,
+        segments,
+        broll_keywords,
+        *,
+        subtitles,
+        input_path: Path,
+    ) -> bool:
+        """Attempt to run the pipeline_core orchestrator if configured."""
+
+        if not _pipeline_core_fetcher_enabled():
+            return False
+
+        fetcher_cfg = getattr(self._pipeline_config, 'fetcher', None)
+        if fetcher_cfg is None:
+            logger.warning(
+                "pipeline_core fetcher enabled but fetcher configuration is missing; "
+                "falling back to legacy pipeline",
+            )
+            return False
+
+        providers = getattr(fetcher_cfg, 'providers', None)
+        providers_list: List[Any]
+        misconfigured = False
+
+        if providers is None:
+            providers_list = []
+        else:
+            try:
+                providers_list = list(providers or ())
+            except TypeError:
+                misconfigured = True
+                providers_list = [providers]
+
+        if misconfigured:
+            logger.warning(
+                "pipeline_core fetcher misconfigured: expected iterable `fetcher.providers`, "
+                "got %s; falling back to legacy pipeline",
+                type(providers).__name__,
+            )
+            return False
+
+        if not providers_list:
+            logger.warning(
+                "pipeline_core fetcher enabled but no providers configured; falling back to legacy pipeline",
+            )
+            return False
+
+        self._insert_brolls_pipeline_core(
+            segments,
+            broll_keywords,
+            subtitles=subtitles,
+            input_path=input_path,
+        )
+        return True
+
     def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> None:
         global SEEN_URLS, SEEN_PHASHES
         SEEN_URLS.clear()
@@ -2032,7 +2088,15 @@ class VideoProcessor:
             if not segments:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
-            
+
+            if self._maybe_use_pipeline_core(
+                segments,
+                broll_keywords,
+                subtitles=subtitles,
+                input_path=input_path,
+            ):
+                return input_path
+
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
             cfg = BrollConfig(
                 input_video=str(input_path),
