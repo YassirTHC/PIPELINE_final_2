@@ -23,6 +23,10 @@ class JsonlLogger:
             with self._destination.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(event, ensure_ascii=False) + "\n")
 
+    def write_jsonl(self, payload: Dict[str, Any]) -> None:
+        """Backward compatible alias for callers expecting write_jsonl."""
+        self.log(payload)
+
     @property
     def path(self) -> Path:
         return self._destination
@@ -64,3 +68,5 @@ def log_broll_decision(
             "reject_reasons": reject_reasons,
         }
     )
+
+JSONLLogger = JsonlLogger

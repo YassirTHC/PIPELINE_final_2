@@ -1,0 +1,15 @@
+selection:
+  min_score: 0.54
+  prefer_landscape: true
+  min_duration_s: 3.0
+
+fetch:
+  parallel_requests: 4
+  per_segment_limit: 6
+  timeout_s: 8
+
+orchestrator:
+  max_segments_in_flight: 2
+
+timeboxing:
+  fetch_rank_ms: 3000

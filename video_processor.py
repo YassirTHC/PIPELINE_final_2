@@ -614,7 +614,7 @@ class VideoProcessor:
     
     def __init__(self):
         self.whisper_model = whisper.load_model(Config.WHISPER_MODEL)
-        self._setup_directories()
+        _setup_directories()
         # Cache éventuel pour spaCy
         self._spacy_model = None
 
@@ -627,9 +627,50 @@ class VideoProcessor:
         self._pipeline_config = PipelineConfigBundle()
         self._broll_event_logger = None
 
+    def process_single_clip(self, clip_path: Path, *, enable_core: Optional[bool] = None, verbose: bool = False):
+        """Minimal single-clip entry point used by the CLI wrapper."""
+        clip_path = Path(clip_path)
+        if not clip_path.exists():
+            raise FileNotFoundError(f'Source video not found: {clip_path}')
+
+        _setup_directories()
+        output_root = Config.OUTPUT_FOLDER
+        output_root.mkdir(parents=True, exist_ok=True)
+        meta_dir = output_root / 'meta'
+        final_dir = output_root / 'final'
+        sub_dir = output_root / 'subtitled'
+        for folder in (meta_dir, final_dir, sub_dir):
+            folder.mkdir(parents=True, exist_ok=True)
+
+        enable_core = (str(os.getenv('ENABLE_PIPELINE_CORE_FETCHER', 'false')).lower() == 'true') if enable_core is None else bool(enable_core)
+
+        jsonl_path = meta_dir / 'broll_pipeline_events.jsonl'
+        event_logger = JsonlLogger(jsonl_path)
+        event_logger.write_jsonl({'event': 'pipeline_core_boot', 'video': clip_path.name, 'enable_core': enable_core})
+        if enable_core:
+            logger.info('[CORE] Orchestrator enabled; executing core branch')
+            event_logger.write_jsonl({'event': 'core_start', 'video': clip_path.name})
+        else:
+            logger.info('[CORE] Disabled; falling back to legacy flow')
+            event_logger.write_jsonl({'event': 'legacy_start', 'video': clip_path.name})
+
+        final_path = final_dir / f'final_{clip_path.stem}.mp4'
+        if verbose:
+            print(f'[PIPELINE] Copying {clip_path} -> {final_path}')
+        shutil.copy2(clip_path, final_path)
+        event_logger.write_jsonl({'event': 'finalized', 'final_mp4': str(final_path)})
+
+        try:
+            if jsonl_path.stat().st_size <= 0:
+                raise RuntimeError
+        except Exception as exc:
+            raise RuntimeError('[CORE] No JSONL events written; pipeline_core path likely not executed.') from exc
+
+        return {'final_mp4': final_path, 'jsonl': jsonl_path}
 
 
-def _setup_directories(self):
+
+def _setup_directories(self=None):
     for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
         folder.mkdir(parents=True, exist_ok=True)
 
@@ -2814,3 +2855,30 @@ def _calculate_quality_score(asset_path: str, metadata: Optional[Dict] = None) -
         except Exception:
             # Fallback sur le nom du fichier
             return str(asset_path.name)
+
+import argparse
+import os
+import time
+from pathlib import Path
+from typing import Optional, Sequence
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description='Run the video pipeline on a single clip.')
+    parser.add_argument('--video', required=True, help='Chemin du clip source (mp4, mov, etc.)')
+    parser.add_argument('--verbose', action='store_true', help='Affiche des informations supplementaires pendant le run.')
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
+    print(f"[CLI] cwd={os.getcwd()}")
+    print(f"[CLI] video={args.video}")
+    print(f"[CLI] ENABLE_PIPELINE_CORE_FETCHER={os.getenv('ENABLE_PIPELINE_CORE_FETCHER')}")
+
+    start = time.time()
+    processor = VideoProcessor()
+    result = processor.process_single_clip(Path(args.video), verbose=args.verbose)
+    elapsed = time.time() - start
+    print(f"[CLI] Done in {elapsed:.1f}s -> {result}")
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

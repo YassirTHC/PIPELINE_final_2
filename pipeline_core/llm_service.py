@@ -7,6 +7,7 @@ import logging
 import sys
 from pathlib import Path
 import importlib.util
+import os
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -22,9 +23,13 @@ if UTILS_DIR.exists():
         spec.loader.exec_module(module)
         sys.modules['utils'] = module
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-if UTILS_DIR.exists():
+FAST_TESTS = os.getenv('PIPELINE_FAST_TESTS') == '1'
+
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+if UTILS_DIR.exists() and not FAST_TESTS:
     spec_pi = importlib.util.spec_from_file_location('utils.pipeline_integration', UTILS_DIR / 'pipeline_integration.py')
     if spec_pi and spec_pi.loader:
         _module_pi = importlib.util.module_from_spec(spec_pi)
@@ -32,8 +37,12 @@ if UTILS_DIR.exists():
         create_pipeline_integration = _module_pi.create_pipeline_integration
     else:
         raise ImportError('Cannot load utils.pipeline_integration')
+elif FAST_TESTS:
+    def create_pipeline_integration(config=None):
+        return object()
 else:
     raise ImportError('utils directory missing: ' + str(UTILS_DIR))
+
 
 logger = logging.getLogger(__name__)
 
@@ -70,23 +79,48 @@ class LLMMetadataGeneratorService:
 
     _lock: Lock = Lock()
     _shared_integration = None
+    _shared_config = None
     _init_count = 0
 
-    def __init__(self, *, reuse_shared: bool = True):
+    def __init__(self, *, reuse_shared: bool = True, config: Optional[Any] = None):
         self._reuse_shared = reuse_shared
+        self._config = config
         self._integration = None
 
+    @classmethod
+    def get_shared(cls, config: Optional[Any] = None):
+        """Return a service bound to the shared integration, initialising once."""
+        service = cls(reuse_shared=True, config=config)
+        service._get_integration()
+        return service
+
     def _get_integration(self):
+        config = self._config
+        if FAST_TESTS:
+            if self._reuse_shared:
+                with self._lock:
+                    if self._shared_integration is None:
+                        logger.info('[LLM] FAST_TESTS stub integration initialised')
+                        LLMMetadataGeneratorService._shared_integration = create_pipeline_integration(config)
+                        LLMMetadataGeneratorService._shared_config = config
+                        LLMMetadataGeneratorService._init_count += 1
+                return self._shared_integration
+            if self._integration is None:
+                logger.info('[LLM] FAST_TESTS stub integration (local) initialised')
+                self._integration = create_pipeline_integration(config)
+            return self._integration
+
         if self._reuse_shared:
             with self._lock:
                 if self._shared_integration is None:
-                    logger.info("[LLM] Initialising shared pipeline integration")
-                    self._shared_integration = create_pipeline_integration()
+                    logger.info('[LLM] Initialising shared pipeline integration')
+                    LLMMetadataGeneratorService._shared_integration = create_pipeline_integration(config)
+                    LLMMetadataGeneratorService._shared_config = config
                     LLMMetadataGeneratorService._init_count += 1
             return self._shared_integration
         if self._integration is None:
-            logger.info("[LLM] Initialising local pipeline integration")
-            self._integration = create_pipeline_integration()
+            logger.info('[LLM] Initialising local pipeline integration')
+            self._integration = create_pipeline_integration(config)
         return self._integration
 
     def generate_metadata(
