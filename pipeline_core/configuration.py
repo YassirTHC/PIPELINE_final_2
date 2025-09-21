@@ -48,7 +48,7 @@ class FetcherOrchestratorConfig:
     )
     per_segment_limit: int = 6
     parallel_requests: int = 4
-    allow_images: bool = True
+    allow_images: bool = False
     allow_videos: bool = True
     retry_count: int = 2
     request_timeout_s: float = 8.0

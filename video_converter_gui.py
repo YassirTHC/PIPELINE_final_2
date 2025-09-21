@@ -371,6 +371,10 @@ class VideoConverterGUI:
                     # Utiliser le Python de l'environnement virtuel
                     python_path = os.path.join(os.getcwd(), 'venv311', 'Scripts', 'python.exe')
                     env = os.environ.copy()
+                    env.setdefault('PYTHONIOENCODING', 'utf-8')
+                    env['ENABLE_PIPELINE_CORE_FETCHER'] = 'true'
+                    env['BROLL_FETCH_ALLOW_IMAGES'] = 'false'
+                    env['CONTEXTUAL_BROLL_YML'] = 'config\\contextual_broll.yml'
                     if self.fetcher_var.get():
                         env['AI_BROLL_ENABLE_FETCHER'] = '1'
                         # Provider par défaut: pexels,pixabay (modifiable via .env)
@@ -460,19 +464,16 @@ class VideoConverterGUI:
                                     '--min-broll', '3.5',
                                     '--max-broll', '5.0',
                                     '--generate-metadata',
-                                    '--fetch-max', '12',
+                                    '--fetch-max', '8',
+                                    '--no-fetch-images',
                                 ]
-                                # Providers
-                                fetch_list = ['local']
-                                pex = os.environ.get('PEXELS_API_KEY')
-                                pxb = os.environ.get('PIXABAY_API_KEY')
-                                # Prefer adding curated + archive for breadth
-                                if pex:
-                                    fetch_list.insert(0, 'pexels')
-                                if pxb and 'pixabay' not in fetch_list:
+                                # Providers - n'utiliser que les sources vidéo
+                                fetch_list = []
+                                if os.environ.get('PEXELS_API_KEY'):
+                                    fetch_list.append('pexels')
+                                if os.environ.get('PIXABAY_API_KEY'):
                                     fetch_list.append('pixabay')
-                                if 'archive' not in fetch_list:
-                                    fetch_list.append('archive')
+                                fetch_list.append('local')
                                 args += ['--fetch-providers', ','.join(fetch_list)]
                                 if pex:
                                     args += ['--pexels-key', pex]

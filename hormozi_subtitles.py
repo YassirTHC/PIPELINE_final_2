@@ -945,34 +945,7 @@ class HormoziSubtitles:
             alpha_line = 0.12
             self._line_h_ema = (1 - alpha_line) * self._line_h_ema + alpha_line * line_h_target
         y_target = float(height - margin_bottom_px - int(self._line_h_ema))
-        # Placement intelligent: éviter les visages dans la zone des sous-titres (lissage appliqué ensuite)
-        try:
-            if self._face_cascade is not None:
-                # Downscale rapide pour performance
-                small = cv2.resize(frame, (width//3, height//3))
-                gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-                faces = self._face_cascade.detectMultiScale(gray, 1.1, 3, minSize=(20,20))
-                # Remonter coordonnées à l'échelle d'origine
-                faces_full = []
-                for (fx, fy, fw, fh) in faces:
-                    faces_full.append((int(fx*3), int(fy*3), int(fw*3), int(fh*3)))
-                if faces_full:
-                    sub_rect = (0, int(y_target), width, max_h)
-                    sx1, sy1, sw, sh = sub_rect
-                    sx2, sy2 = sx1 + sw, sy1 + sh
-                    area_sub = max(1, sw * sh)
-                    overlap = 0
-                    for (fx, fy, fw, fh) in faces_full:
-                        fx2, fy2 = fx + fw, fy + fh
-                        ix1, iy1 = max(sx1, fx), max(sy1, fy)
-                        ix2, iy2 = min(sx2, fx2), min(sy2, fy2)
-                        if ix2 > ix1 and iy2 > iy1:
-                            overlap += (ix2 - ix1) * (iy2 - iy1)
-                    if overlap / float(area_sub) > 0.10:
-                        # Décaler vers le haut (~12% de la hauteur) sur la cible
-                        y_target = float(max(0, int(y_target) - int(0.12 * height)))
-        except Exception:
-            pass
+        # Position fixe : aucun ajustement pour faces
         # Lissage EMA de la position Y pour atténuer tout jitter restant
         if self._y_ema is None:
             self._y_ema = y_target

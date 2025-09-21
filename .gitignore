@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 *.class
@@ -55,25 +55,45 @@ AI-B-roll/broll_library/
 
 # API Keys and sensitive data
 .env
+.env.local
+.env.production
+.env.staging
 *.key
 config/api_keys.yaml
+config/pipeline.yaml
+api_config.py.backup
 
 # Temporary files
 *.tmp
 *.temp
 *.log
+*.bin
 
 # Backup files
 *.backup
 *.bak
+*.backup_current
+*.pre_fix_backup
+*.backup_avant_correction
+*.backup_correction_complete
+*.backup_nettoyage_imports
 
 # Database files
 *.db
+
+# Session files
+pipeline_session_*.json
 
 # Exclude ALL venv311 content
 venv311/**
 !venv311/.gitkeep
 
+# Exclude large media files
+*.wav
+*.mp3
+*.aac
+*.flac
 
-config/pipeline.yaml
-
+# Exclude test outputs
+test_output/
+debug_*

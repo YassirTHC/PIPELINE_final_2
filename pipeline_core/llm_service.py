@@ -3,11 +3,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from threading import Lock
+import importlib.util
+import json
 import logging
+import os
+import re
 import sys
 from pathlib import Path
-import importlib.util
-import os
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -23,11 +26,7 @@ if UTILS_DIR.exists():
         spec.loader.exec_module(module)
         sys.modules['utils'] = module
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
-
 FAST_TESTS = os.getenv('PIPELINE_FAST_TESTS') == '1'
-
-from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 if UTILS_DIR.exists() and not FAST_TESTS:
     spec_pi = importlib.util.spec_from_file_location('utils.pipeline_integration', UTILS_DIR / 'pipeline_integration.py')
@@ -38,13 +37,82 @@ if UTILS_DIR.exists() and not FAST_TESTS:
     else:
         raise ImportError('Cannot load utils.pipeline_integration')
 elif FAST_TESTS:
-    def create_pipeline_integration(config=None):
+    def create_pipeline_integration(config=None):  # type: ignore[override]
         return object()
 else:
     raise ImportError('utils directory missing: ' + str(UTILS_DIR))
 
 
 logger = logging.getLogger(__name__)
+
+
+# --- Robust JSON extraction from LLM responses -------------------------------
+def _safe_parse_json(s: str) -> Dict[str, Any]:
+    """Extract the first valid JSON object from text; return {} on failure.
+
+    Uses a simple brace-matching scan to find the first top-level JSON object.
+    """
+    if not isinstance(s, str):
+        return {}
+    try:
+        # Fast path: already valid JSON
+        return json.loads(s)
+    except Exception:
+        pass
+    start = s.find("{")
+    if start < 0:
+        return {}
+    depth = 0
+    for i, ch in enumerate(s[start:], start):
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                snippet = s[start:i+1]
+                try:
+                    return json.loads(snippet)
+                except Exception:
+                    break
+    return {}
+
+def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
+    tx = (transcript_text or "")[:max_len]
+    return f"""
+RÔLE
+Tu es planificateur B-roll pour vidéos verticales (TikTok/Shorts, 9:16).
+
+OBJECTIF
+À partir de la transcription, détecte le(s) domaine(s) librement (pas de liste fixe), puis génère :
+1) des mots-clés et phrases-clés visuelles (scènes filmables) utiles aux banques vidéos,
+2) des synonymes/variantes/termes proches pour CHAQUE mot-clé (2–4 max),
+3) des requêtes de recherche (2–4 mots, provider-friendly),
+4) des briefs segmentaires facultatifs.
+
+CONTRAINTES
+- Zéro domaine prédéfini. Déduis librement 1–3 “detected_domains” + confidence (0–1).
+- Évite les anti-termes génériques : people, thing, nice, background, start, generic, template, stock.
+- Priorise des requêtes concrètes et filmables : « sujet_action_contexte », objets précis, lieux identifiables.
+- Fenêtres visuelles recommandées : 3–6 secondes. Format vertical.
+- Si la langue de la transcription n’est pas l’anglais, produis les requêtes en langue d’origine + anglais.
+
+RÉPONDS UNIQUEMENT EN JSON:
+{{
+  "detected_domains": [{{"name": "...", "confidence": 0.0}}],
+  "language": "fr|en|…",
+  "keywords": ["..."],
+  "synonyms": {{ "keyword": ["variante1","variante2"] }},
+  "search_queries": ["..."],
+  "segment_briefs": [
+    {{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}
+  ],
+  "notes": "pièges, anti-termes, risques"
+}}
+
+TRANSCRIPT (tronqué à 1500–2000 caractères):
+{tx}
+"""
+
 
 @dataclass(slots=True)
 class SubtitleSegment:
@@ -114,14 +182,79 @@ class LLMMetadataGeneratorService:
             with self._lock:
                 if self._shared_integration is None:
                     logger.info('[LLM] Initialising shared pipeline integration')
-                    LLMMetadataGeneratorService._shared_integration = create_pipeline_integration(config)
+                    try:
+                        LLMMetadataGeneratorService._shared_integration = create_pipeline_integration(config)
+                    except Exception:  # pragma: no cover - defensive logging
+                        logger.exception('[LLM] Failed to initialise shared pipeline integration')
+                        raise
                     LLMMetadataGeneratorService._shared_config = config
                     LLMMetadataGeneratorService._init_count += 1
             return self._shared_integration
+
         if self._integration is None:
             logger.info('[LLM] Initialising local pipeline integration')
-            self._integration = create_pipeline_integration(config)
+            try:
+                self._integration = create_pipeline_integration(config)
+            except Exception:  # pragma: no cover - defensive logging
+                logger.exception('[LLM] Failed to initialise local pipeline integration')
+                raise
         return self._integration
+
+    # --- Compatibility layer for plain text completions ---------------------
+    def _complete_text(self, prompt: str) -> str:
+        """Attempt to invoke a completion method on the underlying integration.
+
+        Tries common method names; falls back to calling the optimized LLM engine
+        when available (integration.llm._call_llm). Returns raw text.
+        """
+        integration = self._get_integration()
+
+        # 1) Try common completion-shaped methods on integration directly
+        for attr in ("complete_json", "complete", "chat", "generate"):
+            fn = getattr(integration, attr, None)
+            if callable(fn):
+                try:
+                    return fn(prompt)  # type: ignore[misc]
+                except Exception:
+                    continue
+
+        # 2) Try going through the optimized LLM engine if exposed
+        llm = getattr(integration, "llm", None)
+        if llm is not None:
+            # Prefer a public method if one exists
+            for attr in ("complete_json", "complete", "generate"):
+                fn = getattr(llm, attr, None)
+                if callable(fn):
+                    try:
+                        return fn(prompt)  # type: ignore[misc]
+                    except Exception:
+                        continue
+            # Fallback to private _call_llm used in optimized_llm.py
+            call = getattr(llm, "_call_llm", None)
+            if callable(call):
+                ok, text, _err = call(prompt, temperature=0.1, max_tokens=800)
+                if ok and isinstance(text, str):
+                    return text
+
+        raise RuntimeError("No compatible completion method available on integration")
+
+    def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
+        """Domain detection + dynamic expansions (no hardcoded domains)."""
+        prompt = build_dynamic_prompt(transcript_text, max_len=max_len)
+        try:
+            raw = self._complete_text(prompt)
+            data = _safe_parse_json(raw)
+        except Exception:
+            logger.exception("[LLM] dynamic context failed")
+            data = {}
+        # Guard rails
+        data.setdefault("detected_domains", [])
+        data.setdefault("language", None)
+        data.setdefault("keywords", [])
+        data.setdefault("synonyms", {})
+        data.setdefault("search_queries", [])
+        data.setdefault("segment_briefs", [])
+        return data
 
     def generate_metadata(
         self,
@@ -170,7 +303,7 @@ class LLMMetadataGeneratorService:
             if isinstance(kw, str) and kw.strip()
         ]
 
-        logger.info("[LLM] Metadata generated", extra={'hashtags': len(hashtags), 'broll_keywords': len(broll_keywords)})
+        logger.info('[LLM] Metadata generated', extra={'hashtags': len(hashtags), 'broll_keywords': len(broll_keywords)})
         return LLMMetadata(
             title=title,
             description=description,
@@ -224,4 +357,3 @@ class LLMMetadataGeneratorService:
             "synonyms": synonyms or ["healthcare", "therapy", "consultation"],
             "filters": {"orientation": "landscape", "min_duration_s": 3.0},
         }
-

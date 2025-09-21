@@ -1,6 +1,7 @@
 """Transcript analysis helpers for the modular pipeline."""
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Sequence
 
@@ -25,8 +26,20 @@ class TranscriptAnalyzer:
             text = str(payload.get("text", "")).strip() if isinstance(payload, dict) else ""
             if not text:
                 continue
-            start = float(payload.get("start", 0.0) or 0.0)
-            end = float(payload.get("end", start) or start)
+            start_raw = payload.get("start", 0.0) if isinstance(payload, dict) else 0.0
+            end_raw = payload.get("end", start_raw) if isinstance(payload, dict) else start_raw
+            try:
+                start = float(start_raw)
+            except (TypeError, ValueError):
+                start = 0.0
+            try:
+                end = float(end_raw)
+            except (TypeError, ValueError):
+                end = start
+            if not math.isfinite(start) or start < 0:
+                start = 0.0
+            if not math.isfinite(end):
+                end = start
             if end < start:
                 end = start
             result.append(TranscriptSegment(start=start, end=end, text=text))

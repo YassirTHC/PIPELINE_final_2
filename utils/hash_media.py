@@ -25,8 +25,11 @@ def hash_media(path: str) -> str:
     try:
         file_path = Path(path)
         if not file_path.exists():
-            raise FileNotFoundError(f"Fichier non trouvé: {path}")
+            raise FileNotFoundError(f"Fichier non trouve: {path}")
             
+        if file_path.is_dir() or file_path.name in {'.', ''}:
+            raise ValueError(f"Chemin invalide pour hash_media: {path}")
+
         # Hash SHA-256
         sha256_hash = hashlib.sha256()
         
@@ -38,7 +41,7 @@ def hash_media(path: str) -> str:
         return sha256_hash.hexdigest()
         
     except Exception as e:
-        print(f"⚠️ Erreur lors du hachage de {path}: {e}")
+        print(f"?? Erreur lors du hachage de {path}: {e}")
         return ""
 
 

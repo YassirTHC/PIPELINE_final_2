@@ -117,9 +117,9 @@ class BrollSelector:
         self.direct_api_mode = self.config.get('direct_api_mode', False)  # HYBRIDE INTELLIGENT PAR DÉFAUT
         
         if self.direct_api_mode:
-            print("🎯 MODE DIRECT API ACTIVÉ - Téléchargement automatique depuis Pexels/Pixabay/Unsplash")
+            print("🎯 MODE DIRECT API ACTIVÉ - Téléchargement automatique depuis Pexels/Pixabay")
             print("    📡 FETCH par API = Téléchargement automatique de vidéos B-roll depuis Internet")
-            print("    🎬 Sources: Pexels (vidéos), Pixabay (vidéos/images), Unsplash (images HD)")
+            print("    Sources: Pexels (videos), Pixabay (videos)")
             print("    🔄 Process: Mots-clés -> Recherche API -> Téléchargement -> Insertion dans vidéo")
         else:
             print("🔍 MODE SÉLECTION ACTIVÉ - Re-scoring des résultats API")
@@ -177,7 +177,7 @@ class BrollSelector:
             },
             
             # 🚀 NOUVEAU: Configuration du mode direct
-            'direct_api_mode': True,  # Utiliser directement les résultats API
+            'direct_api_mode': False,  # Utiliser directement les résultats API
             'direct_api_limit': 5,    # Nombre de B-rolls à prendre directement
             'smart_crop_mode': True,  # Recadrage intelligent pour 9:16
             
@@ -455,19 +455,15 @@ class BrollSelector:
             
             print(f"📥 Téléchargement B-rolls depuis APIs pour {len(keywords)} mots-clés...")
             
-            # Essayer tous les providers configurés
+            # Essayer tous les providers (Pexels/Pixabay uniquement)
             providers = []
             if pexels_key:
                 providers.append(('pexels', pexels_key))
             if pixabay_key:
                 providers.append(('pixabay', pixabay_key))
-            # 🆕 Ajouter Unsplash et Archive.org
-            unsplash_key = self.config.get('unsplash_access_key', 'r4CWRWY1dnZrBXCS02cjHXa1R7FgE200kTqizeQ0ssk')
-            if unsplash_key:
-                providers.append(('unsplash', unsplash_key))
-            # Archive.org est toujours disponible (gratuit)
-            providers.append(('archive', None))
-            
+            if not providers:
+                print('WARNING: no API provider (Pexels/Pixabay)')
+
             # 🚀 NOUVEAU: Simplifier les mots-clés pour APIs externes
             simplified_keywords = []
             for keyword in keywords[:5]:  # Plus de mots-clés pour augmenter les chances
@@ -485,25 +481,17 @@ class BrollSelector:
             import threading
             
             def fetch_from_provider(keyword, provider, api_key, fetch_dir):
-                """Fonction de téléchargement pour un provider spécifique"""
+                """Download an asset for the given provider (Pexels/Pixabay)."""
                 try:
                     if provider == 'pexels':
                         return self._fetch_from_pexels(keyword, api_key, fetch_dir / 'pexels')
-                    elif provider == 'pixabay':
+                    if provider == 'pixabay':
                         return self._fetch_from_pixabay(keyword, api_key, fetch_dir / 'pixabay')
-                    elif provider == 'unsplash':
-                        unsplash_key = self.config.get('unsplash_access_key', 'r4CWRWY1dnZrBXCS02cjHXa1R7FgE200kTqizeQ0ssk')
-                        unsplash_app_id = self.config.get('unsplash_app_id', '803310')
-                        if unsplash_key:
-                            return self._fetch_from_unsplash(keyword, unsplash_key, unsplash_app_id, fetch_dir / 'unsplash')
-                    elif provider == 'archive':
-                        return self._fetch_from_archive_org(keyword, fetch_dir / 'archive')
                     return []
                 except Exception as e:
-                    print(f"⚠️ Erreur téléchargement {provider} pour '{keyword}': {e}")
+                    print(f"WARNING: provider {provider} failed for '{keyword}': {e}")
                     return []
-            
-            # Préparer les tâches de téléchargement parallèle
+
             fetch_tasks = []
             for keyword in simplified_keywords:
                 for provider, api_key in providers:
@@ -1357,7 +1345,7 @@ class BrollSelector:
     def _select_brolls_direct_api(self, keywords: List[str], domain: Optional[str], 
                                  min_delay: float, desired_count: int) -> Dict[str, Any]:
         """Mode DIRECT : utilise directement les meilleurs résultats API"""
-        print("🚀 MODE DIRECT API : Utilisation directe des résultats Pexels/Pixabay/Unsplash")
+        print("🚀 MODE DIRECT API : Utilisation directe des résultats Pexels/Pixabay")
         
         # Récupérer directement depuis les APIs
         api_limit = self.config.get('direct_api_limit', 5)

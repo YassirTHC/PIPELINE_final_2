@@ -63,16 +63,27 @@ class FetcherOrchestrator:
                         pool.submit(self._run_provider_fetch, provider_conf, query, filters)
                     )
 
-            try:
-                timeout_s = max(self.config.request_timeout_s, 0.1)
-                for fut in concurrent.futures.as_completed(futures, timeout=timeout_s):
-                    elapsed = time.perf_counter() - start
-                    if elapsed >= timeout_s:
-                        break
+            timeout_s = max(self.config.request_timeout_s, 0.1)
+            deadline = start + timeout_s
+            pending = set(futures)
+            while pending and len(results) < self.config.per_segment_limit:
+                remaining = deadline - time.perf_counter()
+                if remaining <= 0:
+                    break
+                done, pending = concurrent.futures.wait(
+                    pending,
+                    timeout=remaining,
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                )
+                if not done:
+                    break
+                for fut in done:
                     try:
                         candidates = fut.result() or []
+                    except concurrent.futures.TimeoutError:
+                        continue
                     except Exception:
-                        candidates = []
+                        continue
                     if not candidates:
                         continue
                     for candidate in candidates:
@@ -80,10 +91,8 @@ class FetcherOrchestrator:
                             results.append(candidate)
                             if len(results) >= self.config.per_segment_limit:
                                 break
-                    if len(results) >= self.config.per_segment_limit:
-                        break
-            except concurrent.futures.TimeoutError:
-                pass
+            for fut in pending:
+                fut.cancel()
 
         return results[: self.config.per_segment_limit]
 
@@ -93,17 +102,37 @@ class FetcherOrchestrator:
     def _run_provider_fetch(self, provider_conf, query: str, filters: Optional[dict]) -> List[RemoteAssetCandidate]:
         name = provider_conf.name.lower()
         limit = max(1, provider_conf.max_results or self.config.per_segment_limit)
-        if name == "pexels":
-            return self._fetch_from_pexels(query, limit)
-        if name == "pixabay":
-            return self._fetch_from_pixabay(query, limit)
+        timeout = provider_conf.timeout_s or self.config.request_timeout_s
+        timeout = max(timeout, 0.1)
+        attempts = max(1, self.config.retry_count)
+
+        def _dispatch() -> List[RemoteAssetCandidate]:
+            if name == "pexels":
+                return self._fetch_from_pexels(query, limit)
+            if name == "pixabay":
+                return self._fetch_from_pixabay(query, limit)
+            return []
+
+        for attempt in range(attempts):
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as gate:
+                future = gate.submit(_dispatch)
+                try:
+                    return future.result(timeout=timeout)
+                except concurrent.futures.TimeoutError:
+                    continue
+                except Exception:
+                    if attempt == attempts - 1:
+                        return []
         return []
 
     def _fetch_from_pexels(self, query: str, limit: int) -> List[RemoteAssetCandidate]:
+        if not query or len(query) < 3:
+            return []
         key = getattr(__import__("config", fromlist=["Config"]).Config, "PEXELS_API_KEY", None)
         if not key:
             return []
         try:
+            print(f"[FETCH] provider=pexels query='{query}' per_page={limit * 2}")
             videos = pexels_search_videos(key, query, per_page=limit * 2)
         except Exception:
             return []
@@ -131,10 +160,13 @@ class FetcherOrchestrator:
         return candidates
 
     def _fetch_from_pixabay(self, query: str, limit: int) -> List[RemoteAssetCandidate]:
+        if not query or len(query) < 3:
+            return []
         key = getattr(__import__("config", fromlist=["Config"]).Config, "PIXABAY_API_KEY", None)
         if not key:
             return []
         try:
+            print(f"[FETCH] provider=pixabay query='{query}' per_page={limit * 2}")
             videos = pixabay_search_videos(key, query, per_page=limit * 2)
         except Exception:
             return []

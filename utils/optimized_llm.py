@@ -22,43 +22,52 @@ class OptimizedLLM:
     def __init__(self, base_url: str = "http://localhost:11434", model: str = "gemma3:4b"):
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.timeout = 120  # 2 minutes par défaut
-        
-    def _call_llm(self, prompt: str, temperature: float = 0.1, max_tokens: int = 100) -> Tuple[bool, str]:
+        self.timeout = 60  # Timeout plus court pour détecter rapidement les blocages
+
+    def _call_llm(
+        self,
+        prompt: str,
+        temperature: float = 0.1,
+        max_tokens: int = 100,
+        *,
+        timeout: Optional[int] = None,
+    ) -> Tuple[bool, str, Optional[str]]:
         """Appel LLM simple avec gestion d'erreur"""
         try:
             payload = {
                 "model": self.model,
                 "prompt": prompt,
                 "temperature": temperature,
-                "stream": False
+                "stream": False,
+                "max_tokens": max_tokens,
             }
-            
+
             start_time = time.time()
             response = requests.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
-                timeout=self.timeout
+                timeout=timeout or self.timeout,
             )
             end_time = time.time()
-            
+
             if response.status_code == 200:
                 result = response.json()
                 response_text = result.get('response', '').strip()
                 duration = end_time - start_time
-                
+
                 logger.info(f"✅ LLM réussi en {duration:.1f}s - {len(response_text)} caractères")
-                return True, response_text
+                return True, response_text, None
             else:
                 logger.error(f"❌ Erreur HTTP: {response.status_code}")
-                return False, ""
-                
+                return False, "", "http_error"
+
         except requests.exceptions.Timeout:
-            logger.error(f"⏱️ Timeout après {self.timeout}s")
-            return False, ""
+            effective_timeout = timeout or self.timeout
+            logger.error(f"⏱️ Timeout après {effective_timeout}s")
+            return False, "", "timeout"
         except Exception as e:
             logger.error(f"❌ Erreur LLM: {str(e)}")
-            return False, ""
+            return False, "", "exception"
     
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
         """Extraction robuste du JSON depuis la réponse LLM"""
@@ -92,8 +101,8 @@ Transcript: {transcript}
 JSON:"""
         
         logger.info(f"🎯 Génération mots-clés avec prompt minimaliste ({len(prompt)} caractères)")
-        
-        success, response = self._call_llm(prompt)
+
+        success, response, _ = self._call_llm(prompt)
         if not success:
             return False, []
         
@@ -144,7 +153,7 @@ JSON:"""
         
         logger.info(f"🎯 Génération titre + hashtags avec prompt minimaliste ({len(prompt)} caractères)")
         
-        success, response = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt)
         if not success:
             return False, {}
         
@@ -190,7 +199,7 @@ JSON:"""
         
         logger.info(f"🎯 Génération métadonnées complètes avec prompt minimaliste ({len(prompt)} caractères)")
         
-        success, response = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt)
         if not success:
             return False, {}
         
@@ -244,56 +253,39 @@ JSON:"""
         """
         
         # 🎯 PROMPT OPTIMISÉ pour B-roll hybride (actions + concepts)
-        prompt = f"""Analyze transcript and generate HYBRID B-roll search terms mixing ACTIONS + CONCEPTS. Output JSON only:
-{{"domain": "detected_domain", "context": "specific_context", "broll_keywords": ["specific_visual_action1", "concrete_searchable_term2"], "search_queries": ["2-4 word search phrase1", "optimized api query2"]}}
+        trimmed = transcript[:1500]
+        prompt = f"""Tu es planificatrice B-roll pour un format vertical (TikTok/Shorts, 9:16). À partir du transcript ci-dessous, produis des idées de vidéos libres de droits.
 
-DOMAIN DETECTION:
-Identify the specific field (motivation_psychology, business_strategy, health_wellness, technology_innovation, etc.).
+Exigences :
+- Analyse le thème, l’émotion et le rythme : pense en fenêtres de 3 à 6 secondes.
+- Garde uniquement des idées filmables (actions humaines précises, détails d’objet, décors identifiables).
+- Évite les termes creux : people, thing, nice, background, start, generic.
+- 60 %% d’actions humaines (sujet_action_contexte avec underscores) / 40 %% de concepts visuels directs (ex. "brain_scan_monitor").
+- Donne pour chaque idée une requête courte (2 à 4 mots) optimisée pour les APIs vidéo.
+- Produis aussi un mapping segmentaire facultatif pour faciliter la synchro.
 
-CRITICAL B-ROLL REQUIREMENTS ({max_keywords} terms):
-Generate HYBRID mix of STRUCTURED ACTIONS + DIRECT CONCEPTS based on content type:
+Réponds uniquement en JSON :
+{{
+  "detected_domain": "...",
+  "context": "résumé en 12 mots max",
+  "broll_keywords": ["..."],
+  "search_queries": ["..."],
+  "segment_briefs": [
+    {{"segment_index": 0, "suggested_window_s": 4, "keywords": ["action_précise", "détail_visuel"]}}
+  ]
+}}
 
-✅ TYPE 1 - HUMAN ACTIONS (use subject_action_context format):
-- Psychology: "person_talking_to_therapist", "patient_therapy_session", "psychologist_taking_notes"
-- Business: "entrepreneur_presenting_idea", "team_brainstorming_session", "business_handshake_deal"  
-- Health: "doctor_examining_patient", "medical_consultation_room", "healthcare_professional_explaining"
-- Technology: "programmer_coding_computer", "tech_team_collaboration", "software_development_screen"
-
-✅ TYPE 2 - DIRECT CONCEPTS (use direct visual terms):
-- Brain/Neuroscience: "brain", "neural_networks", "neurons", "brain_scan", "mri_brain", "synapses"
-- Science: "dna_helix", "molecules", "atoms", "laboratory_equipment", "microscope_view", "chemical_reactions"
-- Nature: "ocean_waves", "mountain_landscape", "forest_trees", "sunset", "clouds", "wildlife"
-- Abstract: "data_visualization", "network_connections", "light_patterns", "geometric_shapes"
-
-✅ SMART MIXING STRATEGY:
-- IF content mentions PEOPLE/ACTIONS → Use 60% structured + 40% concepts
-- IF content mentions ABSTRACT/SCIENTIFIC → Use 40% structured + 60% concepts  
-- IF content mentions BRAIN/NEURAL → Include direct terms: "brain", "neurons", "neural_networks"
-- ALWAYS include both types for maximum coverage
-
-✅ FORMAT RULES:
-- Structured: "subject_action_context" with underscores
-- Concepts: Direct visual terms or "concept_detail" format
-- Be VISUALLY SEARCHABLE on stock footage platforms
-
-❌ AVOID: Generic "person", "room", "work" without context
-
-SEARCH QUERIES ({max_keywords} phrases):
-2-4 word phrases optimized for Pexels/Pixabay APIs, focusing on concrete visual elements.
-
-Examples:
-- "therapy session professional"
-- "business meeting discussion" 
-- "medical consultation doctor"
-- "coding programming workspace"
-
-Transcript: {transcript}
-
+Transcript (tronqué) : {trimmed}
 JSON:"""
-        
+
         logger.info(f"🎯 Génération B-roll avec prompt minimaliste ({len(prompt)} caractères)")
-        
-        success, response = self._call_llm(prompt)
+
+        success, response, error_kind = self._call_llm(prompt, max_tokens=350)
+        if not success and error_kind == "timeout":
+            shorter = trimmed[:600]
+            retry_prompt = prompt.replace(trimmed, shorter)
+            logger.info("⏱️ Retentative LLM B-roll avec transcript raccourci")
+            success, response, error_kind = self._call_llm(retry_prompt, max_tokens=200, timeout=40)
         if not success:
             return False, {}
         
@@ -345,27 +337,34 @@ JSON:"""
         Combine toutes les informations nécessaires
         """
         
-        # 🎯 PROMPT MINIMALISTE complet avec B-roll OPTIMISÉ
-        prompt = f"""Generate complete metadata and B-roll information from this transcript.
-Output JSON only: {{
-    "title": "Title",
-    "description": "Description", 
-    "hashtags": ["#tag1"],
-    "keywords": ["word1"],
-    "broll_keywords": ["visual_word1"],
-    "search_queries": ["2-4 word query1"]
+        # 🎯 PROMPT VIRAL pour métadonnées + B-roll
+        prompt = f"""Tu es copywriter growth pour vidéos verticales (TikTok/Shorts).
+
+Objectif : générer un TITRE + DESCRIPTION qui stoppent le scroll et maximisent la rétention.
+
+Contraintes :
+- Titre : 60 à 70 caractères, commence par un hook (verbe d’action, question ou chiffre) et annonce le bénéfice principal.
+- Description : 3 phrases max. Phrase 1 = bénéfice concret; Phrase 2 = preuve/tip actionnable; Phrase 3 = CTA soft (ex. "Sauvegarde ce clip"). Total ≤ 220 caractères.
+- Ajoute 4 à 6 hashtags pertinents (mix niche + large, sans doublon).
+- Fournis 6 mots-clés SEO en snake_case et 3 requêtes B-roll optimisées pour des banques vidéo.
+- Ton positif, pas de clickbait vide, pas de MAJUSCULES abusives.
+
+Réponds uniquement en JSON :
+{{
+    "title": "...",
+    "description": "...",
+    "hashtags": ["#..."],
+    "keywords": ["mot_clef"],
+    "broll_keywords": ["visual_word"],
+    "search_queries": ["requête vidéo"]
 }}
 
-B-roll keywords: single visual words for stock footage search.
-Search queries: 2-4 word phrases ready for Pexels/Pixabay APIs.
-
-Transcript: {transcript}
-
+Transcript : {transcript}
 JSON:"""
         
         logger.info(f"🎯 Génération complète avec B-roll ({len(prompt)} caractères)")
         
-        success, response = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt)
         if not success:
             return False, {}
         

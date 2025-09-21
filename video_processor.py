@@ -50,12 +50,33 @@ PHASH_DISTANCE = 6
 def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
     if timeout_s <= 0:
         return fn(*args, **kwargs)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(fn, *args, **kwargs)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        return future.result(timeout=timeout_s)
+    except concurrent.futures.TimeoutError:
         try:
-            return future.result(timeout=timeout_s)
-        except concurrent.futures.TimeoutError:
-            return None
+            future.cancel()
+        except Exception:
+            pass
+        # Do not wait for background task to finish to keep call non-blocking
+        try:
+            executor.shutdown(wait=False, cancel_futures=True)  # type: ignore[call-arg]
+        except TypeError:  # cancel_futures not available
+            executor.shutdown(wait=False)
+        return None
+    except Exception:
+        try:
+            executor.shutdown(wait=False)
+        except Exception:
+            pass
+        raise
+    finally:
+        # Ensure we don't leave threads around on normal completion
+        try:
+            executor.shutdown(wait=False)
+        except Exception:
+            pass
 
 
 def dedupe_by_url(candidates):
@@ -86,6 +107,64 @@ def dedupe_by_phash(candidates):
         setattr(candidate, '_phash', phash)
         unique.append(candidate)
     return unique, hits
+
+# --- Query normalization for external providers (Pexels/Pixabay)
+_STOPWORDS: Set[str] = {
+    'the','a','an','to','of','in','on','at','for','and','or','but',
+    'first','thing','that','this','those','these','you','we','they',
+    'with','from','by','as','is','are','be','was','were','it','its'
+}
+_SYN_PREFIX_MAP: Dict[str, List[str]] = {
+    'brain_scan_monitor': ['mri scan', 'ct scanner', 'brain imaging'],
+    'therapy_session': ['therapy session', 'psychology session', 'counseling'],
+    'dopamine_release': ['brain chemistry', 'neurotransmitter lab', 'neuroscience research'],
+    'path_visualization': ['goal roadmap', 'strategy roadmap', 'progress timeline'],
+    'internal_reward': ['self reward', 'intrinsic motivation']
+}
+
+def _normalize_queries(llm_keywords: List[str], transcript_tokens: List[str], *, max_queries: int = 8) -> List[str]:
+    """Produce a compact, deduplicated list of provider queries.
+    - Prefer LLM keywords; fallback to transcript tokens if empty
+    - Normalize underscores, strip punctuation, drop stopwords
+    - Expand with a small synonym map; cap list size
+    """
+    import re as _re_clean
+
+    def _yield_terms(source):
+        for term in source or []:
+            if not isinstance(term, str):
+                continue
+            cleaned = term.strip().lower().replace('_', ' ')
+            cleaned = _re_clean.sub(r"[^a-z0-9\s]", ' ', cleaned)
+            cleaned = _re_clean.sub(r"\s+", ' ', cleaned).strip()
+            if cleaned and cleaned not in _STOPWORDS:
+                yield cleaned
+
+    base = list(dict.fromkeys(_yield_terms(llm_keywords)))
+    if not base:
+        base = list(dict.fromkeys(_yield_terms(transcript_tokens)))
+
+    enriched: List[str] = []
+    seen: Set[str] = set()
+    for q in base:
+        if q in seen:
+            continue
+        enriched.append(q)
+        seen.add(q)
+        key = q.replace(' ', '_')
+        for alt in _SYN_PREFIX_MAP.get(key, []):
+            alt_c = alt.strip().lower()
+            if alt_c and alt_c not in seen:
+                enriched.append(alt_c)
+                seen.add(alt_c)
+
+    return enriched[:max_queries]
+
+
+
+def _setup_directories() -> None:
+    for folder in (Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER):
+        folder.mkdir(parents=True, exist_ok=True)
 
 
 def _try_overlay_http_direct(broll_url: str, t0: float, t1: float, render_cfg, base_cmd: list[str]) -> bool:
@@ -162,6 +241,90 @@ from pipeline_core.llm_service import LLMMetadataGeneratorService
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
+
+# --- Dynamic LLM context toggle (default: on)
+ENABLE_DYNAMIC_CONTEXT = os.getenv("ENABLE_DYNAMIC_CONTEXT", "true").lower() not in {"0","false","no"}
+
+# ---- Feature flags / knobs for per-segment refinement
+ENABLE_SEGMENT_REFINEMENT = os.getenv("ENABLE_SEGMENT_REFINEMENT", "true").lower() not in {"0","false","no"}
+SEGMENT_REFINEMENT_MAX_TERMS = int(os.getenv("SEGMENT_REFINEMENT_MAX_TERMS", "4"))
+SEGMENT_FETCH_TIMEOUT_S = float(os.getenv("SEGMENT_FETCH_TIMEOUT_S", "1.5"))
+SEGMENT_PARALLEL_REQUESTS = int(os.getenv("SEGMENT_PARALLEL_REQUESTS", "2"))
+
+# ---- Feature flag: prefer dynamic LLM domain for selector
+ENABLE_SELECTOR_DYNAMIC_DOMAIN = os.getenv("ENABLE_SELECTOR_DYNAMIC_DOMAIN", "true").lower() not in {"0","false","no"}
+
+# --- Provider anti-terms and helpers for query building
+_ANTI_TERMS = {"people","thing","nice","background","start","generic","template","stock"}
+
+def _norm_query_term(s: str) -> str:
+    s = (s or "").strip().lower().replace("_"," ")
+    try:
+        s = re.sub(r"[^\w\s\-]", "", s)
+    except Exception:
+        pass
+    return s
+
+def _dedupe_queries(seq, cap: int) -> list[str]:
+    seen, out = set(), []
+    for x in (seq or []):
+        x = _norm_query_term(x)
+        if len(x) < 3 or x in _ANTI_TERMS or not any(c.isalpha() for c in x):
+            continue
+        # Filter if any token is an anti-term (e.g., 'nice background')
+        tokens = [t for t in x.split() if t]
+        if any(t in _ANTI_TERMS for t in tokens):
+            continue
+        if x not in seen:
+            out.append(x); seen.add(x)
+        if len(out) >= cap:
+            break
+    return out
+
+def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
+    """Extract up to `cap` clean terms (keywords+queries) for a given segment index."""
+    if not isinstance(dyn, dict):
+        return []
+    briefs = dyn.get("segment_briefs") or []
+    pool: list[str] = []
+    for br in briefs:
+        try:
+            if int(br.get("segment_index", -1)) != seg_idx:
+                continue
+        except Exception:
+            continue
+        pool.extend(br.get("keywords") or [])
+        pool.extend(br.get("queries") or [])
+        break  # only first matching brief for determinism
+    return _dedupe_queries(pool, cap)
+
+def _choose_dynamic_domain(dyn: dict):
+    """Pick the best domain from LLM dynamic context.
+
+    Returns (name, confidence) or (None, None).
+    """
+    try:
+        domains = dyn.get("detected_domains") or []
+        best_name = None
+        best_conf = -1.0
+        for d in domains:
+            if not isinstance(d, dict):
+                continue
+            name = str(d.get("name") or "").strip()
+            if not name:
+                continue
+            try:
+                conf = float(d.get("confidence", 0.0) or 0.0)
+            except Exception:
+                conf = 0.0
+            if conf > best_conf:
+                best_conf = conf
+                best_name = name
+        if best_name:
+            return best_name, (best_conf if best_conf >= 0 else None)
+    except Exception:
+        pass
+    return None, None
 
 def get_sentence_transformer_model(model_name: str):
     """Récupère un modèle SentenceTransformer depuis le cache ou le charge"""
@@ -340,6 +503,20 @@ def _to_bool(v, default=False) -> bool:
         return v
     s = str(v).strip().lower()
     return s in {"1","true","yes","on"}
+
+
+def _pipeline_core_fetcher_enabled() -> bool:
+    """Resolve the pipeline_core toggle at runtime (env/UI overrides)."""
+    override = os.getenv("ENABLE_PIPELINE_CORE_FETCHER")
+    if override is not None:
+        return _to_bool(override)
+    legacy = os.getenv("AI_PIPELINE_CORE_FETCHER")
+    if legacy is not None:
+        return _to_bool(legacy)
+    ui_value = _UI_SETTINGS.get("pipeline_core_fetcher") if isinstance(_UI_SETTINGS, dict) else None
+    if ui_value is not None:
+        return _to_bool(ui_value)
+    return getattr(Config, "ENABLE_PIPELINE_CORE_FETCHER", False)
 
 
 # Load optional UI overrides once
@@ -611,7 +788,7 @@ class VideoProcessor:
     _shared_llm_service = None
 
     """Classe principale pour traiter les vidéos"""
-    
+
     def __init__(self):
         self.whisper_model = whisper.load_model(Config.WHISPER_MODEL)
         _setup_directories()
@@ -624,257 +801,1472 @@ class VideoProcessor:
             except Exception as exc:
                 logger.warning("LLM service initialisation failed: %s", exc)
         self._llm_service = VideoProcessor._shared_llm_service
+        self._core_last_run_used = False
         self._pipeline_config = PipelineConfigBundle()
         self._broll_event_logger = None
+    
+    def _setup_directories(self):
+        """Crée les dossiers nécessaires"""
+        for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
+            folder.mkdir(parents=True, exist_ok=True)
+    
+    def _generate_unique_output_dir(self, clip_stem: str) -> Path:
+        """Crée un dossier unique pour ce clip sous output/clips/<stem>[-NNN]"""
+        root = Config.OUTPUT_FOLDER / 'clips'
+        root.mkdir(parents=True, exist_ok=True)
+        base = root / clip_stem
+        if not base.exists():
+            base.mkdir(parents=True, exist_ok=True)
+            return base
+        # Trouver suffixe -001, -002, ...
+        for i in range(1, 1000):
+            candidate = root / f"{clip_stem}-{i:03d}"
+            if not candidate.exists():
+                candidate.mkdir(parents=True, exist_ok=True)
+                return candidate
+        # Fallback timestamp
+        from datetime import datetime
+        ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+        cand = root / f"{clip_stem}-{ts}"
+        cand.mkdir(parents=True, exist_ok=True)
+        return cand
 
     def process_single_clip(self, clip_path: Path, *, enable_core: Optional[bool] = None, verbose: bool = False):
-        """Minimal single-clip entry point used by the CLI wrapper."""
+        """Entry point used by the CLI wrapper with JSONL boot events."""
         clip_path = Path(clip_path)
         if not clip_path.exists():
-            raise FileNotFoundError(f'Source video not found: {clip_path}')
+            raise FileNotFoundError(f"Source video not found: {clip_path}")
 
         _setup_directories()
         output_root = Config.OUTPUT_FOLDER
-        output_root.mkdir(parents=True, exist_ok=True)
         meta_dir = output_root / 'meta'
         final_dir = output_root / 'final'
-        sub_dir = output_root / 'subtitled'
-        for folder in (meta_dir, final_dir, sub_dir):
+        subtitled_dir = output_root / 'subtitled'
+        for folder in (meta_dir, final_dir, subtitled_dir):
             folder.mkdir(parents=True, exist_ok=True)
 
-        enable_core = (str(os.getenv('ENABLE_PIPELINE_CORE_FETCHER', 'false')).lower() == 'true') if enable_core is None else bool(enable_core)
+        session_id = f"{clip_path.stem}-{int(time.time() * 1000)}"
+        log_file = meta_dir / 'broll_pipeline_events.jsonl'
+        event_logger = JsonlLogger(log_file)
+        self._broll_event_logger = event_logger
 
-        jsonl_path = meta_dir / 'broll_pipeline_events.jsonl'
-        event_logger = JsonlLogger(jsonl_path)
-        event_logger.write_jsonl({'event': 'pipeline_core_boot', 'video': clip_path.name, 'enable_core': enable_core})
-        if enable_core:
-            logger.info('[CORE] Orchestrator enabled; executing core branch')
-            event_logger.write_jsonl({'event': 'core_start', 'video': clip_path.name})
-        else:
-            logger.info('[CORE] Disabled; falling back to legacy flow')
-            event_logger.write_jsonl({'event': 'legacy_start', 'video': clip_path.name})
+        use_core = enable_core if enable_core is not None else _pipeline_core_fetcher_enabled()
+        logger.info('[CORE] Orchestrator %s', 'enabled' if use_core else 'disabled (legacy path)')
+        boot_payload = {
+            'event': 'pipeline_core_boot',
+            'video': clip_path.name,
+            'enable_core': bool(use_core),
+            'session_id': session_id,
+        }
+        event_logger.log(boot_payload)
+        event_logger.log({'event': 'core_start' if use_core else 'legacy_start', 'video': clip_path.name, 'session_id': session_id})
 
-        final_path = final_dir / f'final_{clip_path.stem}.mp4'
-        if verbose:
-            print(f'[PIPELINE] Copying {clip_path} -> {final_path}')
-        shutil.copy2(clip_path, final_path)
-        event_logger.write_jsonl({'event': 'finalized', 'final_mp4': str(final_path)})
-
+        previous_flag = os.environ.get('ENABLE_PIPELINE_CORE_FETCHER')
+        os.environ['ENABLE_PIPELINE_CORE_FETCHER'] = 'true' if use_core else 'false'
+        start_time = time.time()
+        self._core_last_run_used = False
+        result = None
         try:
-            if jsonl_path.stat().st_size <= 0:
-                raise RuntimeError
+            result = self._process_single_clip_impl(clip_path, verbose=verbose)
         except Exception as exc:
-            raise RuntimeError('[CORE] No JSONL events written; pipeline_core path likely not executed.') from exc
+            event_logger.log({
+                'event': 'pipeline_failed',
+                'video': clip_path.name,
+                'session_id': session_id,
+                'core_requested': bool(use_core),
+                'error': repr(exc),
+            })
+            raise
+        finally:
+            if previous_flag is None:
+                os.environ.pop('ENABLE_PIPELINE_CORE_FETCHER', None)
+            else:
+                os.environ['ENABLE_PIPELINE_CORE_FETCHER'] = previous_flag
 
-        return {'final_mp4': final_path, 'jsonl': jsonl_path}
+        final_path = Path(result) if result else None
+        event_logger.log({
+            'event': 'finalized',
+            'video': clip_path.name,
+            'session_id': session_id,
+            'elapsed_s': round(time.time() - start_time, 3),
+            'final_mp4': str(final_path) if final_path else None,
+            'core_requested': bool(use_core),
+            'core_effective': bool(getattr(self, '_core_last_run_used', False)),
+        })
+
+        log_path = getattr(event_logger, 'path', None)
+        if isinstance(log_path, Path) and (not log_path.exists() or log_path.stat().st_size == 0):
+            raise RuntimeError('[CORE] No JSONL events written for this run.')
+
+        return final_path
+
+    def _get_broll_event_logger(self):
+        if getattr(self, '_broll_event_logger', None) is None:
+            log_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_pipeline_events.jsonl'
+            self._broll_event_logger = JsonlLogger(log_file)
+        return self._broll_event_logger
 
 
+    def _maybe_use_pipeline_core(
+        self,
+        segments,
+        broll_keywords,
+        *,
+        subtitles,
+        input_path: Path,
+    ) -> bool:
+        """Attempt to run the pipeline_core orchestrator if configured."""
 
-def _setup_directories(self=None):
-    for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
-        folder.mkdir(parents=True, exist_ok=True)
+        event_logger = self._get_broll_event_logger()
+        if not _pipeline_core_fetcher_enabled():
+            event_logger.log({'event': 'core_disabled', 'reason': 'flag_disabled'})
+            self._core_last_run_used = False
+            return False
 
-def _get_broll_event_logger(self):
-    if self._broll_event_logger is None:
-        log_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_pipeline_events.jsonl'
-        self._broll_event_logger = JsonlLogger(log_file)
-    return self._broll_event_logger
 
-def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> None:
-    global SEEN_URLS, SEEN_PHASHES
-    SEEN_URLS.clear()
-    SEEN_PHASHES.clear()
-    logger.info("[BROLL] pipeline_core orchestrator engaged")
-    config_bundle = self._pipeline_config
-    orchestrator = FetcherOrchestrator(config_bundle.fetcher)
-    selection_cfg = config_bundle.selection
-    timeboxing_cfg = config_bundle.timeboxing
-    event_logger = self._get_broll_event_logger()
+        fetcher_cfg = getattr(self._pipeline_config, 'fetcher', None)
+        if fetcher_cfg is None:
+            logger.warning(
+                "pipeline_core fetcher enabled but fetcher configuration is missing; "
+                "falling back to legacy pipeline",
+            )
+            event_logger.log({'event': 'core_disabled', 'reason': 'missing_fetcher_config'})
+            self._core_last_run_used = False
+            return False
 
-    fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
+        providers = getattr(fetcher_cfg, 'providers', None)
+        providers_list: List[Any]
+        misconfigured = False
 
-    for idx, segment in enumerate(segments):
-        seg_duration = max(0.0, segment.end - segment.start)
-        llm_hints = None
-        llm_healthy = True
-        if getattr(self, '_llm_service', None):
+        if providers is None:
+            providers_list = []
+        else:
             try:
-                llm_hints = self._llm_service.generate_hints_for_segment(segment.text, segment.start, segment.end)
-            except Exception:
-                llm_hints = None
-                llm_healthy = False
+                providers_list = list(providers or ())
+            except TypeError:
+                misconfigured = True
+                providers_list = [providers]
 
-        segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
-        queries: List[str] = []
-        if llm_hints and isinstance(llm_hints.get('queries'), list):
-            queries = [q.strip() for q in llm_hints['queries'] if isinstance(q, str) and q.strip()]
-        if not queries:
-            queries = segment_keywords[:4]
-        if not queries:
+        if misconfigured:
+            logger.warning(
+                "pipeline_core fetcher misconfigured: expected iterable `fetcher.providers`, "
+                "got %s; falling back to legacy pipeline",
+                type(providers).__name__,
+            )
+            event_logger.log({'event': 'core_disabled', 'reason': 'providers_misconfigured', 'provider_type': type(providers).__name__})
+            self._core_last_run_used = False
+            return None
+
+        if not providers_list:
+            logger.warning(
+                "pipeline_core fetcher enabled but no providers configured; falling back to legacy pipeline",
+            )
+            event_logger.log({'event': 'core_disabled', 'reason': 'no_providers'})
+            self._core_last_run_used = False
+            return False
+
+        event_logger.log({'event': 'core_engaged', 'video': input_path.name, 'providers': len(providers_list)})
+
+        self._insert_brolls_pipeline_core(
+            segments,
+            broll_keywords,
+            subtitles=subtitles,
+            input_path=input_path,
+        )
+        return True
+
+    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> None:
+        global SEEN_URLS, SEEN_PHASHES
+        SEEN_URLS.clear()
+        SEEN_PHASHES.clear()
+        self._core_last_run_used = True
+        logger.info("[BROLL] pipeline_core orchestrator engaged")
+        config_bundle = self._pipeline_config
+        orchestrator = FetcherOrchestrator(config_bundle.fetcher)
+        selection_cfg = config_bundle.selection
+        timeboxing_cfg = config_bundle.timeboxing
+        event_logger = self._get_broll_event_logger()
+        event_logger.log(
+            {
+                "event": "broll_session_start",
+                "segment": -1,
+                "total_segments": len(segments),
+                "llm_healthy": bool(self._llm_service),
+            }
+        )
+
+        # Prepare selection report (once per clip)
+        report = None
+        try:
+            dyn_ctx = getattr(self, '_dyn_context', None)
+            dom_name, dom_conf = _choose_dynamic_domain(dyn_ctx) if ENABLE_SELECTOR_DYNAMIC_DOMAIN else (None, None)
+            dom_source = 'dyn' if dom_name else 'none'
+            sk = list(getattr(self, '_selector_keywords', []))
+            fk = list(getattr(self, '_fetch_keywords', []))
+            report = {
+                'video_stem': Path(input_path).stem,
+                'effective_domain': dom_name,
+                'domain_confidence': dom_conf,
+                'domain_source': dom_source,
+                'selector_keywords': sk,
+                'fetch_keywords': fk,
+                'segments': [],
+            }
+        except Exception:
+            report = None
+
+        sanitized_segments = []
+        dropped_invalid = 0
+        for segment in segments or []:
+            try:
+                start = float(getattr(segment, 'start', 0.0))
+                end = float(getattr(segment, 'end', start))
+            except (TypeError, ValueError):
+                dropped_invalid += 1
+                continue
+            text = getattr(segment, 'text', '')
+            if not str(text).strip():
+                dropped_invalid += 1
+                continue
+            if start < 0 or end < 0 or end < start:
+                dropped_invalid += 1
+                continue
+            sanitized_segments.append(segment)
+        if dropped_invalid:
+            event_logger.log({
+                'event': 'core_segment_filtered',
+                'dropped': dropped_invalid,
+                'remaining': len(sanitized_segments),
+                'video': input_path.name,
+            })
+            logger.warning(
+                "Filtered %s invalid transcript segments before core fetcher (remaining=%s)",
+                dropped_invalid,
+                len(sanitized_segments),
+            )
+        segments = sanitized_segments
+        if not segments:
+            event_logger.log({'event': 'core_no_segments', 'reason': 'no_valid_segments', 'video': input_path.name})
+            self._core_last_run_used = False
+            return
+
+        fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
+
+        for idx, segment in enumerate(segments):
+            seg_duration = max(0.0, segment.end - segment.start)
+            llm_hints = None
+            llm_healthy = True
+            if getattr(self, '_llm_service', None):
+                try:
+                    llm_hints = self._llm_service.generate_hints_for_segment(segment.text, segment.start, segment.end)
+                except Exception:
+                    llm_hints = None
+                    llm_healthy = False
+
+            segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
+            queries: List[str] = []
+            if llm_hints and isinstance(llm_hints.get('queries'), list):
+                queries = [q.strip() for q in llm_hints['queries'] if isinstance(q, str) and q.strip()]
+            if not queries:
+                queries = segment_keywords[:4]
+            if not queries:
+                log_broll_decision(
+                    event_logger,
+                    segment_idx=idx,
+                    start=segment.start,
+                    end=segment.end,
+                    query_count=0,
+                    candidate_count=0,
+                    unique_candidates=0,
+                    url_dedup_hits=0,
+                    phash_dedup_hits=0,
+                    selected_url=None,
+                    selected_score=None,
+                    provider=None,
+                    latency_ms=0,
+                    llm_healthy=llm_healthy,
+                    reject_reasons=['no_keywords'],
+                )
+                continue
+
+            # Optional per-segment refinement using dynamic LLM context briefs
+            refined = False
+            try:
+                dyn = getattr(self, '_dyn_context', None)
+            except Exception:
+                dyn = None
+            reason = None
+            if ENABLE_SEGMENT_REFINEMENT and dyn:
+                try:
+                    seg_terms = _segment_terms_from_briefs(dyn, idx, SEGMENT_REFINEMENT_MAX_TERMS)
+                except Exception:
+                    seg_terms = []
+                if seg_terms:
+                    # Avoid overriding if identical to current queries (prevents redundant fetch)
+                    if seg_terms != queries:
+                        queries = seg_terms
+                        refined = True
+                    else:
+                        reason = "no_change"
+                else:
+                    reason = "empty_terms"
+            else:
+                reason = "no_brief"
+
+            # Observability: show per-segment queries
+            try:
+                print(f"[BROLL] segment #{idx}: queries={queries} (refined={refined})")
+            except Exception:
+                pass
+            try:
+                ev = self._get_broll_event_logger()
+                if ev:
+                    ev.log({
+                        "event": "broll_segment_queries",
+                        "segment": idx,
+                        "queries": queries,
+                        "refined": bool(refined),
+                        "reason": reason,
+                    })
+            except Exception:
+                pass
+
+            filters = {}
+            if llm_hints and isinstance(llm_hints.get('filters'), dict):
+                filters = llm_hints['filters'] or {}
+
+            start_time = time.perf_counter()
+
+            def _do_fetch():
+                return orchestrator.fetch_candidates(
+                    queries,
+                    duration_hint=seg_duration,
+                    filters=filters,
+                )
+
+            # Timebox the per-segment fetch using the strictest timeout
+            eff_timeout = fetch_timeout
+            # Config timeboxing: per-request timeout if available
+            try:
+                per_request = float(getattr(self._pipeline_config.timeboxing, "request_timeout_s", SEGMENT_FETCH_TIMEOUT_S) or SEGMENT_FETCH_TIMEOUT_S)
+            except Exception:
+                per_request = SEGMENT_FETCH_TIMEOUT_S
+            # Environment guard
+            try:
+                guard = float(SEGMENT_FETCH_TIMEOUT_S)
+            except Exception:
+                guard = SEGMENT_FETCH_TIMEOUT_S
+            # Start from a positive base if none set
+            if not eff_timeout or eff_timeout <= 0.0:
+                eff_timeout = per_request
+            # Apply the strictest of all timeouts
+            eff_timeout = min(v for v in (eff_timeout, per_request, guard) if v and v > 0.0)
+
+            fetch_start = time.perf_counter()
+            candidates = run_with_timeout(_do_fetch, eff_timeout) if eff_timeout else _do_fetch()
+            fetch_latency_ms = int((time.perf_counter() - fetch_start) * 1000)
+            try:
+                ev = self._get_broll_event_logger()
+                if ev:
+                    ev.log({
+                        "event": "broll_segment_fetch_latency",
+                        "segment": idx,
+                        "latency_ms": fetch_latency_ms,
+                        "query_count": len(queries or []),
+                        "timeout_s": eff_timeout,
+                    })
+            except Exception:
+                pass
+            if candidates is None:
+                candidates = []
+
+            unique_candidates, url_hits = dedupe_by_url(candidates)
+            unique_candidates, phash_hits = dedupe_by_phash(unique_candidates)
+
+            best_candidate = None
+            best_score = -1.0
+            best_provider = None
+            reject_reasons: List[str] = []
+
+            for candidate in unique_candidates:
+                score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
+                if score < selection_cfg.min_score:
+                    reject_reasons.append('low_score')
+                    continue
+                if score > best_score:
+                    best_candidate = candidate
+                    best_score = score
+                    best_provider = getattr(candidate, 'provider', None)
+
+            if best_candidate:
+                url = getattr(best_candidate, 'url', None)
+                if url:
+                    SEEN_URLS.add(url)
+                ph = getattr(best_candidate, '_phash', None)
+                if ph is not None:
+                    SEEN_PHASHES.append(ph)
+                # Append to selection report
+                try:
+                    if report is not None:
+                        report['segments'].append({
+                            'segment': idx,
+                            't0': float(getattr(segment, 'start', 0.0)),
+                            't1': float(getattr(segment, 'end', 0.0)),
+                            'selected_url': getattr(best_candidate, 'url', None),
+                            'provider': getattr(best_candidate, 'provider', None),
+                            'score': float(best_score) if best_score is not None else None,
+                        })
+                except Exception:
+                    pass
+
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
             log_broll_decision(
                 event_logger,
                 segment_idx=idx,
                 start=segment.start,
                 end=segment.end,
-                query_count=0,
-                candidate_count=0,
-                unique_candidates=0,
-                url_dedup_hits=0,
-                phash_dedup_hits=0,
-                selected_url=None,
-                selected_score=None,
-                provider=None,
-                latency_ms=0,
+                query_count=len(queries),
+                candidate_count=len(candidates),
+                unique_candidates=len(unique_candidates),
+                url_dedup_hits=url_hits,
+                phash_dedup_hits=phash_hits,
+                selected_url=getattr(best_candidate, 'url', None) if best_candidate else None,
+                selected_score=best_score if best_candidate else None,
+                provider=best_provider if best_candidate else None,
+                latency_ms=latency_ms,
                 llm_healthy=llm_healthy,
-                reject_reasons=['no_keywords'],
-            )
-            continue
-
-        filters = {}
-        if llm_hints and isinstance(llm_hints.get('filters'), dict):
-            filters = llm_hints['filters'] or {}
-
-        start_time = time.perf_counter()
-
-        def _do_fetch():
-            return orchestrator.fetch_candidates(
-                queries,
-                duration_hint=seg_duration,
-                filters=filters,
+                reject_reasons=sorted(set(reject_reasons)),
             )
 
-        candidates = run_with_timeout(_do_fetch, fetch_timeout) if fetch_timeout else _do_fetch()
-        if candidates is None:
-            candidates = []
+        # Add effective domain fields to the summary line for easy scraping
+        provider_status = {}
+        try:
+            dom_name = report.get('effective_domain') if isinstance(report, dict) else None
+            dom_source = report.get('domain_source') if isinstance(report, dict) else None
+            dom_conf = report.get('domain_confidence') if isinstance(report, dict) else None
+            provider_status.update({
+                'effective_domain': dom_name,
+                'domain_source': dom_source,
+                'domain_confidence': dom_conf,
+            })
+        except Exception:
+            pass
 
-        unique_candidates, url_hits = dedupe_by_url(candidates)
-        unique_candidates, phash_hits = dedupe_by_phash(unique_candidates)
-
-        best_candidate = None
-        best_score = -1.0
-        best_provider = None
-        reject_reasons: List[str] = []
-
-        for candidate in unique_candidates:
-            score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
-            if score < selection_cfg.min_score:
-                reject_reasons.append('low_score')
-                continue
-            if score > best_score:
-                best_candidate = candidate
-                best_score = score
-                best_provider = getattr(candidate, 'provider', None)
-
-        if best_candidate is None:
-            if not candidates:
-                reject_reasons.append('timeout' if fetch_timeout else 'no_candidates')
-            elif url_hits or phash_hits:
-                reject_reasons.append('deduped')
-            elif not reject_reasons:
-                reject_reasons.append('no_candidates')
-        else:
-            url = getattr(best_candidate, 'url', None)
-            if url:
-                SEEN_URLS.add(url)
-            ph = getattr(best_candidate, '_phash', None)
-            if ph is not None:
-                SEEN_PHASHES.append(ph)
-
-        latency_ms = int((time.perf_counter() - start_time) * 1000)
         log_broll_decision(
             event_logger,
-            segment_idx=idx,
-            start=segment.start,
-            end=segment.end,
-            query_count=len(queries),
-            candidate_count=len(candidates),
-            unique_candidates=len(unique_candidates),
-            url_dedup_hits=url_hits,
-            phash_dedup_hits=phash_hits,
-            selected_url=getattr(best_candidate, 'url', None) if best_candidate else None,
-            selected_score=best_score if best_candidate else None,
-            provider=best_provider if best_candidate else None,
-            latency_ms=latency_ms,
-            llm_healthy=llm_healthy,
-            reject_reasons=sorted(set(reject_reasons)),
+            segment_idx=-1,
+            start=0.0,
+            end=0.0,
+            query_count=0,
+            candidate_count=0,
+            unique_candidates=0,
+            url_dedup_hits=0,
+            phash_dedup_hits=0,
+            selected_url=None,
+            selected_score=None,
+            provider=None,
+            latency_ms=0,
+            llm_healthy=True,
+            reject_reasons=['summary'],
+            provider_status=provider_status or None,
         )
 
-    log_broll_decision(
-        event_logger,
-        segment_idx=-1,
-        start=0.0,
-        end=0.0,
-        query_count=0,
-        candidate_count=0,
-        unique_candidates=0,
-        url_dedup_hits=0,
-        phash_dedup_hits=0,
-        selected_url=None,
-        selected_score=None,
-        provider=None,
-        latency_ms=0,
-        llm_healthy=True,
-        reject_reasons=['summary'],
-    )
+        # Persist compact selection report next to JSONL
+        try:
+            ENABLE_SELECTION_REPORT = os.getenv("ENABLE_SELECTION_REPORT", "true").lower() not in {"0","false","no"}
+        except Exception:
+            ENABLE_SELECTION_REPORT = True
+        if ENABLE_SELECTION_REPORT and report is not None:
+            try:
+                seg_total = len(segments) if segments else 0
+                seg_sel = len(report.get('segments') or [])
+                report['selection_rate'] = round((seg_sel / seg_total), 3) if seg_total else 0.0
+                meta_dir = Config.OUTPUT_FOLDER / 'meta'
+                meta_dir.mkdir(parents=True, exist_ok=True)
+                name = f"selection_report_{report.get('video_stem') or 'clip'}.json"
+                out_path = meta_dir / name
+                with open(out_path, 'w', encoding='utf-8') as f:
+                    json.dump(report, f, ensure_ascii=False, indent=2)
+                print(f"[REPORT] wrote {out_path}")
+            except Exception as e:
+                print(f"[REPORT] failed: {e}")
 
-def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
-    keywords: List[str] = []
-    if global_keywords:
-        keywords.extend(global_keywords[:4])
-    segment_words = [w.strip().lower() for w in segment.text.split() if len(w.strip()) > 3]
-    unique_segment_words: List[str] = []
-    for word in segment_words:
-        if word not in unique_segment_words:
-            unique_segment_words.append(word)
-    keywords.extend(unique_segment_words[:3])
-    result: List[str] = []
-    for word in keywords:
-        if word and word not in result:
-            result.append(word)
-    return result
+    def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
+        keywords: List[str] = []
+        if global_keywords:
+            keywords.extend(global_keywords[:4])
+        segment_words = [w.strip().lower() for w in segment.text.split() if len(w.strip()) > 3]
+        unique_segment_words: List[str] = []
+        for word in segment_words:
+            if word not in unique_segment_words:
+                unique_segment_words.append(word)
+        keywords.extend(unique_segment_words[:3])
+        result: List[str] = []
+        for word in keywords:
+            if word and word not in result:
+                result.append(word)
+        return result
 
-def _estimate_candidate_score(self, candidate, selection_cfg, segment_duration: float) -> float:
-    base_score = 0.6
-    width = getattr(candidate, 'width', 0) or 0
-    height = getattr(candidate, 'height', 0) or 0
-    duration = getattr(candidate, 'duration', None)
+    def _estimate_candidate_score(self, candidate, selection_cfg, segment_duration: float) -> float:
+        base_score = 0.6
+        width = getattr(candidate, 'width', 0) or 0
+        height = getattr(candidate, 'height', 0) or 0
+        duration = getattr(candidate, 'duration', None)
 
-    if selection_cfg.prefer_landscape and width and height and width < height:
-        return 0.0
-    if not selection_cfg.prefer_landscape and width and height and height < width:
-        base_score -= 0.1
+        if selection_cfg.prefer_landscape and width and height and width < height:
+            return 0.0
+        if not selection_cfg.prefer_landscape and width and height and height < width:
+            base_score -= 0.1
 
-    if duration is not None:
-        if duration < max(selection_cfg.min_duration_s, 0.0):
-            base_score -= 0.2
-        elif duration >= selection_cfg.min_duration_s:
-            base_score += 0.05
-        if segment_duration > 0:
-            ratio = duration / max(segment_duration, 1e-3)
-            if ratio < 0.6:
-                base_score -= 0.1
-            elif ratio > 1.4:
-                base_score -= 0.05
-            else:
+        if duration is not None:
+            if duration < max(selection_cfg.min_duration_s, 0.0):
+                base_score -= 0.2
+            elif duration >= selection_cfg.min_duration_s:
                 base_score += 0.05
+            if segment_duration > 0:
+                ratio = duration / max(segment_duration, 1e-3)
+                if ratio < 0.6:
+                    base_score -= 0.1
+                elif ratio > 1.4:
+                    base_score -= 0.05
+                else:
+                    base_score += 0.05
 
-    tags = getattr(candidate, 'tags', None) or ()
-    keyword_hits = sum(1 for t in tags if isinstance(t, str) and t)
-    if keyword_hits:
-        base_score += min(0.1, keyword_hits * 0.02)
+        tags = getattr(candidate, 'tags', None) or ()
+        keyword_hits = sum(1 for t in tags if isinstance(t, str) and t)
+        if keyword_hits:
+            base_score += min(0.1, keyword_hits * 0.02)
 
-    return max(0.0, min(1.0, base_score))
+        return max(0.0, min(1.0, base_score))
 
-def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_duration: float) -> float:
-    base_score = self._estimate_candidate_score(candidate, selection_cfg, segment_duration)
-    title = (getattr(candidate, 'title', '') or '').lower()
-    tokens = {tok for tok in segment_text.lower().split() if len(tok) > 2}
-    if title and tokens:
-        overlap = sum(1 for tok in tokens if tok in title)
-        if overlap:
-            base_score += min(0.1, overlap * 0.02)
-    return max(0.0, min(1.0, base_score))
+    def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_duration: float) -> float:
+        base_score = self._estimate_candidate_score(candidate, selection_cfg, segment_duration)
+        title = (getattr(candidate, 'title', '') or '').lower()
+        tokens = {tok for tok in segment_text.lower().split() if len(tok) > 2}
+        if title and tokens:
+            overlap = sum(1 for tok in tokens if tok in title)
+            if overlap:
+                base_score += min(0.1, overlap * 0.02)
+        return max(0.0, min(1.0, base_score))
+    
+    def _safe_copy(self, src: Path, dst: Path) -> None:
+        try:
+            if src and Path(src).exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(src), str(dst))
+        except Exception:
+            pass
 
+    def _hardlink_or_copy(self, src: Path, dst: Path) -> None:
+        """Crée un hardlink si possible, sinon copie le fichier."""
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if getattr(Config, 'USE_HARDLINKS', True):
+                os.link(str(src), str(dst))
+            else:
+                shutil.copy2(str(src), str(dst))
+        except Exception:
+            try:
+                shutil.copy2(str(src), str(dst))
+            except Exception:
+                pass
+ 
+    def _unique_path(self, directory: Path, base_name: str, extension: str) -> Path:
+        """Retourne un chemin unique dans directory en ajoutant -NNN si collision."""
+        directory.mkdir(parents=True, exist_ok=True)
+        candidate = directory / f"{base_name}{extension}"
+        if not candidate.exists():
+            return candidate
+        for i in range(1, 1000):
+            alt = directory / f"{base_name}-{i:03d}{extension}"
+            if not alt.exists():
+                return alt
+        from datetime import datetime
+        ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+        return directory / f"{base_name}-{ts}{extension}"
+    
+    def _cleanup_files(self, paths: List[Path]) -> None:
+        for p in paths:
+            try:
+                if p and Path(p).exists():
+                    Path(p).unlink()
+            except Exception:
+                pass
+ 
+    def _purge_broll_caches(self) -> None:
+        try:
+            broll_lib = Path('AI-B-roll') / 'broll_library'
+            broll_cache = Path('AI-B-roll') / '.cache'
+            if broll_lib.exists():
+                for item in broll_lib.glob('*'):
+                    try:
+                        if item.is_dir():
+                            shutil.rmtree(item, ignore_errors=True)
+                        else:
+                            item.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+            if broll_cache.exists():
+                shutil.rmtree(broll_cache, ignore_errors=True)
+        except Exception:
+            pass
+
+    # 🚨 CORRECTION CRITIQUE: Méthodes manquantes pour le sélecteur B-roll
+    def _load_broll_selector_config(self):
+        """Charge la configuration du sélecteur B-roll depuis le fichier YAML"""
+        try:
+            import yaml
+            if Config.BROLL_SELECTOR_CONFIG_PATH.exists():
+                with open(Config.BROLL_SELECTOR_CONFIG_PATH, 'r', encoding='utf-8') as f:
+                    return yaml.safe_load(f) or {}
+            else:
+                print(f"    ⚠️ Fichier de configuration introuvable: {Config.BROLL_SELECTOR_CONFIG_PATH}")
+                return {}
+        except Exception as e:
+            print(f"    ⚠️ Erreur chargement configuration: {e}")
+            return {}
+
+    def _calculate_asset_hash(self, asset_path: Path) -> str:
+        """Calcule un hash unique pour un asset B-roll basé sur son contenu et métadonnées"""
+        try:
+            import hashlib
+            import os
+            from datetime import datetime
+            
+            # Hash basé sur le nom, la taille et la date de modification
+            stat = asset_path.stat()
+            hash_data = f"{asset_path.name}_{stat.st_size}_{stat.st_mtime}"
+            return hashlib.md5(hash_data.encode()).hexdigest()
+        except Exception:
+            # Fallback sur le nom du fichier
+            return str(asset_path.name)
+
+    def _extract_keywords_for_segment_spacy(self, text: str) -> List[str]:
+        """Extraction optionnelle (spaCy) de mots-clés (noms/verbes/entités). Fallback heuristique si indisponible."""
+        try:
+            import re as _re
+            
+            # 🚨 CORRECTION IMMÉDIATE: Filtre des mots génériques inutiles
+            GENERIC_WORDS = {
+                'very', 'much', 'many', 'some', 'any', 'all', 'each', 'every', 'few', 'several',
+                'reflexes', 'speed', 'clear', 'good', 'bad', 'big', 'small', 'new', 'old', 'high', 'low',
+                'fast', 'slow', 'hard', 'easy', 'strong', 'weak', 'hot', 'cold', 'warm', 'cool',
+                'right', 'wrong', 'true', 'false', 'yes', 'no', 'maybe', 'perhaps', 'probably',
+                'thing', 'stuff', 'way', 'time', 'place', 'person', 'people', 'man', 'woman', 'child',
+                'work', 'make', 'do', 'get', 'go', 'come', 'see', 'look', 'hear', 'feel', 'think',
+                'know', 'want', 'need', 'like', 'love', 'hate', 'hope', 'wish', 'try', 'help'
+            }
+            
+            if self._spacy_model is None:
+                try:
+                    import spacy as _spacy
+                    for _model in ['en_core_web_sm', 'fr_core_news_sm', 'xx_ent_wiki_sm']:
+                        try:
+                            self._spacy_model = _spacy.load(_model, disable=['parser','lemmatizer'])
+                            break
+                        except Exception:
+                            continue
+                    if self._spacy_model is None:
+                        self._spacy_model = _spacy.blank('en')
+                except Exception:
+                    self._spacy_model = None
+            doc = None
+            if self._spacy_model is not None:
+                try:
+                    doc = self._spacy_model(text)
+                except Exception:
+                    doc = None
+            keywords: List[str] = []
+            if doc is not None and hasattr(doc, 'ents'):
+                for ent in doc.ents:
+                    val = ent.text.strip()
+                    if len(val) >= 3 and val.lower() not in keywords and val.lower() not in GENERIC_WORDS:
+                        keywords.append(val.lower())
+            # POS si dispo
+            if doc is not None and getattr(doc, 'has_annotation', lambda *_: False)('TAG'):
+                for tok in doc:
+                    if tok.pos_ in ('NOUN','PROPN','VERB') and len(tok.text) >= 3:
+                        lemma = (tok.lemma_ or tok.text).lower()
+                        if lemma not in keywords and lemma not in GENERIC_WORDS:
+                            keywords.append(lemma)
+            # Fallback heuristique simple avec filtre
+            if not keywords:
+                for w in _re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']{4,}", text or ""):
+                    lw = w.lower()
+                    if lw not in keywords and lw not in GENERIC_WORDS:
+                        keywords.append(lw)
+            
+
+                        # Build clean selector/fetch keyword lists from LLM + transcript
+                        llm_keywords_input = list(broll_keywords or [])
+                        transcript_tokens: List[str] = []
+                        for _seg in subtitles:
+                            _t = str(_seg.get('text','') or '')
+                            transcript_tokens.extend(_t.split())
+                        selector_keywords = _normalize_queries(llm_keywords_input, transcript_tokens, max_queries=12)
+                        fetch_keywords = _normalize_queries(llm_keywords_input, transcript_tokens, max_queries=8)
+                        if not selector_keywords:
+                            selector_keywords = fetch_keywords[:]
+                        if not fetch_keywords:
+                            fetch_keywords = selector_keywords[:8] if selector_keywords else ['motivation','reward','focus','success','mindset']
+            # 🚨 CORRECTION IMMÉDIATE: Prioriser les mots contextuels importants
+            PRIORITY_WORDS = {
+                'neuroscience', 'brain', 'mind', 'consciousness', 'cognitive', 'mental', 'psychology',
+                'medical', 'health', 'treatment', 'research', 'science', 'discovery', 'innovation',
+                'technology', 'digital', 'future', 'ai', 'artificial', 'intelligence', 'machine',
+                'business', 'success', 'growth', 'strategy', 'leadership', 'entrepreneur', 'startup'
+            }
+            
+            # Réorganiser pour prioriser les mots importants
+            priority_keywords = [kw for kw in keywords if kw in PRIORITY_WORDS]
+            other_keywords = [kw for kw in keywords if kw not in PRIORITY_WORDS]
+            
+            # Retourner d'abord les mots prioritaires, puis les autres
+            final_keywords = priority_keywords + other_keywords
+            return final_keywords[:12]
+        except Exception:
+            return []
+
+    def process_all_clips(self, input_video_path: str):
+        """Pipeline principal de traitement"""
+        logger.info("🚀 Début du pipeline de traitement")
+        print("🎬 Démarrage du pipeline de traitement...")
+        
+        # Étape 1: Découpage (votre IA existante)
+        
+        # Étape 2: Traitement de chaque clip
+        clip_files = list(Config.CLIPS_FOLDER.glob("*.mp4"))
+        total_clips = len(clip_files)
+        
+        print(f"📁 {total_clips} clips trouvés dans le dossier clips/")
+        
+        for i, clip_path in enumerate(clip_files):
+            print(f"\n🎬 [{i+1}/{total_clips}] Traitement de: {clip_path.name}")
+            logger.info(f"🎬 Traitement du clip {i+1}/{total_clips}: {clip_path.name}")
+            
+            # Skip si déjà traité
+            stem = Path(clip_path).stem
+            final_dir = Config.OUTPUT_FOLDER / 'final'
+            processed_already = False
+            if final_dir.exists():
+                matches = list(final_dir.glob(f"final_{stem}*.mp4"))
+                processed_already = len(matches) > 0
+            if processed_already:
+                print(f"⏩ Clip déjà traité, ignoré : {clip_path.name}")
+                logger.info(f"⏩ Clip déjà traité, ignoré : {clip_path.name}")
+                continue
+
+            # Verrou concurrentiel par clip
+            locks_dir = Config.OUTPUT_FOLDER / 'locks'
+            locks_dir.mkdir(parents=True, exist_ok=True)
+            lock_file = locks_dir / f"{stem}.lock"
+            if lock_file.exists():
+                print(f"⏭️ Verrou détecté, saut du clip: {clip_path.name}")
+                continue
+            try:
+                lock_file.write_text("locked", encoding='utf-8')
+                self.process_single_clip(clip_path)
+                print(f"✅ Clip {clip_path.name} traité avec succès")
+                logger.info(f"✅ Clip {clip_path.name} traité avec succès")
+            except Exception as e:
+                print(f"❌ Erreur lors du traitement de {clip_path.name}: {e}")
+                logger.error(f"❌ Erreur lors du traitement de {clip_path.name}: {e}")
+            finally:
+                try:
+                    if lock_file.exists():
+                        lock_file.unlink()
+                except Exception:
+                    pass
+        
+        print(f"\n🎉 Pipeline terminé ! {total_clips} clips traités.")
+        logger.info("🎉 Pipeline terminé avec succès")
+        # Purge B-roll (librairie + caches) si demandé pour garder le disque léger
+        try:
+            if getattr(Config, 'BROLL_PURGE_AFTER_RUN', False):
+                self._purge_broll_caches()
+        except Exception:
+            pass
+        # Agréger un rapport global même sans --json-report
+        try:
+            final_dir = (Config.OUTPUT_FOLDER / 'final')
+            items = []
+            if final_dir.exists():
+                for jf in final_dir.glob('final_*.json'):
+                    try:
+                        items.append(json.loads(jf.read_text(encoding='utf-8')))
+                    except Exception:
+                        pass
+            report_path = Config.OUTPUT_FOLDER / 'report.json'
+            report_path.write_text(json.dumps({'clips': items}, ensure_ascii=False, indent=2), encoding='utf-8')
+        except Exception:
+            pass
+
+    def cut_viral_clips(self, input_video_path: str):
+        """
+        Interface pour votre IA de découpage existante
+        Remplacez cette méthode par votre implémentation
+        """
+        logger.info("📼 Découpage des clips avec IA...")
+        
+        # Exemple basique - remplacez par votre IA
+        video = VideoFileClip(input_video_path)
+        duration = video.duration
+        
+        # Découpage adaptatif selon la durée
+        if duration <= 30:
+            # Vidéo courte : utiliser toute la vidéo
+            segment_duration = duration
+            segments = 1
+        else:
+            # Vidéo longue : découper en segments de 30 secondes
+            segment_duration = 30
+            segments = max(1, int(duration // segment_duration))
+        
+        for i in range(min(segments, 5)):  # Max 5 clips pour test
+            start_time = i * segment_duration
+            end_time = min((i + 1) * segment_duration, duration)
+            
+            clip = video.subclip(start_time, end_time)
+            output_path = Config.CLIPS_FOLDER / f"clip_{i+1:02d}.mp4"
+            clip.write_videofile(str(output_path), verbose=False, logger=None)
+        
+        video.close()
+        logger.info(f"✅ {segments} clips générés")
+    
+    def _process_single_clip_impl(self, clip_path: Path, *, verbose: bool = False):
+        """Traite un clip individuel (reframe -> transcription (pour B-roll) -> B-roll -> sous-titres)"""
+        
+        # Dossier de sortie dédié et unique
+        per_clip_dir = self._generate_unique_output_dir(clip_path.stem)
+        
+        print(f"  📐 Étape 1/4: Reframe dynamique IA...")
+        reframed_path = self.reframe_to_vertical(clip_path)
+        # Déplacer artefact reframed dans le dossier du clip
+        try:
+            dst_reframed = per_clip_dir / 'reframed.mp4'
+            if Path(reframed_path).exists():
+                shutil.move(str(reframed_path), str(dst_reframed))
+            reframed_path = dst_reframed
+        except Exception:
+            pass
+        
+        print(f"  🗣️ Étape 2/4: Transcription Whisper (guide B-roll)...")
+        # Transcrire tôt pour guider la sélection B-roll (SRT disponible)
+        subtitles = self.transcribe_segments(reframed_path)
+        try:
+            # Écrire un SRT à côté de la vidéo reframée
+            srt_reframed = reframed_path.with_suffix('.srt')
+            write_srt(subtitles, srt_reframed)
+            # Sauvegarder transcription segments JSON
+            seg_json = per_clip_dir / f"{clip_path.stem}_segments.json"
+            with open(seg_json, 'w', encoding='utf-8') as f:
+                json.dump(subtitles, f, ensure_ascii=False)
+        except Exception:
+            pass
+        
+        print(f"  🎞️ Étape 3/4: Insertion des B-rolls {'(activée)' if getattr(Config, 'ENABLE_BROLL', False) else '(désactivée)'}...")
+        
+        # 🚀 CORRECTION: Générer les mots-clés LLM AVANT l'insertion des B-rolls
+        broll_keywords = []
+        try:
+            print("    🤖 Génération précoce des mots-clés LLM pour B-rolls...")
+            title, description, hashtags, broll_keywords = self.generate_caption_and_hashtags(subtitles)
+            print(f"    ✅ Mots-clés B-roll LLM générés: {len(broll_keywords)} termes")
+            print(f"    🎯 Exemples: {', '.join(broll_keywords[:5])}")
+        except Exception as e:
+            print(f"    ⚠️ Erreur génération mots-clés LLM: {e}")
+            broll_keywords = []
+        
+        # Maintenant insérer les B-rolls avec les mots-clés LLM disponibles
+        with_broll_path = self.insert_brolls_if_enabled(reframed_path, subtitles, broll_keywords)
+        
+        # Copier artefact with_broll si différent
+        try:
+            if with_broll_path and with_broll_path != reframed_path:
+                self._safe_copy(with_broll_path, per_clip_dir / 'with_broll.mp4')
+        except Exception:
+            pass
+        
+        print(f"  ✨ Étape 4/4: Ajout des sous-titres Hormozi 1...")
+        # Générer meta (titre/hashtags) depuis transcription (déjà fait)
+        try:
+            # Réutiliser les données déjà générées
+            if not broll_keywords:  # Fallback si pas encore généré
+                title, description, hashtags, broll_keywords = self.generate_caption_and_hashtags(subtitles)
+            
+            print(f"  📝 Title: {title}")
+            print(f"  📝 Description: {description}")
+            print(f"  #️⃣ Hashtags: {' '.join(hashtags)}")
+            meta_path = per_clip_dir / 'meta.txt'
+            with open(meta_path, 'w', encoding='utf-8') as f:
+                f.write(
+                    "Title: " + title + "\n\n" +
+                    "Description: " + description + "\n\n" +
+                    "Hashtags: " + ' '.join(hashtags) + "\n\n" +
+                    "B-roll Keywords: " + ', '.join(broll_keywords) + "\n"
+                )
+            print(f"  📝 [MÉTADONNÉES] Fichier meta.txt sauvegardé: {meta_path}")
+        except Exception as e:
+            print(f"  ⚠️ [ERREUR MÉTADONNÉES] {e}")
+            # Fallback: créer des métadonnées basiques
+            try:
+                meta_path = per_clip_dir / 'meta.txt'
+                with open(meta_path, 'w', encoding='utf-8') as f:
+                    f.write("Title: Vidéo générée automatiquement\n\nDescription: Contenu généré par pipeline vidéo\n\nHashtags: #video #auto\n\nB-roll Keywords: video, content\n")
+                print(f"  📝 [FALLBACK] Métadonnées de base sauvegardées: {meta_path}")
+            except Exception as e2:
+                print(f"  ❌ [ERREUR FALLBACK] {e2}")
+        
+        # Appliquer style Hormozi sur la vidéo post B-roll
+        subtitled_out_dir = per_clip_dir
+        subtitled_out_dir.mkdir(parents=True, exist_ok=True)
+        final_subtitled_path = subtitled_out_dir / 'final_subtitled.mp4'
+        try:
+            span_style_map = {
+                # Business & Croissance
+                "croissance": {"color": "#39FF14", "bold": True, "emoji": "📈"},
+                "growth": {"color": "#39FF14", "bold": True, "emoji": "📈"},
+                "opportunité": {"color": "#FFD700", "bold": True, "emoji": "��"},
+                "opportunite": {"color": "#FFD700", "bold": True, "emoji": "🔑"},
+                "innovation": {"color": "#00E5FF", "emoji": "⚡"},
+                "idée": {"color": "#00E5FF", "emoji": "💡"},
+                "idee": {"color": "#00E5FF", "emoji": "💡"},
+                "stratégie": {"color": "#FF73FA", "emoji": "🧭"},
+                "strategie": {"color": "#FF73FA", "emoji": "🧭"},
+                "plan": {"color": "#FF73FA", "emoji": "🗺️"},
+                # Argent & Finance
+                "argent": {"color": "#FFD700", "bold": True, "emoji": "💰"},
+                "money": {"color": "#FFD700", "bold": True, "emoji": "💰"},
+                "cash": {"color": "#FFD700", "bold": True, "emoji": "💰"},
+                "investissement": {"color": "#8AFF00", "bold": True, "emoji": "📊"},
+                "investissements": {"color": "#8AFF00", "bold": True, "emoji": "📊"},
+                "revenu": {"color": "#8AFF00", "emoji": "🏦"},
+                "revenus": {"color": "#8AFF00", "emoji": "🏦"},
+                "profit": {"color": "#8AFF00", "bold": True, "emoji": "💰"},
+                "profits": {"color": "#8AFF00", "bold": True, "emoji": "💰"},
+                "perte": {"color": "#FF3131", "emoji": "📉"},
+                "pertes": {"color": "#FF3131", "emoji": "📉"},
+                "échec": {"color": "#FF3131", "emoji": "❌"},
+                "echec": {"color": "#FF3131", "emoji": "❌"},
+                "budget": {"color": "#FFD700", "emoji": "🧾"},
+                "gestion": {"color": "#FFD700", "emoji": "🪙"},
+                "roi": {"color": "#8AFF00", "bold": True, "emoji": "📈"},
+                "chiffre": {"color": "#FFD700", "emoji": "💰"},
+                "ca": {"color": "#FFD700", "emoji": "💰"},
+                # Relation & Client
+                "client": {"color": "#00E5FF", "underline": True, "emoji": "🤝"},
+                "clients": {"color": "#00E5FF", "underline": True, "emoji": "🤝"},
+                "collaboration": {"color": "#00E5FF", "emoji": "🫱🏼‍🫲🏽"},
+                "collaborations": {"color": "#00E5FF", "emoji": "🫱🏼‍🫲🏽"},
+                "communauté": {"color": "#39FF14", "emoji": "🌍"},
+                "communaute": {"color": "#39FF14", "emoji": "🌍"},
+                "confiance": {"color": "#00E5FF", "emoji": "🔒"},
+                "vente": {"color": "#FF73FA", "emoji": "🛒"},
+                "ventes": {"color": "#FF73FA", "emoji": "🛒"},
+                "deal": {"color": "#FF73FA", "emoji": "📦"},
+                "deals": {"color": "#FF73FA", "emoji": "📦"},
+                "prospect": {"color": "#00E5FF", "emoji": "🤝"},
+                "prospects": {"color": "#00E5FF", "emoji": "🤝"},
+                "contrat": {"color": "#FF73FA", "emoji": "📋"},
+                # Motivation & Succès
+                "succès": {"color": "#39FF14", "italic": True, "emoji": "🏆"},
+                "succes": {"color": "#39FF14", "italic": True, "emoji": "🏆"},
+                "motivation": {"color": "#FF73FA", "bold": True, "emoji": "🔥"},
+                "énergie": {"color": "#FF73FA", "emoji": "⚡"},
+                "energie": {"color": "#FF73FA", "emoji": "⚡"},
+                "victoire": {"color": "#39FF14", "emoji": "🎯"},
+                "discipline": {"color": "#FFD700", "emoji": "⏳"},
+                "viral": {"color": "#FF73FA", "bold": True, "emoji": "🚀"},
+                "viralité": {"color": "#FF73FA", "bold": True, "emoji": "🌐"},
+                "viralite": {"color": "#FF73FA", "bold": True, "emoji": "🌐"},
+                "impact": {"color": "#FF73FA", "emoji": "💥"},
+                "explose": {"color": "#FF73FA", "emoji": "💥"},
+                "explosion": {"color": "#FF73FA", "emoji": "💥"},
+                # Risque & Erreurs
+                "erreur": {"color": "#FF3131", "emoji": "⚠️"},
+                "erreurs": {"color": "#FF3131", "emoji": "⚠️"},
+                "warning": {"color": "#FF3131", "emoji": "⚠️"},
+                "obstacle": {"color": "#FF3131", "emoji": "🧱"},
+                "obstacles": {"color": "#FF3131", "emoji": "🧱"},
+                "solution": {"color": "#00E5FF", "emoji": "🔧"},
+                "solutions": {"color": "#00E5FF", "emoji": "🔧"},
+                "leçon": {"color": "#00E5FF", "emoji": "📚"},
+                "lecon": {"color": "#00E5FF", "emoji": "📚"},
+                "apprentissage": {"color": "#00E5FF", "emoji": "🧠"},
+                "problème": {"color": "#FF3131", "emoji": "🛑"},
+                "probleme": {"color": "#FF3131", "emoji": "🛑"},
+            }
+            add_hormozi_subtitles(
+                str(with_broll_path), subtitles, str(final_subtitled_path),
+                brand_kit=getattr(Config, 'BRAND_KIT_ID', 'default'),
+                span_style_map=span_style_map
+            )
+        except Exception as e:
+            print(f"  ❌ Erreur ajout sous-titres Hormozi: {e}")
+            # Pas de retour anticipé: continuer export simple
+        
+        # Export final accumulé dans output/final/ et sous-titré (burn-in) dans output/subtitled/
+        final_dir = Config.OUTPUT_FOLDER / 'final'
+        subtitled_dir = Config.OUTPUT_FOLDER / 'subtitled'
+        # Noms de base sans extension
+        base_name = clip_path.stem
+        output_path = self._unique_path(final_dir, f"final_{base_name}", ".mp4")
+        try:
+            # Choisir source finale: si sous-titrée existe sinon with_broll sinon reframed
+            source_final = None
+            if final_subtitled_path.exists():
+                source_final = final_subtitled_path
+            elif with_broll_path and Path(with_broll_path).exists():
+                source_final = with_broll_path
+            else:
+                source_final = reframed_path
+            if source_final and Path(source_final).exists():
+                self._hardlink_or_copy(source_final, output_path)
+                # Ecrire SRT: éviter le doublon si la vidéo finale a déjà les sous-titres incrustés
+                is_burned = (final_subtitled_path.exists() and Path(source_final) == Path(final_subtitled_path))
+                if not is_burned:
+                    srt_out = output_path.with_suffix('.srt')
+                    write_srt(subtitles, srt_out)
+                    self._hardlink_or_copy(srt_out, per_clip_dir / 'final.srt')
+                    # WebVTT
+                    try:
+                        vtt_out = output_path.with_suffix('.vtt')
+                        write_vtt(subtitles, vtt_out)
+                    except Exception:
+                        pass
+                else:
+                    # Produire uniquement une SRT dans le dossier du clip, pas à côté du MP4 final
+                    try:
+                        write_srt(subtitles, per_clip_dir / 'final.srt')
+                    except Exception:
+                        pass
+                # Toujours produire un VTT à côté du final pour compat
+                try:
+                    vtt_out = output_path.with_suffix('.vtt')
+                    write_vtt(subtitles, vtt_out)
+                except Exception:
+                    pass
+                # Copier final dans dossier clip
+                self._hardlink_or_copy(output_path, per_clip_dir / 'final.mp4')
+                # Si une version sous-titrée burn-in existe, la dupliquer dans output/subtitled/
+                if final_subtitled_path.exists():
+                    subtitled_out = self._unique_path(subtitled_dir, f"{base_name}_subtitled", ".mp4")
+                    self._hardlink_or_copy(final_subtitled_path, subtitled_out)
+                # Copier meta.txt à côté du final accumulé
+                try:
+                    meta_src = per_clip_dir / 'meta.txt'
+                    if meta_src.exists():
+                        self._hardlink_or_copy(meta_src, output_path.with_suffix('.txt'))
+                except Exception:
+                    pass
+                # Ecrire un JSON récap par clip
+                try:
+                    # Durée et hash final
+                    final_duration = None
+                    try:
+                        with VideoFileClip(str(output_path)) as vc:
+                            final_duration = float(vc.duration)
+                    except Exception:
+                        final_duration = None
+                    media_hash = None
+                    try:
+                        from src.pipeline.utils import hash_media  # type: ignore
+                    except Exception:
+                        hash_media = None  # type: ignore
+                    if hash_media:
+                        try:
+                            media_hash = hash_media(str(output_path))
+                        except Exception:
+                            media_hash = None
+                    summary = {
+                        'clip': base_name,
+                        'final_mp4': str(output_path.resolve()),
+                        'final_srt': str(output_path.with_suffix('.srt').resolve()) if (not is_burned) and output_path.with_suffix('.srt').exists() else None,
+                        'final_vtt': str(output_path.with_suffix('.vtt').resolve()) if (not is_burned) and output_path.with_suffix('.vtt').exists() else None,
+                        'subtitled_mp4': str((subtitled_out.resolve() if final_subtitled_path.exists() else '')) if final_subtitled_path.exists() else None,
+                        'meta_txt': str(output_path.with_suffix('.txt').resolve()) if output_path.with_suffix('.txt').exists() else None,
+                        'per_clip_dir': str(per_clip_dir.resolve()),
+                        'duration_s': final_duration,
+                        'media_hash': media_hash,
+                        'events': [
+                            {
+                                'id': getattr(ev, 'id', ev.get('id') if isinstance(ev, dict) else ''),
+                                'start_s': float(getattr(ev, 'start_s', ev.get('start_s') if isinstance(ev, dict) else 0.0) or 0.0),
+                                'end_s': float(getattr(ev, 'end_s', ev.get('end_s') if isinstance(ev, dict) else 0.0) or 0.0),
+                                'media_path': getattr(ev, 'media_path', ev.get('media_path') if isinstance(ev, dict) else ''),
+                                'transition': getattr(ev, 'transition', ev.get('transition') if isinstance(ev, dict) else None),
+                                'transition_duration': float(getattr(ev, 'transition_duration', ev.get('transition_duration') if isinstance(ev, dict) else 0.0) or 0.0),
+                            } for ev in (events or [])
+                        ]
+                    }
+                    with open(output_path.with_suffix('.json'), 'w', encoding='utf-8') as jf:
+                        json.dump(summary, jf, ensure_ascii=False, indent=2)
+                    # JSONL log
+                    try:
+                        jsonl = (Config.OUTPUT_FOLDER / 'pipeline.log.jsonl')
+                        with open(jsonl, 'a', encoding='utf-8') as lf:
+                            lf.write(json.dumps(summary, ensure_ascii=False) + '\n')
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                print(f"  📤 Export terminé: {output_path.name}")
+                # Nettoyage des intermédiaires pour limiter l'empreinte disque
+                self._cleanup_files([
+                    with_broll_path if with_broll_path and with_broll_path != output_path else None,
+                ])
+                return output_path
+            else:
+                print(f"  ⚠️ Fichier final introuvable")
+                return None
+        except Exception as e:
+            print(f"  ❌ Erreur export: {e}")
+            return None
+
+    def _get_sample_times(self, duration: float, fps: int) -> List[float]:
+        if duration <= 10:
+            return list(np.arange(0, duration, 1/fps))
+        elif duration <= 30:
+            return list(np.arange(0, duration, 2/fps))
+        else:
+            return list(np.arange(0, duration, 4/fps))
+
+    def _smooth_trajectory(self, x_centers: List[float], window_size: int = 15) -> List[float]:
+        # Fenêtre plus grande pour un lissage plus smooth
+        window_size = max(window_size, 31)
+        if len(x_centers) < window_size:
+            kernel = np.ones(min(9, len(x_centers))) / max(1, min(9, len(x_centers)))
+            return np.convolve(x_centers, kernel, mode='same').tolist()
+        try:
+            from scipy.signal import savgol_filter
+            smoothed = savgol_filter(x_centers, window_size, 3).tolist()
+        except Exception:
+            kernel = np.ones(window_size) / window_size
+            smoothed = np.convolve(x_centers, kernel, mode='same').tolist()
+        # EMA additionnel pour atténuer le jitter haute fréquence
+        alpha = 0.15  # plus petit = plus lisse
+        ema = []
+        last = smoothed[0] if smoothed else 0.5
+        for v in smoothed:
+            last = (1 - alpha) * last + alpha * v
+            ema.append(last)
+        return ema
+
+    def _interpolate_trajectory(self, x_centers: List[float], sample_times: List[float], duration: float, fps: int) -> List[float]:
+        if not x_centers:
+            return [0.5] * int(duration * fps)
+        target_times = np.arange(0, duration, 1/fps)
+        if len(x_centers) == 1:
+            return [x_centers[0]] * len(target_times)
+        try:
+            return np.interp(target_times, sample_times, x_centers).tolist()
+        except Exception:
+            return [x_centers[-1]] * len(target_times)
+
+    def _detect_single_frame(self, image_rgb: np.ndarray) -> float:
+        # Détecteurs MediaPipe
+        mp_pose = mp.solutions.pose
+        mp_face = mp.solutions.face_detection
+        h, w = image_rgb.shape[:2]
+        with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
+            pose_results = pose.process(image_rgb)
+            if pose_results.pose_landmarks:
+                landmarks = pose_results.pose_landmarks.landmark
+                key_points = [
+                    landmarks[mp_pose.PoseLandmark.NOSE],
+                    landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
+                    landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
+                ]
+                valid_points = [p.x for p in key_points if p.visibility > 0.5]
+                if valid_points:
+                    return sum(valid_points) / len(valid_points)
+            face_results = face_detection.process(image_rgb)
+            if face_results.detections:
+                detection = face_results.detections[0]
+                bbox = detection.location_data.relative_bounding_box
+                return bbox.xmin + bbox.width / 2
+        gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, 50, 150)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
+            if moments:
+                centroids_x = [m['m10']/m['m00'] for m in moments if m['m00'] > 0]
+                if centroids_x:
+                    return sum(centroids_x) / len(centroids_x) / w
+        return 0.5
+
+    def _detect_focus_points(self, video: VideoFileClip, fps: int, duration: float) -> List[float]:
+        x_centers = []
+        sample_times = self._get_sample_times(duration, fps)
+        mp_pose = mp.solutions.pose
+        mp_face = mp.solutions.face_detection
+        with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
+            for t in tqdm(sample_times, desc="🔎 IA focus", leave=False):
+                try:
+                    frame = video.get_frame(t)  # MoviePy retourne des frames RGB
+                    image_rgb = frame
+                    # Pose
+                    pose_results = pose.process(image_rgb)
+                    if pose_results.pose_landmarks:
+                        landmarks = pose_results.pose_landmarks.landmark
+                        key_points = [
+                            landmarks[mp_pose.PoseLandmark.NOSE],
+                            landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
+                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
+                        ]
+                        valid_points = [p.x for p in key_points if p.visibility > 0.5]
+                        if valid_points:
+                            x_centers.append(sum(valid_points)/len(valid_points))
+                            continue
+                    # Face fallback
+                    face_results = face_detection.process(image_rgb)
+                    if face_results.detections:
+                        detection = face_results.detections[0]
+                        bbox = detection.location_data.relative_bounding_box
+                        x_centers.append(bbox.xmin + bbox.width/2)
+                        continue
+                    # Mouvement fallback
+                    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+                    edges = cv2.Canny(gray, 50, 150)
+                    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if contours:
+                        moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
+                        centroids_x = [m['m10']/m['m00'] for m in moments if m['m00'] > 0]
+                        if centroids_x:
+                            x_centers.append(sum(centroids_x)/len(centroids_x)/image_rgb.shape[1])
+                            continue
+                    x_centers.append(0.5)
+                except Exception:
+                    x_centers.append(0.5)
+        return self._interpolate_trajectory(x_centers, sample_times, duration, fps)
+
+    def reframe_to_vertical(self, clip_path: Path) -> Path:
+        """Reframe dynamique basé sur détection IA optimisée"""
+        logger.info("🎯 Reframe dynamique avec IA (optimisé)")
+        print("    🎯 Détection IA en cours...")
+        video = VideoFileClip(str(clip_path))
+        fps = int(video.fps)
+        duration = video.duration
+        # Détection des centres d'intérêt
+        x_centers = self._detect_focus_points(video, fps, duration)
+        x_centers_smooth = self._smooth_trajectory(x_centers, window_size=min(15, max(5, len(x_centers)//4)))
+        frame_index = 0
+        applied_x_center_px = None
+        beta = 0.85  # amortissement (0.85 = très smooth)
+        def crop_frame(frame):
+            nonlocal frame_index
+            nonlocal applied_x_center_px
+            h, w, _ = frame.shape
+            if frame_index < len(x_centers_smooth):
+                x_target_px = x_centers_smooth[frame_index] * w
+            else:
+                x_target_px = w * 0.5
+            frame_index += 1
+            # Initialisation EMA
+            if applied_x_center_px is None:
+                applied_x_center_px = x_target_px
+            # Clamp vitesse de déplacement + deadband
+            shift = x_target_px - applied_x_center_px
+            deadband_px = w * 0.003
+            if abs(shift) < deadband_px:
+                shift = 0.0
+            max_shift_px = w * 0.02
+            if shift > max_shift_px:
+                shift = max_shift_px
+            elif shift < -max_shift_px:
+                shift = -max_shift_px
+            x_clamped = applied_x_center_px + shift
+            # EMA amorti
+            applied_x_center_px = beta * applied_x_center_px + (1 - beta) * x_clamped
+            
+            # 🚨 CORRECTION BUG: Forcer des dimensions paires pour H.264
+            target_width = Config.TARGET_WIDTH
+            target_height = Config.TARGET_HEIGHT
+            
+            # Calcul du crop avec ratio 9:16
+            crop_width = int(target_width * h / target_height)
+            crop_width = min(crop_width, w)
+            
+            # 🚨 CORRECTION: S'assurer que crop_width est pair
+            if crop_width % 2 != 0:
+                crop_width = crop_width - 1 if crop_width > 1 else crop_width + 1
+            
+            x1 = int(max(0, min(w - crop_width, applied_x_center_px - crop_width / 2)))
+            x2 = x1 + crop_width
+            cropped = frame[:, x1:x2]
+            
+            # 🚨 CORRECTION: S'assurer que les dimensions finales sont paires
+            final_width = target_width
+            final_height = target_height
+            
+            # Vérifier et corriger si nécessaire
+            if final_width % 2 != 0:
+                final_width = final_width - 1 if final_width > 1 else final_width + 1
+            if final_height % 2 != 0:
+                final_height = final_height - 1 if final_height > 1 else final_height + 1
+            
+            return cv2.resize(cropped, (final_width, final_height), interpolation=cv2.INTER_LANCZOS4)
+        reframed = video.fl_image(crop_frame)
+        output_path = Config.TEMP_FOLDER / f"reframed_{clip_path.name}"
+        try:
+            # Prefer AMD AMF hardware encoder on this system; boost quality slightly with QP=18
+            reframed.write_videofile(
+                str(output_path),
+                fps=fps,
+                codec='h264_nvenc',
+                audio_codec='aac',
+                verbose=False,
+                logger=None,
+                preset=None,
+                ffmpeg_params=['-rc','vbr','-cq','19','-b:v','0','-maxrate','0','-pix_fmt','yuv420p','-movflags','+faststart']
+            )
+        except Exception:
+            # Fallback to CPU x264 with stable CRF
+            reframed.write_videofile(
+                str(output_path),
+                fps=fps,
+                codec='libx264',
+                audio_codec='aac',
+                verbose=False,
+                logger=None,
+                preset='medium',
+                ffmpeg_params=['-pix_fmt','yuv420p','-movflags','+faststart','-crf','20']
+            )
+        video.close(); reframed.close()
+        print("    ✅ Reframe terminé")
+        return output_path
+    
+    def transcribe_audio(self, video_path: Path) -> str:
+        """Transcription avec Whisper"""
+        logger.info("📝 Transcription audio avec Whisper")
+        print("    📝 Transcription Whisper en cours...")
+        
+        result = self.whisper_model.transcribe(str(video_path))
+        print("    ✅ Transcription terminée")
+        return result["text"]
+    
+    def transcribe_segments(self, video_path: Path) -> List[Dict]:
+        """
+        Transcrit l'audio en segments avec timestamps (sans rendu visuel).
+        Retourne une liste de segments {'text', 'start', 'end'} et conserve les mots si fournis.
+        """
+        logger.info("⏱️ Transcription avec timestamps")
+        print("    ⏱️ Génération des timestamps...")
+        result = self.whisper_model.transcribe(str(video_path), word_timestamps=True)
+        bias = getattr(Config, 'SUBTITLE_TIMING_BIAS_S', 0.0)
+        subtitles: List[Dict] = []
+        for segment in result.get("segments", []):
+            seg_start = max(0.0, (segment.get("start") or 0.0) + bias)
+            seg_end = max(seg_start, (segment.get("end") or seg_start) + bias)
+            subtitle: Dict = {
+                "text": (segment.get("text") or "").strip(),
+                "start": seg_start,
+                "end": seg_end
+            }
+            words = segment.get("words")
+            if words:
+                precise_words = []
+                for w in words:
+                    ws = max(0.0, (w.get("start") or seg_start) + bias)
+                    we = max(ws, (w.get("end") or ws) + bias)
+                    wt = (w.get("word") or w.get("text") or "").strip()
+                    if wt:
+                        precise_words.append({"text": wt, "start": ws, "end": we})
+                if precise_words:
+                    subtitle["words"] = precise_words
+            subtitles.append(subtitle)
+        print(f"    ✅ {len(subtitles)} segments de sous-titres générés")
+        return subtitles
+
+    def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> (str, str, List[str], List[str]):
+        """Génère une légende, des hashtags et des mots-clés B-roll avec le système LLM industriel."""
+        full_text = ' '.join(s.get('text', '') for s in subtitles)
+        
+        # 🚀 NOUVEAU: Utilisation du système LLM industriel
+        try:
+            # Import du nouveau système
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).parent / "utils"))
+            
+            from pipeline_integration import create_pipeline_integration
+            
+            # Créer l'intégration LLM
+            llm_integration = create_pipeline_integration()
+            
+            print(f"    🚀 [LLM INDUSTRIEL] Génération de métadonnées pour {len(full_text)} caractères")
+            
+            # Traitement avec le nouveau système
+            result = llm_integration.process_video_transcript(
+                transcript=full_text,
+                video_id=f"video_{int(time.time())}",
+                segment_timestamps=[(s.get('start', 0), s.get('end', 0)) for s in subtitles if 'start' in s and 'end' in s]
+            )
+            
+            if result.get('success', False):
+                metadata = result.get('metadata', {})
+                broll_data = result.get('broll_data', {})
+                
+                title = metadata.get('title', '').strip()
+                description = metadata.get('description', '').strip()
+                hashtags = [h for h in (metadata.get('hashtags') or []) if h]
+                broll_keywords = broll_data.get('keywords', [])
+                
+                print(f"    ✅ [LLM INDUSTRIEL] Métadonnées générées avec succès")
+                print(f"    🎯 Titre: {title}")
+                print(f"    📝 Description: {description[:100]}...")
+                print(f"    #️⃣ Hashtags: {len(hashtags)} générés")
+                print(f"    🎬 Mots-clés B-roll: {len(broll_keywords)} termes optimisés")
+                
+                return title, description, hashtags, broll_keywords
+            else:
+                print(f"    ⚠️ [LLM INDUSTRIEL] Échec, fallback vers ancien système")
+                raise Exception("LLM industriel échoué")
+                
+        except Exception as e:
+            print(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")
+            # Fallback vers l'ancien système
+            llm_res = _llm_generate_caption_hashtags(full_text)
+            if llm_res and (llm_res.get('title') or llm_res.get('description') or llm_res.get('hashtags')):
+                title = (llm_res.get('title') or '').strip()
+                description = (llm_res.get('description') or '').strip()
+                hashtags = [h for h in (llm_res.get('hashtags') or []) if h]
+                
+                # 🚀 NOUVEAU: Extraction des mots-clés B-roll du LLM
+                broll_keywords = llm_res.get('broll_keywords', [])
+                if broll_keywords:
+                    print(f"    🤖 [LLM] Titre/description/hashtags + {len(broll_keywords)} mots-clés B-roll générés par LLM local")
+                    print(f"    🎯 Mots-clés B-roll LLM: {', '.join(broll_keywords[:8])}...")
+                else:
+                    print("    🤖 [LLM] Titre/description/hashtags générés par LLM local")
+                    # Fallback: extraire des mots-clés basiques du titre et de la description
+                    fallback_text = f"{title} {description}".lower()
+                    broll_keywords = [word for word in fallback_text.split() if len(word) > 3 and word.isalpha()]
+                    broll_keywords = list(set(broll_keywords))[:10]
+                    print(f"    🔄 Fallback mots-clés B-roll: {', '.join(broll_keywords[:5])}...")
+                
+                # Back-compat: si titre vide mais description présente, promouvoir description en titre court
+                if not title and description:
+                    title = (description[:60] + ('…' if len(description) > 60 else ''))
+                return title, description, hashtags, broll_keywords
+        
+        # Fallback heuristic
+        words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9éèàùçêîôâ]+", full_text) if len(w) > 2]
+        from collections import Counter
+        counts = Counter(words)
+        common = [w for w,_ in counts.most_common(12) if w.isalpha()]
+        hashtags = [f"#{w}" for w in common[:12]]
+        
+        # 🚀 NOUVEAU: Mots-clés B-roll de fallback basés sur les mots communs
+        broll_keywords = [w for w in common if len(w) > 3][:15]
+        
+        # Heuristic title/description
+        title = (full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
+        description = (full_text.strip()[:180] + ("…" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
+        print("    🧩 [Heuristics] Meta générées en fallback")
+        print(f"    🔑 Mots-clés B-roll fallback: {', '.join(broll_keywords[:5])}...")
+        return title, description, hashtags, broll_keywords
 
     def insert_brolls_if_enabled(self, input_path: Path, subtitles: List[Dict], broll_keywords: List[str]) -> Path:
         """Point d'extension B-roll: retourne le chemin vidéo après insertion si activée."""
@@ -897,6 +2289,99 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
             else:
                 output_with_broll = Config.TEMP_FOLDER / f"with_broll_{Path(input_path).name}"
             output_with_broll.parent.mkdir(parents=True, exist_ok=True)
+
+            # --- Build dynamic LLM context once per clip (no hardcoded domains)
+            selector_keywords: List[str] = []
+            fetch_keywords: List[str] = []
+            dyn_context: Dict[str, Any] = {}
+            try:
+                transcript_text_full = " ".join(str(s.get("text", "")) for s in (subtitles or []))
+            except Exception:
+                transcript_text_full = ""
+
+            if ENABLE_DYNAMIC_CONTEXT and getattr(self, "_llm_service", None):
+                try:
+                    dyn_context = self._llm_service.generate_dynamic_context(transcript_text_full)
+                except Exception:
+                    dyn_context = {}
+
+            llm_kw = list(dyn_context.get("keywords", []) or (broll_keywords or []))
+            llm_queries = list(dyn_context.get("search_queries", []) or [])
+            syn_map = dyn_context.get("synonyms", {}) or {}
+            seg_queries: List[str] = []
+            for br in (dyn_context.get("segment_briefs", []) or []):
+                try:
+                    seg_queries.extend(br.get("queries", []) or [])
+                except Exception:
+                    continue
+            synonyms_flat = [v for vs in (syn_map.values() if isinstance(syn_map, dict) else []) for v in (vs or [])]
+
+            pool = llm_kw + llm_queries + synonyms_flat + seg_queries
+            if not pool:
+                # Fallback minimal: a few tokens from transcript
+                try:
+                    transcript_tokens = [w for s in (subtitles or []) for w in str(s.get("text", "")).split()]
+                except Exception:
+                    transcript_tokens = []
+                pool = [t for t in transcript_tokens if isinstance(t, str) and len(t) >= 4][:10]
+
+            selector_keywords = _dedupe_queries(pool, cap=12)
+            fetch_keywords = _dedupe_queries(pool, cap=8)
+
+            # Ensure bilingual queries when original language isn't English, if LLM provided EN
+            try:
+                lang = str(dyn_context.get("language") or "").strip().lower()
+            except Exception:
+                lang = ""
+            def _is_english(q: str) -> bool:
+                try:
+                    q2 = q.strip()
+                    return bool(q2) and all((ord(c) < 128 and (c.isalnum() or c.isspace() or c in "-_") ) for c in q2) and any(c.isalpha() for c in q2)
+                except Exception:
+                    return False
+            if lang and lang != "en":
+                # If no English queries made it into fetch_keywords, try to inject 1-2 EN ones from LLM output
+                has_en = any(_is_english(q) for q in fetch_keywords)
+                if not has_en:
+                    en_from_llm = [q for q in (dyn_context.get("search_queries") or []) if isinstance(q, str) and _is_english(q)]
+                    if en_from_llm:
+                        fetch_keywords = _dedupe_queries(list(fetch_keywords) + en_from_llm[:2], cap=8)
+
+            try:
+                dom_names = [d.get("name") for d in (dyn_context.get("detected_domains", []) or []) if isinstance(d, dict)]
+            except Exception:
+                dom_names = []
+            print(f"Detected domains (free): {dom_names}")
+            print(f"Selector keywords: {selector_keywords}")
+            print(f"Fetch keywords: {fetch_keywords}")
+
+            # Expose dynamic context to pipeline_core segment loop
+            try:
+                self._dyn_context = dyn_context
+            except Exception:
+                pass
+
+            # Expose keyword lists for downstream reporting
+            try:
+                self._selector_keywords = list(selector_keywords)
+                self._fetch_keywords = list(fetch_keywords)
+            except Exception:
+                pass
+
+            # Observability: log dynamic context summary if logger available
+            try:
+                event_logger = self._get_broll_event_logger()
+                if event_logger:
+                    event_logger.log({
+                        "event": "broll_dynamic_context",
+                        "domains": dyn_context.get("detected_domains", []),
+                        "kw_count": len(llm_kw),
+                        "synonyms_count": sum(len(v or []) for v in (syn_map.values() if isinstance(syn_map, dict) else [])),
+                        "selector_keywords": selector_keywords,
+                        "fetch_keywords": fetch_keywords,
+                    })
+            except Exception:
+                pass
             
             # Assurer l'import du pipeline local (src/*)
             if str(broll_root.resolve()) not in sys.path:
@@ -1034,20 +2519,12 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                     print(f"    ⚠️  Erreur système intelligent: {e}")
                     print("    🔄 Fallback vers ancien système...")
                     INTELLIGENT_BROLL_AVAILABLE = False
-            
-            # 🚀 CORRECTION: Préparer l'analyse des mots-clés pour tous les systèmes
-            analysis = None
-            try:
-                analysis = extract_keywords_from_transcript_ai(subtitles)
-                print(f"    🧠 Analyse des mots-clés préparée: {analysis.get('dominant_theme', 'N/A')}")
-            except Exception as e:
-                print(f"    ⚠️ Erreur préparation analyse: {e}")
                     
             # Fallback: ancienne analyse si système intelligent indisponible
             if not INTELLIGENT_BROLL_AVAILABLE:
                 print("    🔄 Utilisation de l'ancien système B-roll...")
-                # analysis déjà préparé plus haut
-                prompts = generate_broll_prompts_ai(analysis) if analysis else []
+                analysis = extract_keywords_from_transcript_ai(subtitles)
+                prompts = generate_broll_prompts_ai(analysis)
                 # Filtrer les prompts fallback
                 try:
                     cleaned_prompts = []
@@ -1089,19 +2566,22 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                     
                 except Exception as e:
                     print(f"    ⚠️  Erreur prompts intelligents: {e}")
-                    # Fallback vers prompts génériques (analysis déjà préparé)
-                    prompts = generate_broll_prompts_ai(analysis) if analysis else []
+                    # Fallback vers prompts génériques
+                    analysis = extract_keywords_from_transcript_ai(subtitles)
+                    prompts = generate_broll_prompts_ai(analysis)
             
-            # 🚀 CORRECTION: Utiliser directement le paramètre broll_keywords du LLM
+            # 🚀 NOUVEAU: Intégration des mots-clés B-roll du LLM
+            # Récupérer les mots-clés B-roll générés par le LLM (si disponibles)
             llm_broll_keywords = []
             try:
-                # Utiliser les mots-clés B-roll passés en paramètre (générés par le LLM)
-                if broll_keywords and len(broll_keywords) > 0:
+                # Les mots-clés B-roll sont déjà disponibles depuis generate_caption_and_hashtags
+                # Ils sont passés via la variable broll_keywords dans le scope parent
+                if 'broll_keywords' in locals():
                     llm_broll_keywords = broll_keywords
                     print(f"    🧠 Mots-clés B-roll LLM intégrés: {len(llm_broll_keywords)} termes")
                     print(f"    🎯 Exemples: {', '.join(llm_broll_keywords[:5])}")
                 else:
-                    print("    ⚠️ Mots-clés B-roll LLM non disponibles, utilisation extraction basique")
+                    print("    ⚠️ Mots-clés B-roll LLM non disponibles")
             except Exception as e:
                 print(f"    ⚠️ Erreur récupération mots-clés B-roll LLM: {e}")
             
@@ -1112,8 +2592,8 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 for kw in llm_broll_keywords[:8]:  # Limiter à 8 mots-clés principaux
                     enhanced_prompts.append(kw)
                     # Créer des combinaisons avec le thème principal
-                    if 'global_analysis' in globals() and 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
-                        enhanced_prompts.append(f"{getattr(global_analysis, 'main_theme', 'general')} {kw}")
+                    if 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
+                        enhanced_prompts.append(f"{global_analysis.main_theme} {kw}")
                 
                 # Ajouter les prompts existants
                 enhanced_prompts.extend(prompts)
@@ -1139,10 +2619,14 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
-            if getattr(Config, 'ENABLE_PIPELINE_CORE_FETCHER', False):
-                self._insert_brolls_pipeline_core(segments, broll_keywords, subtitles=subtitles, input_path=input_path)
+            if self._maybe_use_pipeline_core(
+                segments,
+                broll_keywords,
+                subtitles=subtitles,
+                input_path=input_path,
+            ):
+                return input_path
 
-            
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
             cfg = BrollConfig(
                 input_video=str(input_path),
@@ -1153,7 +2637,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                             max_broll_ratio=0.65,           # CORRIGÉ: 90% → 65% pour équilibre optimal
             min_gap_between_broll_s=1.5,    # CORRIGÉ: 0.2s → 1.5s pour respiration visuelle
                             max_broll_clip_s=4.0,           # CORRIGÉ: 8.0s → 4.0s pour B-rolls équilibrés
-            min_broll_clip_s=1.5,           # 🚀 OPTIMISÉ: 0.8s → 1.5s pour B-rolls plus visibles sur TikTok
+            min_broll_clip_s=2.0,           # CORRIGÉ: 3.5s → 2.0s pour durée optimale
                 use_whisper=False,
                 ffmpeg_preset="fast",
                 crf=23,
@@ -1163,7 +2647,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 fetch_provider=getattr(Config, 'BROLL_FETCH_PROVIDER', 'pexels'),
                 pexels_api_key=getattr(Config, 'PEXELS_API_KEY', None),
                 pixabay_api_key=getattr(Config, 'PIXABAY_API_KEY', None),
-                fetch_max_per_keyword=getattr(Config, 'BROLL_FETCH_MAX_PER_KEYWORD', 15),  # CORRIGÉ: 25 → 15 pour vitesse optimale
+                fetch_max_per_keyword=getattr(Config, 'BROLL_FETCH_MAX_PER_KEYWORD', 25),  # CORRIGÉ: 50 → 25 pour qualité optimale
                 fetch_allow_videos=getattr(Config, 'BROLL_FETCH_ALLOW_VIDEOS', True),
                 fetch_allow_images=getattr(Config, 'BROLL_FETCH_ALLOW_IMAGES', True),  # Activé: images animées + Ken Burns
                 # Embeddings
@@ -1177,14 +2661,10 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
             try:
                 from src.pipeline.fetchers import ensure_assets_for_keywords  # type: ignore
                 
-                # 🚀 NOUVEAU: Dossier temporaire unique - sera nettoyé après traitement
+                # Créer un dossier unique pour ce clip (éviter le partage entre clips)
                 clip_id = input_path.stem  # Nom du fichier sans extension
-                clip_broll_dir = broll_library / f"temp_clip_{clip_id}_{int(time.time())}"
-                
-                # Toujours créer un nouveau dossier temporaire
+                clip_broll_dir = broll_library / f"clip_{clip_id}_{int(time.time())}"
                 clip_broll_dir.mkdir(parents=True, exist_ok=True)
-                print(f"    📁 Dossier B-roll temporaire créé: {clip_broll_dir.name}")
-                print(f"    🗑️ Sera automatiquement nettoyé après traitement")
                 
                 # Forcer l'activation du fetcher pour chaque clip
                 setattr(cfg, 'enable_fetcher', True)
@@ -1213,51 +2693,17 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                         from broll_selector import BrollSelector
                         broll_selector = BrollSelector(selector_config)
                         
-                        # 🚀 CORRECTION: Utiliser les mots-clés LLM intelligents au lieu du fallback basique
+                        # Analyser le contexte pour la sélection intelligente
                         context_keywords = []
-                        
-                        # 🎯 PRIORITÉ 0: Utiliser les VRAIS mots-clés LLM du système industriel
-                        if llm_broll_keywords and len(llm_broll_keywords) > 0:
-                            context_keywords = llm_broll_keywords[:15]  # Prendre les 15 meilleurs
-                            print(f"    🚀 Mots-clés LLM INDUSTRIELS utilisés: {len(context_keywords)} termes")
-                            print(f"    🎯 Mots-clés: {', '.join(context_keywords[:5])}")
-                        
-                        # Priorité 1: Utiliser l'analyse intelligente si disponible
-                        elif 'global_analysis' in locals():
+                        if 'global_analysis' in locals():
                             context_keywords = global_analysis.keywords[:10] if hasattr(global_analysis, 'keywords') else []
-                        
-                        # Priorité 2: Utiliser les mots-clés LLM corrigés (notre extraction améliorée)
-                        if not context_keywords and 'analysis' in locals():
-                            # Extraire les meilleurs mots-clés de notre système LLM
-                            llm_keywords = []
-                            if isinstance(analysis, dict) and 'keywords' in analysis:
-                                for category, kws in analysis['keywords'].items():
-                                    if isinstance(kws, list):
-                                        llm_keywords.extend(kws[:3])  # 3 meilleurs par catégorie
-                            
-                            # Ajouter le thème dominant
-                            if analysis.get('dominant_theme'):
-                                llm_keywords.insert(0, analysis['dominant_theme'])
-                            
-                            context_keywords = llm_keywords[:15] if llm_keywords else []
-                            print(f"    🧠 Mots-clés LLM intelligents utilisés: {len(context_keywords)} termes")
-                        
-                        # Priorité 3: Fallback basique seulement si aucun autre système
-                        if not context_keywords:
-                            # Extraction basique améliorée - mots significatifs seulement
-                            significant_words = []
+                        else:
+                            # Fallback vers extraction basique
                             for s in subtitles:
                                 text = s.get('text', '')
                                 if text:
                                     words = text.lower().split()
-                                    # Filtrer les mots vides et garder les mots significatifs
-                                    meaningful_words = [w for w in words if len(w) > 4 and w.isalpha() 
-                                                      and w not in ['that', 'this', 'they', 'there', 'where', 'when', 'what', 'with', 'have', 'your', 'once', 'figure']]
-                                    significant_words.extend(meaningful_words)
-                            
-                            # Déduplication et limitation
-                            context_keywords = list(dict.fromkeys(significant_words))[:10]
-                            print(f"    ⚠️ Fallback vers extraction basique améliorée: {len(context_keywords)} termes")
+                                    context_keywords.extend([w for w in words if len(w) > 3 and w.isalpha()])
                         
                         # Détecter le domaine
                         detected_domain = None
@@ -1268,12 +2714,37 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                         print(f"    🔑 Mots-clés contextuels: {', '.join(context_keywords[:5])}")
                         
                         # Utiliser le sélecteur pour la planification
-                        selection_report = broll_selector.select_brolls(
-                            keywords=context_keywords,
-                            domain=detected_domain,
-                            min_delay=self._load_broll_selector_config().get('thresholds', {}).get('min_delay_seconds', 4.0),
-                            desired_count=self._load_broll_selector_config().get('desired_broll_count', 3)
-                        )
+                        # Domaine effectif pour le sélecteur (dyn > global)
+                        dyn_ctx = getattr(self, '_dyn_context', None)
+                        dyn_dom_name, dyn_dom_conf = (None, None)
+                        if ENABLE_SELECTOR_DYNAMIC_DOMAIN and dyn_ctx:
+                            dyn_dom_name, dyn_dom_conf = _choose_dynamic_domain(dyn_ctx)
+                        effective_domain = dyn_dom_name or detected_domain
+                        source = 'dyn' if dyn_dom_name else ('global' if detected_domain else 'none')
+                        try:
+                            print(f"    [SEL] domain={effective_domain or 'None'} source={source} conf={dyn_dom_conf if dyn_dom_conf is not None else 'n/a'}")
+                        except Exception:
+                            pass
+                        try:
+                            ev = self._get_broll_event_logger()
+                            if ev:
+                                ev.log({'event': 'broll_selector_domain', 'domain': effective_domain, 'source': source, 'confidence': dyn_dom_conf})
+                        except Exception:
+                            pass
+
+                        try:
+                            selection_report = broll_selector.select_brolls(
+                                keywords=selector_keywords,
+                                domain=effective_domain,
+                                min_delay=self._load_broll_selector_config().get('thresholds', {}).get('min_delay_seconds', 4.0),
+                                desired_count=self._load_broll_selector_config().get('desired_broll_count', 3)
+                            )
+                        except TypeError:
+                            selection_report = broll_selector.select_brolls(
+                                keywords=selector_keywords,
+                                min_delay=self._load_broll_selector_config().get('thresholds', {}).get('min_delay_seconds', 4.0),
+                                desired_count=self._load_broll_selector_config().get('desired_broll_count', 3)
+                            )
                         
                         # Sauvegarder le rapport de sélection
                         try:
@@ -1306,35 +2777,19 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 kw_pool: list[str] = []
                 
                 # 🧠 PRIORITÉ 1: Mots-clés LLM si disponibles
-                if broll_keywords:
-                    try:
-                        if not isinstance(broll_keywords, (list, tuple)):
-                            print(f"    ❌ Format invalide broll_keywords: {type(broll_keywords)}")
-                            broll_keywords = []
-                        else:
-                            # Normalisation/filtrage
-                            broll_keywords = [
-                                (kw.strip() if isinstance(kw, str) else "")
-                                for kw in broll_keywords
-                                if isinstance(kw, str) and kw and kw.strip()
-                            ]
-                    except (TypeError, AttributeError):
-                        broll_keywords = []
+                if 'broll_keywords' in locals() and broll_keywords:
+                    print(f"    🚀 Utilisation des mots-clés LLM pour le fetch: {len(broll_keywords)} termes")
+                    # Ajouter TOUS les mots-clés LLM en priorité
+                    for kw in broll_keywords:
+                        low = (kw or '').strip().lower()
+                        if low and len(low) >= 3:
+                            kw_pool.append(low)
+                            # Ajouter des variations pour enrichir
+                            if ' ' in low:  # Mots composés
+                                parts = low.split()
+                                kw_pool.extend(parts)
                     
-                    if broll_keywords:
-                        print(f"    🚀 Utilisation des mots-clés LLM pour le fetch: {len(broll_keywords)} termes")
-                        # Ajouter TOUS les mots-clés LLM en priorité
-                        for kw in broll_keywords:
-                            low = (kw or '').strip().lower()
-                            if low and len(low) >= 3:
-                                kw_pool.append(low)
-                                # Ajouter des variations pour enrichir
-                                if ' ' in low:  # Mots composés
-                                    parts = low.split()
-                                    kw_pool.extend(parts)
-                        print(f"    🎯 Mots-clés LLM ajoutés: {', '.join(broll_keywords[:8])}")
-                    else:
-                        print("    ⚠️ Mots-clés LLM indisponibles après validation, fallback basique")
+                    print(f"    🎯 Mots-clés LLM ajoutés: {', '.join(broll_keywords[:8])}")
                 
                 # 🔄 PRIORITÉ 2: Extraction des mots-clés du transcript
                 for s in subtitles:
@@ -1515,29 +2970,8 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                         print("    📊 Configuration optimisée: 25 assets max + images activées (Archive.org)")
                 except Exception:
                     pass
-                
-                # Déclencher le fetch par mot-clé avec limites dynamiques (5 générique, 8 spécifique)
-                def _is_generic_fetch_keyword(kw: str) -> bool:
-                    if not isinstance(kw, str):
-                        return True
-                    k = kw.strip().lower()
-                    # Expressions multi-mots = spécifiques
-                    if ' ' in k:
-                        return False
-                    GENERIC_SIMPLE = {
-                        'people','person','start','thing','stuff','your','once','figure',
-                        'they','them','this','that','what','when','where','how','any','some'
-                    }
-                    return (k in GENERIC_SIMPLE) or (len(k) <= 6)
-                
-                for _kw in top_kws:
-                    per_kw_limit = 5 if _is_generic_fetch_keyword(_kw) else 8
-                    try:
-                        setattr(cfg, 'fetch_max_per_keyword', per_kw_limit)
-                        print(f"    🔧 Limite par mot-clé '{_kw}': {per_kw_limit} assets")
-                    except Exception:
-                        pass
-                    ensure_assets_for_keywords(cfg, [_kw])
+                # Déclencher le fetch dans le dossier unique du clip
+                ensure_assets_for_keywords(cfg, fetch_keywords, top_kws)
                 
                 # 🚨 CORRECTION CRITIQUE: SYSTÈME D'UNICITÉ DES B-ROLLS
                 # Éviter la duplication des B-rolls entre vidéos différentes
@@ -1693,7 +3127,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                                     cleaned.append(low)
                                     seen.add(low)
                         
-                        seg_keywords.append(cleaned[:8])  # OPTIMISÉ: 15 → 8 pour vitesse
+                        seg_keywords.append(cleaned[:15])  # Augmenté: 12 → 15
                         print(f"    🎯 Segment {i}: {len(cleaned)} mots-clés (LLM: {len(segment_llm_kws)})")
                 else:
                     # 🔄 Fallback: extraction basique uniquement
@@ -1707,7 +3141,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                                 low = kw.lower()
                                 if not (len(low) < 5 and low in stopwords):
                                     merged.append(low)
-                        seg_keywords.append(merged[:6])
+                        seg_keywords.append(merged[:12])
                 
                 with _VFC(str(input_path)) as _tmp:
                     duration = float(_tmp.duration)
@@ -1718,7 +3152,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                     max_broll_ratio=cfg.max_broll_ratio,
                     min_gap_between_broll_s=cfg.min_gap_between_broll_s,
                     max_broll_clip_s=cfg.max_broll_clip_s,
-                    min_broll_clip_s=1.5,  # 🚀 OPTIMISÉ: 0.8s → 1.5s pour B-rolls plus visibles
+                    min_broll_clip_s=cfg.min_broll_clip_s,
                 )
                 
                 # 🚨 CORRECTION CRITIQUE: Assigner directement les B-rolls fetchés aux items du plan
@@ -1892,7 +3326,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
  
             # 🎯 SCORING CONTEXTUEL RENFORCÉ: Pénaliser les assets non pertinents au domaine
             try:
-                if plan and "global_analysis" in locals() and hasattr(global_analysis, 'main_theme') and hasattr(global_analysis, 'keywords'):
+                if plan and hasattr(global_analysis, 'main_theme') and hasattr(global_analysis, 'keywords'):
                     domain = global_analysis.main_theme
                     keywords = global_analysis.keywords[:10] if hasattr(global_analysis, 'keywords') else []
                     
@@ -1945,18 +3379,8 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                     if items_without_assets and fetched_brolls:
                         print(f"    🎯 Assignation d'assets aux {len(items_without_assets)} items sans assets...")
                         
-                        # 🚀 NOUVEAU: Utiliser uniquement les B-rolls frais pour éviter la duplication
-                        available_assets = []
-                        for broll in fetched_brolls:
-                            asset_path = broll.get('path', '')
-                            if asset_path and Path(asset_path).exists():
-                                available_assets.append(asset_path)
-                        
-                        # 🚀 NOUVEAU: Mélanger pour éviter l'ordre séquentiel répétitif
-                        import random
-                        random.shuffle(available_assets)
-                        
-                        print(f"    ✅ {len(available_assets)} assets frais disponibles (mélangés pour diversité)")
+                        # Utiliser les B-rolls fetchés pour assigner aux items
+                        available_assets = [broll.get('path', '') for broll in fetched_brolls if broll.get('path')]
                         
                         for i, item in enumerate(items_without_assets):
                             if i < len(available_assets):
@@ -1966,9 +3390,35 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                                 elif isinstance(item, dict):
                                     item['asset_path'] = asset_path
                                 
-                                print(f"    ✅ Asset frais assigné à item {i+1}: {Path(asset_path).name}")
+                                print(f"    ✅ Asset assigné à item {i+1}: {Path(asset_path).name}")
                             else:
                                 break
+                        
+                        # Recalculer les listes après assignation
+                        items_with_assets = [item for item in plan if (hasattr(item, 'asset_path') and item.asset_path) or (isinstance(item, dict) and item.get('asset_path'))]
+                        items_without_assets = [item for item in plan if not ((hasattr(item, 'asset_path') and item.asset_path) or (isinstance(item, dict) and item.get('asset_path')))]
+                    
+                    # 🚨 FALLBACK UNIQUEMENT SI VRAIMENT NÉCESSAIRE
+                    if not items_with_assets and items_without_assets:
+                        print(f"    ⚠️  Aucun asset disponible, activation du fallback neutre")
+                        fallback_assets = _get_fallback_neutral_assets(broll_library, count=3)
+                        if fallback_assets:
+                            print(f"    🆘 Fallback neutre: {len(fallback_assets)} assets génériques utilisés")
+                            # Créer des items de plan avec les assets de fallback
+                            for i, asset_path in enumerate(fallback_assets):
+                                fallback_item = {
+                                    'start': 3.0 + (i * 5.0),  # Espacer les fallbacks
+                                    'end': 3.0 + (i * 5.0) + 3.0,
+                                    'asset_path': asset_path,
+                                    'score': 0.5,  # Score neutre
+                                    'context_score': 0.3,  # Pertinence faible
+                                    'is_fallback': True
+                                }
+                                plan.append(fallback_item)
+                        else:
+                            print(f"    🚨 Aucun asset de fallback disponible")
+                    elif items_with_assets:
+                        print(f"    ✅ {len(items_with_assets)} items avec assets assignés - Pas de fallback nécessaire")
                     else:
                         print(f"    ⚠️  Plan vide - Aucun item à traiter")
                     
@@ -1996,19 +3446,11 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 idx_json = (clip_specific_dir / 'faiss.json')
                 
                 model_name = getattr(cfg, 'embedding_model_name', 'clip-ViT-B/32')
-                # 🚀 OPTIMISATION: Utiliser le cache pour éviter le rechargement
-                final_model_name = 'clip-ViT-B/32' if 'ViT' in model_name else model_name
-                st_model = get_sentence_transformer_model(final_model_name)
-                
-                # 🚀 CORRECTION: Créer emb_text conditionnellement
-                emb_text = None
-                if st_model is None:
-                    print(f"    ⚠️ Impossible de charger le modèle {final_model_name}, désactivation FAISS")
-                else:
-                    def emb_text(t: str):
-                        v = st_model.encode([t])[0].astype('float32')
-                        n = _np.linalg.norm(v) + 1e-12
-                        return v / n
+                st_model = SentenceTransformer('clip-ViT-B/32') if 'ViT' in model_name else SentenceTransformer(model_name)
+                def emb_text(t: str):
+                    v = st_model.encode([t])[0].astype('float32')
+                    n = _np.linalg.norm(v) + 1e-12
+                    return v / n
                 paths = []
                 if idx_json.exists():
                     import json as _json
@@ -2026,7 +3468,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                     st_e = float(getattr(it, 'start', 0.0) if hasattr(it, 'start') else (it.get('start') if isinstance(it, dict) else 0.0))
                     en_e = float(getattr(it, 'end', 0.0) if hasattr(it, 'end') else (it.get('end') if isinstance(it, dict) else 0.0))
                     local = " ".join(s.text for s in segments if float(s.start) <= en_e and float(s.end) >= st_e)[:400]
-                    q = emb_text(local) if local and emb_text is not None else None
+                    q = emb_text(local) if local else None
                     
                     # 🚨 NOUVEAU: Extraction des mots-clés pour le scoring contextuel
                     local_keywords = []
@@ -2085,33 +3527,28 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                                 pass
                     
                     if chosen is None:
-                        # 🚀 NOUVEAU: Fallback intelligent utilisant UNIQUEMENT les assets frais du dossier fetched/
-                        print(f"    🔍 Fallback vers assets frais uniquement...")
-                        fetched_dir = clip_specific_dir / 'fetched'
-                        if fetched_dir.exists():
-                            for p in fetched_dir.rglob('*'):
-                                if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}:
-                                    if str(p.resolve()) not in used_recent and p.exists():
-                                        # 🚀 NOUVEAU: Évaluation contextuelle prioritaire
-                                        if 'get_contextual_broll_score' in globals() and local_keywords:
-                                            try:
-                                                asset_name = p.stem.lower()
-                                                asset_tokens = asset_name.split('_')
-                                                asset_tags = asset_name.split('_')
-                                                fallback_score = get_contextual_broll_score(local_keywords, asset_tokens, asset_tags)
-                                                if fallback_score > 1.0:  # Seuil réduit pour plus de diversité
-                                                    chosen = str(p.resolve())
-                                                    print(f"    ✅ Asset frais contextuel: {p.stem} | Score: {fallback_score:.2f}")
-                                                    break
-                                            except Exception:
-                                                pass
-                                        else:
-                                            # Utiliser directement l'asset frais sans scoring
-                                            chosen = str(p.resolve())
-                                            print(f"    ✅ Asset frais utilisé: {p.stem}")
-                                            break
-                        else:
-                            print(f"    ⚠️ Dossier fetched/ non trouvé: {fetched_dir}")
+                        # 🚨 NOUVEAU: Fallback contextuel intelligent au lieu d'aléatoire
+                        print(f"    🔍 Fallback contextuel pour segment: {local[:50]}...")
+                        for p in clip_specific_dir.rglob('*'):
+                            if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}:
+                                if str(p.resolve()) not in used_recent and p.exists():
+                                    # 🚨 NOUVEAU: Évaluation contextuelle du fallback
+                                    if 'get_contextual_broll_score' in globals() and local_keywords:
+                                        try:
+                                            asset_name = p.stem.lower()
+                                            asset_tokens = asset_name.split('_')
+                                            asset_tags = asset_name.split('_')
+                                            fallback_score = get_contextual_broll_score(local_keywords, asset_tokens, asset_tags)
+                                            if fallback_score > 2.0:  # Seuil contextuel minimum
+                                                chosen = str(p.resolve())
+                                                print(f"    ✅ Fallback contextuel: {p.stem} | Score: {fallback_score:.2f}")
+                                                break
+                                        except Exception:
+                                            pass
+                                    else:
+                                        # Fallback sans scoring contextuel
+                                        chosen = str(p.resolve())
+                                        break
                     
                     if chosen:
                         if isinstance(it, dict):
@@ -2130,56 +3567,24 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                     return (getattr(x, 'asset_path', None) if hasattr(x, 'asset_path') else (x.get('asset_path') if isinstance(x, dict) else None))
                 missing = [it for it in (plan or []) if not _get_ap(it)]
                 if plan and len(missing) == len(plan):
-                    # 🚀 NOUVEAU: Fallback intelligent anti-duplication
-                    # UTILISER LE DOSSIER SPÉCIFIQUE DU CLIP (fetched/ en priorité)
+                    # Aucun asset assigné par FAISS → mini fallback d'assignation séquentielle
+                    # UTILISER LE DOSSIER SPÉCIFIQUE DU CLIP
                     clip_specific_dir = clip_broll_dir if 'clip_specific_dir' in locals() else broll_library
-                    
-                    # 🚀 PRIORISER le dossier fetched/ pour des assets frais
-                    fetched_dir = clip_specific_dir / 'fetched'
-                    if fetched_dir.exists():
-                        lib_assets = [p for p in fetched_dir.rglob('*') if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}]
-                        print(f"    🎯 Utilisation assets frais du dossier fetched/: {len(lib_assets)} assets")
-                    else:
-                        lib_assets = [p for p in clip_specific_dir.rglob('*') if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}]
-                        print(f"    ⚠️ Fallback vers dossier complet: {len(lib_assets)} assets")
-                    
+                    lib_assets = [p for p in clip_specific_dir.rglob('*') if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}]
                     if lib_assets:
-                        # 🚀 NOUVEAU: Mélanger les assets pour éviter l'ordre répétitif
-                        import random
-                        random.shuffle(lib_assets)
-                        
-                        # 🚀 NOUVEAU: Répartition intelligente anti-duplication
-                        assigned_assets = set()  # Tracker les assets déjà utilisés
                         for i, it in enumerate(plan):
                             ap = _get_ap(it)
                             if ap:
                                 continue
-                                
-                            # Chercher un asset non encore utilisé
-                            chosen_asset = None
-                            for asset in lib_assets:
-                                asset_path = str(asset.resolve())
-                                if asset_path not in assigned_assets:
-                                    chosen_asset = asset_path
-                                    assigned_assets.add(asset_path)
-                                    break
-                            
-                            # Si tous les assets sont utilisés, reprendre depuis le début
-                            if chosen_asset is None and lib_assets:
-                                chosen_asset = str(lib_assets[i % len(lib_assets)].resolve())
-                                print(f"    ⚠️ Recyclage asset {i+1}: tous les assets frais épuisés")
-                            
-                            if chosen_asset:
-                                if isinstance(it, dict):
-                                    it['asset_path'] = chosen_asset
-                                else:
-                                    try:
-                                        setattr(it, 'asset_path', chosen_asset)
-                                    except Exception:
-                                        pass
-                                print(f"    ✅ Asset intelligent assigné {i+1}: {Path(chosen_asset).name}")
-                        
-                        print(f"    📊 Assignation intelligente: {len(assigned_assets)} assets uniques utilisés sur {len(lib_assets)} disponibles")
+                            a = lib_assets[i % len(lib_assets)]
+                            chosen = str(a.resolve())
+                            if isinstance(it, dict):
+                                it['asset_path'] = chosen
+                            else:
+                                try:
+                                    setattr(it, 'asset_path', chosen)
+                                except Exception:
+                                    pass
             except Exception:
                 pass
  
@@ -2223,7 +3628,7 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
                 # Fallback legacy: construire un plan simple à partir de la librairie existante
                 try:
                     _media_exts = {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}
-                    assets = [p for p in Path(broll_library).rglob('*') if p.suffix.lower() in _media_exts]
+                    assets = [p for p in broll_library.rglob('*') if p.suffix.lower() in _media_exts]
                     assets.sort(key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
                     assets = assets[:20]
                     if assets:
@@ -2378,46 +3783,12 @@ def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_d
 
             if Path(cfg.output_video).exists():
                 print("    ✅ B-roll insérés avec succès")
-            
-                # 🧹 NOUVEAU: Nettoyage immédiat du cache B-roll temporaire
-                try:
-                    if 'clip_broll_dir' in locals() and clip_broll_dir.exists():
-                        folder_size = sum(f.stat().st_size for f in clip_broll_dir.rglob('*') if f.is_file()) / (1024**2)  # MB
-                        # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                        if safe_remove_tree(clip_broll_dir):
-                            print(f"    🗑️ Cache B-roll nettoyé: {folder_size:.1f} MB libérés")
-                            print(f"    💾 Dossier temporaire supprimé: {clip_broll_dir.name}")
-                        else:
-                            print(f"    ⚠️ Nettoyage partiel du cache B-roll")
-                except Exception as e:
-                    print(f"    ⚠️ Erreur nettoyage cache: {e}")
-            
                 return Path(cfg.output_video)
             else:
                 print("    ⚠️ Sortie B-roll introuvable, retour à la vidéo d'origine")
-            
-            # 🧹 Nettoyer même en cas d'échec
-            try:
-                if 'clip_broll_dir' in locals() and clip_broll_dir.exists():
-                    # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                    if safe_remove_tree(clip_broll_dir):
-                        print(f"    🗑️ Cache B-roll nettoyé (échec traitement)")
-            except Exception:
-                pass
-            
-            return input_path
+                return input_path
         except Exception as e:
             print(f"    ❌ Erreur B-roll: {e}")
-            
-            # 🧹 IMPORTANT: Nettoyer même en cas d'erreur pour éviter l'accumulation
-            try:
-                if 'clip_broll_dir' in locals() and clip_broll_dir.exists():
-                    # 🚀 OPTIMISATION: Utiliser safe_remove_tree
-                    if safe_remove_tree(clip_broll_dir):
-                        print(f"    🗑️ Cache B-roll nettoyé après erreur")
-            except Exception:
-                pass
-            
             return input_path
 
     # Si densité trop faible après planification, injecter quelques B-rolls génériques
@@ -2866,11 +4237,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description='Run the video pipeline on a single clip.')
     parser.add_argument('--video', required=True, help='Chemin du clip source (mp4, mov, etc.)')
     parser.add_argument('--verbose', action='store_true', help='Affiche des informations supplementaires pendant le run.')
+    parser.add_argument('--no-report', action='store_true', help='Disable selection report JSON sidecar')
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     print(f"[CLI] cwd={os.getcwd()}")
     print(f"[CLI] video={args.video}")
     print(f"[CLI] ENABLE_PIPELINE_CORE_FETCHER={os.getenv('ENABLE_PIPELINE_CORE_FETCHER')}")
+
+    # Map CLI switch to env flag for downstream code
+    if getattr(args, 'no_report', False):
+        os.environ['ENABLE_SELECTION_REPORT'] = 'false'
+        print('[CLI] selection report disabled')
 
     start = time.time()
     processor = VideoProcessor()
