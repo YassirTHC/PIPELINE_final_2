@@ -59,7 +59,7 @@ class SelectionConfig:
     """Selection guard-rails applied after ranking."""
 
     min_score: float = 0.54
-    prefer_landscape: bool = True
+    prefer_landscape: bool = False
     min_duration_s: float = 3.0
     require_license_ok: bool = True
 

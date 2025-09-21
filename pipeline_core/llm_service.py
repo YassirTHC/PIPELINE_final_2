@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from threading import Lock
+import copy
 import importlib.util
 import json
 import logging
@@ -154,6 +155,9 @@ class LLMMetadataGeneratorService:
         self._reuse_shared = reuse_shared
         self._config = config
         self._integration = None
+        # Remember the last usable dynamic context so we can gracefully
+        # recover when the primary LLM endpoint times out.
+        self._last_dynamic_context: Dict[str, Any] = {}
 
     @classmethod
     def get_shared(cls, config: Optional[Any] = None):
@@ -238,6 +242,103 @@ class LLMMetadataGeneratorService:
 
         raise RuntimeError("No compatible completion method available on integration")
 
+    # --- Dynamic context fallback -------------------------------------------------
+    def _fallback_dynamic_context(self, transcript_text: str) -> Dict[str, Any]:
+        """Generate a lightweight context when the primary LLM call fails.
+
+        We first try to reuse the optimised LLM helper exposed by the
+        integration (``generate_broll_keywords_and_queries``). When that is not
+        available we fall back to the heuristic keyword extractor so that we
+        still return actionable queries for the downstream fetchers.
+        """
+
+        transcript_text = transcript_text or ""
+        data: Dict[str, Any] = {}
+
+        try:
+            integration = self._get_integration()
+        except Exception:
+            integration = None
+
+        if integration is not None:
+            llm = getattr(integration, "llm", None)
+            generator = getattr(llm, "generate_broll_keywords_and_queries", None)
+            if callable(generator):
+                try:
+                    ok, payload = generator(transcript_text, max_keywords=12)
+                except Exception:
+                    ok, payload = False, {}
+                if ok and isinstance(payload, dict):
+                    keywords = [
+                        str(kw).strip().lower()
+                        for kw in payload.get("broll_keywords", [])
+                        if isinstance(kw, str) and kw.strip()
+                    ]
+                    if not keywords:
+                        keywords = [
+                            str(kw).strip().lower()
+                            for kw in payload.get("keywords", [])
+                            if isinstance(kw, str) and kw.strip()
+                        ]
+                    queries = [
+                        str(q).strip()
+                        for q in payload.get("search_queries", [])
+                        if isinstance(q, str) and q.strip()
+                    ]
+                    if keywords or queries:
+                        synonyms = {
+                            kw: [kw.replace("_", " "), kw]
+                            for kw in keywords
+                        }
+                        data = {
+                            "detected_domains": payload.get("detected_domains") or [],
+                            "language": payload.get("language"),
+                            "keywords": keywords,
+                            "synonyms": synonyms,
+                            "search_queries": queries,
+                            "segment_briefs": payload.get("segment_briefs") or [],
+                        }
+
+        if not data:
+            try:
+                from fallback_heuristic import HeuristicKeywordExtractor  # type: ignore
+
+                extractor = HeuristicKeywordExtractor()
+                heuristic_keywords = extractor.extract_keywords_from_text(
+                    transcript_text,
+                    target_count=12,
+                )
+            except Exception:
+                heuristic_keywords = []
+
+            clean_keywords = [
+                str(kw).strip().lower()
+                for kw in heuristic_keywords
+                if isinstance(kw, str) and kw.strip()
+            ]
+
+            if clean_keywords:
+                base_queries: List[str] = []
+                for kw in clean_keywords:
+                    humanised = kw.replace("_", " ")
+                    base_queries.append(f"{humanised} vertical video")
+                    base_queries.append(f"{humanised} cinematic portrait")
+                # Keep the most relevant queries while preserving order
+                deduped_queries = list(dict.fromkeys(base_queries))[:12]
+                data = {
+                    "detected_domains": [{"name": "general", "confidence": 0.2}],
+                    "language": None,
+                    "keywords": clean_keywords,
+                    "synonyms": {
+                        kw: [kw.replace("_", " "), kw.split("_")[0]]
+                        for kw in clean_keywords
+                    },
+                    "search_queries": deduped_queries,
+                    "segment_briefs": [],
+                }
+
+        return data
+
     def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
         """Domain detection + dynamic expansions (no hardcoded domains)."""
         prompt = build_dynamic_prompt(transcript_text, max_len=max_len)
@@ -246,15 +347,65 @@ class LLMMetadataGeneratorService:
             data = _safe_parse_json(raw)
         except Exception:
             logger.exception("[LLM] dynamic context failed")
+            data = self._fallback_dynamic_context(transcript_text)
+
+        if not isinstance(data, dict):
             data = {}
-        # Guard rails
-        data.setdefault("detected_domains", [])
-        data.setdefault("language", None)
-        data.setdefault("keywords", [])
-        data.setdefault("synonyms", {})
-        data.setdefault("search_queries", [])
-        data.setdefault("segment_briefs", [])
-        return data
+
+        # Guard rails + normalisation
+        detected_domains = data.get("detected_domains") or []
+        language = data.get("language") if isinstance(data.get("language"), str) else None
+        keywords = [
+            str(kw).strip().lower()
+            for kw in data.get("keywords", [])
+            if isinstance(kw, str) and kw.strip()
+        ]
+        raw_synonyms = data.get("synonyms") or {}
+        synonyms: Dict[str, List[str]] = {}
+        if isinstance(raw_synonyms, dict):
+            for key, values in raw_synonyms.items():
+                if not isinstance(key, str):
+                    continue
+                cleaned_key = key.strip().lower()
+                if not cleaned_key:
+                    continue
+                syn_list: List[str] = []
+                for value in values or []:
+                    if isinstance(value, str) and value.strip():
+                        norm = value.strip()
+                        if norm not in syn_list:
+                            syn_list.append(norm)
+                if cleaned_key not in syn_list:
+                    syn_list.append(cleaned_key)
+                synonyms[cleaned_key] = syn_list
+        queries = [
+            str(q).strip()
+            for q in data.get("search_queries", [])
+            if isinstance(q, str) and q.strip()
+        ]
+        segment_briefs = [
+            brief
+            for brief in data.get("segment_briefs", [])
+            if isinstance(brief, dict)
+        ]
+
+        normalised = {
+            "detected_domains": detected_domains,
+            "language": language,
+            "keywords": keywords,
+            "synonyms": synonyms,
+            "search_queries": queries,
+            "segment_briefs": segment_briefs,
+        }
+
+        # If the normalised context is empty, reuse the previous successful one
+        if not keywords and not queries and self._last_dynamic_context:
+            logger.warning("[LLM] dynamic context empty – reusing last known context")
+            normalised = copy.deepcopy(self._last_dynamic_context)
+        else:
+            self._last_dynamic_context = copy.deepcopy(normalised)
+
+        return normalised
 
     def generate_metadata(
         self,
@@ -313,47 +464,104 @@ class LLMMetadataGeneratorService:
         )
 
     def generate_hints_for_segment(self, text: str, start: float, end: float) -> Dict:
-        """Produce visual search hints for a transcript segment."""
-        try:
-            tokens = [t.lower() for t in re.findall(r"[A-Za-z']+", text) if len(t) > 3]
-        except Exception:
-            tokens = []
-        stopwords = {
-            'this', 'that', 'with', 'have', 'there', 'their', 'would', 'could', 'where', 'when',
-            'these', 'those', 'which', 'about', 'because', 'being', 'while', 'after', 'before',
-        }
-        keywords = [t for t in tokens if t not in stopwords]
-        base_queries = [
-            "doctor talking with patient in clinic",
-            "close-up stethoscope on chest",
-            "nurse writing notes at hospital desk",
-            "medical team walking in hospital corridor",
-            "therapist speaking with client",
-            "hands typing on laptop in hospital office",
-            "MRI scanner room",
+        """Produce visual search hints for a transcript segment.
+
+        The goal is to stay aligned with short-form vertical platforms. We favour
+        action-driven queries derived from the LLM context and enrich them with
+        segment-specific terms so that fetchers can retrieve relevant portrait
+        footage.
+        """
+
+        ctx = getattr(self, "_last_dynamic_context", {}) or {}
+        ctx_queries: List[str] = [
+            str(q).strip()
+            for q in ctx.get("search_queries", [])
+            if isinstance(q, str) and q.strip()
         ]
-        mapping = {
-            'patient': "doctor explaining results to patient in clinic",
-            'doctor': "doctor discussing treatment plan at hospital desk",
-            'brain': "brain scan visuals with medical monitors",
-            'therapy': "therapist talking with client in calm office",
-            'motivation': "person giving motivational talk on stage",
-            'business': "entrepreneur presenting idea to team in office",
-            'data': "data analyst reviewing charts on large screen",
-            'training': "coach guiding person during workout session",
-            'emotion': "close-up face expressing emotion indoors",
+        ctx_keywords: List[str] = [
+            str(kw).strip().lower()
+            for kw in ctx.get("keywords", [])
+            if isinstance(kw, str) and kw.strip()
+        ]
+        ctx_synonyms = ctx.get("synonyms", {}) if isinstance(ctx.get("synonyms"), dict) else {}
+
+        token_pattern = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ']+")
+        try:
+            raw_tokens = [t.lower() for t in token_pattern.findall(text or "")]
+        except Exception:
+            raw_tokens = []
+
+        stopwords = {
+            "this", "that", "with", "have", "there", "their", "would", "could", "where", "when",
+            "these", "those", "which", "about", "because", "being", "while", "after", "before",
+            "people", "thing", "start", "really", "just", "then", "they", "them", "your", "you're",
         }
-        dynamic_queries = []
-        for token in keywords:
-            if token in mapping:
-                dynamic_queries.append(mapping[token])
-        if not dynamic_queries and keywords:
-            take = keywords[:3]
-            dynamic_queries.append(f"person discussing {' '.join(take)} in modern workspace")
-        queries = list(dict.fromkeys(dynamic_queries + base_queries))[:8]
-        synonyms = sorted(set(keywords[:6]))
+        segment_tokens: List[str] = []
+        for tok in raw_tokens:
+            if tok in stopwords or len(tok) <= 3:
+                continue
+            if tok not in segment_tokens:
+                segment_tokens.append(tok)
+
+        # Build dynamic queries prioritising context keywords and queries
+        combined_queries: List[str] = []
+
+        # 1) Direct queries coming from the LLM context
+        for q in ctx_queries:
+            if q not in combined_queries:
+                combined_queries.append(q)
+
+        # 2) Pair segment tokens with LLM keywords to create descriptive prompts
+        def _humanise(term: str) -> str:
+            return term.replace('_', ' ').strip()
+
+        for token in segment_tokens[:4]:
+            for kw in ctx_keywords[:6]:
+                human_kw = _humanise(kw)
+                candidate = f"{token} {human_kw} vertical video"
+                if candidate not in combined_queries:
+                    combined_queries.append(candidate)
+
+        # 3) Add a few safety templates when there is very little context
+        if not combined_queries:
+            templates = [
+                "{token} cinematic portrait",
+                "{token} pov vertical video",
+                "{token} motivational lifestyle vertical",
+            ]
+            base_tokens = segment_tokens or ctx_keywords or ["motivation"]
+            for token in base_tokens[:4]:
+                for tpl in templates:
+                    candidate = tpl.format(token=_humanise(token))
+                    if candidate not in combined_queries:
+                        combined_queries.append(candidate)
+
+        # Keep queries concise and provider-friendly
+        queries = [q.strip() for q in combined_queries if q.strip()]
+        queries = list(dict.fromkeys(queries))[:8]
+
+        # Build synonyms merging context knowledge and fresh tokens
+        synonyms: List[str] = []
+        if isinstance(ctx_synonyms, dict):
+            for values in ctx_synonyms.values():
+                for value in values or []:
+                    if isinstance(value, str):
+                        clean_value = value.strip()
+                        if clean_value and clean_value not in synonyms:
+                            synonyms.append(clean_value)
+        for tok in segment_tokens:
+            readable = tok.replace('_', ' ')
+            if readable not in synonyms:
+                synonyms.append(readable)
+        synonyms = synonyms[:10]
+
+        if not queries:
+            queries = ["motivational speaker vertical video", "focus training portrait shot"]
+        if not synonyms:
+            synonyms = ["motivation", "focus", "progress"]
+
         return {
             "queries": queries,
-            "synonyms": synonyms or ["healthcare", "therapy", "consultation"],
-            "filters": {"orientation": "landscape", "min_duration_s": 3.0},
+            "synonyms": synonyms,
+            "filters": {"orientation": "portrait", "min_duration_s": 3.0},
         }

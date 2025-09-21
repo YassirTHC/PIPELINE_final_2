@@ -3676,6 +3676,7 @@ class VideoProcessor:
                 except Exception as _e:
                     raise RuntimeError('B-rolls planifiés, mais aucun media_path valide trouvé. Fallback legacy impossible: ' + str(_e))
             # Rendu unique avec les events valides (incl. fallback le cas échéant)
+            applied_event_count = len(valid_events)
             render_video(cfg, segments, valid_events)
             
             # VÉRIFICATION ET NETTOYAGE INTELLIGENT DES B-ROLLS
@@ -3781,11 +3782,14 @@ class VideoProcessor:
                 # En cas d'erreur, ne pas supprimer les B-rolls
                 pass
 
-            if Path(cfg.output_video).exists():
-                print("    ✅ B-roll insérés avec succès")
+            if Path(cfg.output_video).exists() and applied_event_count > 0:
+                print(f"    ✅ B-roll insérés avec succès ({applied_event_count})")
                 return Path(cfg.output_video)
             else:
-                print("    ⚠️ Sortie B-roll introuvable, retour à la vidéo d'origine")
+                if applied_event_count == 0:
+                    print("    ⚠️ Aucun B-roll inséré – vérifier les requêtes et le scoring")
+                else:
+                    print("    ⚠️ Sortie B-roll introuvable, retour à la vidéo d'origine")
                 return input_path
         except Exception as e:
             print(f"    ❌ Erreur B-roll: {e}")
