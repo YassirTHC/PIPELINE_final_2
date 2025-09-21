@@ -1,51 +1,180 @@
-# PIPELINE_final
+﻿# Pipeline Vidéo Intelligent - Viral Vertical Content
 
-Pipeline video modulaire : reframing 9:16, transcription Whisper, injection B-roll intelligente (LLM + APIs locales), sous-titres style Hormozi et export final sans cache persistant.
+Un pipeline automatisé pour créer du contenu vidéo viral optimisé pour les plateformes verticales (TikTok, Instagram Reels, YouTube Shorts).
 
-## Prerequis
-- Python 3.10 ou superieur
-- ffmpeg disponible dans le PATH
-- (Windows) PowerShell 7+ recommande pour les scripts fournis
+##  Fonctionnalités Principales
 
-## Installation rapide
-```powershell
-python -m venv venv
-venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+- **Génération automatique de B-roll** avec IA contextuelle
+- **Système de sous-titres intelligent** avec animations
+- **Sélection optimisée** basée sur l'analyse sémantique
+- **Support multi-plateformes** (Pexels, Pixabay, Giphy)
+- **Interface graphique intuitive** pour faciliter l'utilisation
+- **Pipeline modulaire** et extensible
 
-## Configuration
-1. Copier `.env.example` vers `.env` puis renseigner vos cles (PEXELS_API_KEY, PIXABAY_API_KEY, etc.).
-2. (Optionnel) Copier `config/pipeline.yaml.example` vers `config/pipeline.yaml` et ajuster les seuils.
-3. Les dossiers `output/`, `logs/`, `cache/` sont ignores par Git : ils seront recrees a l'execution.
+##  Prérequis
 
-| Variable | Valeur par defaut | Effet |
-| --- | --- | --- |
-| ENABLE_PIPELINE_CORE_FETCHER | true | Active l'orchestrateur moderne (dedup pHash + timeboxing). |
-| PYTHONIOENCODING | utf-8 | Force l'encodage pour les logs JSON/SRT. |
+- Python 3.11+
+- Clés API pour les services de médias (Pexels, Pixabay, Giphy)
+- FFmpeg installé sur le système
 
-## Lancement rapide
-```powershell
-python .\run_pipeline.py --video .\clips\demo.mp4 --verbose
-```
+##  Installation
 
-Le wrapper applique automatiquement les variables d'environnement par defaut. Ajoutez `--legacy` pour revenir au chemin herite (selecteurs historiques).
+1. **Cloner le repository**
+   `ash
+   git clone https://github.com/YassirTHC/PIPELINE_final_2.git
+   cd PIPELINE_final_2
+   `
 
-Consulter `docs/QUICKSTART.md` pour un smoke-test pas-a-pas (creation d'un clip de test, verification des sorties JSONL et MP4).
+2. **Créer un environnement virtuel**
+   `ash
+   python -m venv venv311
+   # Windows
+   venv311\Scripts\activate
+   # Linux/Mac
+   source venv311/bin/activate
+   `
 
-## Logs & sorties
-- Metriques / evenements : `output/meta/broll_pipeline_events.jsonl`
-- Video finale : `output/final/final_<timestamp>.mp4`
-- Traces detaillees : `logs/pipeline_core/*.log`
+3. **Installer les dépendances**
+   `ash
+   pip install -r requirements.txt
+   `
 
-## Developpement
-- Selecteur B-roll : pHash 64 bits + score mixte (LLM, TF-IDF, domaine).
-- Pipeline core : streaming ffmpeg (I/O memoire) sans cache disque persistant.
-- JSONL enrichi : scores, raisons de rejet, identifiants uniques par segment.
+4. **Configurer les variables d'environnement**
+   `ash
+   # Copier le fichier d'exemple
+   copy .env.example .env
+   # Éditer .env avec vos clés API
+   `
 
-## Release rapide
-```powershell
-git tag -a v0.1.0 -m "First modular slice (LLM singleton, core orchestrator, no-cache)"
-git push origin v0.1.0
-```
-Ensuite, creez la release GitHub et ajoutez le changelog correspondant.
+##  Configuration des Clés API
+
+Créez un fichier .env basé sur .env.example :
+
+`env
+# Clés API B-roll
+PEXELS_API_KEY=your_pexels_api_key_here
+PIXABAY_API_KEY=your_pixabay_api_key_here
+GIPHY_API_KEY=your_giphy_api_key_here
+
+# Configuration pipeline
+BROLL_FETCH_ENABLE=True
+BROLL_FETCH_PROVIDER=pexels
+BROLL_FETCH_ALLOW_VIDEOS=True
+BROLL_FETCH_ALLOW_IMAGES=False
+BROLL_FETCH_MAX_PER_KEYWORD=8
+`
+
+##  Utilisation
+
+### Interface Graphique (Recommandé)
+`ash
+python video_converter_gui.py
+`
+
+### Interface Ligne de Commande
+`ash
+python video_processor.py --video input/votre_video.mp4 --output output/
+`
+
+### Script de Lancement Windows
+`ash
+run_pipeline_updated.bat
+`
+
+##  Structure du Projet
+
+`
+PIPELINE_final_2/
+ pipeline_core/          # Modules principaux
+    fetchers.py        # Récupération de médias
+    llm_service.py     # Services IA
+    transcript.py      # Traitement des transcriptions
+    configuration.py   # Configuration
+ utils/                  # Utilitaires
+    llm_metadata_generator.py
+    optimized_llm.py
+    video_pipeline_integration.py
+ config/                 # Fichiers de configuration
+ emoji_assets/          # Assets emoji
+ tests/                 # Tests unitaires
+ video_processor.py     # Processeur principal
+ video_converter_gui.py # Interface graphique
+ main.py               # Point d'entrée alternatif
+`
+
+##  Fonctionnalités Avancées
+
+### Système de B-roll Intelligent
+- Analyse contextuelle des mots-clés
+- Scoring multi-critères pour la sélection
+- Support de plusieurs fournisseurs de médias
+- Cache intelligent pour optimiser les performances
+
+### Génération de Sous-titres
+- Détection automatique de la langue
+- Animations personnalisables
+- Synchronisation précise avec l'audio
+- Support des emojis et caractères spéciaux
+
+### Pipeline Modulaire
+- Architecture extensible
+- Support de plugins personnalisés
+- Configuration flexible via YAML
+- Logging détaillé pour le debugging
+
+##  Tests
+
+`ash
+# Lancer tous les tests
+pytest
+
+# Tests spécifiques
+pytest tests/test_video_processor.py
+pytest tests/test_llm_singleton.py
+`
+
+##  Monitoring et Logs
+
+Le système génère des logs détaillés dans le dossier logs/ :
+- pipeline_events.jsonl : Événements du pipeline
+- selection_report.json : Rapport de sélection B-roll
+- debug.log : Logs de debugging
+
+##  Sécurité
+
+- **Aucune clé API n'est stockée dans le code**
+- Utilisation de variables d'environnement
+- Fichier .env exclu du versioning
+- Configuration sécurisée par défaut
+
+##  Contribution
+
+1. Fork le projet
+2. Créer une branche feature (git checkout -b feature/AmazingFeature)
+3. Commit vos changements (git commit -m 'Add some AmazingFeature')
+4. Push vers la branche (git push origin feature/AmazingFeature)
+5. Ouvrir une Pull Request
+
+##  Licence
+
+Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.
+
+##  Support
+
+Pour toute question ou problème :
+- Ouvrir une issue sur GitHub
+- Consulter la documentation dans docs/
+- Vérifier les logs pour le debugging
+
+##  Changelog
+
+### v1.0.0
+- Pipeline de base fonctionnel
+- Interface graphique
+- Support multi-fournisseurs B-roll
+- Système de sous-titres intelligent
+- Architecture modulaire
+
+---
+
+**Développé avec  pour créer du contenu viral de qualité**
