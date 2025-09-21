@@ -1069,6 +1069,27 @@ class VideoProcessor:
                 queries = [q.strip() for q in llm_hints['queries'] if isinstance(q, str) and q.strip()]
             if not queries:
                 queries = segment_keywords[:4]
+
+            domain_override = False
+            try:
+                eff_domain = (dom_name or "").strip().lower()
+                domain_conf = float(dom_conf or 0.0)
+            except Exception:
+                eff_domain = ""
+                domain_conf = 0.0
+            if (not eff_domain or eff_domain == "generic" or domain_conf < 0.3):
+                keyword_pool: List[str] = []
+                try:
+                    keyword_pool.extend(getattr(self, '_selector_keywords', []) or [])
+                    keyword_pool.extend(getattr(self, '_fetch_keywords', []) or [])
+                except Exception:
+                    pass
+                if not keyword_pool:
+                    keyword_pool.extend(segment_keywords)
+                cleaned_pool = _dedupe_queries(keyword_pool, cap=6)
+                if cleaned_pool and cleaned_pool != queries:
+                    queries = cleaned_pool
+                    domain_override = True
             if not queries:
                 log_broll_decision(
                     event_logger,
@@ -1115,7 +1136,7 @@ class VideoProcessor:
 
             # Observability: show per-segment queries
             try:
-                print(f"[BROLL] segment #{idx}: queries={queries} (refined={refined})")
+                print(f"[BROLL] segment #{idx}: queries={queries} (refined={refined}, domain_override={domain_override})")
             except Exception:
                 pass
             try:
@@ -1127,6 +1148,7 @@ class VideoProcessor:
                         "queries": queries,
                         "refined": bool(refined),
                         "reason": reason,
+                        "domain_override": domain_override,
                     })
             except Exception:
                 pass

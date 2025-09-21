@@ -18,6 +18,19 @@ from pathlib import Path
 from collections import deque
 import json
 
+ANTI_EMOJI_WORDS = {
+    'the', 'a', 'an', 'to', 'and', 'or', 'but', 'if', 'when', 'where', 'why', 'what', 'who', 'which', 'that', 'this',
+    'these', 'those', 'we', "we're", 'were', 'weve', "we've", 'im', "i'm", 'i', 'me', 'my', 'mine', 'you', 'your',
+    'yours', 'he', 'she', 'it', "it's", 'its', 'they', 'them', 'their', 'theirs', 'us', 'our', 'ours', 'do', 'does',
+    'did', 'done', 'doing', 'have', 'has', 'had', 'be', 'is', 'are', 'am', 'was', 'being', 'been', 'for', 'from',
+    'into', 'onto', 'about', 'above', 'below', 'under', 'over', 'off', 'out', 'in', 'on', 'of', 'as', 'at', 'by',
+    'so', 'not', 'no', 'can', 'could', 'should', 'would', 'will', 'just', 'very', 'really', 'also', 'then', 'than',
+    'with', 'without', 'through', 'during', 'while', 'because', 'since', 'until', 'although', 'though', 'yet', 'still',
+    'ever', 'never', 'always', 'maybe', 'might', 'must', 'let', "let's", 'there', 'here', 'therefore', 'therein',
+    'thereof', 'herein', 'hereof', 'some', 'any', 'each', 'either', 'neither', 'both', 'much', 'many', 'few', 'more',
+    'most', 'less', 'least', 'lot', 'lots', 'such', 'own', 'same'
+}
+
 class HormoziSubtitles:
     """Générateur de sous-titres style Hormozi avec animations et effets"""
     
@@ -327,6 +340,31 @@ class HormoziSubtitles:
         s = re.sub(r"[^A-Za-z0-9']+", '', s)
         return s.upper()
 
+    def _pick_emoji_anchor(self, tokens: List[Dict]) -> str:
+        """Select the best token to anchor an emoji on, skipping stopwords."""
+        if not tokens:
+            return ""
+
+        def _iter_candidates(prefer_keywords: bool):
+            source = tokens
+            if prefer_keywords:
+                source = [tok for tok in tokens if tok.get('is_keyword')]
+            for tok in reversed(source):
+                yield tok
+
+        for prefer_kw in (True, False):
+            for tok in _iter_candidates(prefer_kw):
+                text = str(tok.get('text') or '').strip()
+                if not text:
+                    continue
+                lowered = text.lower()
+                if len(lowered) < 3:
+                    continue
+                if lowered in ANTI_EMOJI_WORDS:
+                    continue
+                return text
+        return ""
+
     def _get_category_for_word(self, word: str):
         """Retourne la config de catégorie (couleur/emoji) si le mot appartient à une catégorie FR/EN."""
         word_norm = self._normalize(word)
@@ -469,6 +507,7 @@ class HormoziSubtitles:
                         "color": t_color
                     })
                 # Emojis fin de groupe
+                emoji_anchor = self._pick_emoji_anchor(tokens)
                 chosen_emoji = ""
                 if self.config.get('enable_emojis', False):
                     # Calcul d'intensité commun (ponctuation, mots forts)
@@ -484,40 +523,44 @@ class HormoziSubtitles:
                         # Probabilité même sur mot‑clé, modulée par intensité
                         base_k = float(self.config.get('emoji_density_keyword', 0.5))
                         dyn_k = max(0.0, min(1.0, base_k + 0.2 * min(1.0, intensity)))
-                        if allow_by_gap and random.random() < dyn_k:
+                        if allow_by_gap and random.random() < dyn_k and emoji_anchor:
                             # 🚀 SYSTÈME D'EMOJIS INTELLIGENT PRIORITAIRE
                             try:
                                 if self.SMART_SYSTEMS_AVAILABLE:
                                     # FORCER l'utilisation du système d'emojis contextuel
-                                    chosen_emoji = self.get_contextual_emoji_for_keyword(
-                                        clean, seg_text, "positive", intensity
+                                    candidate = self.get_contextual_emoji_for_keyword(
+                                        emoji_anchor, seg_text, "positive", intensity
                                     )
-                                    print(f"😊 Emoji contextuel appliqué: {clean} → {chosen_emoji}")
+                                    if candidate:
+                                        chosen_emoji = candidate
+                                        print(f"😊 Emoji contextuel appliqué: {emoji_anchor} → {chosen_emoji}")
                                 else:
                                     # Fallback : ancien système
                                     chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
                             except Exception as e:
-                                print(f"⚠️ Erreur emoji intelligent pour {clean}: {e}")
+                                print(f"⚠️ Erreur emoji intelligent pour {emoji_anchor}: {e}")
                                 # Fallback en cas d'erreur
                                 chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
                     else:
                         # Densité réduite et dynamique pour groupes sans mot‑clé
                         base_nk = float(self.config.get('emoji_density_non_keyword', 0.25))
                         dyn_nk = max(0.0, min(1.0, base_nk - 0.05 + 0.2 * min(1.0, intensity)))
-                        if allow_by_gap and random.random() < dyn_nk:
+                        if allow_by_gap and random.random() < dyn_nk and emoji_anchor:
                             # 🚀 SYSTÈME D'EMOJIS INTELLIGENT PRIORITAIRE
                             try:
                                 if self.SMART_SYSTEMS_AVAILABLE:
                                     # FORCER l'utilisation du système d'emojis contextuel
-                                    chosen_emoji = self.get_contextual_emoji_for_keyword(
-                                        clean, seg_text, "neutral", intensity
+                                    candidate = self.get_contextual_emoji_for_keyword(
+                                        emoji_anchor, seg_text, "neutral", intensity
                                     )
-                                    print(f"😊 Emoji contextuel appliqué: {clean} → {chosen_emoji}")
+                                    if candidate:
+                                        chosen_emoji = candidate
+                                        print(f"😊 Emoji contextuel appliqué: {emoji_anchor} → {chosen_emoji}")
                                 else:
                                     # Fallback : ancien système
                                     chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
                             except Exception as e:
-                                print(f"⚠️ Erreur emoji intelligent pour {clean}: {e}")
+                                print(f"⚠️ Erreur emoji intelligent pour {emoji_anchor}: {e}")
                                 # Fallback en cas d'erreur
                                 chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
                 group_emojis: List[str] = []
@@ -1209,7 +1252,12 @@ class HormoziSubtitles:
     def get_contextual_emoji_for_keyword(self, keyword: str, text: str = "", sentiment: str = "neutral", intensity: float = 1.0) -> str:
         """MAPPING AUTHENTIQUE HORMOZI 1 POUR TIKTOK VIRAL"""
         keyword_lower = keyword.lower().strip()
-        
+
+        if not keyword_lower or len(keyword_lower) < 3:
+            return ""
+        if keyword_lower in ANTI_EMOJI_WORDS:
+            return ""
+
         # 🔥 MAPPING HORMOZI 1 AUTHENTIQUE BASÉ SUR TIKTOK
         hormozi_emoji_map = {
             # 💰 ARGENT & BUSINESS (couleur signature Hormozi)
@@ -1292,6 +1340,9 @@ class HormoziSubtitles:
             'from', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'about', 'into', 'through'
         }
         if keyword_lower in linking_words:
+            return ""
+
+        if keyword_lower in ANTI_EMOJI_WORDS:
             return ""
         
         # Fallback intelligent par contexte

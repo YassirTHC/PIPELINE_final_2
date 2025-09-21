@@ -1,6 +1,7 @@
 """LLM metadata helper built on top of the existing integration stack."""
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
 from threading import Lock
 import importlib.util
@@ -201,41 +202,59 @@ class LLMMetadataGeneratorService:
         return self._integration
 
     # --- Compatibility layer for plain text completions ---------------------
-    def _complete_text(self, prompt: str) -> str:
+    def _complete_text(self, prompt: str, *, timeout_s: float = 20.0) -> str:
         """Attempt to invoke a completion method on the underlying integration.
 
-        Tries common method names; falls back to calling the optimized LLM engine
-        when available (integration.llm._call_llm). Returns raw text.
+        Tries common method names exposed either on the integration itself or on
+        its nested ``llm`` attribute. The first callable that succeeds is used
+        and the call is timeboxed to ``timeout_s`` seconds. Falls back to the
+        optimised ``_call_llm`` helper when present.
         """
         integration = self._get_integration()
 
-        # 1) Try common completion-shaped methods on integration directly
-        for attr in ("complete_json", "complete", "chat", "generate"):
-            fn = getattr(integration, attr, None)
-            if callable(fn):
-                try:
-                    return fn(prompt)  # type: ignore[misc]
-                except Exception:
-                    continue
-
-        # 2) Try going through the optimized LLM engine if exposed
-        llm = getattr(integration, "llm", None)
-        if llm is not None:
-            # Prefer a public method if one exists
-            for attr in ("complete_json", "complete", "generate"):
-                fn = getattr(llm, attr, None)
+        candidates = []
+        for obj in (integration, getattr(integration, "llm", None)):
+            if obj is None:
+                continue
+            for attr in ("complete_json", "complete", "generate", "chat", "invoke", "__call__"):
+                fn = getattr(obj, attr, None)
                 if callable(fn):
-                    try:
-                        return fn(prompt)  # type: ignore[misc]
-                    except Exception:
-                        continue
-            # Fallback to private _call_llm used in optimized_llm.py
-            call = getattr(llm, "_call_llm", None)
-            if callable(call):
-                ok, text, _err = call(prompt, temperature=0.1, max_tokens=800)
+                    candidates.append(fn)
+
+        llm = getattr(integration, "llm", None)
+        call_llm = getattr(llm, "_call_llm", None)
+        if callable(call_llm):
+            def _call(prompt_text: str) -> str:
+                ok, text, _err = call_llm(prompt_text, temperature=0.1, max_tokens=800)
                 if ok and isinstance(text, str):
                     return text
+                raise RuntimeError("Optimised LLM call failed")
 
+            candidates.append(_call)
+
+        if not candidates:
+            raise RuntimeError("No compatible completion method available on integration")
+
+        last_error: Optional[BaseException] = None
+        for fn in candidates:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(fn, prompt)
+                try:
+                    result = future.result(timeout=timeout_s)
+                except FuturesTimeoutError:
+                    future.cancel()
+                    raise TimeoutError(f"LLM completion timed out after {timeout_s}s")
+                except Exception as exc:  # pragma: no cover - defensive
+                    last_error = exc
+                    continue
+
+            if isinstance(result, str):
+                return result
+            if result is not None:
+                return str(result)
+
+        if last_error:
+            raise RuntimeError("LLM completion failed") from last_error
         raise RuntimeError("No compatible completion method available on integration")
 
     def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
@@ -244,8 +263,14 @@ class LLMMetadataGeneratorService:
         try:
             raw = self._complete_text(prompt)
             data = _safe_parse_json(raw)
-        except Exception:
+        except TimeoutError as exc:
+            logger.warning("[LLM] dynamic context timed out: %s", exc)
+            data = {}
+        except RuntimeError:
             logger.exception("[LLM] dynamic context failed")
+            data = {}
+        except Exception:
+            logger.exception("[LLM] unexpected error during dynamic context")
             data = {}
         # Guard rails
         data.setdefault("detected_domains", [])
