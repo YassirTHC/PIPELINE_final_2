@@ -15,7 +15,10 @@ import time
 from pathlib import Path
 import logging
 import requests
+from dotenv import load_dotenv
 from hormozi_subtitles import add_hormozi_subtitles
+
+load_dotenv()
 
 # Logging to file for diagnostics
 _LOG_PATH = Path(__file__).with_name("gui_debug.log")
@@ -535,6 +538,13 @@ class VideoConverterGUI:
                             env['AI_BROLL_ENABLE_EMOJI_SUBS'] = '1'
 
                             # Exécuter depuis le dossier AI-B-roll pour résoudre le package src/
+                            env.setdefault('PYTHONIOENCODING', 'utf-8')
+                            env['ENABLE_PIPELINE_CORE_FETCHER'] = env.get('ENABLE_PIPELINE_CORE_FETCHER', 'true')
+                            env.setdefault('BROLL_FETCH_ENABLE', env.get('BROLL_FETCH_ENABLE', 'True'))
+                            env.setdefault('BROLL_FETCH_PROVIDER', env.get('BROLL_FETCH_PROVIDER', 'pexels'))
+                            env.setdefault('BROLL_FETCH_ALLOW_VIDEOS', env.get('BROLL_FETCH_ALLOW_VIDEOS', 'True'))
+                            env.setdefault('BROLL_FETCH_ALLOW_IMAGES', env.get('BROLL_FETCH_ALLOW_IMAGES', 'False'))
+                            env.setdefault('BROLL_FETCH_MAX_PER_KEYWORD', env.get('BROLL_FETCH_MAX_PER_KEYWORD', '8'))
                             proc = subprocess.Popen(
                                 args,
                                 cwd=str(ai_repo),

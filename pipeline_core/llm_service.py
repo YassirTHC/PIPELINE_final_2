@@ -6,11 +6,13 @@ from threading import Lock
 import importlib.util
 import json
 import logging
+import math
 import os
 import re
 import sys
+from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -48,33 +50,199 @@ logger = logging.getLogger(__name__)
 
 # --- Robust JSON extraction from LLM responses -------------------------------
 def _safe_parse_json(s: str) -> Dict[str, Any]:
-    """Extract the first valid JSON object from text; return {} on failure.
+    """Extract the first valid JSON object from text; return {} on failure."""
 
-    Uses a simple brace-matching scan to find the first top-level JSON object.
-    """
     if not isinstance(s, str):
         return {}
     try:
-        # Fast path: already valid JSON
         return json.loads(s)
     except Exception:
         pass
-    start = s.find("{")
+    start = s.find('{')
     if start < 0:
         return {}
     depth = 0
-    for i, ch in enumerate(s[start:], start):
+    for idx, ch in enumerate(s[start:], start):
         if ch == '{':
             depth += 1
         elif ch == '}':
             depth -= 1
             if depth == 0:
-                snippet = s[start:i+1]
+                snippet = s[start:idx + 1]
                 try:
                     return json.loads(snippet)
                 except Exception:
                     break
     return {}
+
+
+_TERM_MIN_LEN = 3
+_GENERIC_TERMS = {
+    'people',
+    'thing',
+    'nice',
+    'background',
+    'start',
+    'generic',
+    'template',
+    'stock',
+    'first',
+    'occurs',
+    'stuff',
+    'video',
+    'clip',
+}
+
+
+def _tokenise(text: str) -> List[str]:
+    if not text:
+        return []
+    try:
+        raw = re.findall(r"[A-Za-zÀ-ÿ'\-]+", text.lower())
+    except Exception:
+        raw = []
+    tokens: List[str] = []
+    for token in raw:
+        token = token.replace('_', ' ').strip()
+        if len(token) >= _TERM_MIN_LEN and token not in _GENERIC_TERMS:
+            tokens.append(token)
+    return tokens
+
+
+def _normalise_terms(values: Iterable[str], *, limit: Optional[int] = None) -> List[str]:
+    seen: set[str] = set()
+    normalised: List[str] = []
+    for value in values or []:
+        if not isinstance(value, str):
+            continue
+        term = value.strip().lower().replace('_', ' ')
+        term = re.sub(r"\s+", ' ', term)
+        term = re.sub(r"[^a-z0-9\s-]", '', term)
+        if len(term) < _TERM_MIN_LEN:
+            continue
+        if term in _GENERIC_TERMS:
+            continue
+        tokens = [t for t in term.split() if t]
+        if any(t in _GENERIC_TERMS for t in tokens):
+            continue
+        if term in seen:
+            continue
+        seen.add(term)
+        normalised.append(term)
+        if limit is not None and len(normalised) >= limit:
+            break
+    return normalised
+
+
+def _normalise_synonyms(raw: Dict[str, Any]) -> Dict[str, List[str]]:
+    clean: Dict[str, List[str]] = {}
+    for key, variants in (raw or {}).items():
+        base = _normalise_terms([key], limit=1)
+        variants_norm = _normalise_terms(variants, limit=4)
+        if base and variants_norm:
+            clean[base[0]] = variants_norm
+    return clean
+
+
+def _normalise_briefs(raw: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    briefs: List[Dict[str, Any]] = []
+    for entry in raw or []:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            idx = int(entry.get('segment_index'))
+        except Exception:
+            continue
+        keywords = _normalise_terms(entry.get('keywords') or [], limit=6)
+        queries = _normalise_terms(entry.get('queries') or [], limit=6)
+        if not keywords and not queries:
+            continue
+        briefs.append({
+            'segment_index': idx,
+            'keywords': keywords,
+            'queries': queries,
+        })
+    return briefs
+
+
+def _tfidf_fallback(transcript: str, *, top_k: int = 12) -> Tuple[List[str], List[str]]:
+    segments: List[List[str]] = []
+    for chunk in re.split(r"[\.!?\n]+", transcript or ''):
+        tokens = _tokenise(chunk)
+        if tokens:
+            segments.append(tokens)
+    if not segments:
+        tokens = _tokenise(transcript)
+        if tokens:
+            segments.append(tokens)
+    if not segments:
+        return [], []
+    df = Counter()
+    for tokens in segments:
+        df.update(set(tokens))
+    tfidf: Dict[str, float] = {}
+    for tokens in segments:
+        counts = Counter(tokens)
+        length = max(1, len(tokens))
+        for term, count in counts.items():
+            tf = count / length
+            idf = math.log((len(segments) + 1) / (df[term] + 1)) + 1.0
+            score = tf * idf
+            tfidf[term] = max(tfidf.get(term, 0.0), score)
+    keywords = [term for term, _ in sorted(tfidf.items(), key=lambda item: item[1], reverse=True) if term not in _GENERIC_TERMS][:top_k]
+    bigrams: Counter[str] = Counter()
+    for tokens in segments:
+        for first, second in zip(tokens, tokens[1:]):
+            if first == second:
+                continue
+            if first in _GENERIC_TERMS or second in _GENERIC_TERMS:
+                continue
+            bigrams[f'{first} {second}'] += 1
+    queries = [term for term, _ in bigrams.most_common(max(4, top_k // 2))]
+    return _normalise_terms(keywords, limit=top_k), _normalise_terms(queries, limit=max(4, top_k // 2))
+
+
+def _normalise_dynamic_payload(raw: Dict[str, Any], *, transcript: str) -> Dict[str, Any]:
+    domains: List[Dict[str, Any]] = []
+    for entry in raw.get('detected_domains') or []:
+        if not isinstance(entry, dict):
+            continue
+        names = _normalise_terms([entry.get('name', '')], limit=1)
+        if not names:
+            continue
+        confidence = entry.get('confidence')
+        try:
+            conf = float(confidence) if confidence is not None else None
+        except Exception:
+            conf = None
+        domains.append({'name': names[0], 'confidence': conf})
+
+    language = raw.get('language')
+    if isinstance(language, str):
+        language = language.strip().lower() or None
+    else:
+        language = None
+
+    keywords = _normalise_terms(raw.get('keywords') or [], limit=20)
+    search_queries = _normalise_terms(raw.get('search_queries') or [], limit=12)
+    synonyms = _normalise_synonyms(raw.get('synonyms') or {})
+    briefs = _normalise_briefs(raw.get('segment_briefs') or [])
+
+    if not keywords and not search_queries:
+        fallback_kw, fallback_q = _tfidf_fallback(transcript)
+        keywords = fallback_kw[:12]
+        if not search_queries:
+            search_queries = fallback_q[:8]
+
+    return {
+        'detected_domains': domains,
+        'language': language,
+        'keywords': keywords,
+        'synonyms': synonyms,
+        'search_queries': search_queries,
+        'segment_briefs': briefs,
+    }
+
 
 def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
     tx = (transcript_text or "")[:max_len]
@@ -241,20 +409,14 @@ class LLMMetadataGeneratorService:
     def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
         """Domain detection + dynamic expansions (no hardcoded domains)."""
         prompt = build_dynamic_prompt(transcript_text, max_len=max_len)
+        raw_payload: Dict[str, Any] = {}
         try:
-            raw = self._complete_text(prompt)
-            data = _safe_parse_json(raw)
+            raw_text = self._complete_text(prompt)
+            raw_payload = _safe_parse_json(raw_text)
         except Exception:
-            logger.exception("[LLM] dynamic context failed")
-            data = {}
-        # Guard rails
-        data.setdefault("detected_domains", [])
-        data.setdefault("language", None)
-        data.setdefault("keywords", [])
-        data.setdefault("synonyms", {})
-        data.setdefault("search_queries", [])
-        data.setdefault("segment_briefs", [])
-        return data
+            logger.exception('[LLM] dynamic context failed')
+        return _normalise_dynamic_payload(raw_payload, transcript=transcript_text or '')
+
 
     def generate_metadata(
         self,

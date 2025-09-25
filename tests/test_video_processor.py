@@ -1,6 +1,7 @@
 import os
 import sys
 import importlib
+import importlib.machinery
 import types
 from pathlib import Path
 
@@ -12,6 +13,7 @@ def video_processor_module(monkeypatch):
     os.environ["FAST_TESTS"] = "1"
 
     dummy_cv2 = types.ModuleType("cv2")
+    dummy_cv2.__spec__ = importlib.machinery.ModuleSpec("cv2", loader=None)
     dummy_whisper = types.ModuleType("whisper")
     setattr(dummy_whisper, "load_model", lambda *_: object())
     monkeypatch.setitem(sys.modules, "cv2", dummy_cv2)
@@ -62,6 +64,10 @@ def video_processor_module(monkeypatch):
         pass
 
     setattr(dummy_logging_module, "log_broll_decision", dummy_log_decision)
+    setattr(dummy_logging_module, "log_pipeline_summary", dummy_log_decision)
+    setattr(dummy_logging_module, "log_pipeline_error", dummy_log_decision)
+    setattr(dummy_logging_module, "log_stage_start", lambda *args, **kwargs: 0.0)
+    setattr(dummy_logging_module, "log_stage_end", dummy_log_decision)
     monkeypatch.setitem(sys.modules, "pipeline_core.logging", dummy_logging_module)
 
     dummy_llm_module = types.ModuleType("pipeline_core.llm_service")
@@ -193,6 +199,9 @@ def test_process_single_clip_smoke(tmp_path, monkeypatch, video_processor_module
     processor = video_processor.VideoProcessor()
     processor.process_single_clip(src_clip)
 
+    events = getattr(processor._broll_event_logger, "entries", [])
+    assert any(event.get("event") == "broll_env_ready" for event in events)
+
     meta_path = output_dir / "clips" / "sample" / "meta.txt"
     assert meta_path.exists()
     assert (output_dir / "final" ).exists()
@@ -227,3 +236,10 @@ def test_pipeline_core_single_provider_warns(monkeypatch, caplog, tmp_path, vide
     assert used is None
     assert called is False
     assert any("pipeline_core fetcher misconfigured" in record.message for record in caplog.records)
+
+def test_to_bool_accepts_common_values(video_processor_module):
+    module = video_processor_module
+    assert module._to_bool('1') is True
+    assert module._to_bool('yes') is True
+    assert module._to_bool('0') is False
+    assert module._to_bool('false') is False

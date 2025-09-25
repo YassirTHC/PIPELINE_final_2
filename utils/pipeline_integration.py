@@ -6,12 +6,15 @@ import time
 from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
 import json
+from dotenv import load_dotenv
 
 # Import des modules locaux
 from domain_detection_enhanced import detect_domain_enhanced, get_domain_info
 from keyword_processing import optimize_for_broll
 from optimized_llm import create_optimized_llm, generate_complete_with_broll
 from metrics_and_qa import record_llm_metrics, get_system_metrics
+
+load_dotenv()
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +38,56 @@ class VideoPipelineIntegration:
             'domain_distribution': {}
         }
     
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 800,
+        timeout: Optional[int] = None,
+    ) -> str:
+        if not prompt:
+            return ''
+        if not self.llm:
+            raise RuntimeError('LLM engine not initialised')
+        if hasattr(self.llm, 'complete'):
+            return self.llm.complete(
+                prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+            )
+        success, text_response, err = self.llm._call_llm(  # type: ignore[attr-defined]
+            prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
+        if not success:
+            raise RuntimeError(f"LLM completion failed: {err or 'unknown'}")
+        return text_response
+
+    def complete_json(
+        self,
+        prompt: str,
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 800,
+        timeout: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        response = self.complete(
+            prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
+        try:
+            return json.loads(response)
+        except Exception as exc:
+            raise ValueError('Completion did not return JSON payload') from exc
+
+
     def _default_config(self) -> Dict[str, Any]:
         """Configuration par défaut"""
         return {

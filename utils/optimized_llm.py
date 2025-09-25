@@ -88,6 +88,44 @@ class OptimizedLLM:
             logger.error(f"❌ Erreur parsing JSON: {e}")
             return None
     
+    def complete(
+        self,
+        prompt: str,
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 800,
+        timeout: Optional[int] = None,
+    ) -> str:
+        success, response, err = self._call_llm(
+            prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
+        if not success:
+            raise RuntimeError(f"LLM completion failed: {err or 'unknown'}")
+        return response
+
+    def complete_json(
+        self,
+        prompt: str,
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 800,
+        timeout: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        response = self.complete(
+            prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
+        payload = self._extract_json(response)
+        if payload is None:
+            raise ValueError('LLM response did not contain JSON payload')
+        return payload
+
+
     def generate_keywords(self, transcript: str, max_keywords: int = 15) -> Tuple[bool, List[str]]:
         """Génération de mots-clés avec prompt minimaliste générique"""
         

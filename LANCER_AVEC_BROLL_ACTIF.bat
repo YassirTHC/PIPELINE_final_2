@@ -18,6 +18,8 @@ echo.
 echo 🔑 Configuration automatique des clés API...
 set PEXELS_API_KEY=pwhBa9K7fa9IQJCmfCy0NfHFWy8QyqoCkGnWLK3NC2SbDTtUeuhxpDoD
 set PIXABAY_API_KEY=51724939-ee09a81ccfce0f5623df46a69
+set PYTHONIOENCODING=utf-8
+set ENABLE_PIPELINE_CORE_FETCHER=true
 
 :: Configuration B-roll
 set BROLL_FETCH_ENABLE=True
