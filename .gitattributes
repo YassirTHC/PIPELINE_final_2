@@ -1,9 +1,2 @@
-* text=auto eol=lf
-*.bat text eol=crlf
-*.ps1 text eol=crlf
-*.png binary
-*.jpg binary
-*.jpeg binary
-*.mp4 binary
-*.avi binary
-README.md text eol=lf
+*.py text eol=lf
+* text=auto
