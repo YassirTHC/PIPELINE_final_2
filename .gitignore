@@ -97,3 +97,5 @@ venv311/**
 # Exclude test outputs
 test_output/
 debug_*
+diff_backup.patch
+_patch.py
