@@ -12,6 +12,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
+import unicodedata
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -94,6 +95,25 @@ _GENERIC_TERMS = {
 }
 
 
+_EN_EQUIVALENTS = {
+    "recompense": "reward",
+    "recompenses": "rewards",
+    "rcompense": "reward",
+    "rcompenses": "rewards",
+    "duree": "duration",
+    "durees": "durations",
+    "dure": "duration",
+    "objectif": "goal",
+    "objectifs": "goals",
+    "reussite": "success",
+    "russite": "success",
+    "succs": "success",
+    "succes": "success",
+    "russites": "successes",
+    "reussites": "successes",
+}
+
+
 def _tokenise(text: str) -> List[str]:
     if not text:
         return []
@@ -131,6 +151,38 @@ def _normalise_terms(values: Iterable[str], *, limit: Optional[int] = None) -> L
         normalised.append(term)
         if limit is not None and len(normalised) >= limit:
             break
+    return normalised
+
+
+def _strip_diacritics(value: str) -> str:
+    if not value:
+        return value
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def enforce_fetch_language(terms: Iterable[str], language: Optional[str]) -> List[str]:
+    """Ensure fetch terms use English tokens when the payload is English."""
+
+    if language not in (None, "", "en"):
+        return list(dict.fromkeys(term for term in terms if term))
+
+    normalised: List[str] = []
+    seen: set[str] = set()
+    for raw in terms:
+        if not raw:
+            continue
+        tokens: List[str] = []
+        for token in raw.split():
+            base = _EN_EQUIVALENTS.get(token)
+            if base is None:
+                ascii_token = _strip_diacritics(token)
+                base = _EN_EQUIVALENTS.get(ascii_token, token)
+            tokens.append(base)
+        candidate = " ".join(tok for tok in tokens if tok)
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            normalised.append(candidate)
     return normalised
 
 
@@ -223,8 +275,8 @@ def _normalise_dynamic_payload(raw: Dict[str, Any], *, transcript: str) -> Dict[
     else:
         language = None
 
-    keywords = _normalise_terms(raw.get('keywords') or [], limit=20)
-    search_queries = _normalise_terms(raw.get('search_queries') or [], limit=12)
+    keywords = enforce_fetch_language(_normalise_terms(raw.get('keywords') or [], limit=20), language)
+    search_queries = enforce_fetch_language(_normalise_terms(raw.get('search_queries') or [], limit=12), language)
     synonyms = _normalise_synonyms(raw.get('synonyms') or {})
     briefs = _normalise_briefs(raw.get('segment_briefs') or [])
 
