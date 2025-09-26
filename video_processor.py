@@ -1057,19 +1057,57 @@ class VideoProcessor:
             seg_duration = max(0.0, segment.end - segment.start)
             llm_hints = None
             llm_healthy = True
-            if getattr(self, '_llm_service', None):
-                try:
-                    llm_hints = self._llm_service.generate_hints_for_segment(segment.text, segment.start, segment.end)
-                except Exception:
-                    llm_hints = None
-                    llm_healthy = False
+
+            dyn_ctx = getattr(self, '_dyn_context', {})
+            dyn_language = str(dyn_ctx.get('language') or '').strip().lower() if isinstance(dyn_ctx, dict) else ''
 
             segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
+            keyword_terms = _dedupe_queries(segment_keywords, cap=SEGMENT_REFINEMENT_MAX_TERMS)
+
             queries: List[str] = []
-            if llm_hints and isinstance(llm_hints.get('queries'), list):
-                queries = [q.strip() for q in llm_hints['queries'] if isinstance(q, str) and q.strip()]
-            if not queries:
-                queries = segment_keywords[:4]
+            query_source = 'segment_brief'
+
+            try:
+                brief_terms = _segment_terms_from_briefs(dyn_ctx or {}, idx, SEGMENT_REFINEMENT_MAX_TERMS)
+            except Exception:
+                brief_terms = []
+
+            if brief_terms:
+                queries = brief_terms
+            elif keyword_terms:
+                queries = keyword_terms
+                query_source = 'segment_keywords'
+            else:
+                if getattr(self, '_llm_service', None):
+                    try:
+                        llm_hints = self._llm_service.generate_hints_for_segment(segment.text, segment.start, segment.end)
+                    except Exception:
+                        llm_hints = None
+                        llm_healthy = False
+                    else:
+                        llm_healthy = True
+                if llm_hints and isinstance(llm_hints.get('queries'), list):
+                    queries = _dedupe_queries(llm_hints['queries'], cap=SEGMENT_REFINEMENT_MAX_TERMS)
+                    query_source = 'llm_hint' if queries else 'llm_hint_empty'
+                if not queries:
+                    fallback_terms = _dedupe_queries(segment_keywords, cap=SEGMENT_REFINEMENT_MAX_TERMS)
+                    queries = fallback_terms
+                    query_source = 'fallback_keywords' if fallback_terms else 'none'
+
+            if dyn_language in ('', 'en'):
+                queries = enforce_fetch_language(queries, dyn_language or None)
+
+            try:
+                event_logger.log({
+                    'event': 'broll_segment_queries',
+                    'segment': idx,
+                    'queries': queries,
+                    'source': query_source,
+                    'language': dyn_language or None,
+                })
+            except Exception:
+                pass
+
             if not queries:
                 log_broll_decision(
                     event_logger,
@@ -1087,48 +1125,12 @@ class VideoProcessor:
                     latency_ms=0,
                     llm_healthy=llm_healthy,
                     reject_reasons=['no_keywords'],
+                    queries=queries,
                 )
                 continue
 
-            # Optional per-segment refinement using dynamic LLM context briefs
-            refined = False
             try:
-                dyn = getattr(self, '_dyn_context', None)
-            except Exception:
-                dyn = None
-            reason = None
-            if ENABLE_SEGMENT_REFINEMENT and dyn:
-                try:
-                    seg_terms = _segment_terms_from_briefs(dyn, idx, SEGMENT_REFINEMENT_MAX_TERMS)
-                except Exception:
-                    seg_terms = []
-                if seg_terms:
-                    # Avoid overriding if identical to current queries (prevents redundant fetch)
-                    if seg_terms != queries:
-                        queries = seg_terms
-                        refined = True
-                    else:
-                        reason = "no_change"
-                else:
-                    reason = "empty_terms"
-            else:
-                reason = "no_brief"
-
-            # Observability: show per-segment queries
-            try:
-                print(f"[BROLL] segment #{idx}: queries={queries} (refined={refined})")
-            except Exception:
-                pass
-            try:
-                ev = self._get_broll_event_logger()
-                if ev:
-                    ev.log({
-                        "event": "broll_segment_queries",
-                        "segment": idx,
-                        "queries": queries,
-                        "refined": bool(refined),
-                        "reason": reason,
-                    })
+                print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
             except Exception:
                 pass
 
@@ -1237,6 +1239,7 @@ class VideoProcessor:
                 latency_ms=latency_ms,
                 llm_healthy=llm_healthy,
                 reject_reasons=sorted(set(reject_reasons)),
+                queries=queries,
             )
 
         # Add effective domain fields to the summary line for easy scraping
