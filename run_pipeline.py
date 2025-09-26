@@ -27,6 +27,16 @@ except ImportError:  # pragma: no cover - keep working if optional dependency mi
 
 from pipeline_core.runtime import PipelineResult
 
+# Expose the video_processor module at import time for compatibility with tests.
+# When the heavy dependencies of video_processor (e.g., cv2) are unavailable at
+# import time, fall back to a simple namespace so test suites can monkeypatch it.
+try:  # pragma: no cover - depends on optional system libraries
+    video_processor = importlib.import_module("video_processor")
+except Exception:  # pragma: no cover - triggered in test environments
+    from types import SimpleNamespace
+
+    video_processor = SimpleNamespace(main=None)
+
 
 def _compute_pythonpath(repo_root: Path) -> str:
     extra = [str(repo_root), str(repo_root / "AI-B-roll"), str(repo_root / "utils")]
@@ -264,25 +274,36 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         vp_args.append("--no-emoji")
     vp_args.extend(passthrough)
 
-    video_processor_module = importlib.import_module("video_processor")
+    global video_processor
+    if getattr(video_processor, "__spec__", None) is None and getattr(video_processor, "main", None):
+        video_processor_module = video_processor
+    elif getattr(video_processor, "__spec__", None) is not None:
+        try:
+            video_processor_module = importlib.reload(video_processor)  # type: ignore[arg-type]
+        except Exception:
+            video_processor_module = importlib.import_module("video_processor")
+            video_processor = video_processor_module
+    else:
+        video_processor_module = importlib.import_module("video_processor")
+        video_processor = video_processor_module
 
-# Bridge compatible : nouvelle API (retourne PipelineResult) ou legacy (retourne int)
-try:
-    sig = inspect.signature(video_processor_module.main)
-    supports_return = 'return_result' in sig.parameters
-except Exception:
-    supports_return = False
+    # Bridge compatible : nouvelle API (retourne PipelineResult) ou legacy (retourne int)
+    try:
+        sig = inspect.signature(video_processor_module.main)
+        supports_return = 'return_result' in sig.parameters
+    except Exception:
+        supports_return = False
 
-if supports_return:
-    ret = video_processor_module.main(vp_args, return_result=True)
-    if isinstance(ret, PipelineResult):
-        return _result_to_exit_code(ret)
-    if isinstance(ret, int):
-        return ret
-    return 0 if ret else 1
-else:
-    code = video_processor_module.main(vp_args)
-    return int(code) if code is not None else 0
+    if supports_return:
+        ret = video_processor_module.main(vp_args, return_result=True)
+        if isinstance(ret, PipelineResult):
+            return _result_to_exit_code(ret)
+        if isinstance(ret, int):
+            return ret
+        return 0 if ret else 1
+    else:
+        code = video_processor_module.main(vp_args)
+        return int(code) if code is not None else 0
 
 
 
