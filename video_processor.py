@@ -238,7 +238,7 @@ from pipeline_core.configuration import PipelineConfigBundle
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
-from pipeline_core.llm_service import LLMMetadataGeneratorService
+from pipeline_core.llm_service import LLMMetadataGeneratorService, enforce_fetch_language
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
@@ -2326,8 +2326,9 @@ class VideoProcessor:
                     transcript_tokens = []
                 pool = [t for t in transcript_tokens if isinstance(t, str) and len(t) >= 4][:10]
 
-            selector_keywords = _dedupe_queries(pool, cap=12)
-            fetch_keywords = _dedupe_queries(pool, cap=8)
+            language = dyn_context.get("language")
+            selector_keywords = enforce_fetch_language(_dedupe_queries(pool, cap=12), language)
+            fetch_keywords = enforce_fetch_language(_dedupe_queries(pool, cap=8), language)
 
             # Ensure bilingual queries when original language isn't English, if LLM provided EN
             try:

@@ -46,3 +46,18 @@ def test_dynamic_context_fallback_keywords():
     result = service.generate_dynamic_context(transcript)
     assert result["keywords"], "fallback keywords missing"
     assert all(len(term) >= 3 for term in result["keywords"])
+
+
+def test_force_english_terms_when_language_en():
+    payload = json.dumps(
+        {
+            "language": "en",
+            "keywords": ["récompense", "durée"],
+            "search_queries": ["plan de récompense", "augmentation de durée"],
+        }
+    )
+    service = DummyService(payload)
+    result = service.generate_dynamic_context("Une transcription en anglais implicite")
+    assert "reward" in result["keywords"]
+    assert "duration" in result["keywords"]
+    assert all("récompense" not in q and "durée" not in q for q in result["search_queries"])
