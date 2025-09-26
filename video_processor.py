@@ -16,7 +16,7 @@ import subprocess
 import shlex
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, Sequence, Set
+from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple
 from collections import Counter
 import gc
 
@@ -42,6 +42,31 @@ def print_realtime(message):
     """Print avec flush immédiat pour logs temps réel"""
     print(message, flush=True)
     logger.info(message)
+
+
+def format_broll_completion_banner(inserted_count: int, *, origin: str = "pipeline") -> Tuple[bool, str]:
+    """Return a (success, banner) tuple describing the B-roll insertion result.
+
+    The banner preserves the historical success message so downstream log parsing
+    keeps working, while providing a dedicated warning when no insertions were
+    produced. The *origin* parameter allows callers to specialise the warning for
+    pipeline_core versus the legacy pipeline.
+    """
+
+    try:
+        count = int(inserted_count)
+    except (TypeError, ValueError):
+        count = 0
+
+    origin_key = (origin or "pipeline").strip().lower()
+
+    if count > 0:
+        return True, f"    ✅ B-roll insérés avec succès ({count})"
+
+    if origin_key == "pipeline_core":
+        return False, "    ⚠️ Pipeline core: aucun B-roll sélectionné; retour à la vidéo d'origine"
+
+    return False, "    ⚠️ Aucun B-roll inséré; retour à la vidéo d'origine"
 
 SEEN_URLS: Set[str] = set()
 SEEN_PHASHES: List[int] = []
@@ -816,6 +841,7 @@ class VideoProcessor:
                 logger.warning("LLM service initialisation failed: %s", exc)
         self._llm_service = VideoProcessor._shared_llm_service
         self._core_last_run_used = False
+        self._last_broll_insert_count = 0
         self._pipeline_config = PipelineConfigBundle()
         self._broll_event_logger = None
     
@@ -928,14 +954,18 @@ class VideoProcessor:
         *,
         subtitles,
         input_path: Path,
-    ) -> bool:
-        """Attempt to run the pipeline_core orchestrator if configured."""
+    ) -> Optional[int]:
+        """Attempt to run the pipeline_core orchestrator if configured.
+
+        Returns the number of assets selected by the orchestrator when it runs,
+        or ``None`` when the legacy pipeline should continue.
+        """
 
         event_logger = self._get_broll_event_logger()
         if not _pipeline_core_fetcher_enabled():
             event_logger.log({'event': 'core_disabled', 'reason': 'flag_disabled'})
             self._core_last_run_used = False
-            return False
+            return None
 
 
         fetcher_cfg = getattr(self._pipeline_config, 'fetcher', None)
@@ -946,7 +976,7 @@ class VideoProcessor:
             )
             event_logger.log({'event': 'core_disabled', 'reason': 'missing_fetcher_config'})
             self._core_last_run_used = False
-            return False
+            return None
 
         providers = getattr(fetcher_cfg, 'providers', None)
         providers_list: List[Any]
@@ -977,24 +1007,25 @@ class VideoProcessor:
             )
             event_logger.log({'event': 'core_disabled', 'reason': 'no_providers'})
             self._core_last_run_used = False
-            return False
+            return None
 
         event_logger.log({'event': 'core_engaged', 'video': input_path.name, 'providers': len(providers_list)})
 
-        self._insert_brolls_pipeline_core(
+        inserted = self._insert_brolls_pipeline_core(
             segments,
             broll_keywords,
             subtitles=subtitles,
             input_path=input_path,
         )
-        return True
+        return inserted
 
-    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> None:
+    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> int:
         global SEEN_URLS, SEEN_PHASHES, SEEN_IDENTIFIERS
         SEEN_URLS.clear()
         SEEN_PHASHES.clear()
         SEEN_IDENTIFIERS.clear()
         self._core_last_run_used = True
+        self._last_broll_insert_count = 0
         logger.info("[BROLL] pipeline_core orchestrator engaged")
         config_bundle = self._pipeline_config
         orchestrator = FetcherOrchestrator(config_bundle.fetcher)
@@ -1063,7 +1094,8 @@ class VideoProcessor:
         if not segments:
             event_logger.log({'event': 'core_no_segments', 'reason': 'no_valid_segments', 'video': input_path.name})
             self._core_last_run_used = False
-            return
+            self._last_broll_insert_count = 0
+            return 0
 
         fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
@@ -1314,14 +1346,17 @@ class VideoProcessor:
             reject_reasons=['summary'],
             provider_status={**(provider_status or {}), 'selected_count': len(selected_assets)} if provider_status else {'selected_count': len(selected_assets)},
         )
+        inserted_count = len(selected_assets)
+        self._last_broll_insert_count = inserted_count
+
         try:
             event_logger.log({
                 'event': 'broll_summary',
                 'segments': len(segments),
-                'inserted': len(selected_assets),
+                'inserted': inserted_count,
                 'providers_used': sorted({item['provider'] for item in selected_assets if item.get('provider')}),
             })
-            print(f"    📊 B-roll sélectionnés: {len(selected_assets)}/{len(segments)}")
+            print(f"    📊 B-roll sélectionnés: {inserted_count}/{len(segments)}")
         except Exception:
             pass
 
@@ -1344,6 +1379,8 @@ class VideoProcessor:
                 print(f"[REPORT] wrote {out_path}")
             except Exception as e:
                 print(f"[REPORT] failed: {e}")
+
+        return inserted_count
 
     def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
         keywords: List[str] = []
@@ -2327,7 +2364,8 @@ class VideoProcessor:
         if not getattr(Config, 'ENABLE_BROLL', False):
             print("    ⏭️ B-roll désactivés: aucune insertion")
             return input_path
-        
+
+        self._last_broll_insert_count = 0
         try:
             # Vérifier la librairie B-roll
             broll_root = Path("AI-B-roll")
@@ -2674,12 +2712,15 @@ class VideoProcessor:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
-            if self._maybe_use_pipeline_core(
+            core_inserted = self._maybe_use_pipeline_core(
                 segments,
                 broll_keywords,
                 subtitles=subtitles,
                 input_path=input_path,
-            ):
+            )
+            if core_inserted is not None:
+                success, banner = format_broll_completion_banner(core_inserted, origin="pipeline_core")
+                print(banner)
                 return input_path
 
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
@@ -3732,7 +3773,10 @@ class VideoProcessor:
                     raise RuntimeError('B-rolls planifiés, mais aucun media_path valide trouvé. Fallback legacy impossible: ' + str(_e))
             # Rendu unique avec les events valides (incl. fallback le cas échéant)
             render_video(cfg, segments, valid_events)
-            
+
+            inserted_count = len(valid_events)
+            self._last_broll_insert_count = inserted_count
+
             # VÉRIFICATION ET NETTOYAGE INTELLIGENT DES B-ROLLS
             try:
                 if getattr(Config, 'BROLL_DELETE_AFTER_USE', False):
@@ -3836,12 +3880,20 @@ class VideoProcessor:
                 # En cas d'erreur, ne pas supprimer les B-rolls
                 pass
 
-            if Path(cfg.output_video).exists():
-                print("    ✅ B-roll insérés avec succès")
+            output_exists = Path(cfg.output_video).exists()
+            success, banner = format_broll_completion_banner(inserted_count, origin="legacy")
+
+            if output_exists and success:
+                print(banner)
                 return Path(cfg.output_video)
-            else:
+
+            if not success:
+                print(banner)
+
+            if not output_exists:
                 print("    ⚠️ Sortie B-roll introuvable, retour à la vidéo d'origine")
-                return input_path
+
+            return input_path
         except Exception as e:
             print(f"    ❌ Erreur B-roll: {e}")
             return input_path
