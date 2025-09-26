@@ -1,2 +1,21 @@
-*.py text eol=lf
 * text=auto
+
+# Code -> forcer LF en repo
+*.py   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sh   text eol=lf
+
+# Scripts Windows -> garder CRLF à l’extraction
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binaires (ne pas normaliser)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp4 binary
+*.mov binary
+*.zip binary
+*.bin binary
