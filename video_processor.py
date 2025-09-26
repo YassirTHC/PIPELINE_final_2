@@ -45,6 +45,7 @@ def print_realtime(message):
 
 SEEN_URLS: Set[str] = set()
 SEEN_PHASHES: List[int] = []
+SEEN_IDENTIFIERS: Set[str] = set()
 PHASH_DISTANCE = 6
 
 
@@ -83,12 +84,24 @@ def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
 def dedupe_by_url(candidates):
     unique = []
     hits = 0
+    seen_identifiers: Set[str] = set()
+    seen_urls: Set[str] = set()
     for candidate in candidates or []:
+        identifier = getattr(candidate, 'identifier', None)
+        if identifier:
+            if identifier in SEEN_IDENTIFIERS or identifier in seen_identifiers:
+                hits += 1
+                continue
         url = getattr(candidate, 'url', None)
-        if url and url in SEEN_URLS:
-            hits += 1
-            continue
+        if url:
+            if url in SEEN_URLS or url in seen_urls:
+                hits += 1
+                continue
         unique.append(candidate)
+        if identifier:
+            seen_identifiers.add(identifier)
+        if url:
+            seen_urls.add(url)
     return unique, hits
 
 
@@ -977,9 +990,10 @@ class VideoProcessor:
         return True
 
     def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> None:
-        global SEEN_URLS, SEEN_PHASHES
+        global SEEN_URLS, SEEN_PHASHES, SEEN_IDENTIFIERS
         SEEN_URLS.clear()
         SEEN_PHASHES.clear()
+        SEEN_IDENTIFIERS.clear()
         self._core_last_run_used = True
         logger.info("[BROLL] pipeline_core orchestrator engaged")
         config_bundle = self._pipeline_config
@@ -1201,6 +1215,22 @@ class VideoProcessor:
                     best_score = score
                     best_provider = getattr(candidate, 'provider', None)
 
+            if not best_candidate and unique_candidates:
+                fallback = max(
+                    unique_candidates,
+                    key=lambda cand: self._rank_candidate(segment.text, cand, selection_cfg, seg_duration),
+                )
+                best_candidate = fallback
+                best_score = self._rank_candidate(segment.text, fallback, selection_cfg, seg_duration)
+                best_provider = getattr(fallback, 'provider', None)
+                reject_reasons.append("fallback_low_score")
+                logger.info(
+                    "[BROLL] fallback candidate selected for segment %s (url=%s, score=%.3f)",
+                    idx,
+                    getattr(fallback, 'url', None),
+                    best_score,
+                )
+
             if best_candidate:
                 url = getattr(best_candidate, 'url', None)
                 if url:
@@ -1208,6 +1238,9 @@ class VideoProcessor:
                 ph = getattr(best_candidate, '_phash', None)
                 if ph is not None:
                     SEEN_PHASHES.append(ph)
+                identifier = getattr(best_candidate, 'identifier', None)
+                if identifier:
+                    SEEN_IDENTIFIERS.add(identifier)
                 # Append to selection report
                 try:
                     if report is not None:
