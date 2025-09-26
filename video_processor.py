@@ -1067,6 +1067,7 @@ class VideoProcessor:
 
         fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
+        selected_assets: List[Dict[str, Any]] = []
         for idx, segment in enumerate(segments):
             seg_duration = max(0.0, segment.end - segment.start)
             llm_hints = None
@@ -1241,6 +1242,12 @@ class VideoProcessor:
                 identifier = getattr(best_candidate, 'identifier', None)
                 if identifier:
                     SEEN_IDENTIFIERS.add(identifier)
+                selected_assets.append({
+                    'segment': idx,
+                    'provider': best_provider,
+                    'url': getattr(best_candidate, 'url', None),
+                    'score': best_score,
+                })
                 # Append to selection report
                 try:
                     if report is not None:
@@ -1305,8 +1312,18 @@ class VideoProcessor:
             latency_ms=0,
             llm_healthy=True,
             reject_reasons=['summary'],
-            provider_status=provider_status or None,
+            provider_status={**(provider_status or {}), 'selected_count': len(selected_assets)} if provider_status else {'selected_count': len(selected_assets)},
         )
+        try:
+            event_logger.log({
+                'event': 'broll_summary',
+                'segments': len(segments),
+                'inserted': len(selected_assets),
+                'providers_used': sorted({item['provider'] for item in selected_assets if item.get('provider')}),
+            })
+            print(f"    📊 B-roll sélectionnés: {len(selected_assets)}/{len(segments)}")
+        except Exception:
+            pass
 
         # Persist compact selection report next to JSONL
         try:
