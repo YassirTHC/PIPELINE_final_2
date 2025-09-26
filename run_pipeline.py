@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import inspect
 import os
 import sys
 from pathlib import Path
@@ -265,11 +266,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     video_processor_module = importlib.import_module("video_processor")
 
-    result = video_processor_module.main(vp_args, return_result=True)
-    if not isinstance(result, PipelineResult):
-        raise RuntimeError("video_processor.main did not return PipelineResult")
+# Bridge compatible : nouvelle API (retourne PipelineResult) ou legacy (retourne int)
+try:
+    sig = inspect.signature(video_processor_module.main)
+    supports_return = 'return_result' in sig.parameters
+except Exception:
+    supports_return = False
 
-    return _result_to_exit_code(result)
+if supports_return:
+    ret = video_processor_module.main(vp_args, return_result=True)
+    if isinstance(ret, PipelineResult):
+        return _result_to_exit_code(ret)
+    if isinstance(ret, int):
+        return ret
+    return 0 if ret else 1
+else:
+    code = video_processor_module.main(vp_args)
+    return int(code) if code is not None else 0
+
 
 
 if __name__ == "__main__":
