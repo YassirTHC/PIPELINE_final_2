@@ -96,13 +96,19 @@ _GENERIC_TERMS = {
 
 
 _EN_EQUIVALENTS = {
+    "adrnaline": "adrenaline",
+    "adrenaline": "adrenaline",
+    "adrenalin": "adrenaline",
+    "controle": "control",
+    "contrle": "control",
+    "processus": "process",
     "recompense": "reward",
     "recompenses": "rewards",
     "rcompense": "reward",
     "rcompenses": "rewards",
+    "dure": "duration",
     "duree": "duration",
     "durees": "durations",
-    "dure": "duration",
     "objectif": "goal",
     "objectifs": "goals",
     "reussite": "success",
@@ -174,10 +180,14 @@ def enforce_fetch_language(terms: Iterable[str], language: Optional[str]) -> Lis
             continue
         tokens: List[str] = []
         for token in raw.split():
-            base = _EN_EQUIVALENTS.get(token)
+            token_norm = token.lower()
+            base = _EN_EQUIVALENTS.get(token_norm)
             if base is None:
-                ascii_token = _strip_diacritics(token)
-                base = _EN_EQUIVALENTS.get(ascii_token, token)
+                ascii_token = _strip_diacritics(token_norm)
+                ascii_token = ascii_token.lower()
+                base = _EN_EQUIVALENTS.get(ascii_token)
+                if base is None:
+                    base = ascii_token or token
             tokens.append(base)
         candidate = " ".join(tok for tok in tokens if tok)
         if candidate and candidate not in seen:

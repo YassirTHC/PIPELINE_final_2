@@ -61,3 +61,17 @@ def test_force_english_terms_when_language_en():
     assert "reward" in result["keywords"]
     assert "duration" in result["keywords"]
     assert all("récompense" not in q and "durée" not in q for q in result["search_queries"])
+
+
+def test_force_english_terms_handles_accented_sequences():
+    payload = json.dumps(
+        {
+            "language": "en",
+            "keywords": ["adrénaline récompense contrôle"],
+            "search_queries": ["adrénaline récompense contrôle processus"],
+        }
+    )
+    service = DummyService(payload)
+    result = service.generate_dynamic_context("Adrénaline récompense contrôle")
+    assert result["keywords"] == ["adrenaline reward control"]
+    assert result["search_queries"] == ["adrenaline reward control process"]
