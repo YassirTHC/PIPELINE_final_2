@@ -537,37 +537,44 @@ class LLMMetadataGeneratorService:
             'these', 'those', 'which', 'about', 'because', 'being', 'while', 'after', 'before',
         }
         keywords = [t for t in tokens if t not in stopwords]
-        base_queries = [
-            "doctor talking with patient in clinic",
-            "close-up stethoscope on chest",
-            "nurse writing notes at hospital desk",
-            "medical team walking in hospital corridor",
-            "therapist speaking with client",
-            "hands typing on laptop in hospital office",
-            "MRI scanner room",
-        ]
-        mapping = {
-            'patient': "doctor explaining results to patient in clinic",
-            'doctor': "doctor discussing treatment plan at hospital desk",
-            'brain': "brain scan visuals with medical monitors",
-            'therapy': "therapist talking with client in calm office",
-            'motivation': "person giving motivational talk on stage",
-            'business': "entrepreneur presenting idea to team in office",
-            'data': "data analyst reviewing charts on large screen",
-            'training': "coach guiding person during workout session",
-            'emotion': "close-up face expressing emotion indoors",
+        anti_terms = {
+            'person',
+            'doctor',
+            'stethoscope',
+            'patient',
+            'clinic',
+            'workspace',
+            'discussing',
+            'nurse',
         }
-        dynamic_queries = []
-        for token in keywords:
-            if token in mapping:
-                dynamic_queries.append(mapping[token])
-        if not dynamic_queries and keywords:
-            take = keywords[:3]
-            dynamic_queries.append(f"person discussing {' '.join(take)} in modern workspace")
-        queries = list(dict.fromkeys(dynamic_queries + base_queries))[:8]
+
+        candidates: List[str] = []
+        for window in (3, 2):
+            if len(keywords) < window:
+                continue
+            for i in range(len(keywords) - window + 1):
+                phrase = " ".join(keywords[i : i + window])
+                if phrase:
+                    candidates.append(phrase)
+
+        if not candidates and keywords:
+            span = min(3, len(keywords))
+            candidates.append(" ".join(keywords[:span]))
+
+        queries: List[str] = []
+        seen: set[str] = set()
+        for phrase in candidates:
+            tokens = [tok for tok in phrase.split() if tok]
+            if any(tok in anti_terms for tok in tokens):
+                continue
+            if phrase not in seen:
+                seen.add(phrase)
+                queries.append(phrase)
+            if len(queries) >= 8:
+                break
         synonyms = sorted(set(keywords[:6]))
         return {
-            "queries": queries,
+            "queries": queries or keywords[:3],
             "synonyms": synonyms or ["healthcare", "therapy", "consultation"],
             "filters": {"orientation": "landscape", "min_duration_s": 3.0},
         }
