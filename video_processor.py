@@ -1310,7 +1310,15 @@ class VideoProcessor:
         total_phash_dedup_hits = 0
         total_latency_ms = 0
         segments_with_queries = 0
-        forced_keep_segments = 0
+        forced_keep_consumed = 0
+        raw_forced_keep_budget = getattr(selection_cfg, 'forced_keep_budget', None)
+        if isinstance(raw_forced_keep_budget, int):
+            forced_keep_remaining: Optional[int] = max(0, raw_forced_keep_budget)
+        elif isinstance(raw_forced_keep_budget, float):
+            forced_keep_remaining = max(0, int(raw_forced_keep_budget))
+        else:
+            forced_keep_remaining = None
+        forced_keep_allowed = bool(getattr(selection_cfg, 'allow_forced_keep', True))
         for idx, segment in enumerate(segments):
             seg_duration = max(0.0, segment.end - segment.start)
             llm_hints = None
@@ -1482,11 +1490,39 @@ class VideoProcessor:
 
             eligible_records = [rec for rec in filter_pass_records if not rec['below_threshold']]
             best_record = None
+            fallback_record = None
             if eligible_records:
                 best_record = max(eligible_records, key=lambda rec: rec['score'])
             elif filter_pass_records:
-                best_record = max(filter_pass_records, key=lambda rec: rec['score'])
-                forced_keep = True
+                fallback_record = max(filter_pass_records, key=lambda rec: rec['score'])
+                if forced_keep_allowed and (forced_keep_remaining is None or forced_keep_remaining > 0):
+                    best_record = fallback_record
+                    forced_keep = True
+                else:
+                    reason = 'disabled' if not forced_keep_allowed else 'exhausted'
+                    fallback_candidate = fallback_record.get('candidate') if isinstance(fallback_record, dict) else None
+                    fallback_provider = fallback_record.get('provider') if isinstance(fallback_record, dict) else None
+                    fallback_url = getattr(fallback_candidate, 'url', None)
+                    logger.info(
+                        "[BROLL] forced-keep fallback skipped for segment %s (reason=%s, provider=%s, url=%s)",
+                        idx,
+                        reason,
+                        fallback_provider,
+                        fallback_url,
+                    )
+                    try:
+                        if event_logger:
+                            event_logger.log(
+                                {
+                                    'event': 'forced_keep_skipped',
+                                    'segment': idx,
+                                    'reason': reason,
+                                    'provider': fallback_provider,
+                                    'url': fallback_url,
+                                }
+                            )
+                    except Exception:
+                        pass
 
             if best_record:
                 best_candidate = best_record['candidate']
@@ -1533,12 +1569,37 @@ class VideoProcessor:
             if forced_keep and best_candidate:
                 reject_reason_counts['fallback_low_score'] += 1
                 reject_reasons.append('fallback_low_score')
-                logger.info(
-                    "[BROLL] fallback candidate selected for segment %s (url=%s, score=%.3f)",
-                    idx,
-                    getattr(best_candidate, 'url', None),
-                    best_score,
+                if forced_keep_remaining is not None:
+                    forced_keep_remaining = max(0, forced_keep_remaining - 1)
+                forced_keep_consumed += 1
+                remaining_display = '∞' if forced_keep_remaining is None else forced_keep_remaining
+                score_display = (
+                    f"{float(best_score):.3f}"
+                    if isinstance(best_score, (int, float))
+                    else 'n/a'
                 )
+                logger.info(
+                    "[BROLL] forced-keep fallback used for segment %s (provider=%s, url=%s, score=%s, remaining=%s)",
+                    idx,
+                    best_provider,
+                    getattr(best_candidate, 'url', None),
+                    score_display,
+                    remaining_display,
+                )
+                try:
+                    if event_logger:
+                        event_logger.log(
+                            {
+                                'event': 'forced_keep_consumed',
+                                'segment': idx,
+                                'provider': best_provider,
+                                'url': getattr(best_candidate, 'url', None),
+                                'score': float(best_score) if isinstance(best_score, (int, float)) else None,
+                                'remaining_budget': forced_keep_remaining,
+                            }
+                        )
+                except Exception:
+                    pass
 
             if best_candidate:
                 url = getattr(best_candidate, 'url', None)
@@ -1567,8 +1628,6 @@ class VideoProcessor:
                     selected_durations.append(float(duration_val))
                 elif seg_duration > 0:
                     selected_durations.append(float(seg_duration))
-                if forced_keep:
-                    forced_keep_segments += 1
                 # Append to selection report
                 try:
                     if report is not None:
@@ -1661,7 +1720,8 @@ class VideoProcessor:
             'query_source_counts': dict(query_source_counter),
             'total_url_dedup_hits': total_url_dedup_hits,
             'total_phash_dedup_hits': total_phash_dedup_hits,
-            'forced_keep_segments': forced_keep_segments,
+            'forced_keep_segments': forced_keep_consumed,
+            'forced_keep_count': forced_keep_consumed,
             'total_candidates': total_candidates,
             'total_unique_candidates': total_unique_candidates,
             'video_duration_s': round(total_duration, 3) if total_duration else 0.0,

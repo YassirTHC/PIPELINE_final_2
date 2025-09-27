@@ -189,6 +189,7 @@ def test_broll_summary_matches_console(tmp_path):
         "total_url_dedup_hits": 1,
         "total_phash_dedup_hits": 0,
         "forced_keep_segments": 1,
+        "forced_keep_count": 1,
         "total_candidates": 9,
         "total_unique_candidates": 4,
         "video_duration_s": 75.0,
@@ -204,6 +205,7 @@ def test_broll_summary_matches_console(tmp_path):
     assert payload["selection_rate"] == round(2 / 3, 4)
     assert payload["query_source_counts"] == {"segment_brief": 2, "fallback_keywords": 1}
     assert payload["forced_keep_segments"] == 1
+    assert payload["forced_keep_count"] == 1
 
     fake_console_line = "    📊 B-roll sélectionnés: 2/3 (66.7%); providers=pexels:2"
     import re

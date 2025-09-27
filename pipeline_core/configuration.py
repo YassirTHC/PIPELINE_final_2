@@ -5,9 +5,10 @@ progressively refactor the monolithic `VideoProcessor`.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
 from config import Config
 
@@ -54,6 +55,68 @@ class FetcherOrchestratorConfig:
     request_timeout_s: float = 8.0
 
 
+def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Optional[bool]:
+    """Parse boolean-like environment values.
+
+    Returns ``True``/``False`` when the input can be interpreted as such, or
+    ``default`` when the value is empty/unknown.
+    """
+
+    if value is None:
+        return default
+    if isinstance(value, bool):  # pragma: no cover - defensive (env always str)
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _selection_config_from_environment() -> "SelectionConfig":
+    """Factory reading environment overrides for selection guardrails."""
+
+    config = SelectionConfig()
+
+    env_min_score = os.getenv("BROLL_MIN_SCORE") or os.getenv("BROLL_SELECTION_MIN_SCORE")
+    if env_min_score:
+        try:
+            config.min_score = max(0.0, float(env_min_score))
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            pass
+
+    raw_budget = os.getenv("BROLL_FORCED_KEEP")
+    if raw_budget is not None:
+        try:
+            parsed = int(raw_budget)
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            parsed = None
+        if parsed is not None:
+            config.forced_keep_budget = max(0, parsed)
+
+    enable_flag = None
+    for key in ("BROLL_FORCED_KEEP_ENABLE", "BROLL_FORCED_KEEP_ENABLED"):
+        flag = _env_to_bool(os.getenv(key))
+        if flag is not None:
+            enable_flag = flag
+
+    disable_flag = None
+    for key in ("BROLL_FORCED_KEEP_DISABLE", "BROLL_FORCED_KEEP_DISABLED"):
+        flag = _env_to_bool(os.getenv(key))
+        if flag is not None:
+            disable_flag = flag
+
+    if disable_flag is True:
+        config.allow_forced_keep = False
+    elif disable_flag is False and enable_flag is None:
+        config.allow_forced_keep = True
+    elif enable_flag is not None:
+        config.allow_forced_keep = enable_flag
+
+    return config
+
+
 @dataclass(slots=True)
 class SelectionConfig:
     """Selection guard-rails applied after ranking."""
@@ -62,6 +125,14 @@ class SelectionConfig:
     prefer_landscape: bool = True
     min_duration_s: float = 3.0
     require_license_ok: bool = True
+    allow_forced_keep: bool = True
+    forced_keep_budget: Optional[int] = None
+
+    @classmethod
+    def from_environment(cls) -> "SelectionConfig":
+        """Build a configuration instance with environment overrides applied."""
+
+        return _selection_config_from_environment()
 
 
 @dataclass(slots=True)
@@ -116,7 +187,7 @@ class PipelineConfigBundle:
 
     paths: PipelinePaths = field(default_factory=PipelinePaths)
     fetcher: FetcherOrchestratorConfig = field(default_factory=FetcherOrchestratorConfig)
-    selection: SelectionConfig = field(default_factory=SelectionConfig)
+    selection: SelectionConfig = field(default_factory=_selection_config_from_environment)
     orchestrator: OrchestratorRuntimeConfig = field(default_factory=OrchestratorRuntimeConfig)
     timeboxing: TimeboxingConfig = field(default_factory=TimeboxingConfig)
     dedupe: DedupePolicy = field(default_factory=DedupePolicy)
