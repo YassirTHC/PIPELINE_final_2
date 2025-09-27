@@ -1,5 +1,7 @@
 import sys
+from contextlib import ExitStack
 from pathlib import Path
+from urllib.parse import urlparse
 
 # ensure project-root is first
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -1052,11 +1054,13 @@ class VideoProcessor:
         *,
         subtitles,
         input_path: Path,
-    ) -> Optional[int]:
+    ) -> Optional[Tuple[int, Optional[Path]]]:
         """Attempt to run the pipeline_core orchestrator if configured.
 
-        Returns the number of assets selected by the orchestrator when it runs,
-        or ``None`` when the legacy pipeline should continue.
+        Returns a tuple ``(inserted_count, rendered_path)`` when the orchestrator
+        is engaged. The rendered path may be ``None`` if rendering fails. When
+        the orchestrator should not run, ``None`` is returned so the legacy
+        pipeline can continue unchanged.
         """
 
         event_logger = self._get_broll_event_logger()
@@ -1117,7 +1121,7 @@ class VideoProcessor:
         )
         return inserted
 
-    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> int:
+    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> Tuple[int, Optional[Path]]:
         global SEEN_URLS, SEEN_PHASHES, SEEN_IDENTIFIERS
         SEEN_URLS.clear()
         SEEN_PHASHES.clear()
@@ -1193,7 +1197,7 @@ class VideoProcessor:
             event_logger.log({'event': 'core_no_segments', 'reason': 'no_valid_segments', 'video': input_path.name})
             self._core_last_run_used = False
             self._last_broll_insert_count = 0
-            return 0
+            return 0, None
 
         fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
@@ -1398,6 +1402,9 @@ class VideoProcessor:
                     'provider': best_provider,
                     'url': getattr(best_candidate, 'url', None),
                     'score': best_score,
+                    'candidate': best_candidate,
+                    'start': float(getattr(segment, 'start', 0.0) or 0.0),
+                    'end': float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
                 })
                 provider_label = str(best_provider or 'unknown')
                 provider_counter[provider_label] += 1
@@ -1516,6 +1523,74 @@ class VideoProcessor:
         except Exception:
             pass
 
+        render_path: Optional[Path] = None
+        if inserted_count > 0:
+            timeline_entries: List[Dict[str, Any]] = []
+            download_dir: Optional[Path]
+            try:
+                download_dir = Config.TEMP_FOLDER / 'with_broll_core'
+                download_dir.mkdir(parents=True, exist_ok=True)
+            except Exception as exc:
+                logger.warning('[BROLL] unable to prepare core download dir: %s', exc)
+                download_dir = None
+
+            for order, asset in enumerate(selected_assets):
+                candidate = asset.get('candidate') if isinstance(asset, dict) else None
+                if not candidate or download_dir is None:
+                    continue
+                local_path = self._download_core_candidate(candidate, download_dir, order)
+                if not local_path:
+                    try:
+                        event_logger.log({
+                            'event': 'core_asset_materialize_failed',
+                            'url': asset.get('url'),
+                            'provider': asset.get('provider'),
+                        })
+                    except Exception:
+                        pass
+                    continue
+
+                start = float(asset.get('start', 0.0) or 0.0)
+                end = float(asset.get('end', start) or start)
+                duration = getattr(candidate, 'duration', None)
+                if isinstance(duration, (int, float)) and duration > 0:
+                    end = min(end, start + float(duration)) if end > start else start + float(duration)
+                if end <= start:
+                    continue
+
+                timeline_entries.append({
+                    'path': local_path,
+                    'start': start,
+                    'end': end,
+                    'provider': asset.get('provider'),
+                    'url': asset.get('url'),
+                })
+
+            if timeline_entries:
+                render_path = self._render_core_broll_timeline(Path(input_path), timeline_entries)
+                if render_path:
+                    try:
+                        event_logger.log({
+                            'event': 'core_render_complete',
+                            'output': str(render_path),
+                            'inserted': inserted_count,
+                        })
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        event_logger.log({
+                            'event': 'core_render_failed',
+                            'inserted': inserted_count,
+                        })
+                    except Exception:
+                        pass
+            else:
+                try:
+                    event_logger.log({'event': 'core_no_timeline', 'selected': inserted_count})
+                except Exception:
+                    pass
+
         # Persist compact selection report next to JSONL
         try:
             ENABLE_SELECTION_REPORT = os.getenv("ENABLE_SELECTION_REPORT", "true").lower() not in {"0","false","no"}
@@ -1536,7 +1611,117 @@ class VideoProcessor:
             except Exception as e:
                 print(f"[REPORT] failed: {e}")
 
-        return inserted_count
+        return inserted_count, render_path
+
+    def _download_core_candidate(self, candidate, download_dir: Path, order: int) -> Optional[Path]:
+        """Download a remote candidate selected by the core orchestrator."""
+
+        url = getattr(candidate, 'url', None)
+        if not url:
+            return None
+
+        try:
+            parsed = urlparse(str(url))
+            ext = Path(parsed.path).suffix
+        except Exception:
+            ext = ''
+
+        if not ext:
+            ext = '.mp4'
+
+        filename = f"core_{order:03d}{ext}"
+        destination = download_dir / filename
+
+        try:
+            response = requests.get(str(url), stream=True, timeout=15)
+            response.raise_for_status()
+            with open(destination, 'wb') as fh:
+                for chunk in response.iter_content(chunk_size=1024 * 8):
+                    if chunk:
+                        fh.write(chunk)
+        except Exception as exc:
+            logger.warning('[BROLL] failed to download %s: %s', url, exc)
+            try:
+                if destination.exists():
+                    destination.unlink()
+            except Exception:
+                pass
+            return None
+
+        return destination
+
+    def _render_core_broll_timeline(
+        self,
+        input_path: Path,
+        timeline: Sequence[Dict[str, Any]],
+    ) -> Optional[Path]:
+        """Render a simple composite video using the downloaded core assets."""
+
+        if not timeline:
+            return None
+
+        output_dir = Config.TEMP_FOLDER / 'with_broll_core'
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with ExitStack() as stack:
+                base_clip = stack.enter_context(VideoFileClip(str(input_path)))
+                layers = [base_clip]
+                base_height = getattr(base_clip, 'h', None)
+
+                for entry in timeline:
+                    clip_path = entry.get('path')
+                    if not clip_path:
+                        continue
+                    overlay = stack.enter_context(VideoFileClip(str(clip_path)))
+                    duration = max(0.0, float(entry.get('end', 0.0)) - float(entry.get('start', 0.0)))
+
+                    if base_height and getattr(overlay, 'h', None):
+                        try:
+                            overlay = overlay.resize(height=base_height)
+                        except Exception:
+                            pass
+
+                    if duration > 0 and getattr(overlay, 'duration', None):
+                        try:
+                            overlay = overlay.subclip(0, min(duration, float(overlay.duration)))
+                        except Exception:
+                            pass
+
+                    start = max(0.0, float(entry.get('start', 0.0)))
+                    try:
+                        overlay = overlay.set_start(start)
+                    except Exception:
+                        pass
+
+                    if duration > 0:
+                        try:
+                            overlay = overlay.set_duration(duration)
+                        except Exception:
+                            pass
+
+                    layers.append(overlay)
+
+                composite = CompositeVideoClip(layers)
+                output_path = self._unique_path(
+                    output_dir,
+                    f"with_broll_core_{Path(input_path).stem}",
+                    '.mp4',
+                )
+                composite.write_videofile(
+                    str(output_path),
+                    codec='libx264',
+                    audio_codec='aac',
+                    preset='medium',
+                    threads=max(1, (os.cpu_count() or 1) // 2 or 1),
+                    logger=None,
+                )
+                composite.close()
+                return output_path
+        except Exception as exc:
+            logger.warning('[BROLL] core renderer failed: %s', exc)
+
+        return None
 
     def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
         keywords: List[str] = []
@@ -2868,16 +3053,24 @@ class VideoProcessor:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
-            core_inserted = self._maybe_use_pipeline_core(
+            core_result = self._maybe_use_pipeline_core(
                 segments,
                 broll_keywords,
                 subtitles=subtitles,
                 input_path=input_path,
             )
-            if core_inserted is not None:
-                success, banner = format_broll_completion_banner(core_inserted, origin="pipeline_core")
+            if core_result is not None:
+                inserted_count, core_path = core_result
+                success, banner = format_broll_completion_banner(inserted_count, origin="pipeline_core")
                 print(banner)
-                return input_path
+                if inserted_count > 0 and core_path:
+                    return core_path
+                if inserted_count > 0 and not core_path:
+                    logger.warning(
+                        "pipeline_core selected %s assets but rendering failed; falling back to legacy pipeline",
+                        inserted_count,
+                    )
+                # Legacy pipeline will handle rendering when no core output is available
 
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
             cfg = BrollConfig(
