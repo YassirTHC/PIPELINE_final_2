@@ -945,7 +945,10 @@ class VideoProcessor:
     """Classe principale pour traiter les vidéos"""
 
     def __init__(self):
-        self.whisper_model = whisper.load_model(Config.WHISPER_MODEL)
+        if os.getenv("FAST_TESTS") == "1":
+            self.whisper_model = object()
+        else:
+            self.whisper_model = whisper.load_model(Config.WHISPER_MODEL)
         _setup_directories()
         # Cache éventuel pour spaCy
         self._spacy_model = None
@@ -1839,6 +1842,14 @@ class VideoProcessor:
                         except Exception:
                             pass
 
+                    try:
+                        overlay = overlay.without_audio()
+                    except Exception:
+                        try:
+                            overlay = overlay.set_audio(None)
+                        except Exception:
+                            pass
+
                     if duration > 0 and getattr(overlay, 'duration', None):
                         try:
                             overlay = overlay.subclip(0, min(duration, float(overlay.duration)))
@@ -1857,6 +1868,11 @@ class VideoProcessor:
                         except Exception:
                             pass
 
+                    try:
+                        overlay = overlay.set_position('center')
+                    except Exception:
+                        pass
+
                     layers.append(overlay)
 
                 composite = CompositeVideoClip(layers)
@@ -1874,6 +1890,318 @@ class VideoProcessor:
             logger.warning('[BROLL] core renderer failed: %s', exc)
 
         return None
+
+    def _normalize_core_result(
+        self,
+        result: Any,
+    ) -> Tuple[Optional[int], Optional[Path], Optional[List[Dict[str, Any]]]]:
+        """Extract count, rendered path, and selection plan from core result payloads."""
+
+        inserted: Optional[int] = None
+        render_path: Optional[Path] = None
+        selections: Optional[List[Dict[str, Any]]] = None
+
+        def _coerce_int(value: Any) -> Optional[int]:
+            try:
+                if value is None:
+                    return None
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
+        def _maybe_update_from_payload(payload: Any) -> None:
+            nonlocal render_path, selections
+            if render_path is None:
+                candidate = self._coerce_core_path(payload)
+                if candidate is not None:
+                    render_path = candidate
+            plan = self._coerce_core_plan(payload)
+            if plan:
+                selections = plan
+
+        if isinstance(result, tuple):
+            if result:
+                inserted = _coerce_int(result[0])
+            for payload in result[1:]:
+                _maybe_update_from_payload(payload)
+        elif isinstance(result, dict):
+            inserted = _coerce_int(
+                result.get('inserted')
+                or result.get('count')
+                or result.get('broll_inserted_count')
+            ) or inserted
+            _maybe_update_from_payload(result)
+        else:
+            if hasattr(result, 'broll_inserted_count'):
+                inserted = _coerce_int(getattr(result, 'broll_inserted_count'))
+            if hasattr(result, 'final_export_path'):
+                render_path = self._coerce_core_path(getattr(result, 'final_export_path'))
+            if hasattr(result, 'to_dict'):
+                try:
+                    as_dict = result.to_dict()  # type: ignore[call-arg]
+                except Exception:
+                    as_dict = None
+                if isinstance(as_dict, dict):
+                    inserted = inserted or _coerce_int(
+                        as_dict.get('broll_inserted_count')
+                        or as_dict.get('inserted')
+                    )
+                    _maybe_update_from_payload(as_dict)
+            _maybe_update_from_payload(result)
+
+        return inserted, render_path, selections
+
+    def _coerce_core_path(self, payload: Any) -> Optional[Path]:
+        if payload is None:
+            return None
+        if isinstance(payload, Path):
+            return payload
+        if isinstance(payload, str):
+            candidate = payload.strip()
+            if not candidate:
+                return None
+            parsed = urlparse(candidate)
+            if parsed.scheme and parsed.scheme not in {'', 'file'}:
+                return None
+            try:
+                return Path(candidate)
+            except Exception:
+                return None
+        if isinstance(payload, dict):
+            for key in (
+                'output',
+                'output_path',
+                'render_path',
+                'rendered_path',
+                'final_export_path',
+                'path',
+            ):
+                if key in payload:
+                    candidate = self._coerce_core_path(payload[key])
+                    if candidate is not None:
+                        return candidate
+        for attr in ('output', 'output_path', 'render_path', 'final_export_path', 'path'):
+            if hasattr(payload, attr):
+                candidate = self._coerce_core_path(getattr(payload, attr))
+                if candidate is not None:
+                    return candidate
+        return None
+
+    def _coerce_core_plan(self, payload: Any) -> Optional[List[Dict[str, Any]]]:
+        if payload is None:
+            return None
+
+        def _as_mapping(item: Any) -> Optional[Dict[str, Any]]:
+            if item is None:
+                return None
+            if isinstance(item, dict):
+                return dict(item)
+            fields = {}
+            for key in (
+                'url',
+                'media_url',
+                'asset_url',
+                'segment',
+                'segment_index',
+                'start',
+                'end',
+                't0',
+                't1',
+                'duration',
+                'local_path',
+                'asset_path',
+                'path',
+                'provider',
+            ):
+                if hasattr(item, key):
+                    fields[key] = getattr(item, key)
+            return fields or None
+
+        if isinstance(payload, (list, tuple)):
+            plan: List[Dict[str, Any]] = []
+            for entry in payload:
+                nested = self._coerce_core_plan(entry)
+                if nested:
+                    plan.extend(nested)
+                    continue
+                mapping = _as_mapping(entry)
+                if mapping:
+                    plan.append(mapping)
+            return plan or None
+
+        if isinstance(payload, dict):
+            keys = {
+                'url',
+                'media_url',
+                'asset_url',
+                'segment',
+                'segment_index',
+                'start',
+                'end',
+                't0',
+                't1',
+                'duration',
+                'local_path',
+                'asset_path',
+                'path',
+                'provider',
+            }
+            if keys & set(payload.keys()):
+                return [dict(payload)]
+            for key in ('selections', 'selected', 'assets', 'timeline', 'plan', 'events', 'items'):
+                if key in payload:
+                    nested = self._coerce_core_plan(payload[key])
+                    if nested:
+                        return nested
+            return None
+
+        mapping = _as_mapping(payload)
+        if mapping:
+            return [mapping]
+        return None
+
+    def _coerce_timecode(self, *values: Any, default: float = 0.0) -> float:
+        for value in values:
+            if value is None:
+                continue
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+        return float(default)
+
+    def _download_core_selection_asset(self, url: str, directory: Path, order: int) -> Optional[Path]:
+        if not url:
+            return None
+
+        parsed = urlparse(str(url))
+        if parsed.scheme in {'', 'file'}:
+            candidate = Path(parsed.path)
+            if candidate.exists():
+                return candidate
+
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+
+        suffix = Path(parsed.path or '').suffix or '.mp4'
+        destination = directory / f"core_asset_{order:03d}{suffix}"
+
+        try:
+            from urllib.request import urlopen  # type: ignore
+
+            with urlopen(str(url), timeout=20) as response:  # nosec - controlled provider URLs
+                with destination.open('wb') as handle:
+                    while True:
+                        chunk = response.read(65536)
+                        if not chunk:
+                            break
+                        handle.write(chunk)
+            return destination
+        except Exception as exc:
+            logger.warning('[BROLL] failed to download core asset (%s): %s', url, exc)
+            try:
+                if destination.exists():
+                    destination.unlink()
+            except Exception:
+                pass
+            return None
+
+    def _render_core_selection_plan(
+        self,
+        input_path: Path,
+        plan: Sequence[Dict[str, Any]],
+    ) -> Optional[Path]:
+        if not plan:
+            return None
+
+        download_dir = Config.TEMP_FOLDER / 'with_broll_core' / Path(input_path).stem
+        timeline_entries: List[CoreTimelineEntry] = []
+        cached_urls: Dict[str, Path] = {}
+
+        for order, raw_entry in enumerate(plan):
+            if not isinstance(raw_entry, dict):
+                continue
+            entry = dict(raw_entry)
+            url = str(entry.get('url') or entry.get('media_url') or entry.get('asset_url') or '').strip()
+            local_candidate = entry.get('local_path') or entry.get('asset_path') or entry.get('path')
+            local_path: Optional[Path] = None
+            if local_candidate:
+                try:
+                    candidate_path = Path(local_candidate)
+                    if candidate_path.exists():
+                        local_path = candidate_path
+                except Exception:
+                    local_path = None
+            if local_path is None and url:
+                local_path = cached_urls.get(url)
+                if local_path is None:
+                    local_path = self._download_core_selection_asset(url, download_dir, order)
+                    if local_path:
+                        cached_urls[url] = local_path
+            if local_path is None:
+                continue
+
+            start = self._coerce_timecode(entry.get('start'), entry.get('t0'), default=0.0)
+            end = self._coerce_timecode(entry.get('end'), entry.get('t1'), default=start)
+            duration = entry.get('duration')
+            if (end is None or end <= start) and duration is not None:
+                try:
+                    end = float(start) + float(duration)
+                except (TypeError, ValueError):
+                    end = start
+            if end is None or end <= start:
+                continue
+
+            segment_idx = entry.get('segment_index', entry.get('segment'))
+            try:
+                segment_idx_int = int(segment_idx)
+            except (TypeError, ValueError):
+                segment_idx_int = order
+
+            timeline_entries.append(
+                CoreTimelineEntry(
+                    path=local_path,
+                    start=float(start),
+                    end=float(end),
+                    segment_index=segment_idx_int,
+                    provider=entry.get('provider'),
+                    url=url or None,
+                )
+            )
+
+        if not timeline_entries:
+            return None
+
+        timeline_entries.sort(key=lambda item: (item.start, item.segment_index))
+
+        render_path = self._render_core_broll_timeline(Path(input_path), timeline_entries)
+        if render_path is None:
+            return None
+
+        self._core_last_timeline = list(timeline_entries)
+        self._core_last_render_path = render_path
+        self._last_broll_insert_count = len(timeline_entries)
+
+        event_logger = None
+        try:
+            event_logger = self._get_broll_event_logger()
+        except Exception:
+            event_logger = None
+        if event_logger is not None:
+            try:
+                event_logger.log(
+                    {
+                        'event': 'core_render_complete',
+                        'output': str(render_path),
+                        'inserted': len(timeline_entries),
+                    }
+                )
+            except Exception:
+                pass
+
+        return render_path
 
     def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
         keywords: List[str] = []
@@ -2969,254 +3297,6 @@ class VideoProcessor:
             except Exception:
                 pass
 
-            if not _legacy_pipeline_fallback_enabled():
-                legacy_logger = None
-                try:
-                    legacy_logger = self._get_broll_event_logger()
-                except Exception:
-                    legacy_logger = None
-                if legacy_logger is not None:
-                    try:
-                        legacy_logger.log({'event': 'legacy_skipped', 'reason': 'disabled_by_config'})
-                    except Exception:
-                        pass
-                if isinstance(core_inserted, int) and core_inserted > 0 and core_path:
-                    return core_path
-                return input_path
-
-            # Assurer l'import du pipeline local (src/*)
-            if str(broll_root.resolve()) not in sys.path:
-                sys.path.insert(0, str(broll_root.resolve()))
-            
-            # 🚀 NOUVEAUX IMPORTS INTELLIGENTS SYNCHRONES (DÉSACTIVÉS POUR PROMPT OPTIMISÉ)
-            try:
-                from sync_context_analyzer import SyncContextAnalyzer
-                from broll_diversity_manager import BrollDiversityManager
-                # 🚨 DÉSACTIVATION TEMPORAIRE: Le système intelligent interfère avec notre prompt optimisé LLM
-                INTELLIGENT_BROLL_AVAILABLE = False
-                print("    ⚠️  Système intelligent DÉSACTIVÉ pour laisser le prompt optimisé LLM fonctionner")
-                print("    🎯 Utilisation exclusive du prompt optimisé: 25-35 keywords + structure hiérarchique")
-            except ImportError as e:
-                print(f"    ⚠️  Système intelligent non disponible: {e}")
-                print("    🔄 Fallback vers ancien système...")
-                INTELLIGENT_BROLL_AVAILABLE = False
-            
-            # Imports B-roll dans tous les cas
-            from src.pipeline.config import BrollConfig  # type: ignore
-            from src.pipeline.keyword_extraction import extract_keywords_for_segment  # type: ignore
-            from src.pipeline.timeline_legacy import plan_broll_insertions, normalize_timeline, enrich_keywords  # type: ignore
-            from src.pipeline.renderer import render_video  # type: ignore
-            from src.pipeline.transcription import TranscriptSegment  # type: ignore
-
-            from moviepy.editor import VideoFileClip as _VFC
-            # Optionnel: indexation FAISS/CLIP
-            try:
-                from src.pipeline.indexer import build_index  # type: ignore
-                index_handle = None
-            except Exception:
-                build_index = None  # type: ignore
-                index_handle = None
-
-            segments = [
-                TranscriptSegment(start=payload['start'], end=payload['end'], text=payload['text'])
-                for payload in legacy_segment_payloads
-            ]
-            
-            # 🧠 ANALYSE INTELLIGENTE AVANCÉE
-            if INTELLIGENT_BROLL_AVAILABLE:
-                print("    🧠 Utilisation du système B-roll intelligent...")
-                try:
-                    # Initialiser l'analyseur contextuel intelligent SYNCHRONE
-                    context_analyzer = SyncContextAnalyzer()
-                    
-                    # Analyser le contexte global de la vidéo
-                    transcript_text = " ".join([s.get('text', '') for s in subtitles])
-                    global_analysis = context_analyzer.analyze_context(transcript_text)
-                    
-                    print(f"    🎯 Contexte détecté: {global_analysis.main_theme}")
-                    print(f"    🧬 Sujets: {', '.join(global_analysis.key_topics[:3])}")
-                    print(f"    😊 Sentiment: {global_analysis.sentiment}")
-                    print(f"    📊 Complexité: {global_analysis.complexity}")
-                    print(f"    🔑 Mots-clés: {', '.join(global_analysis.keywords[:5])}")
-                    
-                    # Persister l'analyse intelligente
-                    try:
-                        meta_dir = Config.OUTPUT_FOLDER / 'meta'
-                        meta_dir.mkdir(parents=True, exist_ok=True)
-                        meta_path = meta_dir / f"{Path(input_path).stem}_intelligent_broll_metadata.json"
-                        with open(meta_path, 'w', encoding='utf-8') as f:
-                            json.dump({
-                                'intelligent_analysis': {
-                                    'main_theme': global_analysis.main_theme,
-                                    'key_topics': global_analysis.key_topics,
-                                    'sentiment': global_analysis.sentiment,
-                                    'complexity': global_analysis.complexity,
-                                    'keywords': global_analysis.keywords,
-                                    'context_score': global_analysis.context_score
-                                },
-                                'timestamp': str(datetime.now())
-                            }, f, ensure_ascii=False, indent=2)
-                        print(f"    💾 Métadonnées intelligentes sauvegardées: {meta_path}")
-                        
-                        # 🎬 INSÉRATION INTELLIGENTE DES B-ROLLS
-                        print("    🎬 Insertion intelligente des B-rolls...")
-                        try:
-                            # Créer un dossier unique pour ce clip
-                            clip_id = input_path.stem
-                            unique_broll_dir = broll_library / f"clip_intelligent_{clip_id}_{int(time.time())}"
-                            unique_broll_dir.mkdir(parents=True, exist_ok=True)
-                            
-                            # Générer des prompts intelligents basés sur l'analyse
-                            intelligent_prompts = []
-                            main_theme = global_analysis.main_theme
-                            kws = _filter_prompt_terms(global_analysis.keywords[:6]) if hasattr(global_analysis, 'keywords') else []
-                            if main_theme == 'technology':
-                                intelligent_prompts.extend([
-                                    'artificial intelligence neural network',
-                                    'computer vision algorithm',
-                                    'tech innovation future'
-                                ])
-                            elif main_theme == 'medical':
-                                intelligent_prompts.extend([
-                                    'medical research laboratory',
-                                    'healthcare innovation hospital',
-                                    'microscope scientific discovery'
-                                ])
-                            elif main_theme == 'business':
-                                intelligent_prompts.extend([
-                                    'business success growth',
-                                    'entrepreneurship motivation',
-                                    'professional development office'
-                                ])
-                            elif main_theme == 'neuroscience':
-                                intelligent_prompts.extend([
-                                    'neuroscience brain neurons synapse',
-                                    'brain reflexes nervous system',
-                                    'brain scan mri eeg lab'
-                                ])
-                            else:
-                                base = _filter_prompt_terms([main_theme] + kws)
-                                intelligent_prompts.extend([f"{main_theme} {kw}" for kw in base[:3]])
-
-                            # Ajouter variantes from cleaned keywords
-                            for kw in kws[:3]:
-                                intelligent_prompts.append(f"{main_theme} {kw}")
-
-                            # Dedup and trim
-                            seen_ip = set()
-                            intelligent_prompts = [p for p in intelligent_prompts if not (p in seen_ip or seen_ip.add(p))][:8]
-
-                            print(f"    🎯 Prompts intelligents générés: {', '.join(intelligent_prompts[:3])}")
-                            
-                            # Utiliser l'ancien système mais avec les prompts intelligents
-                            # (temporaire en attendant l'intégration complète)
-                            print("    🔄 Utilisation du système B-roll avec prompts intelligents...")
-                            
-                        except Exception as e:
-                            print(f"    ⚠️  Erreur insertion intelligente: {e}")
-                            print("    🔄 Fallback vers ancien système...")
-                            INTELLIGENT_BROLL_AVAILABLE = False
-                            
-                    except Exception as e:
-                        print(f"    ⚠️  Erreur système intelligent: {e}")
-                        print("    🔄 Fallback vers ancien système...")
-                        INTELLIGENT_BROLL_AVAILABLE = False
-                except Exception as e:
-                    print(f"    ⚠️  Erreur système intelligent: {e}")
-                    print("    🔄 Fallback vers ancien système...")
-                    INTELLIGENT_BROLL_AVAILABLE = False
-                    
-            # Fallback: ancienne analyse si système intelligent indisponible
-            if not INTELLIGENT_BROLL_AVAILABLE:
-                print("    🔄 Utilisation de l'ancien système B-roll...")
-                analysis = extract_keywords_from_transcript_ai(subtitles)
-                prompts = generate_broll_prompts_ai(analysis)
-                # Filtrer les prompts fallback
-                try:
-                    cleaned_prompts = []
-                    for p in prompts:
-                        tokens = _filter_prompt_terms(str(p).split())
-                        if tokens:
-                            cleaned_prompts.append(' '.join(tokens))
-                    if cleaned_prompts:
-                        prompts = cleaned_prompts
-                except Exception:
-                    pass
-                # Persiste metadata dans un dossier clip dédié si possible
-                try:
-                    meta_dir = Config.OUTPUT_FOLDER / 'meta'
-                    meta_dir.mkdir(parents=True, exist_ok=True)
-                    meta_path = meta_dir / f"{Path(input_path).stem}_broll_metadata.json"
-                    with open(meta_path, 'w', encoding='utf-8') as f:
-                        json.dump({'analysis': analysis, 'prompts': prompts}, f, ensure_ascii=False, indent=2)
-                except Exception:
-                    pass
-            else:
-                # 🎯 UTILISER LES PROMPTS INTELLIGENTS
-                print("    🎯 Utilisation des prompts intelligents pour B-rolls...")
-                try:
-                    # Créer une analyse basée sur l'analyse intelligente
-                    analysis = {
-                        'main_theme': global_analysis.main_theme,
-                        'key_topics': global_analysis.key_topics,
-                        'sentiment': global_analysis.sentiment,
-                        'keywords': global_analysis.keywords
-                    }
-                    
-                    # Utiliser les prompts intelligents générés
-                    prompts = intelligent_prompts if 'intelligent_prompt' in locals() else [
-                        f"{global_analysis.main_theme} {kw}" for kw in global_analysis.keywords[:3]
-                    ]
-                    
-                    print(f"    🎯 Prompts utilisés: {', '.join(prompts[:3])}")
-                    
-                except Exception as e:
-                    print(f"    ⚠️  Erreur prompts intelligents: {e}")
-                    # Fallback vers prompts génériques
-                    analysis = extract_keywords_from_transcript_ai(subtitles)
-                    prompts = generate_broll_prompts_ai(analysis)
-            
-            # 🚀 NOUVEAU: Intégration des mots-clés B-roll du LLM
-            # Récupérer les mots-clés B-roll générés par le LLM (si disponibles)
-            llm_broll_keywords = []
-            try:
-                # Les mots-clés B-roll sont déjà disponibles depuis generate_caption_and_hashtags
-                # Ils sont passés via la variable broll_keywords dans le scope parent
-                if 'broll_keywords' in locals():
-                    llm_broll_keywords = broll_keywords
-                    print(f"    🧠 Mots-clés B-roll LLM intégrés: {len(llm_broll_keywords)} termes")
-                    print(f"    🎯 Exemples: {', '.join(llm_broll_keywords[:5])}")
-                else:
-                    print("    ⚠️ Mots-clés B-roll LLM non disponibles")
-            except Exception as e:
-                print(f"    ⚠️ Erreur récupération mots-clés B-roll LLM: {e}")
-            
-            # Combiner les mots-clés LLM avec les prompts existants
-            if llm_broll_keywords:
-                # Enrichir les prompts avec les mots-clés LLM
-                enhanced_prompts = []
-                for kw in llm_broll_keywords[:8]:  # Limiter à 8 mots-clés principaux
-                    enhanced_prompts.append(kw)
-                    # Créer des combinaisons avec le thème principal
-                    if 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
-                        enhanced_prompts.append(f"{global_analysis.main_theme} {kw}")
-                
-                # Ajouter les prompts existants
-                enhanced_prompts.extend(prompts)
-                
-                # Dédupliquer et limiter
-                seen_prompts = set()
-                final_prompts = []
-                for p in enhanced_prompts:
-                    if p not in seen_prompts and len(p) > 2:
-                        final_prompts.append(p)
-                        seen_prompts.add(p)
-                
-                prompts = final_prompts[:12]  # Limiter à 12 prompts finaux
-                print(f"    🚀 Prompts enrichis avec LLM: {len(prompts)} termes")
-                print(f"    🎯 Prompts finaux: {', '.join(prompts[:5])}...")
-            
-            # Convertir nos sous-titres en segments attendus par le pipeline
             legacy_segment_payloads: List[Dict[str, Any]] = []
             core_segments: List[_CoreSegment] = []
             for s in subtitles:
@@ -3238,6 +3318,239 @@ class VideoProcessor:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
+            if _legacy_pipeline_fallback_enabled():
+                # Assurer l'import du pipeline local (src/*)
+                if str(broll_root.resolve()) not in sys.path:
+                    sys.path.insert(0, str(broll_root.resolve()))
+            
+                # 🚀 NOUVEAUX IMPORTS INTELLIGENTS SYNCHRONES (DÉSACTIVÉS POUR PROMPT OPTIMISÉ)
+                try:
+                    from sync_context_analyzer import SyncContextAnalyzer
+                    from broll_diversity_manager import BrollDiversityManager
+                    # 🚨 DÉSACTIVATION TEMPORAIRE: Le système intelligent interfère avec notre prompt optimisé LLM
+                    INTELLIGENT_BROLL_AVAILABLE = False
+                    print("    ⚠️  Système intelligent DÉSACTIVÉ pour laisser le prompt optimisé LLM fonctionner")
+                    print("    🎯 Utilisation exclusive du prompt optimisé: 25-35 keywords + structure hiérarchique")
+                except ImportError as e:
+                    print(f"    ⚠️  Système intelligent non disponible: {e}")
+                    print("    🔄 Fallback vers ancien système...")
+                    INTELLIGENT_BROLL_AVAILABLE = False
+            
+                # Imports B-roll dans tous les cas
+                from src.pipeline.config import BrollConfig  # type: ignore
+                from src.pipeline.keyword_extraction import extract_keywords_for_segment  # type: ignore
+                from src.pipeline.timeline_legacy import plan_broll_insertions, normalize_timeline, enrich_keywords  # type: ignore
+                from src.pipeline.renderer import render_video  # type: ignore
+                from src.pipeline.transcription import TranscriptSegment  # type: ignore
+
+                from moviepy.editor import VideoFileClip as _VFC
+                # Optionnel: indexation FAISS/CLIP
+                try:
+                    from src.pipeline.indexer import build_index  # type: ignore
+                    index_handle = None
+                except Exception:
+                    build_index = None  # type: ignore
+                    index_handle = None
+
+                segments = [
+                    TranscriptSegment(start=payload['start'], end=payload['end'], text=payload['text'])
+                    for payload in legacy_segment_payloads
+                ]
+            
+                # 🧠 ANALYSE INTELLIGENTE AVANCÉE
+                if INTELLIGENT_BROLL_AVAILABLE:
+                    print("    🧠 Utilisation du système B-roll intelligent...")
+                    try:
+                        # Initialiser l'analyseur contextuel intelligent SYNCHRONE
+                        context_analyzer = SyncContextAnalyzer()
+                    
+                        # Analyser le contexte global de la vidéo
+                        transcript_text = " ".join([s.get('text', '') for s in subtitles])
+                        global_analysis = context_analyzer.analyze_context(transcript_text)
+                    
+                        print(f"    🎯 Contexte détecté: {global_analysis.main_theme}")
+                        print(f"    🧬 Sujets: {', '.join(global_analysis.key_topics[:3])}")
+                        print(f"    😊 Sentiment: {global_analysis.sentiment}")
+                        print(f"    📊 Complexité: {global_analysis.complexity}")
+                        print(f"    🔑 Mots-clés: {', '.join(global_analysis.keywords[:5])}")
+                    
+                        # Persister l'analyse intelligente
+                        try:
+                            meta_dir = Config.OUTPUT_FOLDER / 'meta'
+                            meta_dir.mkdir(parents=True, exist_ok=True)
+                            meta_path = meta_dir / f"{Path(input_path).stem}_intelligent_broll_metadata.json"
+                            with open(meta_path, 'w', encoding='utf-8') as f:
+                                json.dump({
+                                    'intelligent_analysis': {
+                                        'main_theme': global_analysis.main_theme,
+                                        'key_topics': global_analysis.key_topics,
+                                        'sentiment': global_analysis.sentiment,
+                                        'complexity': global_analysis.complexity,
+                                        'keywords': global_analysis.keywords,
+                                        'context_score': global_analysis.context_score
+                                    },
+                                    'timestamp': str(datetime.now())
+                                }, f, ensure_ascii=False, indent=2)
+                            print(f"    💾 Métadonnées intelligentes sauvegardées: {meta_path}")
+                        
+                            # 🎬 INSÉRATION INTELLIGENTE DES B-ROLLS
+                            print("    🎬 Insertion intelligente des B-rolls...")
+                            try:
+                                # Créer un dossier unique pour ce clip
+                                clip_id = input_path.stem
+                                unique_broll_dir = broll_library / f"clip_intelligent_{clip_id}_{int(time.time())}"
+                                unique_broll_dir.mkdir(parents=True, exist_ok=True)
+                            
+                                # Générer des prompts intelligents basés sur l'analyse
+                                intelligent_prompts = []
+                                main_theme = global_analysis.main_theme
+                                kws = _filter_prompt_terms(global_analysis.keywords[:6]) if hasattr(global_analysis, 'keywords') else []
+                                if main_theme == 'technology':
+                                    intelligent_prompts.extend([
+                                        'artificial intelligence neural network',
+                                        'computer vision algorithm',
+                                        'tech innovation future'
+                                    ])
+                                elif main_theme == 'medical':
+                                    intelligent_prompts.extend([
+                                        'medical research laboratory',
+                                        'healthcare innovation hospital',
+                                        'microscope scientific discovery'
+                                    ])
+                                elif main_theme == 'business':
+                                    intelligent_prompts.extend([
+                                        'business success growth',
+                                        'entrepreneurship motivation',
+                                        'professional development office'
+                                    ])
+                                elif main_theme == 'neuroscience':
+                                    intelligent_prompts.extend([
+                                        'neuroscience brain neurons synapse',
+                                        'brain reflexes nervous system',
+                                        'brain scan mri eeg lab'
+                                    ])
+                                else:
+                                    base = _filter_prompt_terms([main_theme] + kws)
+                                    intelligent_prompts.extend([f"{main_theme} {kw}" for kw in base[:3]])
+
+                                # Ajouter variantes from cleaned keywords
+                                for kw in kws[:3]:
+                                    intelligent_prompts.append(f"{main_theme} {kw}")
+
+                                # Dedup and trim
+                                seen_ip = set()
+                                intelligent_prompts = [p for p in intelligent_prompts if not (p in seen_ip or seen_ip.add(p))][:8]
+
+                                print(f"    🎯 Prompts intelligents générés: {', '.join(intelligent_prompts[:3])}")
+                            
+                                # Utiliser l'ancien système mais avec les prompts intelligents
+                                # (temporaire en attendant l'intégration complète)
+                                print("    🔄 Utilisation du système B-roll avec prompts intelligents...")
+                            
+                            except Exception as e:
+                                print(f"    ⚠️  Erreur insertion intelligente: {e}")
+                                print("    🔄 Fallback vers ancien système...")
+                                INTELLIGENT_BROLL_AVAILABLE = False
+                            
+                        except Exception as e:
+                            print(f"    ⚠️  Erreur système intelligent: {e}")
+                            print("    🔄 Fallback vers ancien système...")
+                            INTELLIGENT_BROLL_AVAILABLE = False
+                    except Exception as e:
+                        print(f"    ⚠️  Erreur système intelligent: {e}")
+                        print("    🔄 Fallback vers ancien système...")
+                        INTELLIGENT_BROLL_AVAILABLE = False
+                    
+                # Fallback: ancienne analyse si système intelligent indisponible
+                if not INTELLIGENT_BROLL_AVAILABLE:
+                    print("    🔄 Utilisation de l'ancien système B-roll...")
+                    analysis = extract_keywords_from_transcript_ai(subtitles)
+                    prompts = generate_broll_prompts_ai(analysis)
+                    # Filtrer les prompts fallback
+                    try:
+                        cleaned_prompts = []
+                        for p in prompts:
+                            tokens = _filter_prompt_terms(str(p).split())
+                            if tokens:
+                                cleaned_prompts.append(' '.join(tokens))
+                        if cleaned_prompts:
+                            prompts = cleaned_prompts
+                    except Exception:
+                        pass
+                    # Persiste metadata dans un dossier clip dédié si possible
+                    try:
+                        meta_dir = Config.OUTPUT_FOLDER / 'meta'
+                        meta_dir.mkdir(parents=True, exist_ok=True)
+                        meta_path = meta_dir / f"{Path(input_path).stem}_broll_metadata.json"
+                        with open(meta_path, 'w', encoding='utf-8') as f:
+                            json.dump({'analysis': analysis, 'prompts': prompts}, f, ensure_ascii=False, indent=2)
+                    except Exception:
+                        pass
+                else:
+                    # 🎯 UTILISER LES PROMPTS INTELLIGENTS
+                    print("    🎯 Utilisation des prompts intelligents pour B-rolls...")
+                    try:
+                        # Créer une analyse basée sur l'analyse intelligente
+                        analysis = {
+                            'main_theme': global_analysis.main_theme,
+                            'key_topics': global_analysis.key_topics,
+                            'sentiment': global_analysis.sentiment,
+                            'keywords': global_analysis.keywords
+                        }
+                    
+                        # Utiliser les prompts intelligents générés
+                        prompts = intelligent_prompts if 'intelligent_prompt' in locals() else [
+                            f"{global_analysis.main_theme} {kw}" for kw in global_analysis.keywords[:3]
+                        ]
+                    
+                        print(f"    🎯 Prompts utilisés: {', '.join(prompts[:3])}")
+                    
+                    except Exception as e:
+                        print(f"    ⚠️  Erreur prompts intelligents: {e}")
+                        # Fallback vers prompts génériques
+                        analysis = extract_keywords_from_transcript_ai(subtitles)
+                        prompts = generate_broll_prompts_ai(analysis)
+            
+                # 🚀 NOUVEAU: Intégration des mots-clés B-roll du LLM
+                # Récupérer les mots-clés B-roll générés par le LLM (si disponibles)
+                llm_broll_keywords = []
+                try:
+                    # Les mots-clés B-roll sont déjà disponibles depuis generate_caption_and_hashtags
+                    # Ils sont passés via la variable broll_keywords dans le scope parent
+                    if 'broll_keywords' in locals():
+                        llm_broll_keywords = broll_keywords
+                        print(f"    🧠 Mots-clés B-roll LLM intégrés: {len(llm_broll_keywords)} termes")
+                        print(f"    🎯 Exemples: {', '.join(llm_broll_keywords[:5])}")
+                    else:
+                        print("    ⚠️ Mots-clés B-roll LLM non disponibles")
+                except Exception as e:
+                    print(f"    ⚠️ Erreur récupération mots-clés B-roll LLM: {e}")
+            
+                # Combiner les mots-clés LLM avec les prompts existants
+                if llm_broll_keywords:
+                    # Enrichir les prompts avec les mots-clés LLM
+                    enhanced_prompts = []
+                    for kw in llm_broll_keywords[:8]:  # Limiter à 8 mots-clés principaux
+                        enhanced_prompts.append(kw)
+                        # Créer des combinaisons avec le thème principal
+                        if 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
+                            enhanced_prompts.append(f"{global_analysis.main_theme} {kw}")
+                
+                    # Ajouter les prompts existants
+                    enhanced_prompts.extend(prompts)
+                
+                    # Dédupliquer et limiter
+                    seen_prompts = set()
+                    final_prompts = []
+                    for p in enhanced_prompts:
+                        if p not in seen_prompts and len(p) > 2:
+                            final_prompts.append(p)
+                            seen_prompts.add(p)
+                
+                    prompts = final_prompts[:12]  # Limiter à 12 prompts finaux
+                    print(f"    🚀 Prompts enrichis avec LLM: {len(prompts)} termes")
+                    print(f"    🎯 Prompts finaux: {', '.join(prompts[:5])}...")
+            
             core_result = self._maybe_use_pipeline_core(
                 core_segments,
                 broll_keywords,
@@ -3246,18 +3559,52 @@ class VideoProcessor:
             )
             core_inserted: Optional[int] = None
             core_path: Optional[Path] = None
+            core_plan: Optional[List[Dict[str, Any]]] = None
             if core_result is not None:
-                core_inserted, core_path = core_result
-                success, banner = format_broll_completion_banner(core_inserted, origin="pipeline_core")
+                core_inserted, core_path, core_plan = self._normalize_core_result(core_result)
+                display_count = core_inserted or 0
+                success, banner = format_broll_completion_banner(display_count, origin="pipeline_core")
                 print(banner)
-                if core_inserted > 0 and core_path:
-                    return core_path
-                if core_inserted > 0 and not core_path:
-                    logger.warning(
-                        "pipeline_core selected %s assets but rendering failed; falling back to legacy pipeline",
-                        core_inserted,
-                    )
-                # Legacy pipeline will handle rendering when no core output is available
+                if display_count > 0:
+                    if core_path is not None:
+                        candidate_path = Path(core_path)
+                        if candidate_path.exists():
+                            return candidate_path
+                        logger.warning(
+                            "pipeline_core reported rendered path %s but file is missing; attempting manual render",
+                            core_path,
+                        )
+                    if core_plan:
+                        rendered = self._render_core_selection_plan(Path(input_path), core_plan)
+                        if rendered:
+                            return rendered
+                        logger.warning(
+                            "pipeline_core selected %s assets but rendering failed; falling back to legacy pipeline",
+                            display_count,
+                        )
+                    else:
+                        logger.warning(
+                            "pipeline_core selected %s assets but returned no selection plan; falling back to legacy pipeline",
+                            display_count,
+                        )
+                self._last_broll_insert_count = display_count
+
+            if not _legacy_pipeline_fallback_enabled():
+                legacy_logger = None
+                try:
+                    legacy_logger = self._get_broll_event_logger()
+                except Exception:
+                    legacy_logger = None
+                if legacy_logger is not None:
+                    try:
+                        legacy_logger.log({'event': 'legacy_skipped', 'reason': 'disabled_by_config'})
+                    except Exception:
+                        pass
+                if core_path is not None:
+                    candidate = Path(core_path)
+                    if candidate.exists():
+                        return candidate
+                return input_path
 
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
             cfg = BrollConfig(
