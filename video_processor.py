@@ -20,6 +20,8 @@ import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple
 from collections import Counter
+from dataclasses import dataclass
+import types
 import gc
 
 # 🚀 NOUVEAU: Configuration des logs temps réel + suppression warnings non-critiques
@@ -74,6 +76,32 @@ SEEN_URLS: Set[str] = set()
 SEEN_PHASHES: List[int] = []
 SEEN_IDENTIFIERS: Set[str] = set()
 PHASH_DISTANCE = 6
+
+
+@dataclass
+class CoreTimelineEntry:
+    """Minimal description of a clip selected by the core pipeline."""
+
+    path: Path
+    start: float
+    end: float
+    segment_index: int
+    provider: Optional[str] = None
+    url: Optional[str] = None
+
+    @property
+    def duration(self) -> float:
+        return max(0.0, float(self.end) - float(self.start))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'path': str(self.path),
+            'start': float(self.start),
+            'end': float(self.end),
+            'segment': int(self.segment_index),
+            'provider': self.provider,
+            'url': self.url,
+        }
 
 
 class _BrollLoggerProxy:
@@ -1133,6 +1161,8 @@ class VideoProcessor:
         SEEN_IDENTIFIERS.clear()
         self._core_last_run_used = True
         self._last_broll_insert_count = 0
+        self._core_last_timeline: List[CoreTimelineEntry] = []
+        self._core_last_render_path: Optional[Path] = None
         logger.info("[BROLL] pipeline_core orchestrator engaged")
         config_bundle = self._pipeline_config
         orchestrator = FetcherOrchestrator(config_bundle.fetcher)
@@ -1530,10 +1560,10 @@ class VideoProcessor:
 
         render_path: Optional[Path] = None
         if inserted_count > 0:
-            timeline_entries: List[Dict[str, Any]] = []
+            timeline_entries: List[CoreTimelineEntry] = []
             download_dir: Optional[Path]
             try:
-                download_dir = Config.TEMP_FOLDER / 'with_broll_core'
+                download_dir = Config.TEMP_FOLDER / 'with_broll_core' / Path(input_path).stem
                 download_dir.mkdir(parents=True, exist_ok=True)
             except Exception as exc:
                 logger.warning('[BROLL] unable to prepare core download dir: %s', exc)
@@ -1563,22 +1593,44 @@ class VideoProcessor:
                 if end <= start:
                     continue
 
-                timeline_entries.append({
-                    'path': local_path,
-                    'start': start,
-                    'end': end,
-                    'provider': asset.get('provider'),
-                    'url': asset.get('url'),
-                })
+                try:
+                    segment_idx = int(asset.get('segment', order))
+                except Exception:
+                    segment_idx = order
+
+                timeline_entries.append(
+                    CoreTimelineEntry(
+                        path=local_path,
+                        start=start,
+                        end=end,
+                        segment_index=segment_idx,
+                        provider=asset.get('provider'),
+                        url=asset.get('url'),
+                    )
+                )
 
             if timeline_entries:
+                timeline_entries.sort(key=lambda entry: (entry.start, entry.segment_index))
+                self._core_last_timeline = list(timeline_entries)
+                manifest_path: Optional[Path] = None
+                if download_dir is not None:
+                    try:
+                        manifest_payload = [entry.to_dict() for entry in timeline_entries]
+                        manifest_path = download_dir / 'timeline.json'
+                        with manifest_path.open('w', encoding='utf-8') as handle:
+                            json.dump(manifest_payload, handle, ensure_ascii=False, indent=2)
+                    except Exception as exc:
+                        logger.debug('[BROLL] failed to persist core timeline manifest: %s', exc)
+
                 render_path = self._render_core_broll_timeline(Path(input_path), timeline_entries)
                 if render_path:
+                    self._core_last_render_path = render_path
                     try:
                         event_logger.log({
                             'event': 'core_render_complete',
                             'output': str(render_path),
                             'inserted': inserted_count,
+                            'manifest': str(manifest_path) if manifest_path else None,
                         })
                     except Exception:
                         pass
@@ -1658,15 +1710,92 @@ class VideoProcessor:
     def _render_core_broll_timeline(
         self,
         input_path: Path,
-        timeline: Sequence[Dict[str, Any]],
+        timeline: Sequence[Union[CoreTimelineEntry, Dict[str, Any]]],
     ) -> Optional[Path]:
         """Render a simple composite video using the downloaded core assets."""
 
         if not timeline:
             return None
 
+        normalized: List[CoreTimelineEntry] = []
+        for item in timeline:
+            if isinstance(item, CoreTimelineEntry):
+                normalized.append(item)
+                continue
+            if isinstance(item, dict):
+                clip_path = item.get('path')
+                if not clip_path:
+                    continue
+                try:
+                    start = float(item.get('start', 0.0) or 0.0)
+                    end = float(item.get('end', start) or start)
+                except Exception:
+                    continue
+                try:
+                    seg_idx = int(item.get('segment', len(normalized)))
+                except Exception:
+                    seg_idx = len(normalized)
+                normalized.append(
+                    CoreTimelineEntry(
+                        path=Path(clip_path),
+                        start=start,
+                        end=end,
+                        segment_index=seg_idx,
+                        provider=item.get('provider'),
+                        url=item.get('url'),
+                    )
+                )
+
+        if not normalized:
+            return None
+
         output_dir = Config.TEMP_FOLDER / 'with_broll_core'
         output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = self._unique_path(
+            output_dir,
+            f"with_broll_core_{Path(input_path).stem}",
+            '.mp4',
+        )
+
+        plan_events: List[Dict[str, Any]] = [
+            {
+                'start': entry.start,
+                'end': entry.end,
+                'asset_path': str(entry.path),
+                'media_path': str(entry.path),
+                'segment': entry.segment_index,
+                'provider': entry.provider,
+                'url': entry.url,
+                'crossfade_frames': 0,
+            }
+            for entry in normalized
+        ]
+
+        try:
+            from src.pipeline.renderer import render_video  # type: ignore
+        except Exception:
+            render_video = None  # type: ignore
+
+        if render_video is not None:
+            render_cfg = types.SimpleNamespace(
+                input_video=str(input_path),
+                output_video=str(output_path),
+                codec='libx264',
+                audio_codec='aac',
+                ffmpeg_preset='medium',
+                crf=21,
+                threads=max(1, (os.cpu_count() or 1) // 2 or 1),
+            )
+            try:
+                render_video(render_cfg, [], plan_events)
+                return output_path
+            except Exception as exc:
+                logger.warning('[BROLL] core renderer (pipeline renderer) failed: %s', exc)
+                try:
+                    if output_path.exists():
+                        output_path.unlink()
+                except Exception:
+                    pass
 
         try:
             with ExitStack() as stack:
@@ -1674,12 +1803,9 @@ class VideoProcessor:
                 layers = [base_clip]
                 base_height = getattr(base_clip, 'h', None)
 
-                for entry in timeline:
-                    clip_path = entry.get('path')
-                    if not clip_path:
-                        continue
-                    overlay = stack.enter_context(VideoFileClip(str(clip_path)))
-                    duration = max(0.0, float(entry.get('end', 0.0)) - float(entry.get('start', 0.0)))
+                for entry in normalized:
+                    overlay = stack.enter_context(VideoFileClip(str(entry.path)))
+                    duration = entry.duration
 
                     if base_height and getattr(overlay, 'h', None):
                         try:
@@ -1693,7 +1819,7 @@ class VideoProcessor:
                         except Exception:
                             pass
 
-                    start = max(0.0, float(entry.get('start', 0.0)))
+                    start = max(0.0, float(entry.start))
                     try:
                         overlay = overlay.set_start(start)
                     except Exception:
@@ -1708,11 +1834,6 @@ class VideoProcessor:
                     layers.append(overlay)
 
                 composite = CompositeVideoClip(layers)
-                output_path = self._unique_path(
-                    output_dir,
-                    f"with_broll_core_{Path(input_path).stem}",
-                    '.mp4',
-                )
                 composite.write_videofile(
                     str(output_path),
                     codec='libx264',

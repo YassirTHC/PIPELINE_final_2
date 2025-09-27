@@ -309,7 +309,7 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
         return downloaded_asset
 
     def fake_render(self, base_path, timeline):
-        captured_timeline["timeline"] = timeline
+        captured_timeline["timeline"] = list(timeline)
         rendered_path = temp_dir / "core" / "rendered.mp4"
         rendered_path.parent.mkdir(parents=True, exist_ok=True)
         rendered_path.write_bytes(b"render")
@@ -332,7 +332,11 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
     assert rendered_path is not None
     assert rendered_path != input_clip
     assert captured_timeline.get("timeline")
-    assert captured_timeline["timeline"][0]["path"] == downloaded_asset
+    first_entry = captured_timeline["timeline"][0]
+    assert isinstance(first_entry, module.CoreTimelineEntry)
+    assert first_entry.path == downloaded_asset
+    assert pytest.approx(first_entry.start, rel=1e-6) == 0.0
+    assert pytest.approx(first_entry.end, rel=1e-6) == 1.5
 
     sys.modules.pop("video_processor", None)
 

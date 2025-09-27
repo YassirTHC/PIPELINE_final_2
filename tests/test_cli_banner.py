@@ -75,3 +75,79 @@ def test_cli_warns_when_no_broll_inserted(monkeypatch, tmp_path, capsys):
 
     assert "⚠️ Pipeline core: aucun B-roll sélectionné; retour à la vidéo d'origine" in captured
     assert "B-roll insérés avec succès" not in captured
+
+
+def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
+    monkeypatch.setitem(sys.modules, "whisper", types.SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "moviepy", types.SimpleNamespace())
+
+    recorded = {}
+
+    def _fake_add_hormozi_subtitles(src: str, subtitles, dst: str) -> None:
+        recorded["subtitle_src"] = src
+        Path(dst).write_bytes(b"output")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "hormozi_subtitles",
+        types.SimpleNamespace(add_hormozi_subtitles=_fake_add_hormozi_subtitles),
+    )
+
+    import main as cli
+
+    output_root = tmp_path / "output"
+
+    class DummyConfig:
+        CLIPS_FOLDER = tmp_path / "clips"
+        OUTPUT_FOLDER = output_root
+        TEMP_FOLDER = tmp_path / "temp"
+
+    class DummyProcessor:
+        def __init__(self):
+            self._count = 0
+
+        def reframe_to_vertical(self, video_path):
+            reframed = tmp_path / "reframed.mp4"
+            reframed.write_bytes(b"reframed")
+            return reframed
+
+        def transcribe_segments(self, clip_path):
+            return ["segment"]
+
+        def generate_caption_and_hashtags(self, subtitles):
+            return "title", "description", ["#tag"], ["kw1", "kw2"]
+
+        def insert_brolls_if_enabled(self, clip_path, subtitles, keywords):
+            self._count = 2
+            core_path = tmp_path / "with_broll_core.mp4"
+            core_path.write_bytes(b"core")
+            return core_path
+
+        def get_last_broll_insert_count(self):
+            return self._count
+
+    def _fake_banner(count, *, origin="pipeline"):
+        return (int(count) > 0, f"    ✅ B-roll insérés avec succès ({int(count)})")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "video_processor",
+        types.SimpleNamespace(
+            VideoProcessor=DummyProcessor,
+            Config=DummyConfig,
+            format_broll_completion_banner=_fake_banner,
+        ),
+    )
+
+    video_path = tmp_path / "source.mp4"
+    video_path.write_bytes(b"test")
+
+    monkeypatch.setattr(sys, "argv", ["main.py", "--cli", "--video", str(video_path)])
+
+    cli.main()
+
+    captured = capsys.readouterr().out
+
+    assert "✅ B-roll insérés avec succès (2)" in captured
+    assert recorded.get("subtitle_src")
+    assert Path(recorded["subtitle_src"]).name == "with_broll_core.mp4"
