@@ -10,7 +10,7 @@ class DummyService(LLMMetadataGeneratorService):
         super().__init__(reuse_shared=False)
         self._payload = payload
 
-    def _complete_text(self, prompt: str) -> str:  # type: ignore[override]
+    def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:  # type: ignore[override]
         return self._payload
 
 
@@ -51,7 +51,7 @@ def test_dynamic_context_normalisation():
 
 def test_dynamic_context_fallback_keywords():
     class Failing(LLMMetadataGeneratorService):
-        def _complete_text(self, prompt: str) -> str:  # type: ignore[override]
+        def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:  # type: ignore[override]
             raise RuntimeError("boom")
 
     service = Failing(reuse_shared=False)
