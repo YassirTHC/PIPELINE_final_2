@@ -95,6 +95,93 @@ _GENERIC_TERMS = {
 }
 
 
+_STOPWORDS_EN = {
+    'a',
+    'an',
+    'and',
+    'any',
+    'are',
+    'as',
+    'at',
+    'be',
+    'been',
+    'being',
+    'but',
+    'by',
+    'can',
+    'could',
+    'did',
+    'do',
+    'does',
+    'doing',
+    'for',
+    'from',
+    'had',
+    'has',
+    'have',
+    'having',
+    'he',
+    'her',
+    'hers',
+    'him',
+    'his',
+    'i',
+    'if',
+    'in',
+    'into',
+    'is',
+    'it',
+    'its',
+    'may',
+    'me',
+    'might',
+    'mine',
+    'must',
+    'my',
+    'of',
+    'on',
+    'or',
+    'our',
+    'ours',
+    'she',
+    'should',
+    'so',
+    'some',
+    'such',
+    'than',
+    'that',
+    'the',
+    'their',
+    'theirs',
+    'them',
+    'then',
+    'there',
+    'these',
+    'they',
+    'this',
+    'those',
+    'through',
+    'to',
+    'too',
+    'up',
+    'was',
+    'we',
+    'were',
+    'when',
+    'where',
+    'which',
+    'who',
+    'whom',
+    'why',
+    'will',
+    'with',
+    'would',
+    'you',
+    'your',
+    'yours',
+}
+
+
 _EN_EQUIVALENTS = {
     "adrnaline": "adrenaline",
     "adrenaline": "adrenaline",
@@ -144,17 +231,21 @@ def _normalise_terms(values: Iterable[str], *, limit: Optional[int] = None) -> L
         term = value.strip().lower().replace('_', ' ')
         term = re.sub(r"\s+", ' ', term)
         term = re.sub(r"[^a-z0-9\s-]", '', term)
-        if len(term) < _TERM_MIN_LEN:
-            continue
-        if term in _GENERIC_TERMS:
-            continue
         tokens = [t for t in term.split() if t]
-        if any(t in _GENERIC_TERMS for t in tokens):
+        filtered_tokens = [t for t in tokens if t not in _STOPWORDS_EN]
+        if not filtered_tokens:
             continue
-        if term in seen:
+        if any(t in _GENERIC_TERMS for t in filtered_tokens):
             continue
-        seen.add(term)
-        normalised.append(term)
+        cleaned = " ".join(filtered_tokens)
+        if len(cleaned) < _TERM_MIN_LEN:
+            continue
+        if cleaned in _GENERIC_TERMS:
+            continue
+        if cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalised.append(cleaned)
         if limit is not None and len(normalised) >= limit:
             break
     return normalised
