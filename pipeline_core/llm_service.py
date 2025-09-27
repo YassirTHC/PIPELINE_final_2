@@ -95,6 +95,195 @@ _GENERIC_TERMS = {
     'clip',
 }
 
+_VISUAL_ABSTRACT_TOKENS = {
+    "abstract",
+    "analysis",
+    "approach",
+    "buffer",
+    "concept",
+    "design",
+    "idea",
+    "insight",
+    "method",
+    "network",
+    "professional",
+    "signal",
+    "strategy",
+    "structure",
+    "system",
+}
+
+_CONCRETE_SUBJECTS = {
+    "actor",
+    "adult",
+    "athlete",
+    "audience",
+    "baby",
+    "brain",
+    "camera",
+    "chef",
+    "city",
+    "class",
+    "classroom",
+    "clinic",
+    "coach",
+    "computer",
+    "crowd",
+    "desk",
+    "doctor",
+    "dopamine",
+    "dog",
+    "engineer",
+    "family",
+    "farmer",
+    "factory",
+    "forest",
+    "group",
+    "hands",
+    "hospital",
+    "human",
+    "kid",
+    "lab",
+    "laboratory",
+    "laptop",
+    "machine",
+    "manager",
+    "man",
+    "microscope",
+    "musician",
+    "nurse",
+    "office",
+    "patient",
+    "person",
+    "player",
+    "researcher",
+    "robot",
+    "scientist",
+    "student",
+    "team",
+    "teacher",
+    "technician",
+    "woman",
+    "worker",
+}
+
+_CONCRETE_SUBJECT_PATTERN = re.compile(
+    r"\b(" +
+    r"|".join(
+        [
+            "actor",
+            "adult",
+            "athlete",
+            "audience",
+            "baby",
+            "brain",
+            "camera",
+            "chef",
+            "city",
+            "classroom",
+            "clinic",
+            "coach",
+            "computer",
+            "crowd",
+            "doctor",
+            "dopamine",
+            "dog",
+            "engineer",
+            "family",
+            "farmer",
+            "factory",
+            "forest",
+            "group",
+            "hands",
+            "hospital",
+            "human",
+            "kid",
+            "lab",
+            "laboratory",
+            "laptop",
+            "machine",
+            "manager",
+            "man",
+            "microscope",
+            "musician",
+            "nurse",
+            "office",
+            "patient",
+            "person",
+            "player",
+            "researcher",
+            "robot",
+            "scientist",
+            "student",
+            "team",
+            "teacher",
+            "technician",
+            "woman",
+            "worker",
+        ]
+    )
+    + r")\b"
+)
+
+_ACTION_HINTS = {
+    "analyze",
+    "analyzing",
+    "build",
+    "building",
+    "check",
+    "checking",
+    "code",
+    "coding",
+    "collaborate",
+    "collaborating",
+    "create",
+    "creating",
+    "discuss",
+    "discussing",
+    "experiment",
+    "experimenting",
+    "explain",
+    "explaining",
+    "hold",
+    "holding",
+    "inspect",
+    "inspecting",
+    "learn",
+    "learning",
+    "meet",
+    "meeting",
+    "mix",
+    "mixing",
+    "observe",
+    "observing",
+    "plan",
+    "planning",
+    "point",
+    "pointing",
+    "present",
+    "presenting",
+    "review",
+    "reviewing",
+    "run",
+    "running",
+    "scan",
+    "scanning",
+    "study",
+    "studying",
+    "teach",
+    "teaching",
+    "test",
+    "testing",
+    "use",
+    "using",
+    "walk",
+    "walking",
+    "work",
+    "working",
+}
+
+_DEFAULT_ACTION = "showing"
+
 
 _STOPWORDS_EN = {
     'a',
@@ -252,6 +441,72 @@ def _normalise_terms(values: Iterable[str], *, limit: Optional[int] = None) -> L
     return normalised
 
 
+def _pick_subject(tokens: List[str]) -> Optional[str]:
+    for token in tokens:
+        if token in _CONCRETE_SUBJECTS or _CONCRETE_SUBJECT_PATTERN.search(token):
+            return token
+    return None
+
+
+def _pick_action(tokens: List[str], *, exclude: set[str]) -> Optional[str]:
+    for token in tokens:
+        if token in exclude:
+            continue
+        if token in _ACTION_HINTS or token.endswith("ing") or token.endswith("ed"):
+            return token
+    return None
+
+
+def has_concrete_subject(value: str) -> bool:
+    tokens = [tok for tok in (value or "").lower().split() if tok]
+    return _pick_subject(tokens) is not None
+
+
+def build_visual_phrases(terms: Iterable[str], *, limit: Optional[int] = None) -> List[str]:
+    phrases: List[str] = []
+    seen: set[str] = set()
+    for raw in terms or []:
+        if not isinstance(raw, str):
+            continue
+        tokens = [tok for tok in raw.lower().split() if tok]
+        if not tokens:
+            continue
+        tokens = [tok for tok in tokens if tok not in _VISUAL_ABSTRACT_TOKENS]
+        if len(tokens) < 2:
+            continue
+        subject = _pick_subject(tokens)
+        if not subject:
+            continue
+        used = {subject}
+        action = _pick_action(tokens, exclude=used)
+        if action:
+            used.add(action)
+        else:
+            action = _DEFAULT_ACTION
+        context_tokens: List[str] = []
+        for token in tokens:
+            if token in used:
+                continue
+            if token in _VISUAL_ABSTRACT_TOKENS:
+                continue
+            context_tokens.append(token)
+            if len(context_tokens) >= 3:
+                break
+        phrase_tokens = [subject, action]
+        phrase_tokens.extend(context_tokens)
+        phrase_tokens = phrase_tokens[:5]
+        if len(phrase_tokens) < 2:
+            continue
+        phrase = " ".join(phrase_tokens)
+        if phrase in seen:
+            continue
+        seen.add(phrase)
+        phrases.append(phrase)
+        if limit is not None and len(phrases) >= limit:
+            break
+    return phrases
+
+
 def _strip_diacritics(value: str) -> str:
     if not value:
         return value
@@ -307,8 +562,10 @@ def _normalise_briefs(raw: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
             idx = int(entry.get('segment_index'))
         except Exception:
             continue
-        keywords = _normalise_terms(entry.get('keywords') or [], limit=6)
-        queries = _normalise_terms(entry.get('queries') or [], limit=6)
+        keywords_raw = _normalise_terms(entry.get('keywords') or [], limit=6)
+        queries_raw = _normalise_terms(entry.get('queries') or [], limit=6)
+        keywords = build_visual_phrases(keywords_raw, limit=6)
+        queries = build_visual_phrases(queries_raw, limit=6)
         if not keywords and not queries:
             continue
         briefs.append({

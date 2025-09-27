@@ -23,6 +23,7 @@ from collections import Counter
 from dataclasses import dataclass
 import types
 import gc
+import re
 
 try:
     from config import Config as _ROOT_CONFIG
@@ -374,12 +375,29 @@ from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
 try:
-    from pipeline_core.llm_service import LLMMetadataGeneratorService, enforce_fetch_language
+    from pipeline_core.llm_service import (
+        LLMMetadataGeneratorService,
+        build_visual_phrases,
+        enforce_fetch_language,
+        has_concrete_subject,
+    )
 except ImportError:  # pragma: no cover - test environments may stub partial API
     from pipeline_core.llm_service import LLMMetadataGeneratorService  # type: ignore
 
     def enforce_fetch_language(terms, language=None):  # type: ignore[override]
         return list(dict.fromkeys(term for term in terms if term))
+
+    def build_visual_phrases(terms, limit=None):  # type: ignore[override]
+        seen = []
+        for term in terms or []:
+            if term and term not in seen:
+                seen.append(term)
+                if limit and len(seen) >= limit:
+                    break
+        return seen
+
+    def has_concrete_subject(value):  # type: ignore[override]
+        return bool(value)
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
@@ -407,18 +425,32 @@ def _norm_query_term(s: str) -> str:
         pass
     return s
 
+_CONCRETE_SUBJECT_REGEX = re.compile(r"\b(doctor|scientist|patient|brain|team|teacher|student|athlete|player|man|woman|person|robot|camera|lab|laboratory|office|family|crowd|group|hands|engineer|technician|nurse|chef|musician|artist|child|kid|baby|city|factory|computer|laptop|desk|machine)\b")
+
+
+def _has_subject(value: str) -> bool:
+    if not value:
+        return False
+    if _CONCRETE_SUBJECT_REGEX.search(value):
+        return True
+    return has_concrete_subject(value)
+
+
 def _dedupe_queries(seq, cap: int) -> list[str]:
     seen, out = set(), []
-    for x in (seq or []):
-        x = _norm_query_term(x)
+    phrases = build_visual_phrases(seq, limit=None)
+    for phrase in phrases:
+        x = _norm_query_term(phrase)
         if len(x) < 3 or x in _ANTI_TERMS or not any(c.isalpha() for c in x):
             continue
-        # Filter if any token is an anti-term (e.g., 'nice background')
         tokens = [t for t in x.split() if t]
         if any(t in _ANTI_TERMS for t in tokens):
             continue
+        if not _has_subject(x):
+            continue
         if x not in seen:
-            out.append(x); seen.add(x)
+            out.append(x)
+            seen.add(x)
         if len(out) >= cap:
             break
     return out
@@ -435,8 +467,8 @@ def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
                 continue
         except Exception:
             continue
-        pool.extend(br.get("keywords") or [])
-        pool.extend(br.get("queries") or [])
+        pool.extend(build_visual_phrases(br.get("keywords") or [], limit=None))
+        pool.extend(build_visual_phrases(br.get("queries") or [], limit=None))
         break  # only first matching brief for determinism
     return _dedupe_queries(pool, cap)
 
