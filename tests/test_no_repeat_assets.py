@@ -1,3 +1,4 @@
+from collections import Counter
 from types import SimpleNamespace, ModuleType
 from pathlib import Path
 import sys
@@ -76,6 +77,9 @@ def _load_video_processor():
         def fetch_candidates(self, *args, **kwargs):
             return []
 
+        def evaluate_candidate_filters(self, *_args, **_kwargs):
+            return True, None
+
     pipeline_fetchers.FetcherOrchestrator = _FakeFetcherOrchestrator
     sys.modules['pipeline_core.fetchers'] = pipeline_fetchers
 
@@ -108,8 +112,9 @@ def _load_video_processor():
     def _log_broll_decision(logger, *, segment_idx, start, end, query_count, candidate_count, unique_candidates,
                             url_dedup_hits, phash_dedup_hits, selected_url, selected_score, provider,
                             latency_ms, llm_healthy, reject_reasons, queries=None, provider_status=None,
-                            best_score=None):
+                            best_score=None, reject_summary=None):
         event = 'broll_segment_decision' if segment_idx >= 0 else 'broll_session_summary'
+        counts = Counter(reject_reasons or [])
         payload = {
             'event': event,
             'segment': segment_idx,
@@ -125,7 +130,7 @@ def _load_video_processor():
             'provider': provider,
             'latency_ms': latency_ms,
             'llm_healthy': llm_healthy,
-            'reject_reasons': sorted(set(reject_reasons or [])),
+            'reject_reasons': dict(counts),
         }
         if queries is not None:
             payload['queries'] = list(queries)
@@ -133,6 +138,10 @@ def _load_video_processor():
             payload['providers'] = provider_status
         if best_score is not None:
             payload['best_score'] = best_score
+        if reject_summary is not None:
+            payload['reject_summary'] = reject_summary
+        elif counts:
+            payload['reject_summary'] = {'counts': dict(counts)}
         logger.log(payload)
 
     pipeline_logging.JsonlLogger = _DummyJsonlLogger
@@ -227,7 +236,10 @@ def test_fallback_selects_candidate_when_min_score_too_high():
     original_download = vp.VideoProcessor._download_core_candidate
     original_render = vp.VideoProcessor._render_core_broll_timeline
     try:
-        vp.FetcherOrchestrator = lambda cfg: SimpleNamespace(fetch_candidates=fake_fetch_candidates)
+        vp.FetcherOrchestrator = lambda cfg: SimpleNamespace(
+            fetch_candidates=fake_fetch_candidates,
+            evaluate_candidate_filters=lambda *args, **kwargs: (True, None),
+        )
         vp.dedupe_by_phash = lambda candidates: (candidates, 0)
         vp.VideoProcessor._download_core_candidate = lambda self, *_args, **_kwargs: Path("core_asset.mp4")
         vp.VideoProcessor._render_core_broll_timeline = lambda self, *_args, **_kwargs: Path("rendered.mp4")
@@ -250,4 +262,4 @@ def test_fallback_selects_candidate_when_min_score_too_high():
     assert decision_events, "expected a broll decision event"
     selected = decision_events[0]
     assert selected.get("selected_url") == "https://cdn/fallback.mp4"
-    assert "fallback_low_score" in selected.get("reject_reasons", [])
+    assert selected.get("reject_reasons", {}).get("fallback_low_score") == 1

@@ -37,6 +37,9 @@ def video_processor_module(monkeypatch):
         def fetch_candidates(self, *args, **kwargs):
             return []
 
+        def evaluate_candidate_filters(self, *_args, **_kwargs):
+            return True, None
+
     setattr(dummy_fetchers, "FetcherOrchestrator", DummyFetcherOrchestrator)
     monkeypatch.setitem(sys.modules, "pipeline_core.fetchers", dummy_fetchers)
 
@@ -401,6 +404,9 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
 
         def fetch_candidates(self, *_args, **_kwargs):
             return [candidate]
+
+        def evaluate_candidate_filters(self, *_args, **_kwargs):
+            return True, None
 
     monkeypatch.setattr(module, "FetcherOrchestrator", StubOrchestrator)
 
