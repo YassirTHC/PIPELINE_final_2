@@ -1,5 +1,8 @@
 from types import SimpleNamespace, MethodType, ModuleType
 
+import os
+import re
+
 import pytest
 
 import sys
@@ -51,6 +54,8 @@ if "moviepy.editor" not in sys.modules:
     sys.modules["moviepy"] = moviepy_module
     sys.modules["moviepy.editor"] = editor_stub
 
+os.environ.setdefault("PIPELINE_FAST_TESTS", "1")
+
 import video_processor
 
 
@@ -77,12 +82,12 @@ class DummyOrchestrator:
 
 
 @pytest.mark.parametrize(
-    "brief_terms",
+    "brief_terms,expected_phrases",
     [
-        ("dopamine reward", "brain scan lab"),
+        (("dopamine reward", "brain scan lab"), ["dopamine showing reward", "brain scan lab"]),
     ],
 )
-def test_segment_briefs_drive_queries(monkeypatch, brief_terms):
+def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases):
     memory_logger = MemoryLogger()
     decisions = []
 
@@ -136,10 +141,31 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms):
     queries_event = logged_queries[0]
 
     assert queries_event["source"] == "segment_brief"
-    assert queries_event["queries"] == list(brief_terms)
-    banned_tokens = {"person discussing", "doctor", "stethoscope"}
-    assert not banned_tokens.intersection(queries_event["queries"])
+    assert queries_event["queries"] == expected_phrases
+    banned_tokens = {"person discussing", "doctor", "stethoscope", "professional", "buffer", "signal"}
+    for phrase in queries_event["queries"]:
+        assert not any(banned in phrase for banned in banned_tokens)
+        assert re.match(r"^[a-z]+(?: [a-z]+){1,4}$", phrase)
 
     decision_events = [payload for payload in decisions if payload.get("segment_idx") == 0]
     assert decision_events, "expected per-segment decision"
-    assert decision_events[0]["queries"] == list(brief_terms)
+    assert decision_events[0]["queries"] == expected_phrases
+
+
+def test_dedupe_queries_drop_abstract_tokens():
+    raw_terms = [
+        "professional buffer signal",
+        "doctor analyzing data center",
+        "scientist planning experiment",
+        "doctor analyzing data center",  # duplicate to test dedupe
+    ]
+    cleaned = video_processor._dedupe_queries(raw_terms, cap=5)
+    assert cleaned == [
+        "doctor analyzing data center",
+        "scientist planning experiment",
+    ]
+    for phrase in cleaned:
+        assert re.match(r"^[a-z]+(?: [a-z]+){1,4}$", phrase)
+        assert "professional" not in phrase
+        assert "buffer" not in phrase
+        assert "signal" not in phrase
