@@ -19,9 +19,13 @@ def test_dynamic_context_normalisation():
         {
             "detected_domains": [{"name": "Neuro_Science", "confidence": 0.87}],
             "language": "EN",
-            "keywords": ["DOPAMINE_boost", "focus", "focus"],
+            "keywords": [
+                "DOPAMINE_boost",
+                "focus and clarity",
+                "clarity when they concentrate",
+            ],
             "synonyms": {"DOPAMINE_boost": ["dopamine surge", "chemical boost"]},
-            "search_queries": ["brain focus shot", "nice people"],
+            "search_queries": ["brain focus when shot", "they and act"],
             "segment_briefs": [
                 {"segment_index": "0", "keywords": ["Neural_Pathway"], "queries": ["brain first"]}
             ],
@@ -30,10 +34,19 @@ def test_dynamic_context_normalisation():
     service = DummyService(payload)
     result = service.generate_dynamic_context("Dopamine keeps you motivated")
     assert result["detected_domains"][0]["name"] == "neuro science"
-    assert result["keywords"] == ["dopamine boost", "focus"]
-    assert result["search_queries"] == ["brain focus shot"]
+    assert result["keywords"] == [
+        "dopamine boost",
+        "focus clarity",
+        "clarity concentrate",
+    ]
+    assert result["search_queries"] == ["brain focus shot", "act"]
     assert result["segment_briefs"][0]["keywords"] == ["neural pathway"]
     assert result["segment_briefs"][0]["queries"] == []
+    for term in result["keywords"] + result["search_queries"]:
+        tokens = term.split()
+        assert "and" not in tokens
+        assert "when" not in tokens
+        assert "they" not in tokens
 
 
 def test_dynamic_context_fallback_keywords():
