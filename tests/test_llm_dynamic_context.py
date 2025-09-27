@@ -61,6 +61,29 @@ def test_dynamic_context_fallback_keywords():
     assert all(len(term) >= 3 for term in result["keywords"])
 
 
+def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
+    class FallbackOnly(LLMMetadataGeneratorService):
+        def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:  # type: ignore[override]
+            raise RuntimeError("no llm")
+
+    service = FallbackOnly(reuse_shared=False)
+    transcript = (
+        "Objectif et focus sur la réussite de l'équipe marketing. "
+        "Ils écrivent des objectifs clairs dans un cahier."
+    )
+    result = service.generate_dynamic_context(transcript)
+    keywords = result["keywords"]
+    assert "goal" in keywords
+    assert "focus" in keywords
+    assert "success" in keywords
+    assert all(ord(ch) < 128 for term in keywords for ch in term)
+    queries = result["search_queries"]
+    assert queries, "fallback queries missing"
+    assert any(query == "writing goals on notebook" for query in queries)
+    assert any(query == "focused typing keyboard" for query in queries)
+    assert all(ord(ch) < 128 for query in queries for ch in query)
+
+
 def test_force_english_terms_when_language_en():
     payload = json.dumps(
         {

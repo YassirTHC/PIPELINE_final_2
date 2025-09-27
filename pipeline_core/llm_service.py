@@ -225,6 +225,29 @@ _CONCRETE_SUBJECT_PATTERN = re.compile(
     + r")\b"
 )
 
+_SCENE_PROMPT_MAP = {
+    "achievement": "celebrating achievement with confetti",
+    "brain": "closeup brain scan animation",
+    "coach": "coach mentoring athlete on field",
+    "collaboration": "team collaboration around laptop",
+    "conversion": "analyzing conversion metrics on laptop",
+    "data": "data analysts reviewing dashboards",
+    "discussion": "roundtable discussion in modern office",
+    "focus": "focused typing keyboard",
+    "goal": "writing goals on notebook",
+    "growth": "chart showing business growth",
+    "innovation": "engineer working on futuristic prototype",
+    "learning": "student taking notes in classroom",
+    "marketing": "marketing team reviewing charts",
+    "motivation": "motivational speaker addressing audience",
+    "planning": "planning strategy on whiteboard",
+    "productivity": "busy professional working at desk",
+    "research": "scientist examining sample in laboratory",
+    "strategy": "team strategizing with sticky notes",
+    "success": "team celebrating success with high five",
+    "team": "team brainstorming around table",
+}
+
 _ACTION_HINTS = {
     "analyze",
     "analyzing",
@@ -376,18 +399,35 @@ _EN_EQUIVALENTS = {
     "adrnaline": "adrenaline",
     "adrenaline": "adrenaline",
     "adrenalin": "adrenaline",
+    "cahier": "notebook",
+    "cahiers": "notebooks",
     "controle": "control",
     "contrle": "control",
+    "dans": "in",
+    "des": "of",
+    "ecrit": "write",
+    "ecrire": "write",
+    "ecrivent": "writing",
+    "equipe": "team",
+    "equipes": "teams",
+    "lequipe": "team",
+    "focus": "focus",
+    "ils": "they",
     "processus": "process",
     "recompense": "reward",
     "recompenses": "rewards",
     "rcompense": "reward",
     "rcompenses": "rewards",
+    "sur": "on",
     "dure": "duration",
     "duree": "duration",
     "durees": "durations",
     "objectif": "goal",
     "objectifs": "goals",
+    "claire": "clear",
+    "clair": "clear",
+    "clairs": "clear",
+    "claires": "clear",
     "reussite": "success",
     "russite": "success",
     "succs": "success",
@@ -439,6 +479,135 @@ def _normalise_terms(values: Iterable[str], *, limit: Optional[int] = None) -> L
         if limit is not None and len(normalised) >= limit:
             break
     return normalised
+
+
+def _normalise_scene_queries(values: Iterable[str], *, limit: Optional[int] = None) -> List[str]:
+    seen: set[str] = set()
+    queries: List[str] = []
+    for value in values or []:
+        if not isinstance(value, str):
+            continue
+        term = _strip_diacritics(value)
+        term = term.lower().strip()
+        term = re.sub(r"[^a-z0-9\s-]", " ", term)
+        term = re.sub(r"\s+", " ", term)
+        if len(term) < _TERM_MIN_LEN:
+            continue
+        if term in seen:
+            continue
+        seen.add(term)
+        queries.append(term)
+        if limit is not None and len(queries) >= limit:
+            break
+    return queries
+
+
+_SPACY_MODEL: Optional[Any] = None
+_SPACY_FAILED = False
+
+
+def _load_spacy_model() -> Optional[Any]:
+    global _SPACY_MODEL, _SPACY_FAILED
+    if _SPACY_FAILED:
+        return None
+    if _SPACY_MODEL is not None:
+        return _SPACY_MODEL
+    try:
+        import spacy  # type: ignore
+    except Exception:
+        _SPACY_FAILED = True
+        return None
+    try:
+        _SPACY_MODEL = spacy.load("en_core_web_sm")  # type: ignore[attr-defined]
+    except Exception:
+        _SPACY_FAILED = True
+        return None
+    return _SPACY_MODEL
+
+
+def _extract_noun_phrases(text: str, *, limit: int = 12) -> List[str]:
+    ascii_text = _strip_diacritics(text or "").lower()
+    ascii_text = re.sub(r"\s+", " ", ascii_text)
+    if not ascii_text:
+        return []
+    candidates: Counter[str] = Counter()
+    nlp = _load_spacy_model()
+    if nlp is not None:
+        try:
+            doc = nlp(ascii_text)
+        except Exception:
+            doc = None  # type: ignore[assignment]
+        if doc is not None:
+            for chunk in getattr(doc, "noun_chunks", []):
+                phrase = re.sub(r"[^a-z0-9\s-]", " ", chunk.text.lower())
+                phrase = re.sub(r"\s+", " ", phrase).strip()
+                if len(phrase) >= _TERM_MIN_LEN and phrase not in _GENERIC_TERMS:
+                    candidates[phrase] += 1
+            for token in doc:
+                if token.pos_ in {"NOUN", "PROPN"}:
+                    word = re.sub(r"[^a-z0-9-]", "", token.text.lower())
+                    if len(word) >= _TERM_MIN_LEN and word not in _STOPWORDS_EN and word not in _GENERIC_TERMS:
+                        candidates[word] += 1
+    if not candidates:
+        tokens = re.findall(r"[a-z0-9]+", ascii_text)
+        buffer: List[str] = []
+        for token in tokens:
+            if len(token) < _TERM_MIN_LEN or token in _STOPWORDS_EN or token in _GENERIC_TERMS:
+                if buffer:
+                    phrase = " ".join(buffer)
+                    candidates[phrase] += 1
+                    buffer.clear()
+                continue
+            candidates[token] += 1
+            buffer.append(token)
+        if buffer:
+            phrase = " ".join(buffer)
+            candidates[phrase] += 1
+    ranked = [phrase for phrase, _ in candidates.most_common(limit * 2)]
+    ordered: List[str] = []
+    seen: set[str] = set()
+    for phrase in ranked:
+        if not phrase:
+            continue
+        if phrase in seen:
+            continue
+        seen.add(phrase)
+        ordered.append(phrase)
+        if len(ordered) >= limit:
+            break
+    return ordered
+
+
+def _map_scene_prompts(candidates: Sequence[str], *, limit: int) -> List[str]:
+    prompts: List[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        tokens = candidate.split()
+        prompt: Optional[str] = None
+        for token in tokens:
+            mapped = _SCENE_PROMPT_MAP.get(token)
+            if mapped:
+                prompt = mapped
+                break
+        if prompt is None and tokens:
+            mapped = _SCENE_PROMPT_MAP.get(tokens[0])
+            if mapped:
+                prompt = mapped
+        if prompt is None:
+            continue
+        normalised_prompt = _strip_diacritics(prompt)
+        normalised_prompt = re.sub(r"\s+", " ", normalised_prompt).strip().lower()
+        if len(normalised_prompt) < _TERM_MIN_LEN:
+            continue
+        if normalised_prompt in seen:
+            continue
+        seen.add(normalised_prompt)
+        prompts.append(normalised_prompt)
+        if len(prompts) >= limit:
+            break
+    return prompts
 
 
 def _pick_subject(tokens: List[str]) -> Optional[str]:
@@ -565,6 +734,8 @@ def _normalise_briefs(raw: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
         keywords_raw = _normalise_terms(entry.get('keywords') or [], limit=6)
         queries_raw = _normalise_terms(entry.get('queries') or [], limit=6)
         keywords = build_visual_phrases(keywords_raw, limit=6)
+        if not keywords and keywords_raw:
+            keywords = keywords_raw
         queries = build_visual_phrases(queries_raw, limit=6)
         if not keywords and not queries:
             continue
@@ -600,7 +771,11 @@ def _tfidf_fallback(transcript: str, *, top_k: int = 12) -> Tuple[List[str], Lis
             idf = math.log((len(segments) + 1) / (df[term] + 1)) + 1.0
             score = tf * idf
             tfidf[term] = max(tfidf.get(term, 0.0), score)
-    keywords = [term for term, _ in sorted(tfidf.items(), key=lambda item: item[1], reverse=True) if term not in _GENERIC_TERMS][:top_k]
+    keywords = [
+        _strip_diacritics(term)
+        for term, _ in sorted(tfidf.items(), key=lambda item: item[1], reverse=True)
+        if term not in _GENERIC_TERMS
+    ][:top_k]
     bigrams: Counter[str] = Counter()
     for tokens in segments:
         for first, second in zip(tokens, tokens[1:]):
@@ -608,9 +783,22 @@ def _tfidf_fallback(transcript: str, *, top_k: int = 12) -> Tuple[List[str], Lis
                 continue
             if first in _GENERIC_TERMS or second in _GENERIC_TERMS:
                 continue
-            bigrams[f'{first} {second}'] += 1
-    queries = [term for term, _ in bigrams.most_common(max(4, top_k // 2))]
-    return _normalise_terms(keywords, limit=top_k), _normalise_terms(queries, limit=max(4, top_k // 2))
+            phrase = f'{first} {second}'
+            bigrams[_strip_diacritics(phrase)] += 1
+    noun_phrases_raw = _extract_noun_phrases(transcript, limit=top_k)
+    noun_phrase_candidates = _normalise_scene_queries(noun_phrases_raw, limit=top_k)
+    noun_phrases = enforce_fetch_language(noun_phrase_candidates, "en")
+    keywords.extend(noun_phrases)
+    queries_candidates: List[str] = []
+    queries_candidates.extend(_map_scene_prompts(noun_phrases, limit=max(4, top_k // 2)))
+    queries_candidates.extend(phrase for phrase, _ in bigrams.most_common(max(4, top_k // 2)))
+    keywords_normalised = _normalise_terms(keywords, limit=top_k)
+    queries_normalised = _normalise_scene_queries(queries_candidates, limit=max(4, top_k // 2))
+    keywords_enforced = enforce_fetch_language(keywords_normalised, "en")
+    keywords_final = _normalise_terms(keywords_enforced, limit=top_k)
+    queries_enforced = enforce_fetch_language(queries_normalised, "en")
+    queries_final = _normalise_scene_queries(queries_enforced, limit=max(4, top_k // 2))
+    return keywords_final, queries_final
 
 
 def _normalise_dynamic_payload(raw: Dict[str, Any], *, transcript: str) -> Dict[str, Any]:
