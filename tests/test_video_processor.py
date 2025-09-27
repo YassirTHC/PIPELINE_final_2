@@ -231,6 +231,7 @@ def test_pipeline_core_single_provider_warns(monkeypatch, caplog, tmp_path, vide
         broll_keywords=["kw"],
         subtitles=[{"start": 0.0, "end": 1.0, "text": "hello"}],
         input_path=tmp_path / "video.mp4",
+        output_path=tmp_path / "render.mp4",
     )
 
     assert used is None

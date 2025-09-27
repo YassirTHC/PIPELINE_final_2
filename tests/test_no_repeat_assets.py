@@ -233,6 +233,7 @@ def test_fallback_selects_candidate_when_min_score_too_high():
             broll_keywords=["keyword"],
             subtitles=None,
             input_path=Path("video.mp4"),
+            output_path=Path("render.mp4"),
         )
     finally:
         vp.FetcherOrchestrator = original_fetcher

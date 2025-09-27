@@ -9,13 +9,30 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pipeline_core.configuration import FetcherOrchestratorConfig
-from src.pipeline.fetchers import (  # type: ignore
-    build_search_query,
-    pexels_search_videos,
-    pixabay_search_videos,
-    _best_vertical_video_file,
-    _pixabay_best_video_url,
-)
+
+try:  # pragma: no cover - exercised indirectly via tests
+    from src.pipeline.fetchers import (  # type: ignore
+        build_search_query,
+        pexels_search_videos,
+        pixabay_search_videos,
+        _best_vertical_video_file,
+        _pixabay_best_video_url,
+    )
+except ModuleNotFoundError:  # pragma: no cover - unit tests provide stubs
+    def build_search_query(keywords: Sequence[str]) -> str:
+        return " ".join(str(kw).strip() for kw in keywords[:3] if kw).strip()
+
+    def pexels_search_videos(*_args, **_kwargs):
+        return []
+
+    def pixabay_search_videos(*_args, **_kwargs):
+        return []
+
+    def _best_vertical_video_file(payload):
+        return None
+
+    def _pixabay_best_video_url(payload):
+        return None
 
 
 @dataclass(slots=True)

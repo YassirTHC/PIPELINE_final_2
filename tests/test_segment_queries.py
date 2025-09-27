@@ -1,7 +1,7 @@
-from types import SimpleNamespace, MethodType, ModuleType
+from pathlib import Path
+from types import MethodType, ModuleType, SimpleNamespace
 
 import pytest
-
 import sys
 
 
@@ -125,7 +125,13 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms):
     processor._rank_candidate = MethodType(lambda self, *_args, **_kwargs: 0.0, processor)
 
     segment = SimpleNamespace(start=0.0, end=1.0, text="Brain science dopamine focus")
-    processor._insert_brolls_pipeline_core([segment], ["doctor"], subtitles=None, input_path=SimpleNamespace(name="clip.mp4"))
+    processor._insert_brolls_pipeline_core(
+        [segment],
+        ["doctor"],
+        subtitles=None,
+        input_path=Path("clip.mp4"),
+        output_path=Path("out.mp4"),
+    )
 
     logged_queries = [
         event

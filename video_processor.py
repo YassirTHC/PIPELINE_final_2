@@ -18,6 +18,9 @@ import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple
 from collections import Counter
+from types import SimpleNamespace
+from urllib.parse import urlparse
+import uuid
 import gc
 
 # 🚀 NOUVEAU: Configuration des logs temps réel + suppression warnings non-critiques
@@ -72,6 +75,28 @@ SEEN_URLS: Set[str] = set()
 SEEN_PHASHES: List[int] = []
 SEEN_IDENTIFIERS: Set[str] = set()
 PHASH_DISTANCE = 6
+
+
+class _BrollLoggerProxy:
+    """Small proxy adding in-memory storage for JSONL events."""
+
+    def __init__(self, inner_logger):
+        self._inner = inner_logger
+        self.entries: List[Dict[str, Any]] = []
+
+    def log(self, payload: Dict[str, Any]):
+        try:
+            entry = dict(payload)
+        except Exception:
+            entry = {'event': 'unknown', 'payload': payload}
+        self.entries.append(entry)
+        try:
+            self._inner.log(payload)
+        except Exception:
+            pass
+
+    def __getattr__(self, name):  # pragma: no cover - passthrough accessors
+        return getattr(self._inner, name)
 
 
 def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
@@ -146,6 +171,38 @@ def dedupe_by_phash(candidates):
         setattr(candidate, '_phash', phash)
         unique.append(candidate)
     return unique, hits
+
+
+def enforce_broll_schedule_rules(plan, *, min_duration: float = 1.8, min_gap: float = 1.5):
+    """Filter a naive schedule to satisfy duration and gap constraints."""
+
+    filtered = []
+    drops: List[Dict[str, Any]] = []
+    last_end = -1e9
+
+    for item in plan or []:
+        start = float(getattr(item, 'start', 0.0) or 0.0)
+        end = float(getattr(item, 'end', start) or start)
+        if end < start:
+            start, end = end, start
+        duration = max(0.0, end - start)
+        reason = None
+        gap_threshold = max(0.0, min_gap)
+        duration_threshold = max(0.0, min_duration)
+
+        if filtered and (start - last_end) < gap_threshold:
+            reason = 'gap_violation'
+        elif duration + 1e-6 < duration_threshold:
+            reason = 'duration_short'
+
+        if reason:
+            drops.append({'start': start, 'end': end, 'reason': reason})
+            continue
+
+        filtered.append(item)
+        last_end = end
+
+    return filtered, drops
 
 # --- Query normalization for external providers (Pexels/Pixabay)
 _STOPWORDS: Set[str] = {
@@ -276,7 +333,13 @@ from pipeline_core.configuration import PipelineConfigBundle
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
-from pipeline_core.llm_service import LLMMetadataGeneratorService, enforce_fetch_language
+try:
+    from pipeline_core.llm_service import LLMMetadataGeneratorService, enforce_fetch_language
+except ImportError:  # pragma: no cover - test environments may stub partial API
+    from pipeline_core.llm_service import LLMMetadataGeneratorService  # type: ignore
+
+    def enforce_fetch_language(terms, language=None):  # type: ignore[override]
+        return list(dict.fromkeys(term for term in terms if term))
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
@@ -887,8 +950,23 @@ class VideoProcessor:
 
         session_id = f"{clip_path.stem}-{int(time.time() * 1000)}"
         log_file = meta_dir / 'broll_pipeline_events.jsonl'
-        event_logger = JsonlLogger(log_file)
+        event_logger = _BrollLoggerProxy(JsonlLogger(log_file))
         self._broll_event_logger = event_logger
+        try:
+            env_payload = {
+                'event': 'broll_env_ready',
+                'providers': [
+                    name
+                    for name, env_key in (
+                        ('pexels', 'PEXELS_API_KEY'),
+                        ('pixabay', 'PIXABAY_API_KEY'),
+                    )
+                    if os.environ.get(env_key)
+                ],
+            }
+            event_logger.log(env_payload)
+        except Exception:
+            pass
 
         use_core = enable_core if enable_core is not None else _pipeline_core_fetcher_enabled()
         logger.info('[CORE] Orchestrator %s', 'enabled' if use_core else 'disabled (legacy path)')
@@ -941,10 +1019,33 @@ class VideoProcessor:
         return final_path
 
     def _get_broll_event_logger(self):
-        if getattr(self, '_broll_event_logger', None) is None:
+        logger_obj = getattr(self, '_broll_event_logger', None)
+        if logger_obj is None:
             log_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_pipeline_events.jsonl'
-            self._broll_event_logger = JsonlLogger(log_file)
-        return self._broll_event_logger
+            logger_obj = _BrollLoggerProxy(JsonlLogger(log_file))
+            self._broll_event_logger = logger_obj
+        try:
+            entries = getattr(logger_obj, 'entries', [])
+            has_env = any(event.get('event') == 'broll_env_ready' for event in entries)
+        except Exception:
+            has_env = False
+        if not has_env:
+            try:
+                env_payload = {
+                    'event': 'broll_env_ready',
+                    'providers': [
+                        name
+                        for name, env_key in (
+                            ('pexels', 'PEXELS_API_KEY'),
+                            ('pixabay', 'PIXABAY_API_KEY'),
+                        )
+                        if os.environ.get(env_key)
+                    ],
+                }
+                logger_obj.log(env_payload)
+            except Exception:
+                pass
+        return logger_obj
 
 
     def _maybe_use_pipeline_core(
@@ -954,11 +1055,13 @@ class VideoProcessor:
         *,
         subtitles,
         input_path: Path,
-    ) -> Optional[int]:
+        output_path: Path,
+    ) -> Optional[Tuple[int, Optional[Path]]]:
         """Attempt to run the pipeline_core orchestrator if configured.
 
-        Returns the number of assets selected by the orchestrator when it runs,
-        or ``None`` when the legacy pipeline should continue.
+        Returns a tuple ``(inserted_count, rendered_path)`` when the
+        orchestrator executed, or ``None`` when the legacy pipeline should
+        continue.
         """
 
         event_logger = self._get_broll_event_logger()
@@ -1016,10 +1119,19 @@ class VideoProcessor:
             broll_keywords,
             subtitles=subtitles,
             input_path=input_path,
+            output_path=output_path,
         )
         return inserted
 
-    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> int:
+    def _insert_brolls_pipeline_core(
+        self,
+        segments,
+        broll_keywords,
+        *,
+        subtitles,
+        input_path: Path,
+        output_path: Path,
+    ) -> Tuple[int, Optional[Path]]:
         global SEEN_URLS, SEEN_PHASHES, SEEN_IDENTIFIERS
         SEEN_URLS.clear()
         SEEN_PHASHES.clear()
@@ -1099,7 +1211,16 @@ class VideoProcessor:
 
         fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
-        selected_assets: List[Dict[str, Any]] = []
+        provider_counter: Counter[str] = Counter()
+        query_source_counter: Counter[str] = Counter()
+        total_candidates = 0
+        total_unique_candidates = 0
+        total_url_dedup_hits = 0
+        total_phash_dedup_hits = 0
+        total_latency_ms = 0
+        segments_with_queries = 0
+        forced_keep_segments = 0
+        render_plan: List[SimpleNamespace] = []
         for idx, segment in enumerate(segments):
             seg_duration = max(0.0, segment.end - segment.start)
             llm_hints = None
@@ -1144,6 +1265,8 @@ class VideoProcessor:
             if dyn_language in ('', 'en'):
                 queries = enforce_fetch_language(queries, dyn_language or None)
 
+            query_source_counter[query_source] += 1
+
             try:
                 event_logger.log({
                     'event': 'broll_segment_queries',
@@ -1176,6 +1299,7 @@ class VideoProcessor:
                 )
                 continue
 
+            segments_with_queries += 1
             try:
                 print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
             except Exception:
@@ -1233,10 +1357,16 @@ class VideoProcessor:
             unique_candidates, url_hits = dedupe_by_url(candidates)
             unique_candidates, phash_hits = dedupe_by_phash(unique_candidates)
 
+            total_candidates += len(candidates)
+            total_unique_candidates += len(unique_candidates)
+            total_url_dedup_hits += url_hits
+            total_phash_dedup_hits += phash_hits
+
             best_candidate = None
             best_score = -1.0
             best_provider = None
             reject_reasons: List[str] = []
+            forced_keep = False
 
             for candidate in unique_candidates:
                 score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
@@ -1257,6 +1387,7 @@ class VideoProcessor:
                 best_score = self._rank_candidate(segment.text, fallback, selection_cfg, seg_duration)
                 best_provider = getattr(fallback, 'provider', None)
                 reject_reasons.append("fallback_low_score")
+                forced_keep = True
                 logger.info(
                     "[BROLL] fallback candidate selected for segment %s (url=%s, score=%.3f)",
                     idx,
@@ -1274,19 +1405,37 @@ class VideoProcessor:
                 identifier = getattr(best_candidate, 'identifier', None)
                 if identifier:
                     SEEN_IDENTIFIERS.add(identifier)
-                selected_assets.append({
-                    'segment': idx,
-                    'provider': best_provider,
-                    'url': getattr(best_candidate, 'url', None),
-                    'score': best_score,
-                })
-                # Append to selection report
+                start_ts = float(getattr(segment, 'start', 0.0))
+                end_ts = float(getattr(segment, 'end', 0.0))
+                duration_val = getattr(best_candidate, 'duration', None)
+                if isinstance(duration_val, (int, float)) and duration_val > 0:
+                    desired_duration = float(duration_val)
+                elif seg_duration > 0:
+                    desired_duration = float(seg_duration)
+                else:
+                    desired_duration = max(float(selection_cfg.min_duration_s or 2.0), 2.0)
+                clip_end = min(end_ts if end_ts > start_ts else start_ts + desired_duration, start_ts + desired_duration)
+                render_plan.append(
+                    SimpleNamespace(
+                        segment=idx,
+                        start=start_ts,
+                        end=clip_end,
+                        url=getattr(best_candidate, 'url', None),
+                        provider=best_provider,
+                        score=best_score,
+                        duration=max(0.1, clip_end - start_ts),
+                        forced_keep=forced_keep,
+                        identifier=identifier,
+                    )
+                )
+                if forced_keep:
+                    forced_keep_segments += 1
                 try:
                     if report is not None:
                         report['segments'].append({
                             'segment': idx,
-                            't0': float(getattr(segment, 'start', 0.0)),
-                            't1': float(getattr(segment, 'end', 0.0)),
+                            't0': start_ts,
+                            't1': clip_end,
                             'selected_url': getattr(best_candidate, 'url', None),
                             'provider': getattr(best_candidate, 'provider', None),
                             'score': float(best_score) if best_score is not None else None,
@@ -1295,6 +1444,7 @@ class VideoProcessor:
                     pass
 
             latency_ms = int((time.perf_counter() - start_time) * 1000)
+            total_latency_ms += latency_ms
             log_broll_decision(
                 event_logger,
                 segment_idx=idx,
@@ -1313,6 +1463,81 @@ class VideoProcessor:
                 reject_reasons=sorted(set(reject_reasons)),
                 queries=queries,
             )
+
+        renderer_cfg = getattr(self._pipeline_config, 'renderer', None)
+        try:
+            schedule_min_duration = float(getattr(selection_cfg, 'min_duration_s', 2.0) or 2.0)
+        except Exception:
+            schedule_min_duration = 2.0
+        if renderer_cfg is not None:
+            try:
+                schedule_min_duration = max(schedule_min_duration, float(getattr(renderer_cfg, 'min_duration_s', schedule_min_duration) or schedule_min_duration))
+            except Exception:
+                pass
+        try:
+            schedule_min_gap = float(getattr(renderer_cfg, 'pad_out_s', 0.5) or 0.5) * 2.0
+        except Exception:
+            schedule_min_gap = 1.5
+        schedule_min_gap = max(1.0, schedule_min_gap)
+
+        filtered_plan, schedule_drops = enforce_broll_schedule_rules(
+            render_plan,
+            min_duration=schedule_min_duration,
+            min_gap=schedule_min_gap,
+        )
+
+        dropped_items = [item for item in render_plan if item not in filtered_plan]
+        for drop_item, drop_meta in zip(dropped_items, schedule_drops):
+            try:
+                event_logger.log({
+                    'event': 'broll_schedule_drop',
+                    'segment': getattr(drop_item, 'segment', None),
+                    'reason': drop_meta.get('reason') if isinstance(drop_meta, dict) else 'schedule_conflict',
+                    'start': drop_meta.get('start') if isinstance(drop_meta, dict) else getattr(drop_item, 'start', None),
+                    'end': drop_meta.get('end') if isinstance(drop_meta, dict) else getattr(drop_item, 'end', None),
+                })
+            except Exception:
+                pass
+
+        rendered_path: Optional[Path] = None
+        successful_items: List[SimpleNamespace] = []
+        if filtered_plan:
+            rendered_path, successful_items = self._render_core_broll_plan(
+                input_path=input_path,
+                output_path=output_path,
+                plan_items=filtered_plan,
+                event_logger=event_logger,
+                renderer_cfg=renderer_cfg,
+            )
+
+        if report is not None:
+            try:
+                kept_segments = {getattr(item, 'segment', None) for item in successful_items}
+                report['segments'] = [seg for seg in (report.get('segments') or []) if seg.get('segment') in kept_segments]
+            except Exception:
+                pass
+
+        provider_counter.clear()
+        selected_assets: List[Dict[str, Any]] = []
+        selected_segments: List[int] = []
+        selected_durations: List[float] = []
+        forced_keep_segments = sum(1 for item in successful_items if getattr(item, 'forced_keep', False))
+        for item in successful_items:
+            provider_label = str(getattr(item, 'provider', None) or 'unknown')
+            provider_counter[provider_label] += 1
+            selected_segments.append(int(getattr(item, 'segment', -1)))
+            selected_assets.append({
+                'segment': getattr(item, 'segment', None),
+                'provider': getattr(item, 'provider', None),
+                'url': getattr(item, 'url', None),
+                'score': getattr(item, 'score', None),
+            })
+            duration_val = getattr(item, 'render_duration', None) or getattr(item, 'duration', None)
+            try:
+                if duration_val is not None:
+                    selected_durations.append(float(duration_val))
+            except Exception:
+                pass
 
         # Add effective domain fields to the summary line for easy scraping
         provider_status = {}
@@ -1350,13 +1575,39 @@ class VideoProcessor:
         self._last_broll_insert_count = inserted_count
 
         try:
-            event_logger.log({
+            total_segments = len(segments)
+            selection_rate = (inserted_count / total_segments) if total_segments else 0.0
+            avg_duration = (sum(selected_durations) / len(selected_durations)) if selected_durations else 0.0
+            total_duration = max((getattr(seg, 'end', 0.0) or 0.0) for seg in segments) if segments else 0.0
+            broll_per_min = (inserted_count / (total_duration / 60.0)) if total_duration > 0 else 0.0
+            avg_latency = (total_latency_ms / segments_with_queries) if segments_with_queries else 0.0
+            refined_ratio = (query_source_counter.get('segment_brief', 0) / total_segments) if total_segments else 0.0
+            provider_mix = {k: v for k, v in sorted(provider_counter.items()) if v > 0}
+            summary_payload = {
                 'event': 'broll_summary',
-                'segments': len(segments),
+                'segments': total_segments,
                 'inserted': inserted_count,
-                'providers_used': sorted({item['provider'] for item in selected_assets if item.get('provider')}),
-            })
-            print(f"    📊 B-roll sélectionnés: {inserted_count}/{len(segments)}")
+                'selection_rate': round(selection_rate, 4),
+                'selected_segments': selected_segments,
+                'avg_broll_duration': round(avg_duration, 3) if selected_durations else 0.0,
+                'broll_per_min': round(broll_per_min, 3) if broll_per_min else 0.0,
+                'avg_latency_ms': round(avg_latency, 1) if avg_latency else 0.0,
+                'refined_ratio': round(refined_ratio, 4),
+                'provider_mix': provider_mix,
+                'query_source_counts': dict(query_source_counter),
+                'total_url_dedup_hits': total_url_dedup_hits,
+                'total_phash_dedup_hits': total_phash_dedup_hits,
+                'forced_keep_segments': forced_keep_segments,
+                'total_candidates': total_candidates,
+                'total_unique_candidates': total_unique_candidates,
+                'video_duration_s': round(total_duration, 3) if total_duration else 0.0,
+            }
+            event_logger.log({k: v for k, v in summary_payload.items() if v is not None})
+            providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
+            print(
+                f"    📊 B-roll sélectionnés: {inserted_count}/{total_segments} "
+                f"({selection_rate * 100:.1f}%); providers={providers_display}"
+            )
         except Exception:
             pass
 
@@ -1380,7 +1631,170 @@ class VideoProcessor:
             except Exception as e:
                 print(f"[REPORT] failed: {e}")
 
-        return inserted_count
+        return inserted_count, rendered_path if inserted_count > 0 else None
+
+    def _download_remote_asset(self, url: str, dest_dir: Path, *, timeout: float = 30.0) -> Optional[Path]:
+        if not url:
+            return None
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            parsed = urlparse(url)
+            suffix = Path(parsed.path).suffix or '.mp4'
+        except Exception:
+            suffix = '.mp4'
+        filename = f"core_{uuid.uuid4().hex}{suffix}"
+        target = dest_dir / filename
+        try:
+            with requests.get(url, stream=True, timeout=timeout) as resp:
+                resp.raise_for_status()
+                with open(target, 'wb') as fh:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            fh.write(chunk)
+        except Exception:
+            try:
+                if target.exists():
+                    target.unlink()
+            except Exception:
+                pass
+            return None
+        return target
+
+    def _render_core_broll_plan(
+        self,
+        *,
+        input_path: Path,
+        output_path: Path,
+        plan_items: Sequence[SimpleNamespace],
+        event_logger,
+        renderer_cfg,
+    ) -> Tuple[Optional[Path], List[SimpleNamespace]]:
+        if not plan_items:
+            return None, []
+
+        temp_dir = Config.TEMP_FOLDER / 'core_broll'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        base_clip = None
+        overlays: List[Any] = []
+        successful: List[SimpleNamespace] = []
+        downloads: List[Path] = []
+
+        try:
+            base_clip = VideoFileClip(str(input_path))
+            base_duration = float(getattr(base_clip, 'duration', 0.0) or 0.0)
+            base_size = base_clip.size
+
+            for item in plan_items:
+                url = getattr(item, 'url', None)
+                start = float(getattr(item, 'start', 0.0) or 0.0)
+                if url is None:
+                    try:
+                        event_logger.log({'event': 'broll_render_skip', 'segment': getattr(item, 'segment', None), 'reason': 'missing_url'})
+                    except Exception:
+                        pass
+                    continue
+                local_path = self._download_remote_asset(url, temp_dir)
+                if local_path is None:
+                    try:
+                        event_logger.log({'event': 'broll_download_failed', 'segment': getattr(item, 'segment', None), 'url': url})
+                    except Exception:
+                        pass
+                    continue
+                downloads.append(local_path)
+                try:
+                    clip = VideoFileClip(str(local_path)).without_audio()
+                except Exception as exc:
+                    try:
+                        event_logger.log({'event': 'broll_clip_open_failed', 'segment': getattr(item, 'segment', None), 'url': url, 'error': str(exc)[:200]})
+                    except Exception:
+                        pass
+                    continue
+                try:
+                    available = float(getattr(clip, 'duration', 0.0) or 0.0)
+                except Exception:
+                    available = 0.0
+                target_duration = float(getattr(item, 'end', start) - start)
+                if target_duration <= 0:
+                    target_duration = float(getattr(item, 'duration', 0.0) or 0.0)
+                if target_duration <= 0:
+                    try:
+                        fallback_duration = float(getattr(renderer_cfg, 'min_duration_s', 2.0) or 2.0)
+                    except Exception:
+                        fallback_duration = 2.0
+                    target_duration = fallback_duration
+                if base_duration > 0:
+                    target_duration = min(target_duration, max(0.1, base_duration - start))
+                if available > 0:
+                    target_duration = min(target_duration, available)
+                target_duration = max(0.1, target_duration)
+                try:
+                    trimmed = clip.subclip(0, target_duration)
+                except Exception:
+                    trimmed = clip
+                if base_size:
+                    try:
+                        trimmed = trimmed.resize(newsize=base_size)
+                    except Exception:
+                        pass
+                trimmed = trimmed.set_start(start).set_end(start + target_duration)
+                overlays.append(trimmed)
+                setattr(item, 'render_duration', target_duration)
+                setattr(item, 'local_path', str(local_path))
+                successful.append(item)
+
+            if not successful:
+                return None, []
+
+            composite = CompositeVideoClip([base_clip] + overlays, size=base_clip.size if hasattr(base_clip, 'size') else None)
+            try:
+                composite = composite.set_audio(base_clip.audio)
+            except Exception:
+                pass
+
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            temp_audio = output_path.with_suffix('.core-temp.m4a')
+            composite.write_videofile(
+                str(output_path),
+                codec='libx264',
+                audio_codec='aac',
+                temp_audiofile=str(temp_audio),
+                remove_temp=True,
+                verbose=False,
+                logger=None,
+            )
+            try:
+                if temp_audio.exists():
+                    temp_audio.unlink()
+            except Exception:
+                pass
+            try:
+                event_logger.log({'event': 'broll_render_complete', 'inserted': len(successful), 'output': str(output_path)})
+            except Exception:
+                pass
+            return output_path, successful
+        except Exception as exc:
+            try:
+                event_logger.log({'event': 'broll_render_failed', 'error': str(exc)[:200]})
+            except Exception:
+                pass
+            try:
+                if output_path.exists():
+                    output_path.unlink()
+            except Exception:
+                pass
+            return None, []
+        finally:
+            for clip in overlays:
+                try:
+                    clip.close()
+                except Exception:
+                    pass
+            if base_clip is not None:
+                try:
+                    base_clip.close()
+                except Exception:
+                    pass
 
     def _derive_segment_keywords(self, segment, global_keywords: Sequence[str]) -> List[str]:
         keywords: List[str] = []
@@ -2712,16 +3126,20 @@ class VideoProcessor:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
-            core_inserted = self._maybe_use_pipeline_core(
+            core_result = self._maybe_use_pipeline_core(
                 segments,
                 broll_keywords,
                 subtitles=subtitles,
                 input_path=input_path,
+                output_path=output_with_broll,
             )
-            if core_inserted is not None:
-                success, banner = format_broll_completion_banner(core_inserted, origin="pipeline_core")
+            if core_result is not None:
+                inserted_count, rendered_path = core_result
+                success, banner = format_broll_completion_banner(inserted_count, origin="pipeline_core")
                 print(banner)
-                return input_path
+                if success and rendered_path and Path(rendered_path).exists():
+                    return Path(rendered_path)
+                # If pipeline_core selected nothing or rendering failed, fall back to legacy pipeline
 
             # Construire la config du pipeline (fetch + embeddings activés, pas de limites)
             cfg = BrollConfig(
