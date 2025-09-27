@@ -1547,48 +1547,36 @@ class VideoProcessor:
             reject_reasons=['summary'],
             provider_status={**(provider_status or {}), 'selected_count': len(selected_assets)} if provider_status else {'selected_count': len(selected_assets)},
         )
-        inserted_count = len(selected_assets)
-        self._last_broll_insert_count = inserted_count
+        initial_selected = len(selected_assets)
 
-        try:
-            total_segments = len(segments)
-            selection_rate = (inserted_count / total_segments) if total_segments else 0.0
-            avg_duration = (sum(selected_durations) / len(selected_durations)) if selected_durations else 0.0
-            total_duration = max((getattr(seg, 'end', 0.0) or 0.0) for seg in segments) if segments else 0.0
-            broll_per_min = (inserted_count / (total_duration / 60.0)) if total_duration > 0 else 0.0
-            avg_latency = (total_latency_ms / segments_with_queries) if segments_with_queries else 0.0
-            refined_ratio = (query_source_counter.get('segment_brief', 0) / total_segments) if total_segments else 0.0
-            provider_mix = {k: v for k, v in sorted(provider_counter.items()) if v > 0}
-            summary_payload = {
-                'event': 'broll_summary',
-                'segments': total_segments,
-                'inserted': inserted_count,
-                'selection_rate': round(selection_rate, 4),
-                'selected_segments': selected_segments,
-                'avg_broll_duration': round(avg_duration, 3) if selected_durations else 0.0,
-                'broll_per_min': round(broll_per_min, 3) if broll_per_min else 0.0,
-                'avg_latency_ms': round(avg_latency, 1) if avg_latency else 0.0,
-                'refined_ratio': round(refined_ratio, 4),
-                'provider_mix': provider_mix,
-                'query_source_counts': dict(query_source_counter),
-                'total_url_dedup_hits': total_url_dedup_hits,
-                'total_phash_dedup_hits': total_phash_dedup_hits,
-                'forced_keep_segments': forced_keep_segments,
-                'total_candidates': total_candidates,
-                'total_unique_candidates': total_unique_candidates,
-                'video_duration_s': round(total_duration, 3) if total_duration else 0.0,
-            }
-            event_logger.log({k: v for k, v in summary_payload.items() if v is not None})
-            providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
-            print(
-                f"    📊 B-roll sélectionnés: {inserted_count}/{total_segments} "
-                f"({selection_rate * 100:.1f}%); providers={providers_display}"
-            )
-        except Exception:
-            pass
+        total_segments = len(segments)
+        total_duration = max((getattr(seg, 'end', 0.0) or 0.0) for seg in segments) if segments else 0.0
+        avg_latency = (total_latency_ms / segments_with_queries) if segments_with_queries else 0.0
+        refined_ratio = (query_source_counter.get('segment_brief', 0) / total_segments) if total_segments else 0.0
+
+        summary_payload: Dict[str, Any] = {
+            'event': 'broll_summary',
+            'segments': total_segments,
+            'inserted': 0,
+            'selection_rate': 0.0,
+            'selected_segments': [],
+            'avg_broll_duration': 0.0,
+            'broll_per_min': 0.0,
+            'avg_latency_ms': round(avg_latency, 1) if avg_latency else 0.0,
+            'refined_ratio': round(refined_ratio, 4),
+            'provider_mix': {},
+            'query_source_counts': dict(query_source_counter),
+            'total_url_dedup_hits': total_url_dedup_hits,
+            'total_phash_dedup_hits': total_phash_dedup_hits,
+            'forced_keep_segments': forced_keep_segments,
+            'total_candidates': total_candidates,
+            'total_unique_candidates': total_unique_candidates,
+            'video_duration_s': round(total_duration, 3) if total_duration else 0.0,
+        }
 
         render_path: Optional[Path] = None
-        if inserted_count > 0:
+        materialized_entries: List[CoreTimelineEntry] = []
+        if initial_selected > 0:
             timeline_entries: List[CoreTimelineEntry] = []
             download_dir: Optional[Path]
             try:
@@ -1651,14 +1639,17 @@ class VideoProcessor:
                     except Exception as exc:
                         logger.debug('[BROLL] failed to persist core timeline manifest: %s', exc)
 
-                render_path = self._render_core_broll_timeline(Path(input_path), timeline_entries)
-                if render_path:
+                candidate_entries = list(timeline_entries)
+                render_candidate = self._render_core_broll_timeline(Path(input_path), timeline_entries)
+                if render_candidate:
+                    render_path = render_candidate
                     self._core_last_render_path = render_path
+                    materialized_entries = candidate_entries
                     try:
                         event_logger.log({
                             'event': 'core_render_complete',
                             'output': str(render_path),
-                            'inserted': inserted_count,
+                            'inserted': len(materialized_entries),
                             'manifest': str(manifest_path) if manifest_path else None,
                         })
                     except Exception:
@@ -1667,15 +1658,59 @@ class VideoProcessor:
                     try:
                         event_logger.log({
                             'event': 'core_render_failed',
-                            'inserted': inserted_count,
+                            'attempted': len(candidate_entries),
+                            'inserted': 0,
                         })
                     except Exception:
                         pass
             else:
                 try:
-                    event_logger.log({'event': 'core_no_timeline', 'selected': inserted_count})
+                    event_logger.log({'event': 'core_no_timeline', 'selected': initial_selected, 'inserted': 0})
                 except Exception:
                     pass
+
+        final_inserted = len(materialized_entries)
+        self._last_broll_insert_count = final_inserted
+
+        if final_inserted > 0:
+            final_segments = [entry.segment_index for entry in materialized_entries]
+            durations = [entry.duration for entry in materialized_entries]
+            providers = Counter(str(entry.provider or 'unknown') for entry in materialized_entries)
+        else:
+            final_segments = []
+            durations = []
+            providers = Counter()
+
+        try:
+            selection_rate = (final_inserted / total_segments) if total_segments else 0.0
+            avg_duration = (sum(durations) / len(durations)) if durations else 0.0
+            broll_per_min = (final_inserted / (total_duration / 60.0)) if total_duration > 0 else 0.0
+            provider_mix = {k: v for k, v in sorted(providers.items()) if v > 0}
+
+            summary_payload.update(
+                {
+                    'inserted': final_inserted,
+                    'selection_rate': round(selection_rate, 4),
+                    'selected_segments': final_segments,
+                    'avg_broll_duration': round(avg_duration, 3) if durations else 0.0,
+                    'broll_per_min': round(broll_per_min, 3) if broll_per_min else 0.0,
+                    'provider_mix': provider_mix,
+                }
+            )
+            event_logger.log({k: v for k, v in summary_payload.items() if v is not None})
+
+            providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
+            icon = "📊"
+            suffix = ""
+            if final_inserted == 0 and initial_selected > 0:
+                icon = "⚠️"
+                suffix = " (échec du téléchargement/rendu)"
+            print(
+                f"    {icon} B-roll sélectionnés: {final_inserted}/{total_segments} "
+                f"({selection_rate * 100:.1f}%); providers={providers_display}{suffix}"
+            )
+        except Exception:
+            pass
 
         # Persist compact selection report next to JSONL
         try:
@@ -1697,7 +1732,7 @@ class VideoProcessor:
             except Exception as e:
                 print(f"[REPORT] failed: {e}")
 
-        return inserted_count, render_path
+        return final_inserted, render_path
 
     def _download_core_candidate(self, candidate, download_dir: Path, order: int) -> Optional[Path]:
         """Download a remote candidate selected by the core orchestrator."""
