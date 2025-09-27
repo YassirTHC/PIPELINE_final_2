@@ -501,8 +501,8 @@ def main():
 	
 	# Import tardif du pipeline pour éviter l'échec avant le check de dépendances
 	try:
-		global VideoProcessor, Config
-		from video_processor import VideoProcessor, Config
+                global VideoProcessor, Config, format_broll_completion_banner
+                from video_processor import VideoProcessor, Config, format_broll_completion_banner
 	except Exception as e:
 		if args.cli:
 			print(f"❌ Erreur d'import du pipeline: {e}")
@@ -572,7 +572,11 @@ def main():
 			# B-rolls avec les mots-clés LLM (CORRIGÉ)
 			broll_path = processor.insert_brolls_if_enabled(reframed_path, subtitles, broll_keywords)
 			broll_time = time.time() - broll_start
-			print(f"    ✅ B-roll insérés avec succès ({broll_time:.1f}s)", flush=True)
+			_, banner = format_broll_completion_banner(
+				processor.get_last_broll_insert_count(),
+				origin="pipeline_core",
+			)
+			print(banner, flush=True)
 			
 			print(f"✨ Étape 4/4: Ajout des sous-titres Hormozi 1...", flush=True)
 			subtitles_start = time.time()

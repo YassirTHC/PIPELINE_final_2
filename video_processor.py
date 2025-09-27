@@ -906,7 +906,12 @@ class VideoProcessor:
         self._last_broll_insert_count = 0
         self._pipeline_config = PipelineConfigBundle()
         self._broll_event_logger = None
-    
+
+    def get_last_broll_insert_count(self) -> int:
+        """Return the number of B-roll clips inserted during the last run."""
+
+        return getattr(self, "_last_broll_insert_count", 0)
+
     def _setup_directories(self):
         """Crée les dossiers nécessaires"""
         for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
