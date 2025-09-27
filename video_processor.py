@@ -1106,8 +1106,10 @@ class VideoProcessor:
         })
 
         log_path = getattr(event_logger, 'path', None)
+        in_memory_entries = getattr(event_logger, 'entries', None)
         if isinstance(log_path, Path) and (not log_path.exists() or log_path.stat().st_size == 0):
-            raise RuntimeError('[CORE] No JSONL events written for this run.')
+            if not in_memory_entries:
+                raise RuntimeError('[CORE] No JSONL events written for this run.')
 
         return final_path
 
@@ -1455,31 +1457,86 @@ class VideoProcessor:
             best_provider = None
             reject_reasons: List[str] = []
             forced_keep = False
+            candidate_records: List[Dict[str, Any]] = []
+            filter_pass_records: List[Dict[str, Any]] = []
 
             for candidate in unique_candidates:
                 score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
-                if score < selection_cfg.min_score:
-                    reject_reasons.append('low_score')
-                    continue
-                if score > best_score:
-                    best_candidate = candidate
-                    best_score = score
-                    best_provider = getattr(candidate, 'provider', None)
-
-            if not best_candidate and unique_candidates:
-                fallback = max(
-                    unique_candidates,
-                    key=lambda cand: self._rank_candidate(segment.text, cand, selection_cfg, seg_duration),
+                passes_filters, filter_reason = orchestrator.evaluate_candidate_filters(
+                    candidate, filters, seg_duration
                 )
-                best_candidate = fallback
-                best_score = self._rank_candidate(segment.text, fallback, selection_cfg, seg_duration)
-                best_provider = getattr(fallback, 'provider', None)
-                reject_reasons.append("fallback_low_score")
+                orientation, duration_val = self._summarize_candidate_media(candidate)
+                record: Dict[str, Any] = {
+                    'candidate': candidate,
+                    'provider': getattr(candidate, 'provider', None),
+                    'score': score,
+                    'orientation': orientation,
+                    'duration_s': duration_val,
+                    'filter_reason': filter_reason,
+                    'passes_filters': passes_filters,
+                    'below_threshold': score < selection_cfg.min_score,
+                }
+                candidate_records.append(record)
+                if passes_filters:
+                    filter_pass_records.append(record)
+
+            eligible_records = [rec for rec in filter_pass_records if not rec['below_threshold']]
+            best_record = None
+            if eligible_records:
+                best_record = max(eligible_records, key=lambda rec: rec['score'])
+            elif filter_pass_records:
+                best_record = max(filter_pass_records, key=lambda rec: rec['score'])
                 forced_keep = True
+
+            if best_record:
+                best_candidate = best_record['candidate']
+                best_score = best_record['score']
+                best_provider = getattr(best_candidate, 'provider', None)
+
+            reject_reason_counts: Counter[str] = Counter()
+            candidate_summary: List[Dict[str, Any]] = []
+
+            for record in candidate_records:
+                is_selected = best_record is not None and record is best_record
+                reason = record['filter_reason']
+                if is_selected:
+                    reason = None
+                elif reason is None:
+                    if record['below_threshold']:
+                        reason = 'low_score'
+                    elif best_record is not None and record['passes_filters']:
+                        reason = 'outscored'
+                if reason:
+                    reject_reason_counts[reason] += 1
+                    reject_reasons.append(reason)
+                summary_entry = {
+                    'provider': record['provider'],
+                    'orientation': record['orientation'],
+                    'duration_s': record['duration_s'],
+                    'score': record['score'],
+                    'reject_reason': reason,
+                    'selected': is_selected,
+                }
+                candidate_summary.append(summary_entry)
+                try:
+                    if event_logger:
+                        event_logger.log(
+                            {
+                                'event': 'broll_candidate_evaluated',
+                                'segment': idx,
+                                **summary_entry,
+                            }
+                        )
+                except Exception:
+                    pass
+
+            if forced_keep and best_candidate:
+                reject_reason_counts['fallback_low_score'] += 1
+                reject_reasons.append('fallback_low_score')
                 logger.info(
                     "[BROLL] fallback candidate selected for segment %s (url=%s, score=%.3f)",
                     idx,
-                    getattr(fallback, 'url', None),
+                    getattr(best_candidate, 'url', None),
                     best_score,
                 )
 
@@ -1543,7 +1600,11 @@ class VideoProcessor:
                 provider=best_provider if best_candidate else None,
                 latency_ms=latency_ms,
                 llm_healthy=llm_healthy,
-                reject_reasons=sorted(set(reject_reasons)),
+                reject_reasons=reject_reasons,
+                reject_summary={
+                    'counts': dict(reject_reason_counts),
+                    'candidates': candidate_summary,
+                },
                 queries=queries,
             )
 
@@ -2317,6 +2378,39 @@ class VideoProcessor:
             base_score += min(0.1, keyword_hits * 0.02)
 
         return max(0.0, min(1.0, base_score))
+
+    def _summarize_candidate_media(self, candidate) -> Tuple[str, Optional[float]]:
+        width_raw = getattr(candidate, 'width', 0)
+        height_raw = getattr(candidate, 'height', 0)
+        try:
+            width = int(width_raw) if width_raw is not None else 0
+        except Exception:
+            width = 0
+        try:
+            height = int(height_raw) if height_raw is not None else 0
+        except Exception:
+            height = 0
+
+        orientation = 'unknown'
+        if width > 0 and height > 0:
+            if width > height:
+                orientation = 'landscape'
+            elif height > width:
+                orientation = 'portrait'
+            else:
+                orientation = 'square'
+
+        duration_val = getattr(candidate, 'duration', None)
+        duration_s: Optional[float]
+        if isinstance(duration_val, (int, float)):
+            duration_s = float(duration_val)
+        else:
+            try:
+                duration_s = float(duration_val)
+            except (TypeError, ValueError):
+                duration_s = None
+
+        return orientation, duration_s
 
     def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_duration: float) -> float:
         base_score = self._estimate_candidate_score(candidate, selection_cfg, segment_duration)

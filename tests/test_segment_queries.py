@@ -80,6 +80,9 @@ class DummyOrchestrator:
         self.fetch_calls.append((list(queries), duration_hint, dict(filters or {})))
         return []
 
+    def evaluate_candidate_filters(self, *_args, **_kwargs):
+        return True, None
+
 
 @pytest.mark.parametrize(
     "brief_terms,expected_phrases",

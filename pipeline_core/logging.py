@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -81,8 +82,11 @@ def log_broll_decision(
     queries: Optional[List[str]] = None,
     provider_status: Optional[Dict[str, Any]] = None,
     best_score: Optional[float] = None,
+    reject_summary: Optional[Dict[str, Any]] = None,
 ) -> None:
     event_name = 'broll_segment_decision' if segment_idx >= 0 else 'broll_session_summary'
+    reason_counts = Counter(reject_reasons or [])
+
     payload = {
         'event': event_name,
         'segment': segment_idx,
@@ -98,13 +102,17 @@ def log_broll_decision(
         'provider': provider,
         'latency_ms': latency_ms,
         'llm_healthy': llm_healthy,
-        'reject_reasons': sorted(set(reject_reasons or [])),
+        'reject_reasons': dict(reason_counts),
         'best_score': best_score,
     }
     if queries is not None:
         payload['queries'] = list(queries)
     if provider_status:
         payload['providers'] = provider_status
+    if reject_summary is not None:
+        payload['reject_summary'] = reject_summary
+    elif reason_counts:
+        payload['reject_summary'] = {'counts': dict(reason_counts)}
     logger.log(payload)
 
 

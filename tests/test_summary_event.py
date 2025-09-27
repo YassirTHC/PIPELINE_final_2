@@ -2,6 +2,7 @@ import json
 import importlib.machinery
 import sys
 import types
+from collections import Counter
 from pathlib import Path
 
 
@@ -89,7 +90,45 @@ def _stub_log_pipeline_summary(logger, result, extra=None):
 
 
 setattr(dummy_logging, "JsonlLogger", _StubJsonlLogger)
-setattr(dummy_logging, "log_broll_decision", lambda *args, **kwargs: None)
+
+
+def _stub_log_broll_decision(logger, *, segment_idx, start, end, query_count, candidate_count,
+                             unique_candidates, url_dedup_hits, phash_dedup_hits, selected_url,
+                             selected_score, provider, latency_ms, llm_healthy, reject_reasons,
+                             queries=None, provider_status=None, best_score=None, reject_summary=None):
+    event_name = "broll_segment_decision" if segment_idx >= 0 else "broll_session_summary"
+    counts = Counter(reject_reasons or [])
+    payload = {
+        "event": event_name,
+        "segment": segment_idx,
+        "t0": start,
+        "t1": end,
+        "q_count": query_count,
+        "candidates": candidate_count,
+        "unique_candidates": unique_candidates,
+        "dedup_url_hits": url_dedup_hits,
+        "dedup_phash_hits": phash_dedup_hits,
+        "selected_url": selected_url,
+        "selected_score": selected_score,
+        "provider": provider,
+        "latency_ms": latency_ms,
+        "llm_healthy": llm_healthy,
+        "reject_reasons": dict(counts),
+    }
+    if queries is not None:
+        payload["queries"] = list(queries)
+    if provider_status is not None:
+        payload["providers"] = provider_status
+    if best_score is not None:
+        payload["best_score"] = best_score
+    if reject_summary is not None:
+        payload["reject_summary"] = reject_summary
+    elif counts:
+        payload["reject_summary"] = {"counts": dict(counts)}
+    logger.log(payload)
+
+
+setattr(dummy_logging, "log_broll_decision", _stub_log_broll_decision)
 setattr(dummy_logging, "log_pipeline_summary", _stub_log_pipeline_summary)
 _ensure_stub("pipeline_core.logging", dummy_logging)
 
@@ -222,6 +261,9 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
                 )
             ]
 
+        def evaluate_candidate_filters(self, *_args, **_kwargs):
+            return True, None
+
     monkeypatch.setattr(video_processor, "FetcherOrchestrator", _DummyOrchestrator)
     monkeypatch.setattr(processor, "_download_core_candidate", lambda *args, **kwargs: None)
     monkeypatch.setattr(processor, "_rank_candidate", lambda *args, **kwargs: 1.0)
@@ -239,6 +281,24 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
 
     assert count == 0
     assert render_path is None
+
+    candidate_events = [event for event in events if event.get("event") == "broll_candidate_evaluated"]
+    assert candidate_events, "expected per-candidate telemetry"
+    candidate_payload = candidate_events[-1]
+    assert candidate_payload["provider"] == "pexels"
+    assert candidate_payload["selected"] is True
+    assert candidate_payload["score"] == 1.0
+    assert candidate_payload["reject_reason"] is None
+
+    decision_events = [event for event in events if event.get("event") == "broll_segment_decision"]
+    assert decision_events, "expected a broll decision event"
+    decision_payload = decision_events[-1]
+    assert decision_payload.get("reject_reasons") == {}
+    summary = decision_payload.get("reject_summary", {})
+    assert summary.get("counts") == {}
+    assert summary.get("candidates")
+    assert summary["candidates"][0]["selected"] is True
+    assert summary["candidates"][0]["reject_reason"] is None
 
     summary_events = [event for event in events if event.get("event") == "broll_summary"]
     assert summary_events, "expected a summary event"

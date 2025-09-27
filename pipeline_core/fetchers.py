@@ -86,7 +86,7 @@ class FetcherOrchestrator:
             return []
 
         start = time.perf_counter()
-        results: List[RemoteAssetCandidate] = []
+        raw_results: List[RemoteAssetCandidate] = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.parallel_requests or 1) as pool:
             futures = []
@@ -99,7 +99,7 @@ class FetcherOrchestrator:
             timeout_s = max(self.config.request_timeout_s, 0.1)
             deadline = start + timeout_s
             pending = set(futures)
-            while pending and len(results) < self.config.per_segment_limit:
+            while pending and len(raw_results) < self.config.per_segment_limit:
                 remaining = deadline - time.perf_counter()
                 if remaining <= 0:
                     break
@@ -120,14 +120,13 @@ class FetcherOrchestrator:
                     if not candidates:
                         continue
                     for candidate in candidates:
-                        if self._candidate_passes_filters(candidate, filters, duration_hint):
-                            results.append(candidate)
-                            if len(results) >= self.config.per_segment_limit:
-                                break
+                        raw_results.append(candidate)
+                        if len(raw_results) >= self.config.per_segment_limit:
+                            break
             for fut in pending:
                 fut.cancel()
 
-        return results[: self.config.per_segment_limit]
+        return raw_results[: self.config.per_segment_limit]
 
     # ------------------------------------------------------------------
     # Provider fetch helpers
@@ -329,31 +328,40 @@ class FetcherOrchestrator:
                 break
         return queries
 
-    def _candidate_passes_filters(
+    def evaluate_candidate_filters(
         self,
         candidate: RemoteAssetCandidate,
         filters: Optional[dict],
         duration_hint: Optional[float],
-    ) -> bool:
-        if not candidate.url:
-            return False
-        orientation = None
-        min_duration = None
-        if filters:
-            orientation = filters.get("orientation")
-            min_duration = filters.get("min_duration_s")
-        if orientation == "landscape" and candidate.width and candidate.height:
-            if candidate.width < candidate.height:
-                return False
-        if orientation == "portrait" and candidate.width and candidate.height:
-            if candidate.height < candidate.width:
-                return False
-        target_min = min_duration if isinstance(min_duration, (int, float)) else None
-        if target_min is None and duration_hint:
-            target_min = max(0.0, float(duration_hint))
-        if target_min and candidate.duration and candidate.duration < target_min:
-            return False
-        return True
+    ) -> Tuple[bool, Optional[str]]:
+        if not getattr(candidate, 'url', None):
+            return False, 'missing_url'
+
+        filters = filters or {}
+        orientation = filters.get('orientation') if isinstance(filters, dict) else None
+        min_duration = filters.get('min_duration_s') if isinstance(filters, dict) else None
+
+        width = getattr(candidate, 'width', 0) or 0
+        height = getattr(candidate, 'height', 0) or 0
+        if orientation == 'landscape' and width and height and width < height:
+            return False, 'filter_orientation'
+        if orientation == 'portrait' and width and height and height < width:
+            return False, 'filter_orientation'
+
+        target_min = None
+        if isinstance(min_duration, (int, float)):
+            target_min = float(min_duration)
+        elif duration_hint is not None:
+            try:
+                target_min = max(0.0, float(duration_hint))
+            except Exception:
+                target_min = None
+
+        duration = getattr(candidate, 'duration', None)
+        if target_min and isinstance(duration, (int, float)) and float(duration) < target_min:
+            return False, 'filter_duration'
+
+        return True, None
 
     def _log_event(self, payload: Dict[str, Any]) -> None:
         if self._event_logger:
