@@ -138,7 +138,20 @@ def test_broll_summary_matches_console(tmp_path):
         "event": "broll_summary",
         "segments": 3,
         "inserted": 2,
-        "providers_used": ["pexels"],
+        "selection_rate": round(2 / 3, 4),
+        "selected_segments": [0, 2],
+        "avg_broll_duration": 2.5,
+        "broll_per_min": 1.2,
+        "avg_latency_ms": 420.0,
+        "refined_ratio": round(1 / 3, 4),
+        "provider_mix": {"pexels": 2},
+        "query_source_counts": {"segment_brief": 2, "fallback_keywords": 1},
+        "total_url_dedup_hits": 1,
+        "total_phash_dedup_hits": 0,
+        "forced_keep_segments": 1,
+        "total_candidates": 9,
+        "total_unique_candidates": 4,
+        "video_duration_s": 75.0,
     })
 
     content = log_path.read_text(encoding="utf-8").strip().splitlines()
@@ -147,9 +160,12 @@ def test_broll_summary_matches_console(tmp_path):
     assert payload["event"] == "broll_summary"
     assert payload["inserted"] == 2
     assert payload["segments"] == 3
-    assert payload["providers_used"] == ["pexels"]
+    assert payload["provider_mix"] == {"pexels": 2}
+    assert payload["selection_rate"] == round(2 / 3, 4)
+    assert payload["query_source_counts"] == {"segment_brief": 2, "fallback_keywords": 1}
+    assert payload["forced_keep_segments"] == 1
 
-    fake_console_line = "    📊 B-roll sélectionnés: 2/3"
+    fake_console_line = "    📊 B-roll sélectionnés: 2/3 (66.7%); providers=pexels:2"
     import re
 
     match = re.search(r"B-roll sélectionnés:\s*(\d+)\s*/\s*(\d+)", fake_console_line)

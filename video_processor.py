@@ -74,6 +74,28 @@ SEEN_IDENTIFIERS: Set[str] = set()
 PHASH_DISTANCE = 6
 
 
+class _BrollLoggerProxy:
+    """Small proxy adding in-memory storage for JSONL events."""
+
+    def __init__(self, inner_logger):
+        self._inner = inner_logger
+        self.entries: List[Dict[str, Any]] = []
+
+    def log(self, payload: Dict[str, Any]):
+        try:
+            entry = dict(payload)
+        except Exception:
+            entry = {'event': 'unknown', 'payload': payload}
+        self.entries.append(entry)
+        try:
+            self._inner.log(payload)
+        except Exception:
+            pass
+
+    def __getattr__(self, name):  # pragma: no cover - passthrough accessors
+        return getattr(self._inner, name)
+
+
 def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
     if timeout_s <= 0:
         return fn(*args, **kwargs)
@@ -146,6 +168,38 @@ def dedupe_by_phash(candidates):
         setattr(candidate, '_phash', phash)
         unique.append(candidate)
     return unique, hits
+
+
+def enforce_broll_schedule_rules(plan, *, min_duration: float = 1.8, min_gap: float = 1.5):
+    """Filter a naive schedule to satisfy duration and gap constraints."""
+
+    filtered = []
+    drops: List[Dict[str, Any]] = []
+    last_end = -1e9
+
+    for item in plan or []:
+        start = float(getattr(item, 'start', 0.0) or 0.0)
+        end = float(getattr(item, 'end', start) or start)
+        if end < start:
+            start, end = end, start
+        duration = max(0.0, end - start)
+        reason = None
+        gap_threshold = max(0.0, min_gap)
+        duration_threshold = max(0.0, min_duration)
+
+        if filtered and (start - last_end) < gap_threshold:
+            reason = 'gap_violation'
+        elif duration + 1e-6 < duration_threshold:
+            reason = 'duration_short'
+
+        if reason:
+            drops.append({'start': start, 'end': end, 'reason': reason})
+            continue
+
+        filtered.append(item)
+        last_end = end
+
+    return filtered, drops
 
 # --- Query normalization for external providers (Pexels/Pixabay)
 _STOPWORDS: Set[str] = {
@@ -276,7 +330,13 @@ from pipeline_core.configuration import PipelineConfigBundle
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
-from pipeline_core.llm_service import LLMMetadataGeneratorService, enforce_fetch_language
+try:
+    from pipeline_core.llm_service import LLMMetadataGeneratorService, enforce_fetch_language
+except ImportError:  # pragma: no cover - test environments may stub partial API
+    from pipeline_core.llm_service import LLMMetadataGeneratorService  # type: ignore
+
+    def enforce_fetch_language(terms, language=None):  # type: ignore[override]
+        return list(dict.fromkeys(term for term in terms if term))
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
@@ -887,8 +947,23 @@ class VideoProcessor:
 
         session_id = f"{clip_path.stem}-{int(time.time() * 1000)}"
         log_file = meta_dir / 'broll_pipeline_events.jsonl'
-        event_logger = JsonlLogger(log_file)
+        event_logger = _BrollLoggerProxy(JsonlLogger(log_file))
         self._broll_event_logger = event_logger
+        try:
+            env_payload = {
+                'event': 'broll_env_ready',
+                'providers': [
+                    name
+                    for name, env_key in (
+                        ('pexels', 'PEXELS_API_KEY'),
+                        ('pixabay', 'PIXABAY_API_KEY'),
+                    )
+                    if os.environ.get(env_key)
+                ],
+            }
+            event_logger.log(env_payload)
+        except Exception:
+            pass
 
         use_core = enable_core if enable_core is not None else _pipeline_core_fetcher_enabled()
         logger.info('[CORE] Orchestrator %s', 'enabled' if use_core else 'disabled (legacy path)')
@@ -941,10 +1016,33 @@ class VideoProcessor:
         return final_path
 
     def _get_broll_event_logger(self):
-        if getattr(self, '_broll_event_logger', None) is None:
+        logger_obj = getattr(self, '_broll_event_logger', None)
+        if logger_obj is None:
             log_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_pipeline_events.jsonl'
-            self._broll_event_logger = JsonlLogger(log_file)
-        return self._broll_event_logger
+            logger_obj = _BrollLoggerProxy(JsonlLogger(log_file))
+            self._broll_event_logger = logger_obj
+        try:
+            entries = getattr(logger_obj, 'entries', [])
+            has_env = any(event.get('event') == 'broll_env_ready' for event in entries)
+        except Exception:
+            has_env = False
+        if not has_env:
+            try:
+                env_payload = {
+                    'event': 'broll_env_ready',
+                    'providers': [
+                        name
+                        for name, env_key in (
+                            ('pexels', 'PEXELS_API_KEY'),
+                            ('pixabay', 'PIXABAY_API_KEY'),
+                        )
+                        if os.environ.get(env_key)
+                    ],
+                }
+                logger_obj.log(env_payload)
+            except Exception:
+                pass
+        return logger_obj
 
 
     def _maybe_use_pipeline_core(
@@ -1100,6 +1198,17 @@ class VideoProcessor:
         fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
         selected_assets: List[Dict[str, Any]] = []
+        provider_counter: Counter[str] = Counter()
+        query_source_counter: Counter[str] = Counter()
+        selected_segments: List[int] = []
+        selected_durations: List[float] = []
+        total_candidates = 0
+        total_unique_candidates = 0
+        total_url_dedup_hits = 0
+        total_phash_dedup_hits = 0
+        total_latency_ms = 0
+        segments_with_queries = 0
+        forced_keep_segments = 0
         for idx, segment in enumerate(segments):
             seg_duration = max(0.0, segment.end - segment.start)
             llm_hints = None
@@ -1144,6 +1253,8 @@ class VideoProcessor:
             if dyn_language in ('', 'en'):
                 queries = enforce_fetch_language(queries, dyn_language or None)
 
+            query_source_counter[query_source] += 1
+
             try:
                 event_logger.log({
                     'event': 'broll_segment_queries',
@@ -1176,6 +1287,7 @@ class VideoProcessor:
                 )
                 continue
 
+            segments_with_queries += 1
             try:
                 print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
             except Exception:
@@ -1233,10 +1345,16 @@ class VideoProcessor:
             unique_candidates, url_hits = dedupe_by_url(candidates)
             unique_candidates, phash_hits = dedupe_by_phash(unique_candidates)
 
+            total_candidates += len(candidates)
+            total_unique_candidates += len(unique_candidates)
+            total_url_dedup_hits += url_hits
+            total_phash_dedup_hits += phash_hits
+
             best_candidate = None
             best_score = -1.0
             best_provider = None
             reject_reasons: List[str] = []
+            forced_keep = False
 
             for candidate in unique_candidates:
                 score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
@@ -1257,6 +1375,7 @@ class VideoProcessor:
                 best_score = self._rank_candidate(segment.text, fallback, selection_cfg, seg_duration)
                 best_provider = getattr(fallback, 'provider', None)
                 reject_reasons.append("fallback_low_score")
+                forced_keep = True
                 logger.info(
                     "[BROLL] fallback candidate selected for segment %s (url=%s, score=%.3f)",
                     idx,
@@ -1280,6 +1399,16 @@ class VideoProcessor:
                     'url': getattr(best_candidate, 'url', None),
                     'score': best_score,
                 })
+                provider_label = str(best_provider or 'unknown')
+                provider_counter[provider_label] += 1
+                selected_segments.append(idx)
+                duration_val = getattr(best_candidate, 'duration', None)
+                if isinstance(duration_val, (int, float)) and duration_val > 0:
+                    selected_durations.append(float(duration_val))
+                elif seg_duration > 0:
+                    selected_durations.append(float(seg_duration))
+                if forced_keep:
+                    forced_keep_segments += 1
                 # Append to selection report
                 try:
                     if report is not None:
@@ -1295,6 +1424,7 @@ class VideoProcessor:
                     pass
 
             latency_ms = int((time.perf_counter() - start_time) * 1000)
+            total_latency_ms += latency_ms
             log_broll_decision(
                 event_logger,
                 segment_idx=idx,
@@ -1350,13 +1480,39 @@ class VideoProcessor:
         self._last_broll_insert_count = inserted_count
 
         try:
-            event_logger.log({
+            total_segments = len(segments)
+            selection_rate = (inserted_count / total_segments) if total_segments else 0.0
+            avg_duration = (sum(selected_durations) / len(selected_durations)) if selected_durations else 0.0
+            total_duration = max((getattr(seg, 'end', 0.0) or 0.0) for seg in segments) if segments else 0.0
+            broll_per_min = (inserted_count / (total_duration / 60.0)) if total_duration > 0 else 0.0
+            avg_latency = (total_latency_ms / segments_with_queries) if segments_with_queries else 0.0
+            refined_ratio = (query_source_counter.get('segment_brief', 0) / total_segments) if total_segments else 0.0
+            provider_mix = {k: v for k, v in sorted(provider_counter.items()) if v > 0}
+            summary_payload = {
                 'event': 'broll_summary',
-                'segments': len(segments),
+                'segments': total_segments,
                 'inserted': inserted_count,
-                'providers_used': sorted({item['provider'] for item in selected_assets if item.get('provider')}),
-            })
-            print(f"    📊 B-roll sélectionnés: {inserted_count}/{len(segments)}")
+                'selection_rate': round(selection_rate, 4),
+                'selected_segments': selected_segments,
+                'avg_broll_duration': round(avg_duration, 3) if selected_durations else 0.0,
+                'broll_per_min': round(broll_per_min, 3) if broll_per_min else 0.0,
+                'avg_latency_ms': round(avg_latency, 1) if avg_latency else 0.0,
+                'refined_ratio': round(refined_ratio, 4),
+                'provider_mix': provider_mix,
+                'query_source_counts': dict(query_source_counter),
+                'total_url_dedup_hits': total_url_dedup_hits,
+                'total_phash_dedup_hits': total_phash_dedup_hits,
+                'forced_keep_segments': forced_keep_segments,
+                'total_candidates': total_candidates,
+                'total_unique_candidates': total_unique_candidates,
+                'video_duration_s': round(total_duration, 3) if total_duration else 0.0,
+            }
+            event_logger.log({k: v for k, v in summary_payload.items() if v is not None})
+            providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
+            print(
+                f"    📊 B-roll sélectionnés: {inserted_count}/{total_segments} "
+                f"({selection_rate * 100:.1f}%); providers={providers_display}"
+            )
         except Exception:
             pass
 
