@@ -529,7 +529,7 @@ class LLMMetadataGeneratorService:
         return self._integration
 
     # --- Compatibility layer for plain text completions ---------------------
-    def _complete_text(self, prompt: str) -> str:
+    def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:
         """Attempt to invoke a completion method on the underlying integration.
 
         Tries common method names; falls back to calling the optimized LLM engine
@@ -544,7 +544,7 @@ class LLMMetadataGeneratorService:
             fn = getattr(integration, attr, None)
             if callable(fn):
                 try:
-                    return self._invoke_completion(fn, prompt)
+                    return self._invoke_completion(fn, prompt, max_tokens=max_tokens)
                 except Exception as exc:  # pragma: no cover - robustness
                     last_error = exc
                     if self._is_timeout_error(exc):
@@ -560,7 +560,7 @@ class LLMMetadataGeneratorService:
                     fn = getattr(llm, attr, None)
                     if callable(fn):
                         try:
-                            return self._invoke_completion(fn, prompt)
+                            return self._invoke_completion(fn, prompt, max_tokens=max_tokens)
                         except Exception as exc:  # pragma: no cover - robustness
                             last_error = exc
                             if self._is_timeout_error(exc):
@@ -575,7 +575,7 @@ class LLMMetadataGeneratorService:
                         ok, text, err = call(
                             prompt,
                             temperature=0.1,
-                            max_tokens=800,
+                            max_tokens=max_tokens,
                             timeout=self._llm_timeout,
                         )
                         if ok and isinstance(text, str):
@@ -592,7 +592,7 @@ class LLMMetadataGeneratorService:
 
         raise RuntimeError("No compatible completion method available on integration")
 
-    def _invoke_completion(self, fn, prompt: str) -> Any:
+    def _invoke_completion(self, fn, prompt: str, *, max_tokens: int) -> Any:
         """Call a completion function with a bounded timeout when supported."""
 
         kwargs: Dict[str, Any] = {}
@@ -606,7 +606,7 @@ class LLMMetadataGeneratorService:
             if "timeout" in params:
                 kwargs["timeout"] = self._llm_timeout
             if "max_tokens" in params and "max_tokens" not in kwargs:
-                kwargs["max_tokens"] = 800
+                kwargs["max_tokens"] = max_tokens
         try:
             return fn(prompt, **kwargs)  # type: ignore[misc]
         except TypeError as exc:
@@ -621,13 +621,58 @@ class LLMMetadataGeneratorService:
 
     def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
         """Domain detection + dynamic expansions (no hardcoded domains)."""
-        prompt = build_dynamic_prompt(transcript_text, max_len=max_len)
+        transcript = transcript_text or ''
+        attempt_limits: List[int] = []
+        for limit in (max_len, max_len // 2, max_len // 3):
+            if limit and limit > 0:
+                attempt_limits.append(min(max_len, max(limit, 350)))
+
+        # Keep order from largest to smallest while removing duplicates
+        seen_limits = set()
+        ordered_limits: List[int] = []
+        for limit in attempt_limits:
+            if limit not in seen_limits:
+                ordered_limits.append(limit)
+                seen_limits.add(limit)
+
+        if not ordered_limits:
+            ordered_limits = [max_len or 600]
+
         raw_payload: Dict[str, Any] = {}
-        try:
-            raw_text = self._complete_text(prompt)
-            raw_payload = _safe_parse_json(raw_text)
-        except Exception:
-            logger.exception('[LLM] dynamic context failed')
+        for idx, limit in enumerate(ordered_limits, start=1):
+            prompt = build_dynamic_prompt(transcript, max_len=limit)
+            if limit >= 1400:
+                token_budget = 700
+            elif limit >= 900:
+                token_budget = 550
+            elif limit >= 600:
+                token_budget = 400
+            else:
+                token_budget = 300
+            try:
+                raw_text = self._complete_text(prompt, max_tokens=token_budget)
+            except TimeoutError:
+                logger.warning(
+                    '[LLM] dynamic context attempt %s timed out (limit=%s, tokens=%s)',
+                    idx,
+                    limit,
+                    token_budget,
+                )
+                continue
+            except Exception:
+                logger.exception('[LLM] dynamic context attempt %s failed', idx)
+                continue
+
+            if isinstance(raw_text, dict):
+                raw_payload = raw_text
+            else:
+                raw_payload = _safe_parse_json(raw_text)
+
+            if raw_payload:
+                break
+        else:
+            if transcript:
+                logger.warning('[LLM] dynamic context fell back to TF-IDF (no structured payload)')
         return _normalise_dynamic_payload(raw_payload, transcript=transcript_text or '')
 
 
