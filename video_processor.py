@@ -2910,80 +2910,107 @@ class VideoProcessor:
         except Exception:
             return [x_centers[-1]] * len(target_times)
 
-    def _detect_single_frame(self, image_rgb: np.ndarray) -> float:
-        # Détecteurs MediaPipe
-        mp_pose = mp.solutions.pose
-        mp_face = mp.solutions.face_detection
-        h, w = image_rgb.shape[:2]
-        with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
-            pose_results = pose.process(image_rgb)
-            if pose_results.pose_landmarks:
-                landmarks = pose_results.pose_landmarks.landmark
+    def _detect_center_with_mediapipe(self, image_rgb: np.ndarray, pose_solver, face_solver, pose_module) -> Optional[float]:
+        if not MEDIAPIPE_AVAILABLE or pose_solver is None or pose_module is None:
+            return None
+        try:
+            pose_results = pose_solver.process(image_rgb)
+        except Exception:
+            pose_results = None
+        if pose_results and getattr(pose_results, "pose_landmarks", None):
+            landmarks = pose_results.pose_landmarks.landmark
+            try:
                 key_points = [
-                    landmarks[mp_pose.PoseLandmark.NOSE],
-                    landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
-                    landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
+                    landmarks[pose_module.PoseLandmark.NOSE],
+                    landmarks[pose_module.PoseLandmark.LEFT_SHOULDER],
+                    landmarks[pose_module.PoseLandmark.RIGHT_SHOULDER],
                 ]
-                valid_points = [p.x for p in key_points if p.visibility > 0.5]
-                if valid_points:
-                    return sum(valid_points) / len(valid_points)
-            face_results = face_detection.process(image_rgb)
-            if face_results.detections:
+            except Exception:
+                key_points = []
+            valid_points = [p.x for p in key_points if getattr(p, "visibility", 0) > 0.5]
+            if valid_points:
+                return float(sum(valid_points) / len(valid_points))
+        if face_solver is None:
+            return None
+        try:
+            face_results = face_solver.process(image_rgb)
+        except Exception:
+            face_results = None
+        if face_results and getattr(face_results, "detections", None):
+            try:
                 detection = face_results.detections[0]
                 bbox = detection.location_data.relative_bounding_box
-                return bbox.xmin + bbox.width / 2
-        gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
-            if moments:
-                centroids_x = [m['m10']/m['m00'] for m in moments if m['m00'] > 0]
-                if centroids_x:
-                    return sum(centroids_x) / len(centroids_x) / w
+                return float(bbox.xmin + bbox.width / 2)
+            except Exception:
+                return None
+        return None
+
+    def _detect_center_from_edges(self, image_rgb: np.ndarray) -> Optional[float]:
+        try:
+            gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+            edges = cv2.Canny(gray, 50, 150)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        except Exception:
+            return None
+        if not contours:
+            return None
+        moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
+        if not moments:
+            return None
+        centroids_x = [m['m10']/m['m00'] for m in moments if m.get('m00')]
+        if not centroids_x:
+            return None
+        width = float(image_rgb.shape[1]) if image_rgb.shape[1] else 1.0
+        return float(sum(centroids_x) / len(centroids_x) / width)
+
+    def _detect_single_frame(self, image_rgb: np.ndarray) -> float:
+        if MEDIAPIPE_AVAILABLE:
+            try:
+                mp_pose = mp.solutions.pose
+                mp_face = mp.solutions.face_detection
+            except Exception:
+                mp_pose = None
+                mp_face = None
+            if mp_pose is not None and mp_face is not None:
+                with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
+                    center = self._detect_center_with_mediapipe(image_rgb, pose, face_detection, mp_pose)
+                    if center is not None:
+                        return center
+        center = self._detect_center_from_edges(image_rgb)
+        if center is not None:
+            return center
         return 0.5
 
     def _detect_focus_points(self, video: VideoFileClip, fps: int, duration: float) -> List[float]:
         x_centers = []
         sample_times = self._get_sample_times(duration, fps)
-        mp_pose = mp.solutions.pose
-        mp_face = mp.solutions.face_detection
-        with mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, mp_face.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
+        pose_module = None
+        face_module = None
+        if MEDIAPIPE_AVAILABLE:
+            try:
+                pose_module = mp.solutions.pose
+                face_module = mp.solutions.face_detection
+            except Exception:
+                pose_module = None
+                face_module = None
+        if pose_module is not None and face_module is not None:
+            with pose_module.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, face_module.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
+                for t in tqdm(sample_times, desc="🔎 IA focus", leave=False):
+                    try:
+                        frame = video.get_frame(t)  # MoviePy retourne des frames RGB
+                        image_rgb = frame
+                        center = self._detect_center_with_mediapipe(image_rgb, pose, face_detection, pose_module)
+                        if center is None:
+                            center = self._detect_center_from_edges(image_rgb)
+                        x_centers.append(center if center is not None else 0.5)
+                    except Exception:
+                        x_centers.append(0.5)
+        else:
             for t in tqdm(sample_times, desc="🔎 IA focus", leave=False):
                 try:
                     frame = video.get_frame(t)  # MoviePy retourne des frames RGB
-                    image_rgb = frame
-                    # Pose
-                    pose_results = pose.process(image_rgb)
-                    if pose_results.pose_landmarks:
-                        landmarks = pose_results.pose_landmarks.landmark
-                        key_points = [
-                            landmarks[mp_pose.PoseLandmark.NOSE],
-                            landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER],
-                            landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-                        ]
-                        valid_points = [p.x for p in key_points if p.visibility > 0.5]
-                        if valid_points:
-                            x_centers.append(sum(valid_points)/len(valid_points))
-                            continue
-                    # Face fallback
-                    face_results = face_detection.process(image_rgb)
-                    if face_results.detections:
-                        detection = face_results.detections[0]
-                        bbox = detection.location_data.relative_bounding_box
-                        x_centers.append(bbox.xmin + bbox.width/2)
-                        continue
-                    # Mouvement fallback
-                    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-                    edges = cv2.Canny(gray, 50, 150)
-                    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    if contours:
-                        moments = [cv2.moments(c) for c in contours if cv2.contourArea(c) > 100]
-                        centroids_x = [m['m10']/m['m00'] for m in moments if m['m00'] > 0]
-                        if centroids_x:
-                            x_centers.append(sum(centroids_x)/len(centroids_x)/image_rgb.shape[1])
-                            continue
-                    x_centers.append(0.5)
+                    center = self._detect_center_from_edges(frame)
+                    x_centers.append(center if center is not None else 0.5)
                 except Exception:
                     x_centers.append(0.5)
         return self._interpolate_trajectory(x_centers, sample_times, duration, fps)
