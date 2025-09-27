@@ -105,7 +105,8 @@ _ensure_stub("pipeline_core.dedupe", dummy_dedupe)
 
 from pipeline_core.logging import JsonlLogger, log_pipeline_summary
 from pipeline_core.runtime import PipelineResult
-from video_processor import format_broll_completion_banner
+import video_processor
+from video_processor import VideoProcessor, format_broll_completion_banner
 
 
 def test_pipeline_summary_event_contains_flags(tmp_path):
@@ -187,3 +188,62 @@ def test_format_broll_banner_keeps_success_icon():
     assert "✅" in banner
     assert "3" in banner
     assert "B-roll" in banner
+
+
+def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
+    monkeypatch.setenv("FAST_TESTS", "1")
+
+    monkeypatch.setattr(video_processor.Config, "CLIPS_FOLDER", tmp_path / "clips", raising=False)
+    monkeypatch.setattr(video_processor.Config, "OUTPUT_FOLDER", tmp_path / "output", raising=False)
+    monkeypatch.setattr(video_processor.Config, "TEMP_FOLDER", tmp_path / "temp", raising=False)
+
+    processor = VideoProcessor()
+
+    events = []
+
+    class _DummyLogger:
+        def log(self, payload):
+            events.append(dict(payload))
+
+    dummy_logger = _DummyLogger()
+    monkeypatch.setattr(processor, "_get_broll_event_logger", lambda: dummy_logger)
+
+    class _DummyOrchestrator:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def fetch_candidates(self, *args, **kwargs):
+            return [
+                types.SimpleNamespace(
+                    url="http://example.com/a.mp4",
+                    provider="pexels",
+                    duration=2.5,
+                    title="hello world",
+                )
+            ]
+
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", _DummyOrchestrator)
+    monkeypatch.setattr(processor, "_download_core_candidate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(processor, "_rank_candidate", lambda *args, **kwargs: 1.0)
+
+    segment = types.SimpleNamespace(start=0.0, end=5.0, text="hello world")
+    input_path = tmp_path / "input.mp4"
+    input_path.write_text("dummy", encoding="utf-8")
+
+    count, render_path = processor._insert_brolls_pipeline_core(
+        [segment],
+        ["hello"],
+        subtitles=None,
+        input_path=input_path,
+    )
+
+    assert count == 0
+    assert render_path is None
+
+    summary_events = [event for event in events if event.get("event") == "broll_summary"]
+    assert summary_events, "expected a summary event"
+    assert summary_events[-1]["inserted"] == 0
+
+    banner_success, banner_text = format_broll_completion_banner(count, origin="pipeline_core")
+    assert banner_success is False
+    assert "⚠️" in banner_text
