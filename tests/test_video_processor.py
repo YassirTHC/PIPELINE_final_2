@@ -5,6 +5,7 @@ import importlib
 import importlib.machinery
 import types
 from pathlib import Path
+from typing import Any, Dict
 
 import pytest
 
@@ -261,6 +262,64 @@ def test_legacy_fallback_disabled_skips_src_pipeline(tmp_path, monkeypatch, vide
         serialized = json.dumps(evt, ensure_ascii=False)
         assert "archive" not in serialized.lower()
         assert "giphy" not in serialized.lower()
+
+
+def test_insert_brolls_initialises_library_and_calls_core(tmp_path, monkeypatch, video_processor_module):
+    module = video_processor_module
+    monkeypatch.chdir(tmp_path)
+
+    (tmp_path / "AI-B-roll").mkdir(parents=True, exist_ok=True)
+
+    clips_dir = tmp_path / "clips"
+    output_dir = tmp_path / "output"
+    temp_dir = tmp_path / "temp"
+    for folder in (clips_dir, output_dir, temp_dir):
+        folder.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(module.Config, "ENABLE_BROLL", True)
+    monkeypatch.setattr(module.Config, "CLIPS_FOLDER", clips_dir)
+    monkeypatch.setattr(module.Config, "OUTPUT_FOLDER", output_dir)
+    monkeypatch.setattr(module.Config, "TEMP_FOLDER", temp_dir)
+    monkeypatch.setattr(module.Config, "ENABLE_LEGACY_PIPELINE_FALLBACK", False)
+    monkeypatch.delenv("ENABLE_LEGACY_PIPELINE_FALLBACK", raising=False)
+    monkeypatch.setenv("ENABLE_PIPELINE_CORE_FETCHER", "1")
+
+    calls: Dict[str, Any] = {}
+
+    def fake_core(self, segments, broll_keywords, *, subtitles, input_path):
+        calls["segments"] = list(segments)
+        calls["keywords"] = list(broll_keywords)
+        calls["subtitles"] = list(subtitles)
+        calls["input_path"] = Path(input_path)
+        return (0, None)
+
+    monkeypatch.setattr(module.VideoProcessor, "_maybe_use_pipeline_core", fake_core, raising=False)
+
+    class DummyLogger:
+        def __init__(self):
+            self.entries = []
+
+        def log(self, payload):
+            self.entries.append(dict(payload))
+
+    dummy_logger = DummyLogger()
+    monkeypatch.setattr(module.VideoProcessor, "_get_broll_event_logger", lambda self: dummy_logger, raising=False)
+
+    clip_path = tmp_path / "clip.mp4"
+    clip_path.write_bytes(b"data")
+
+    processor = module.VideoProcessor()
+
+    result = processor.insert_brolls_if_enabled(
+        clip_path,
+        subtitles=[{"start": 0.0, "end": 1.0, "text": "hello world"}],
+        broll_keywords=["focus"],
+    )
+
+    assert result == clip_path
+    assert "segments" in calls and calls["segments"]
+    assert calls["input_path"] == clip_path
+    assert (tmp_path / "AI-B-roll" / "broll_library").exists()
 
 
 def test_pipeline_core_single_provider_warns(monkeypatch, caplog, tmp_path, video_processor_module):
