@@ -13,6 +13,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 import unicodedata
+import inspect
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -475,6 +476,12 @@ class LLMMetadataGeneratorService:
         self._reuse_shared = reuse_shared
         self._config = config
         self._integration = None
+        timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT")
+        try:
+            timeout_val = int(timeout_env) if timeout_env else 35
+        except (TypeError, ValueError):
+            timeout_val = 35
+        self._llm_timeout = max(5, timeout_val)
 
     @classmethod
     def get_shared(cls, config: Optional[Any] = None):
@@ -531,33 +538,86 @@ class LLMMetadataGeneratorService:
         integration = self._get_integration()
 
         # 1) Try common completion-shaped methods on integration directly
+        last_error: Optional[BaseException] = None
+        timed_out = False
         for attr in ("complete_json", "complete", "chat", "generate"):
             fn = getattr(integration, attr, None)
             if callable(fn):
                 try:
-                    return fn(prompt)  # type: ignore[misc]
-                except Exception:
-                    continue
+                    return self._invoke_completion(fn, prompt)
+                except Exception as exc:  # pragma: no cover - robustness
+                    last_error = exc
+                    if self._is_timeout_error(exc):
+                        timed_out = True
+                        break
 
         # 2) Try going through the optimized LLM engine if exposed
-        llm = getattr(integration, "llm", None)
-        if llm is not None:
-            # Prefer a public method if one exists
-            for attr in ("complete_json", "complete", "generate"):
-                fn = getattr(llm, attr, None)
-                if callable(fn):
-                    try:
-                        return fn(prompt)  # type: ignore[misc]
-                    except Exception:
-                        continue
-            # Fallback to private _call_llm used in optimized_llm.py
-            call = getattr(llm, "_call_llm", None)
-            if callable(call):
-                ok, text, _err = call(prompt, temperature=0.1, max_tokens=800)
-                if ok and isinstance(text, str):
-                    return text
+        if not timed_out:
+            llm = getattr(integration, "llm", None)
+            if llm is not None:
+                # Prefer a public method if one exists
+                for attr in ("complete_json", "complete", "generate"):
+                    fn = getattr(llm, attr, None)
+                    if callable(fn):
+                        try:
+                            return self._invoke_completion(fn, prompt)
+                        except Exception as exc:  # pragma: no cover - robustness
+                            last_error = exc
+                            if self._is_timeout_error(exc):
+                                timed_out = True
+                                break
+                    if timed_out:
+                        break
+                if not timed_out:
+                    # Fallback to private _call_llm used in optimized_llm.py
+                    call = getattr(llm, "_call_llm", None)
+                    if callable(call):
+                        ok, text, err = call(
+                            prompt,
+                            temperature=0.1,
+                            max_tokens=800,
+                            timeout=self._llm_timeout,
+                        )
+                        if ok and isinstance(text, str):
+                            return text
+                        if err == "timeout":
+                            timed_out = True
+                        last_error = RuntimeError(f"LLM _call_llm failed: {err or 'unknown'}")
+
+        if timed_out:
+            raise TimeoutError("LLM completion timed out") from last_error
+
+        if last_error is not None:
+            raise RuntimeError("No compatible completion method available on integration") from last_error
 
         raise RuntimeError("No compatible completion method available on integration")
+
+    def _invoke_completion(self, fn, prompt: str) -> Any:
+        """Call a completion function with a bounded timeout when supported."""
+
+        kwargs: Dict[str, Any] = {}
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):  # pragma: no cover - builtins
+            signature = None
+
+        if signature is not None:
+            params = signature.parameters
+            if "timeout" in params:
+                kwargs["timeout"] = self._llm_timeout
+            if "max_tokens" in params and "max_tokens" not in kwargs:
+                kwargs["max_tokens"] = 800
+        try:
+            return fn(prompt, **kwargs)  # type: ignore[misc]
+        except TypeError as exc:
+            if kwargs:
+                return fn(prompt)  # type: ignore[misc]
+            raise exc
+
+    @staticmethod
+    def _is_timeout_error(exc: BaseException) -> bool:
+        message = str(exc).lower()
+        return "timeout" in message or "timed out" in message
 
     def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
         """Domain detection + dynamic expansions (no hardcoded domains)."""
