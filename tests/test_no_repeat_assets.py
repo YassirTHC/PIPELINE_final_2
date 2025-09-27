@@ -224,9 +224,13 @@ def test_fallback_selects_candidate_when_min_score_too_high():
 
     original_fetcher = vp.FetcherOrchestrator
     original_dedupe_by_phash = vp.dedupe_by_phash
+    original_download = vp.VideoProcessor._download_core_candidate
+    original_render = vp.VideoProcessor._render_core_broll_timeline
     try:
         vp.FetcherOrchestrator = lambda cfg: SimpleNamespace(fetch_candidates=fake_fetch_candidates)
         vp.dedupe_by_phash = lambda candidates: (candidates, 0)
+        vp.VideoProcessor._download_core_candidate = lambda self, *_args, **_kwargs: Path("core_asset.mp4")
+        vp.VideoProcessor._render_core_broll_timeline = lambda self, *_args, **_kwargs: Path("rendered.mp4")
 
         processor._insert_brolls_pipeline_core(
             segments=[SimpleNamespace(start=0.0, end=4.0, text="hello world")],
@@ -237,6 +241,8 @@ def test_fallback_selects_candidate_when_min_score_too_high():
     finally:
         vp.FetcherOrchestrator = original_fetcher
         vp.dedupe_by_phash = original_dedupe_by_phash
+        vp.VideoProcessor._download_core_candidate = original_download
+        vp.VideoProcessor._render_core_broll_timeline = original_render
 
     assert "https://cdn/fallback.mp4" in vp.SEEN_URLS
     assert "asset-1" in vp.SEEN_IDENTIFIERS

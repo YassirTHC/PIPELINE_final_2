@@ -237,6 +237,105 @@ def test_pipeline_core_single_provider_warns(monkeypatch, caplog, tmp_path, vide
     assert called is False
     assert any("pipeline_core fetcher misconfigured" in record.message for record in caplog.records)
 
+
+def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_processor_module):
+    module = video_processor_module
+
+    temp_dir = tmp_path / "temp"
+    output_dir = tmp_path / "out"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(module.Config, "TEMP_FOLDER", temp_dir)
+    monkeypatch.setattr(module.Config, "OUTPUT_FOLDER", output_dir)
+
+    processor = module.VideoProcessor.__new__(module.VideoProcessor)
+    processor._pipeline_config = types.SimpleNamespace(
+        fetcher=types.SimpleNamespace(providers=[types.SimpleNamespace(name="stub", enabled=True)]),
+        selection=types.SimpleNamespace(min_score=0.0, prefer_landscape=False, min_duration_s=0.0),
+        timeboxing=types.SimpleNamespace(fetch_rank_ms=0),
+    )
+    processor._llm_service = None
+
+    class DummyLogger:
+        def __init__(self):
+            self.entries = []
+
+        def log(self, payload):
+            self.entries.append(dict(payload))
+
+    event_logger = DummyLogger()
+    processor._broll_event_logger = event_logger
+    processor._get_broll_event_logger = lambda: event_logger
+
+    candidate = types.SimpleNamespace(
+        url="http://example.com/video.mp4",
+        provider="stub",
+        duration=1.5,
+        width=720,
+        height=1280,
+        title="Sample",
+        tags=["sample"],
+        thumb_url=None,
+        identifier="stub-1",
+    )
+
+    class StubOrchestrator:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def fetch_candidates(self, *_args, **_kwargs):
+            return [candidate]
+
+    monkeypatch.setattr(module, "FetcherOrchestrator", StubOrchestrator)
+
+    processor._derive_segment_keywords = types.MethodType(
+        lambda _self, _segment, _keywords: ["sample"],
+        processor,
+    )
+    processor._rank_candidate = types.MethodType(
+        lambda _self, *_args, **_kwargs: 1.0,
+        processor,
+    )
+
+    downloaded_asset = temp_dir / "core" / "asset.mp4"
+    downloaded_asset.parent.mkdir(parents=True, exist_ok=True)
+    downloaded_asset.write_bytes(b"data")
+
+    captured_timeline = {}
+
+    def fake_download(self, _candidate, directory, order):
+        captured_timeline.setdefault("download_calls", []).append((directory, order))
+        return downloaded_asset
+
+    def fake_render(self, base_path, timeline):
+        captured_timeline["timeline"] = timeline
+        rendered_path = temp_dir / "core" / "rendered.mp4"
+        rendered_path.parent.mkdir(parents=True, exist_ok=True)
+        rendered_path.write_bytes(b"render")
+        return rendered_path
+
+    monkeypatch.setattr(module.VideoProcessor, "_download_core_candidate", fake_download, raising=False)
+    monkeypatch.setattr(module.VideoProcessor, "_render_core_broll_timeline", fake_render, raising=False)
+
+    input_clip = tmp_path / "input.mp4"
+    input_clip.write_bytes(b"base")
+
+    inserted_count, rendered_path = processor._insert_brolls_pipeline_core(
+        [types.SimpleNamespace(start=0.0, end=2.0, text="hello world")],
+        ["sample"],
+        subtitles=[],
+        input_path=input_clip,
+    )
+
+    assert inserted_count == 1
+    assert rendered_path is not None
+    assert rendered_path != input_clip
+    assert captured_timeline.get("timeline")
+    assert captured_timeline["timeline"][0]["path"] == downloaded_asset
+
+    sys.modules.pop("video_processor", None)
+
 def test_to_bool_accepts_common_values(video_processor_module):
     module = video_processor_module
     assert module._to_bool('1') is True
