@@ -3192,8 +3192,21 @@ class VideoProcessor:
             broll_root = Path("AI-B-roll")
             broll_library = broll_root / "broll_library"
             if not broll_library.exists():
-                print("    ⚠️ Librairie B-roll introuvable, saut de l'insertion")
-                return input_path
+                print("    ℹ️ Librairie B-roll absente, initialisation automatique")
+            try:
+                broll_library.mkdir(parents=True, exist_ok=True)
+            except Exception as exc:
+                print(f"    ⚠️ Impossible de préparer AI-B-roll/broll_library ({exc}); utilisation du cache pipeline_core")
+                fallback_base = getattr(getattr(self._pipeline_config, "paths", None), "temp_dir", None)
+                if not fallback_base:
+                    fallback_base = getattr(Config, "TEMP_FOLDER", Path("temp"))
+                fallback_library = Path(fallback_base) / "pipeline_core_broll"
+                try:
+                    fallback_library.mkdir(parents=True, exist_ok=True)
+                except Exception as fallback_exc:
+                    print(f"    ⚠️ Préparation du cache pipeline_core échouée: {fallback_exc}")
+                    fallback_library = Path(fallback_base)
+                broll_library = fallback_library
             # Préparer chemins (écrire directement dans le dossier du clip si possible)
             clip_dir = (Path(input_path).parent if (Path(input_path).name == 'reframed.mp4') else Config.TEMP_FOLDER)
             # Si input_path est déjà dans un dossier clip (reframed.mp4), sortir with_broll.mp4 à côté
