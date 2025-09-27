@@ -4,7 +4,7 @@ from pathlib import Path
 # Configuration principale pour compatibilité avec le pipeline
 class Config:
     """Configuration principale du pipeline"""
-    
+
     # Modèles Whisper
     WHISPER_MODEL = "base"
     
@@ -24,6 +24,7 @@ class Config:
     USE_HARDLINKS = True
     ENABLE_BROLL = True
     ENABLE_PIPELINE_CORE_FETCHER = False
+    ENABLE_LEGACY_PIPELINE_FALLBACK = False
 
 
 

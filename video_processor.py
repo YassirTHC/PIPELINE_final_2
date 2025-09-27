@@ -24,6 +24,12 @@ from dataclasses import dataclass
 import types
 import gc
 
+try:
+    from config import Config as _ROOT_CONFIG
+except Exception:  # pragma: no cover - fallback when root config is unavailable
+    class _ROOT_CONFIG:
+        ENABLE_LEGACY_PIPELINE_FALLBACK = False
+
 # 🚀 NOUVEAU: Configuration des logs temps réel + suppression warnings non-critiques
 import warnings
 warnings.filterwarnings("ignore", message="SymbolDatabase.GetPrototype() is deprecated")
@@ -102,6 +108,13 @@ class CoreTimelineEntry:
             'provider': self.provider,
             'url': self.url,
         }
+
+
+@dataclass
+class _CoreSegment:
+    start: float
+    end: float
+    text: str
 
 
 class _BrollLoggerProxy:
@@ -648,6 +661,15 @@ def _pipeline_core_fetcher_enabled() -> bool:
     return getattr(Config, "ENABLE_PIPELINE_CORE_FETCHER", False)
 
 
+def _legacy_pipeline_fallback_enabled() -> bool:
+    """Return True when the legacy src.pipeline integration may execute."""
+
+    override = os.getenv("ENABLE_LEGACY_PIPELINE_FALLBACK")
+    if override is not None:
+        return _to_bool(override)
+    return getattr(Config, "ENABLE_LEGACY_PIPELINE_FALLBACK", False)
+
+
 # Load optional UI overrides once
 _UI_SETTINGS = _read_ui_settings()
 
@@ -719,6 +741,10 @@ class Config:
         _to_bool(_UI_ENABLE_BROLL, default=False) if _UI_ENABLE_BROLL is not None
         else (_to_bool(_ENV_ENABLE_BROLL, default=False) or _AUTO_ENABLE)
     )
+    ENABLE_LEGACY_PIPELINE_FALLBACK = _to_bool(
+        _UI_SETTINGS.get('legacy_pipeline_fallback'),
+        default=getattr(_ROOT_CONFIG, 'ENABLE_LEGACY_PIPELINE_FALLBACK', False),
+    ) if 'legacy_pipeline_fallback' in _UI_SETTINGS else getattr(_ROOT_CONFIG, 'ENABLE_LEGACY_PIPELINE_FALLBACK', False)
 
     # === Options fetcher B-roll (stock) ===
     # Active le fetch automatique: UI > ENV > défaut(on)
@@ -2942,7 +2968,22 @@ class VideoProcessor:
                     })
             except Exception:
                 pass
-            
+
+            if not _legacy_pipeline_fallback_enabled():
+                legacy_logger = None
+                try:
+                    legacy_logger = self._get_broll_event_logger()
+                except Exception:
+                    legacy_logger = None
+                if legacy_logger is not None:
+                    try:
+                        legacy_logger.log({'event': 'legacy_skipped', 'reason': 'disabled_by_config'})
+                    except Exception:
+                        pass
+                if isinstance(core_inserted, int) and core_inserted > 0 and core_path:
+                    return core_path
+                return input_path
+
             # Assurer l'import du pipeline local (src/*)
             if str(broll_root.resolve()) not in sys.path:
                 sys.path.insert(0, str(broll_root.resolve()))
@@ -2966,7 +3007,7 @@ class VideoProcessor:
             from src.pipeline.timeline_legacy import plan_broll_insertions, normalize_timeline, enrich_keywords  # type: ignore
             from src.pipeline.renderer import render_video  # type: ignore
             from src.pipeline.transcription import TranscriptSegment  # type: ignore
-            
+
             from moviepy.editor import VideoFileClip as _VFC
             # Optionnel: indexation FAISS/CLIP
             try:
@@ -2975,6 +3016,11 @@ class VideoProcessor:
             except Exception:
                 build_index = None  # type: ignore
                 index_handle = None
+
+            segments = [
+                TranscriptSegment(start=payload['start'], end=payload['end'], text=payload['text'])
+                for payload in legacy_segment_payloads
+            ]
             
             # 🧠 ANALYSE INTELLIGENTE AVANCÉE
             if INTELLIGENT_BROLL_AVAILABLE:
@@ -3171,30 +3217,45 @@ class VideoProcessor:
                 print(f"    🎯 Prompts finaux: {', '.join(prompts[:5])}...")
             
             # Convertir nos sous-titres en segments attendus par le pipeline
-            segments = [
-                TranscriptSegment(start=float(s.get('start', 0.0)), end=float(s.get('end', 0.0)), text=str(s.get('text', '')).strip())
-                for s in subtitles if (s.get('text') and (s.get('end', 0.0) >= s.get('start', 0.0)))
-            ]
-            if not segments:
+            legacy_segment_payloads: List[Dict[str, Any]] = []
+            core_segments: List[_CoreSegment] = []
+            for s in subtitles:
+                text = str(s.get('text', '')).strip()
+                if not text:
+                    continue
+                try:
+                    start = float(s.get('start', 0.0))
+                    end = float(s.get('end', 0.0))
+                except (TypeError, ValueError):
+                    continue
+                if end < start:
+                    continue
+                payload = {'start': start, 'end': end, 'text': text}
+                legacy_segment_payloads.append(payload)
+                core_segments.append(_CoreSegment(start=start, end=end, text=text))
+
+            if not core_segments:
                 print("    ⚠️ Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
             core_result = self._maybe_use_pipeline_core(
-                segments,
+                core_segments,
                 broll_keywords,
                 subtitles=subtitles,
                 input_path=input_path,
             )
+            core_inserted: Optional[int] = None
+            core_path: Optional[Path] = None
             if core_result is not None:
-                inserted_count, core_path = core_result
-                success, banner = format_broll_completion_banner(inserted_count, origin="pipeline_core")
+                core_inserted, core_path = core_result
+                success, banner = format_broll_completion_banner(core_inserted, origin="pipeline_core")
                 print(banner)
-                if inserted_count > 0 and core_path:
+                if core_inserted > 0 and core_path:
                     return core_path
-                if inserted_count > 0 and not core_path:
+                if core_inserted > 0 and not core_path:
                     logger.warning(
                         "pipeline_core selected %s assets but rendering failed; falling back to legacy pipeline",
-                        inserted_count,
+                        core_inserted,
                     )
                 # Legacy pipeline will handle rendering when no core output is available
 

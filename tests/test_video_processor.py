@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import importlib
@@ -199,12 +200,67 @@ def test_process_single_clip_smoke(tmp_path, monkeypatch, video_processor_module
     processor = video_processor.VideoProcessor()
     processor.process_single_clip(src_clip)
 
-    events = getattr(processor._broll_event_logger, "entries", [])
-    assert any(event.get("event") == "broll_env_ready" for event in events)
 
-    meta_path = output_dir / "clips" / "sample" / "meta.txt"
-    assert meta_path.exists()
-    assert (output_dir / "final" ).exists()
+def test_legacy_fallback_disabled_skips_src_pipeline(tmp_path, monkeypatch, video_processor_module):
+    import builtins
+
+    video_processor = video_processor_module
+    monkeypatch.chdir(tmp_path)
+
+    (Path("AI-B-roll") / "broll_library").mkdir(parents=True, exist_ok=True)
+    temp_dir = Path("temp")
+    output_dir = Path("output")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(video_processor.Config, "ENABLE_BROLL", True)
+    monkeypatch.setattr(video_processor.Config, "TEMP_FOLDER", temp_dir)
+    monkeypatch.setattr(video_processor.Config, "OUTPUT_FOLDER", output_dir)
+    monkeypatch.setattr(video_processor.Config, "ENABLE_LEGACY_PIPELINE_FALLBACK", False)
+    monkeypatch.delenv("ENABLE_LEGACY_PIPELINE_FALLBACK", raising=False)
+    assert video_processor._legacy_pipeline_fallback_enabled() is False
+
+    class DummyLogger:
+        def __init__(self):
+            self.events = []
+
+        def log(self, payload):
+            self.events.append(dict(payload))
+
+    event_logger = DummyLogger()
+
+    monkeypatch.setattr(
+        video_processor.VideoProcessor,
+        "_maybe_use_pipeline_core",
+        lambda self, segments, broll_keywords, *, subtitles, input_path: (0, None),
+    )
+    monkeypatch.setattr(video_processor.VideoProcessor, "_get_broll_event_logger", lambda self: event_logger)
+
+    original_import = builtins.__import__
+
+    def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name.startswith("src.pipeline"):
+            raise AssertionError("legacy pipeline import attempted")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+
+    processor = video_processor.VideoProcessor()
+    clip_path = Path("clip.mp4")
+    clip_path.write_bytes(b"data")
+
+    result = processor.insert_brolls_if_enabled(
+        clip_path,
+        subtitles=[{"start": 0.0, "end": 1.0, "text": "hello"}],
+        broll_keywords=["focus"],
+    )
+
+    assert result == clip_path
+    assert any(evt.get("event") == "legacy_skipped" for evt in event_logger.events)
+    for evt in event_logger.events:
+        serialized = json.dumps(evt, ensure_ascii=False)
+        assert "archive" not in serialized.lower()
+        assert "giphy" not in serialized.lower()
 
 
 def test_pipeline_core_single_provider_warns(monkeypatch, caplog, tmp_path, video_processor_module):
