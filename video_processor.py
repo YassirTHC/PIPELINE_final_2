@@ -466,21 +466,52 @@ def _dedupe_queries(seq, cap: int) -> list[str]:
     return out
 
 def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
-    """Extract up to `cap` clean terms (keywords+queries) for a given segment index."""
-    if not isinstance(dyn, dict):
+    """Extract up to `cap` clean terms (queries then keywords) for a given segment index."""
+    if not isinstance(dyn, dict) or cap <= 0:
         return []
-    briefs = dyn.get("segment_briefs") or []
-    pool: list[str] = []
+
+    briefs = dyn.get("segment_briefs")
+    if not isinstance(briefs, list):
+        return []
+
+    matching_briefs: list[dict] = []
     for br in briefs:
+        if not isinstance(br, dict):
+            continue
         try:
             if int(br.get("segment_index", -1)) != seg_idx:
                 continue
         except Exception:
             continue
-        pool.extend(build_visual_phrases(br.get("keywords") or [], limit=None))
-        pool.extend(build_visual_phrases(br.get("queries") or [], limit=None))
-        break  # only first matching brief for determinism
-    return _dedupe_queries(pool, cap)
+        matching_briefs.append(br)
+
+    if not matching_briefs:
+        return []
+
+    seen: set[str] = set()
+    out: list[str] = []
+
+    def _iter_terms(value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, (list, tuple, set)):
+            return [v for v in value if isinstance(v, str)]
+        return []
+
+    for key in ("queries", "keywords"):
+        for br in matching_briefs:
+            for term in _iter_terms(br.get(key)):
+                cleaned = term.replace("_", " ").strip()
+                if not cleaned or cleaned in seen:
+                    continue
+                out.append(cleaned)
+                seen.add(cleaned)
+                if len(out) >= cap:
+                    return out
+
+    return out
 
 def _choose_dynamic_domain(dyn: dict):
     """Pick the best domain from LLM dynamic context.
