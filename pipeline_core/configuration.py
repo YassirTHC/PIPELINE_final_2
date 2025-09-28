@@ -13,6 +13,116 @@ from typing import Optional, Sequence
 from config import Config
 
 
+def _coerce_positive_int(value: Optional[str | int], default: int) -> int:
+    try:
+        if isinstance(value, str):
+            value = value.strip()
+        parsed = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _default_per_segment_limit() -> int:
+    fallback = _coerce_positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", 0), 6)
+    for key in ("FETCH_MAX", "BROLL_FETCH_MAX_PER_KEYWORD"):
+        raw = os.getenv(key)
+        if raw is None:
+            continue
+        value = _coerce_positive_int(raw, fallback)
+        if value != fallback or key == "BROLL_FETCH_MAX_PER_KEYWORD":
+            return max(1, value)
+    return max(1, fallback)
+
+
+def _default_allow_images() -> bool:
+    override = _env_to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"))
+    if override is not None:
+        return override
+    config_value = getattr(Config, "BROLL_FETCH_ALLOW_IMAGES", None)
+    if isinstance(config_value, bool):
+        return config_value
+    return False
+
+
+def _default_allow_videos() -> bool:
+    override = _env_to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"))
+    if override is not None:
+        return override
+    config_value = getattr(Config, "BROLL_FETCH_ALLOW_VIDEOS", None)
+    if isinstance(config_value, bool):
+        return config_value
+    return True
+
+
+def _parse_provider_list(raw: Optional[str]) -> Optional[set[str]]:
+    if not raw:
+        return None
+    cleaned_parts = []
+    for chunk in raw.replace(";", ",").split(","):
+        item = chunk.strip().lower()
+        if item:
+            cleaned_parts.append(item)
+    if not cleaned_parts:
+        return set()
+    if {"all"} == set(cleaned_parts):
+        return None
+    return set(cleaned_parts)
+
+
+def _provider_enabled_from_env(provider: str, default: bool) -> bool:
+    normalized = provider.strip().upper()
+    if not normalized:
+        return default
+
+    disable_keys = (
+        f"BROLL_FETCH_DISABLE_{normalized}",
+        f"AI_BROLL_DISABLE_{normalized}",
+    )
+    for key in disable_keys:
+        flag = _env_to_bool(os.getenv(key))
+        if flag is True:
+            return False
+
+    enable_keys = (
+        f"BROLL_FETCH_ENABLE_{normalized}",
+        f"AI_BROLL_ENABLE_{normalized}",
+        f"ENABLE_{normalized}",
+    )
+    result = default
+    for key in enable_keys:
+        flag = _env_to_bool(os.getenv(key))
+        if flag is not None:
+            result = flag
+    return result
+
+
+def _build_provider_defaults() -> list[ProviderConfig]:
+    limit = _default_per_segment_limit()
+    raw_selection = (
+        os.getenv("BROLL_FETCH_PROVIDER")
+        or os.getenv("AI_BROLL_FETCH_PROVIDER")
+        or getattr(Config, "BROLL_FETCH_PROVIDER", None)
+    )
+    selected = _parse_provider_list(str(raw_selection) if raw_selection else None)
+
+    default_providers = [
+        ProviderConfig(name="pexels", weight=1.0, max_results=limit, supports_images=False, supports_videos=True),
+        ProviderConfig(name="pixabay", weight=0.9, max_results=limit, supports_images=False, supports_videos=True),
+    ]
+
+    providers: list[ProviderConfig] = []
+    for provider in default_providers:
+        enabled = True
+        if selected is not None:
+            enabled = provider.name.lower() in selected
+        enabled = _provider_enabled_from_env(provider.name, enabled)
+        provider.enabled = enabled
+        provider.max_results = limit
+        providers.append(provider)
+    return providers
+
+
 @dataclass(slots=True)
 class PipelinePaths:
     """Local directories used by the pipeline.
@@ -35,24 +145,48 @@ class ProviderConfig:
     enabled: bool = True
     max_results: int = 6
     timeout_s: float = 8.0
+    supports_images: bool = False
+    supports_videos: bool = True
 
 
 @dataclass(slots=True)
 class FetcherOrchestratorConfig:
     """Controls how the orchestrator queries the external APIs."""
 
-    providers: Sequence[ProviderConfig] = field(
-        default_factory=lambda: (
-            ProviderConfig(name="pexels", weight=1.0, max_results=6),
-            ProviderConfig(name="pixabay", weight=0.9, max_results=6),
-        )
-    )
-    per_segment_limit: int = 6
+    providers: Sequence[ProviderConfig] = field(default_factory=lambda: tuple(_build_provider_defaults()))
+    per_segment_limit: int = field(default_factory=_default_per_segment_limit)
     parallel_requests: int = 4
-    allow_images: bool = False
-    allow_videos: bool = True
+    allow_images: bool = field(default_factory=_default_allow_images)
+    allow_videos: bool = field(default_factory=_default_allow_videos)
     retry_count: int = 2
     request_timeout_s: float = 8.0
+
+    def __post_init__(self) -> None:
+        limit = max(1, int(self.per_segment_limit or 1))
+        self.per_segment_limit = limit
+        self.allow_images = bool(self.allow_images)
+        self.allow_videos = bool(self.allow_videos)
+
+        providers: list[ProviderConfig] = []
+        for provider in self.providers:
+            provider.enabled = bool(getattr(provider, "enabled", True))
+            provider.max_results = max(1, min(int(getattr(provider, "max_results", limit) or limit), limit))
+            providers.append(provider)
+
+        # ``providers`` is declared as a Sequence for flexibility but we keep an
+        # immutable tuple internally to avoid accidental mutations from callers.
+        self.providers = tuple(providers)
+
+    @classmethod
+    def from_environment(cls) -> "FetcherOrchestratorConfig":
+        """Create a config instance honouring environment overrides."""
+
+        return cls(
+            providers=tuple(_build_provider_defaults()),
+            per_segment_limit=_default_per_segment_limit(),
+            allow_images=_default_allow_images(),
+            allow_videos=_default_allow_videos(),
+        )
 
 
 def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Optional[bool]:
@@ -186,7 +320,7 @@ class PipelineConfigBundle:
     """Aggregates the sub-configs for convenience."""
 
     paths: PipelinePaths = field(default_factory=PipelinePaths)
-    fetcher: FetcherOrchestratorConfig = field(default_factory=FetcherOrchestratorConfig)
+    fetcher: FetcherOrchestratorConfig = field(default_factory=FetcherOrchestratorConfig.from_environment)
     selection: SelectionConfig = field(default_factory=_selection_config_from_environment)
     orchestrator: OrchestratorRuntimeConfig = field(default_factory=OrchestratorRuntimeConfig)
     timeboxing: TimeboxingConfig = field(default_factory=TimeboxingConfig)

@@ -52,7 +52,7 @@ class FetcherOrchestrator:
     """Thin orchestration layer for remote B-roll providers."""
 
     def __init__(self, config: FetcherOrchestratorConfig | None = None, *, event_logger: Optional[Any] = None) -> None:
-        self.config = config or FetcherOrchestratorConfig()
+        self.config = config or FetcherOrchestratorConfig.from_environment()
         self._event_logger = event_logger
         self._logger = logging.getLogger(__name__)
 
@@ -70,7 +70,21 @@ class FetcherOrchestrator:
         if not queries:
             return []
 
-        providers = [p for p in self.config.providers if getattr(p, 'enabled', True)]
+        providers = []
+        for provider_conf in self.config.providers:
+            if not getattr(provider_conf, 'enabled', True):
+                continue
+            supports_images = getattr(provider_conf, 'supports_images', False)
+            supports_videos = getattr(provider_conf, 'supports_videos', True)
+            if supports_videos and not self.config.allow_videos:
+                continue
+            if supports_images and not self.config.allow_images:
+                continue
+            providers.append(provider_conf)
+
+        if not providers:
+            return []
+
         ready_providers = []
         for provider_conf in providers:
             requires_key, has_key = self._provider_key_status(getattr(provider_conf, 'name', ''))
