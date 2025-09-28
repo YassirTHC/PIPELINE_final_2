@@ -275,17 +275,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     vp_args.extend(passthrough)
 
     global video_processor
-    if getattr(video_processor, "__spec__", None) is None and getattr(video_processor, "main", None):
-        video_processor_module = video_processor
-    elif getattr(video_processor, "__spec__", None) is not None:
-        try:
-            video_processor_module = importlib.reload(video_processor)  # type: ignore[arg-type]
-        except Exception:
-            video_processor_module = importlib.import_module("video_processor")
-            video_processor = video_processor_module
+    # Prefer an already imported/stubbed module so monkeypatched objects remain intact.
+    module = globals().get("video_processor")
+    if module is None:
+        module = sys.modules.get("video_processor")
+        if module is not None:
+            globals()["video_processor"] = module
+
+    main_attr = getattr(module, "main", None) if module is not None else None
+    if callable(main_attr):
+        video_processor_module = module  # type: ignore[assignment]
     else:
-        video_processor_module = importlib.import_module("video_processor")
-        video_processor = video_processor_module
+        needs_reload = module is not None and getattr(module, "__spec__", None) is not None
+        if needs_reload:
+            try:
+                module = importlib.reload(module)  # type: ignore[arg-type]
+            except Exception:
+                module = importlib.import_module("video_processor")
+        else:
+            module = importlib.import_module("video_processor")
+        globals()["video_processor"] = module
+        video_processor_module = module
 
     # Bridge compatible : nouvelle API (retourne PipelineResult) ou legacy (retourne int)
     try:
