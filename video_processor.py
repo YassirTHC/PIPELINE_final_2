@@ -389,7 +389,7 @@ import whisper
 import requests
 import cv2
 
-from pipeline_core.configuration import PipelineConfigBundle
+from pipeline_core.configuration import PipelineConfigBundle, detected_provider_names
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
@@ -1426,14 +1426,7 @@ class VideoProcessor:
         try:
             env_payload = {
                 'event': 'broll_env_ready',
-                'providers': [
-                    name
-                    for name, env_key in (
-                        ('pexels', 'PEXELS_API_KEY'),
-                        ('pixabay', 'PIXABAY_API_KEY'),
-                    )
-                    if os.environ.get(env_key)
-                ],
+                'providers': detected_provider_names(),
             }
             event_logger.log(env_payload)
         except Exception:
@@ -1506,14 +1499,7 @@ class VideoProcessor:
             try:
                 env_payload = {
                     'event': 'broll_env_ready',
-                    'providers': [
-                        name
-                        for name, env_key in (
-                            ('pexels', 'PEXELS_API_KEY'),
-                            ('pixabay', 'PIXABAY_API_KEY'),
-                        )
-                        if os.environ.get(env_key)
-                    ],
+                    'providers': detected_provider_names(),
                 }
                 logger_obj.log(env_payload)
             except Exception:

@@ -23,6 +23,16 @@ def _coerce_positive_int(value: Optional[str | int], default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+def _coerce_positive_float(value: Optional[str | float], default: float) -> float:
+    try:
+        if isinstance(value, str):
+            value = value.strip()
+        parsed = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
 def _default_per_segment_limit() -> int:
     fallback = _coerce_positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", 0), 6)
     for key in ("FETCH_MAX", "BROLL_FETCH_MAX_PER_KEYWORD"):
@@ -105,6 +115,20 @@ def _provider_enabled_from_env(provider: str, default: bool) -> bool:
     return result
 
 
+def _provider_api_key(env_key: str) -> Optional[str]:
+    value = os.getenv(env_key)
+    if isinstance(value, str):
+        value = value.strip()
+    if value:
+        return value
+    fallback = getattr(Config, env_key, None)
+    if isinstance(fallback, str):
+        fallback = fallback.strip()
+        if fallback:
+            return fallback
+    return None
+
+
 def _build_provider_defaults() -> list[ProviderConfig]:
     limit = _default_per_segment_limit()
     raw_selection = (
@@ -114,19 +138,33 @@ def _build_provider_defaults() -> list[ProviderConfig]:
     )
     selected = _parse_provider_list(str(raw_selection) if raw_selection else None)
 
-    default_providers = [
-        ProviderConfig(name="pexels", weight=1.0, max_results=limit, supports_images=False, supports_videos=True),
-        ProviderConfig(name="pixabay", weight=0.9, max_results=limit, supports_images=False, supports_videos=True),
+    provider_specs = [
+        ("pexels", "PEXELS_API_KEY", 1.0),
+        ("pixabay", "PIXABAY_API_KEY", 0.9),
     ]
 
     providers: list[ProviderConfig] = []
-    for provider in default_providers:
+    for name, env_key, weight in provider_specs:
+        api_key = _provider_api_key(env_key)
+        if not api_key:
+            continue
+
+        provider = ProviderConfig(
+            name=name,
+            weight=weight,
+            max_results=limit,
+            supports_images=False,
+            supports_videos=True,
+        )
+
         enabled = True
         if selected is not None:
             enabled = provider.name.lower() in selected
         enabled = _provider_enabled_from_env(provider.name, enabled)
         provider.enabled = enabled
         provider.max_results = limit
+        provider.supports_images = False
+        provider.supports_videos = True
         providers.append(provider)
     return providers
 
@@ -189,12 +227,29 @@ class FetcherOrchestratorConfig:
     def from_environment(cls) -> "FetcherOrchestratorConfig":
         """Create a config instance honouring environment overrides."""
 
+        timeout = _coerce_positive_float(
+            os.getenv("PIPELINE_LLM_TIMEOUT_S")
+            or getattr(Config, "PIPELINE_LLM_TIMEOUT_S", None),
+            8.0,
+        )
+
         return cls(
             providers=tuple(_build_provider_defaults()),
             per_segment_limit=_default_per_segment_limit(),
-            allow_images=_default_allow_images(),
-            allow_videos=_default_allow_videos(),
+            allow_images=False,
+            allow_videos=True,
+            request_timeout_s=timeout,
         )
+
+
+def detected_provider_names(*, only_enabled: bool = True) -> list[str]:
+    providers = _build_provider_defaults()
+    names: list[str] = []
+    for provider in providers:
+        if only_enabled and not provider.enabled:
+            continue
+        names.append(provider.name)
+    return names
 
 
 def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Optional[bool]:
