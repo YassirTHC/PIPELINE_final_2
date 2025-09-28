@@ -1,3 +1,4 @@
+import importlib
 import sys
 import types
 
@@ -12,6 +13,7 @@ def _stub_module(name: str, **attrs):
 
 if "cv2" not in sys.modules:
     sys.modules["cv2"] = types.SimpleNamespace()
+    sys.modules["cv2"].__spec__ = importlib.machinery.ModuleSpec("cv2", loader=None)
 
 if "moviepy.editor" not in sys.modules:
     moviepy_editor = _stub_module(

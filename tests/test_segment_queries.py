@@ -1,5 +1,7 @@
 from types import SimpleNamespace, MethodType, ModuleType
 
+import importlib
+
 import json
 import os
 import re
@@ -22,6 +24,7 @@ if "cv2" not in sys.modules:
         CHAIN_APPROX_SIMPLE=0,
         INTER_LANCZOS4=0,
     )
+    sys.modules["cv2"].__spec__ = importlib.machinery.ModuleSpec("cv2", loader=None)
 
 if "src.pipeline.fetchers" not in sys.modules:
     fetchers_stub = ModuleType("src.pipeline.fetchers")
