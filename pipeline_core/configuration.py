@@ -8,9 +8,47 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Iterable, Optional, Sequence
 
 from config import Config
+
+
+def _split_csv(raw: Optional[str]) -> list[str]:
+    if not raw:
+        return []
+    items: list[str] = []
+    for chunk in str(raw).replace(";", ",").split(","):
+        value = chunk.strip()
+        if value:
+            items.append(value)
+    return items
+
+
+def _env_bool(*keys: str, default: Optional[bool] = None) -> Optional[bool]:
+    for key in keys:
+        if not key:
+            continue
+        flag = _env_to_bool(os.getenv(key))
+        if flag is not None:
+            return flag
+    return default
+
+
+def _env_int(*keys: str, default: Optional[int] = None, minimum: Optional[int] = None) -> Optional[int]:
+    for key in keys:
+        if not key:
+            continue
+        raw = os.getenv(key)
+        if raw is None:
+            continue
+        try:
+            parsed = int(str(raw).strip())
+        except (TypeError, ValueError):
+            continue
+        if minimum is not None and parsed < minimum:
+            parsed = minimum
+        return parsed
+    return default
 
 
 def _coerce_positive_int(value: Optional[str | int], default: int) -> int:
@@ -35,28 +73,24 @@ def _coerce_positive_float(value: Optional[str | float], default: float) -> floa
 
 def _default_per_segment_limit() -> int:
     fallback = _coerce_positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", 0), 6)
-    for key in ("FETCH_MAX", "BROLL_FETCH_MAX_PER_KEYWORD"):
-        raw = os.getenv(key)
-        if raw is None:
-            continue
-        value = _coerce_positive_int(raw, fallback)
-        if value != fallback or key == "BROLL_FETCH_MAX_PER_KEYWORD":
-            return max(1, value)
+    env_value = _env_int("BROLL_FETCH_MAX_PER_KEYWORD", "FETCH_MAX", minimum=1)
+    if env_value is not None:
+        return max(1, env_value)
     return max(1, fallback)
 
 
 def _default_allow_images() -> bool:
-    override = _env_to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"))
+    override = _env_bool("BROLL_FETCH_ALLOW_IMAGES")
     if override is not None:
         return override
     config_value = getattr(Config, "BROLL_FETCH_ALLOW_IMAGES", None)
     if isinstance(config_value, bool):
         return config_value
-    return False
+    return True
 
 
 def _default_allow_videos() -> bool:
-    override = _env_to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"))
+    override = _env_bool("BROLL_FETCH_ALLOW_VIDEOS")
     if override is not None:
         return override
     config_value = getattr(Config, "BROLL_FETCH_ALLOW_VIDEOS", None)
@@ -76,11 +110,7 @@ def _default_llm_queries_per_segment() -> int:
 def _parse_provider_list(raw: Optional[str]) -> Optional[set[str]]:
     if not raw:
         return None
-    cleaned_parts = []
-    for chunk in raw.replace(";", ",").split(","):
-        item = chunk.strip().lower()
-        if item:
-            cleaned_parts.append(item)
+    cleaned_parts = [item.lower() for item in _split_csv(raw)]
     if not cleaned_parts:
         return set()
     if {"all"} == set(cleaned_parts):
@@ -98,7 +128,7 @@ def _provider_enabled_from_env(provider: str, default: bool) -> bool:
         f"AI_BROLL_DISABLE_{normalized}",
     )
     for key in disable_keys:
-        flag = _env_to_bool(os.getenv(key))
+        flag = _env_bool(key)
         if flag is True:
             return False
 
@@ -109,7 +139,7 @@ def _provider_enabled_from_env(provider: str, default: bool) -> bool:
     )
     result = default
     for key in enable_keys:
-        flag = _env_to_bool(os.getenv(key))
+        flag = _env_bool(key)
         if flag is not None:
             result = flag
     return result
@@ -129,14 +159,22 @@ def _provider_api_key(env_key: str) -> Optional[str]:
     return None
 
 
-def _build_provider_defaults() -> list[ProviderConfig]:
-    limit = _default_per_segment_limit()
-    raw_selection = (
-        os.getenv("BROLL_FETCH_PROVIDER")
-        or os.getenv("AI_BROLL_FETCH_PROVIDER")
-        or getattr(Config, "BROLL_FETCH_PROVIDER", None)
-    )
-    selected = _parse_provider_list(str(raw_selection) if raw_selection else None)
+def _build_provider_defaults(
+    *,
+    selected: Optional[Iterable[str]] = None,
+    limit: Optional[int] = None,
+) -> list[ProviderConfig]:
+    resolved_limit = limit if limit is not None else _default_per_segment_limit()
+    selection: Optional[set[str]]
+    if selected is not None:
+        selection = {item.lower() for item in selected}
+    else:
+        raw_selection = (
+            os.getenv("BROLL_FETCH_PROVIDER")
+            or os.getenv("AI_BROLL_FETCH_PROVIDER")
+            or getattr(Config, "BROLL_FETCH_PROVIDER", None)
+        )
+        selection = _parse_provider_list(str(raw_selection) if raw_selection else None)
 
     provider_specs = [
         ("pexels", "PEXELS_API_KEY", 1.0),
@@ -149,22 +187,20 @@ def _build_provider_defaults() -> list[ProviderConfig]:
         if not api_key:
             continue
 
+        normalized_name = name.lower()
+        if selection is not None and normalized_name not in selection:
+            continue
+
+        enabled = _provider_enabled_from_env(name, True)
+
         provider = ProviderConfig(
             name=name,
             weight=weight,
-            max_results=limit,
+            enabled=enabled,
+            max_results=resolved_limit,
             supports_images=False,
             supports_videos=True,
         )
-
-        enabled = True
-        if selected is not None:
-            enabled = provider.name.lower() in selected
-        enabled = _provider_enabled_from_env(provider.name, enabled)
-        provider.enabled = enabled
-        provider.max_results = limit
-        provider.supports_images = False
-        provider.supports_videos = True
         providers.append(provider)
     return providers
 
@@ -233,17 +269,52 @@ class FetcherOrchestratorConfig:
             8.0,
         )
 
+        raw_selection = os.getenv("BROLL_FETCH_PROVIDER") or os.getenv("AI_BROLL_FETCH_PROVIDER")
+        selected = _parse_provider_list(raw_selection)
+
+        per_segment_limit = _env_int(
+            "BROLL_FETCH_MAX_PER_KEYWORD",
+            "FETCH_MAX",
+            minimum=1,
+        )
+        if per_segment_limit is None:
+            per_segment_limit = _default_per_segment_limit()
+
+        providers = []
+        for provider in _build_provider_defaults(selected=selected, limit=per_segment_limit):
+            if provider.enabled:
+                provider.max_results = per_segment_limit
+            providers.append(provider)
+
+        allow_images_override = _env_bool("BROLL_FETCH_ALLOW_IMAGES")
+        if allow_images_override is not None:
+            allow_images = allow_images_override
+        else:
+            allow_images = _default_allow_images()
+
+        allow_videos_override = _env_bool("BROLL_FETCH_ALLOW_VIDEOS")
+        if allow_videos_override is not None:
+            allow_videos = allow_videos_override
+        else:
+            allow_videos = _default_allow_videos()
+
         return cls(
-            providers=tuple(_build_provider_defaults()),
-            per_segment_limit=_default_per_segment_limit(),
-            allow_images=False,
-            allow_videos=True,
+            providers=tuple(providers),
+            per_segment_limit=per_segment_limit,
+            allow_images=allow_images,
+            allow_videos=allow_videos,
             request_timeout_s=timeout,
         )
 
 
-def detected_provider_names(*, only_enabled: bool = True) -> list[str]:
-    providers = _build_provider_defaults()
+def detected_provider_names(
+    config: Optional[FetcherOrchestratorConfig] = None,
+    *,
+    only_enabled: bool = True,
+) -> list[str]:
+    if config is None:
+        config = FetcherOrchestratorConfig.from_environment()
+    providers = config.providers
     names: list[str] = []
     for provider in providers:
         if only_enabled and not provider.enabled:
