@@ -1,5 +1,6 @@
 from types import SimpleNamespace, MethodType, ModuleType
 
+import json
 import os
 import re
 
@@ -75,6 +76,11 @@ class DummyLLM:
 class DummyOrchestrator:
     def __init__(self, *_args, **_kwargs):
         self.fetch_calls = []
+        instances = getattr(DummyOrchestrator, "instances", None)
+        if instances is None:
+            DummyOrchestrator.instances = []
+            instances = DummyOrchestrator.instances
+        instances.append(self)
 
     def fetch_candidates(self, queries, *, duration_hint, filters):  # noqa: D401 - simple stub
         self.fetch_calls.append((list(queries), duration_hint, dict(filters or {})))
@@ -172,3 +178,58 @@ def test_dedupe_queries_drop_abstract_tokens():
         assert "professional" not in phrase
         assert "buffer" not in phrase
         assert "signal" not in phrase
+
+
+def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
+    memory_logger = MemoryLogger()
+
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", DummyOrchestrator)
+    DummyOrchestrator.instances = []
+
+    seed_path = tmp_path / "seed_queries.json"
+    seed_path.write_text(json.dumps(["team collaborating project"]), encoding="utf-8")
+    monkeypatch.setenv("BROLL_SEED_QUERIES", str(seed_path))
+    monkeypatch.setattr(video_processor, "_SEED_QUERY_CACHE", None, raising=False)
+
+    processor = video_processor.VideoProcessor.__new__(video_processor.VideoProcessor)
+    processor._pipeline_config = SimpleNamespace(
+        fetcher=SimpleNamespace(),
+        selection=SimpleNamespace(min_score=-1.0),
+        timeboxing=SimpleNamespace(fetch_rank_ms=0, request_timeout_s=0),
+    )
+    processor._dyn_context = {"language": "en", "segment_briefs": []}
+
+    class QuietLLM:
+        def generate_hints_for_segment(self, *_args, **_kwargs):
+            return {"queries": []}
+
+    processor._llm_service = QuietLLM()
+    processor._selector_keywords = ["motivation"]
+    processor._core_last_run_used = False
+
+    def fake_event_logger(self):
+        return memory_logger
+
+    processor._broll_event_logger = memory_logger
+    processor._get_broll_event_logger = MethodType(fake_event_logger, processor)
+    processor._derive_segment_keywords = MethodType(lambda self, *_: [], processor)
+    processor._rank_candidate = MethodType(lambda self, *_args, **_kwargs: 0.0, processor)
+
+    segment = SimpleNamespace(start=0.0, end=1.0, text="Inspiring motivation talk for teams")
+    processor._insert_brolls_pipeline_core([segment], [], subtitles=None, input_path=SimpleNamespace(name="clip.mp4"))
+
+    assert DummyOrchestrator.instances, "expected orchestrator to be constructed"
+    fetch_calls = DummyOrchestrator.instances[0].fetch_calls
+    assert fetch_calls, "expected orchestrator fetch to be invoked"
+    queries_used, _, _ = fetch_calls[0]
+    assert queries_used, "expected non-empty queries"
+
+    logged_queries = [
+        event
+        for event in memory_logger.events
+        if event.get("event") == "broll_segment_queries" and event.get("segment") == 0
+    ]
+    assert logged_queries, "expected queries event"
+    queries_event = logged_queries[0]
+    assert queries_event["source"] == "seed_queries"
+    assert queries_event["queries"], "expected resolved queries"
