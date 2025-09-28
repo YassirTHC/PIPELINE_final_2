@@ -3943,6 +3943,10 @@ class VideoProcessor:
                 video_id=f"video_{int(time.time())}"
             )
 
+            if not metadata_result:
+                print("    ⚠️ [LLM INDUSTRIEL] Réponse JSON vide ou non analysable")
+                raise ValueError("Réponse JSON vide ou non analysable")
+
             title = (metadata_result.get('title') or '').strip()
             description = (metadata_result.get('description') or '').strip()
             hashtags = [h for h in (metadata_result.get('hashtags') or []) if h]
