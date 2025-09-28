@@ -1650,15 +1650,6 @@ class VideoProcessor:
                     pass
 
             if best_candidate:
-                url = getattr(best_candidate, 'url', None)
-                if url:
-                    SEEN_URLS.add(url)
-                ph = getattr(best_candidate, '_phash', None)
-                if ph is not None:
-                    SEEN_PHASHES.append(ph)
-                identifier = getattr(best_candidate, 'identifier', None)
-                if identifier:
-                    SEEN_IDENTIFIERS.add(identifier)
                 selected_assets.append({
                     'segment': idx,
                     'provider': best_provider,
@@ -1783,6 +1774,7 @@ class VideoProcessor:
 
         render_path: Optional[Path] = None
         materialized_entries: List[CoreTimelineEntry] = []
+        pending_seen_updates: List[Dict[str, Any]] = []
         if initial_selected > 0:
             timeline_entries: List[CoreTimelineEntry] = []
             download_dir: Optional[Path]
@@ -1831,6 +1823,13 @@ class VideoProcessor:
                         provider=asset.get('provider'),
                         url=asset.get('url'),
                     )
+                )
+                pending_seen_updates.append(
+                    {
+                        'url': asset.get('url') or getattr(candidate, 'url', None),
+                        'phash': getattr(candidate, '_phash', None),
+                        'identifier': getattr(candidate, 'identifier', None),
+                    }
                 )
 
             if timeline_entries:
@@ -1899,6 +1898,19 @@ class VideoProcessor:
             render_path_obj = Path(render_path) if render_path else None
             render_path_exists = bool(render_path_obj and render_path_obj.exists())
             render_ok_flag = bool(final_inserted > 0 and overlays_exist and render_path_exists)
+
+            if render_ok_flag and materialized_entries:
+                for idx, entry in enumerate(materialized_entries):
+                    markers: Dict[str, Any] = pending_seen_updates[idx] if idx < len(pending_seen_updates) else {}
+                    url_marker = markers.get('url') or getattr(entry, 'url', None)
+                    if url_marker:
+                        SEEN_URLS.add(url_marker)
+                    phash_marker = markers.get('phash')
+                    if phash_marker is not None:
+                        SEEN_PHASHES.append(phash_marker)
+                    identifier_marker = markers.get('identifier')
+                    if identifier_marker:
+                        SEEN_IDENTIFIERS.add(identifier_marker)
 
             summary_payload.update(
                 {
