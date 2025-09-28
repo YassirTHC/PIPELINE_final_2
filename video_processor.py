@@ -1549,6 +1549,7 @@ class VideoProcessor:
 
         # Prepare selection report (once per clip)
         report = None
+        report_segments: List[Dict[str, Any]] = []
         try:
             dyn_ctx = getattr(self, '_dyn_context', None)
             dom_name, dom_conf = _choose_dynamic_domain(dyn_ctx) if ENABLE_SELECTOR_DYNAMIC_DOMAIN else (None, None)
@@ -1597,6 +1598,22 @@ class VideoProcessor:
                 len(sanitized_segments),
             )
         segments = sanitized_segments
+        if report is not None:
+            try:
+                report_segments = [
+                    {
+                        'segment': idx,
+                        't0': float(getattr(segment, 'start', 0.0) or 0.0),
+                        't1': float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
+                        'queries': [],
+                        'candidates': [],
+                        'selected': [],
+                    }
+                    for idx, segment in enumerate(segments)
+                ]
+                report['segments'] = report_segments
+            except Exception:
+                report_segments = []
         if not segments:
             event_logger.log({'event': 'core_no_segments', 'reason': 'no_valid_segments', 'video': input_path.name})
             self._core_last_run_used = False
@@ -1629,6 +1646,8 @@ class VideoProcessor:
             seg_duration = max(0.0, segment.end - segment.start)
             llm_hints = None
             llm_healthy = True
+
+            report_entry = report_segments[idx] if idx < len(report_segments) else None
 
             dyn_ctx = getattr(self, '_dyn_context', {})
             dyn_language = str(dyn_ctx.get('language') or '').strip().lower() if isinstance(dyn_ctx, dict) else ''
@@ -1702,6 +1721,12 @@ class VideoProcessor:
                 })
             except Exception:
                 pass
+
+            if report_entry is not None:
+                try:
+                    report_entry['queries'] = list(queries)
+                except Exception:
+                    pass
 
             if not queries:
                 log_broll_decision(
@@ -1893,6 +1918,21 @@ class VideoProcessor:
                 except Exception:
                     pass
 
+                if report_entry is not None:
+                    try:
+                        candidate_obj = record.get('candidate') if isinstance(record, dict) else None
+                        report_entry.setdefault('candidates', []).append(
+                            {
+                                'provider': record.get('provider'),
+                                'url': getattr(candidate_obj, 'url', None),
+                                'score': record.get('score'),
+                                'reject_reason': reason,
+                                'selected': is_selected,
+                            }
+                        )
+                    except Exception:
+                        pass
+
             if forced_keep and best_candidate:
                 reject_reason_counts['fallback_low_score'] += 1
                 reject_reasons.append('fallback_low_score')
@@ -1949,14 +1989,14 @@ class VideoProcessor:
                 # Append to selection report
                 try:
                     if report is not None:
-                        report['segments'].append({
-                            'segment': idx,
-                            't0': float(getattr(segment, 'start', 0.0)),
-                            't1': float(getattr(segment, 'end', 0.0)),
-                            'selected_url': getattr(best_candidate, 'url', None),
-                            'provider': getattr(best_candidate, 'provider', None),
-                            'score': float(best_score) if best_score is not None else None,
-                        })
+                        if report_entry is not None:
+                            report_entry.setdefault('selected', []).append(
+                                {
+                                    'provider': getattr(best_candidate, 'provider', None),
+                                    'url': getattr(best_candidate, 'url', None),
+                                    'score': float(best_score) if isinstance(best_score, (int, float)) else best_score,
+                                }
+                            )
                 except Exception:
                     pass
 
@@ -2228,7 +2268,7 @@ class VideoProcessor:
         if ENABLE_SELECTION_REPORT and report is not None:
             try:
                 seg_total = len(segments) if segments else 0
-                seg_sel = len(report.get('segments') or [])
+                seg_sel = sum(1 for entry in report.get('segments') or [] if entry.get('selected'))
                 report['selection_rate'] = round((seg_sel / seg_total), 3) if seg_total else 0.0
                 meta_dir = Config.OUTPUT_FOLDER / 'meta'
                 meta_dir.mkdir(parents=True, exist_ok=True)
