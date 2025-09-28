@@ -921,12 +921,52 @@ class LLMMetadataGeneratorService:
         self._reuse_shared = reuse_shared
         self._config = config
         self._integration = None
-        timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT")
-        try:
-            timeout_val = int(timeout_env) if timeout_env else 35
-        except (TypeError, ValueError):
-            timeout_val = 35
-        self._llm_timeout = max(5, timeout_val)
+
+        timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+        num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
+        temperature_env = os.getenv("PIPELINE_LLM_TEMP")
+        top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
+
+        def _parse_int(value: Optional[str], *, default: int, minimum: int) -> int:
+            try:
+                parsed = int(value) if value is not None else default
+            except (TypeError, ValueError):
+                parsed = default
+            return max(minimum, parsed)
+
+        def _parse_float(
+            value: Optional[str],
+            *,
+            default: float,
+            minimum: float,
+            maximum: Optional[float] = None,
+        ) -> float:
+            try:
+                parsed = float(value) if value is not None else default
+            except (TypeError, ValueError):
+                parsed = default
+            if maximum is not None:
+                parsed = min(maximum, parsed)
+            return max(minimum, parsed)
+
+        self._llm_timeout = _parse_int(timeout_env, default=35, minimum=5)
+        self._llm_num_predict = _parse_int(num_predict_env, default=256, minimum=1)
+        self._llm_temperature = _parse_float(temperature_env, default=0.3, minimum=0.0)
+        self._llm_top_p = _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0)
+        self._llm_stop_tokens: Sequence[str] = (
+            "```",
+            "\n\n\n",
+            "END_OF_CONTEXT",
+            "</json>",
+        )
+
+        logger.info(
+            "[LLM] using timeout=%ss num_predict=%s temp=%s top_p=%s",
+            self._llm_timeout,
+            self._llm_num_predict,
+            self._llm_temperature,
+            self._llm_top_p,
+        )
 
     @classmethod
     def get_shared(cls, config: Optional[Any] = None):
@@ -945,11 +985,15 @@ class LLMMetadataGeneratorService:
                         LLMMetadataGeneratorService._shared_integration = create_pipeline_integration(config)
                         LLMMetadataGeneratorService._shared_config = config
                         LLMMetadataGeneratorService._init_count += 1
-                return self._shared_integration
+                integration = self._shared_integration
+                self._apply_llm_config(integration)
+                return integration
             if self._integration is None:
                 logger.info('[LLM] FAST_TESTS stub integration (local) initialised')
                 self._integration = create_pipeline_integration(config)
-            return self._integration
+            integration = self._integration
+            self._apply_llm_config(integration)
+            return integration
 
         if self._reuse_shared:
             with self._lock:
@@ -962,7 +1006,9 @@ class LLMMetadataGeneratorService:
                         raise
                     LLMMetadataGeneratorService._shared_config = config
                     LLMMetadataGeneratorService._init_count += 1
-            return self._shared_integration
+            integration = self._shared_integration
+            self._apply_llm_config(integration)
+            return integration
 
         if self._integration is None:
             logger.info('[LLM] Initialising local pipeline integration')
@@ -971,7 +1017,43 @@ class LLMMetadataGeneratorService:
             except Exception:  # pragma: no cover - defensive logging
                 logger.exception('[LLM] Failed to initialise local pipeline integration')
                 raise
-        return self._integration
+        integration = self._integration
+        self._apply_llm_config(integration)
+        return integration
+
+    def _apply_llm_config(self, integration: Optional[Any]) -> None:
+        if integration is None:
+            return
+
+        llm = getattr(integration, "llm", None)
+        if llm is None:
+            return
+
+        for attr, value in (
+            ("timeout", self._llm_timeout),
+            ("num_predict", self._llm_num_predict),
+            ("temperature", self._llm_temperature),
+            ("top_p", self._llm_top_p),
+        ):
+            try:
+                setattr(llm, attr, value)
+            except Exception:  # pragma: no cover - best effort configuration
+                continue
+
+        stop_values = list(self._llm_stop_tokens)
+        for attr in ("stop", "stop_sequences", "stop_tokens", "stop_words"):
+            if hasattr(llm, attr):
+                try:
+                    setattr(llm, attr, stop_values)
+                except Exception:  # pragma: no cover - best effort configuration
+                    pass
+
+        set_stop = getattr(llm, "set_stop_sequences", None)
+        if callable(set_stop):
+            try:
+                set_stop(stop_values)
+            except Exception:  # pragma: no cover - best effort configuration
+                pass
 
     # --- Compatibility layer for plain text completions ---------------------
     def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:
@@ -1017,12 +1099,35 @@ class LLMMetadataGeneratorService:
                     # Fallback to private _call_llm used in optimized_llm.py
                     call = getattr(llm, "_call_llm", None)
                     if callable(call):
-                        ok, text, err = call(
-                            prompt,
-                            temperature=0.1,
-                            max_tokens=max_tokens,
-                            timeout=self._llm_timeout,
-                        )
+                        bounded_max_tokens = min(max_tokens, self._llm_num_predict)
+                        call_kwargs: Dict[str, Any] = {}
+                        try:
+                            call_signature = inspect.signature(call)
+                        except (TypeError, ValueError):
+                            call_signature = None
+
+                        if call_signature is not None:
+                            params = call_signature.parameters
+                            if "temperature" in params:
+                                call_kwargs["temperature"] = self._llm_temperature
+                            if "max_tokens" in params:
+                                call_kwargs["max_tokens"] = bounded_max_tokens
+                            if "num_predict" in params:
+                                call_kwargs["num_predict"] = self._llm_num_predict
+                            if "timeout" in params:
+                                call_kwargs["timeout"] = self._llm_timeout
+                            for key in ("stop", "stop_sequences", "stop_tokens", "stop_words"):
+                                if key in params:
+                                    call_kwargs[key] = list(self._llm_stop_tokens)
+                                    break
+                        else:
+                            call_kwargs = {
+                                "temperature": self._llm_temperature,
+                                "max_tokens": bounded_max_tokens,
+                                "timeout": self._llm_timeout,
+                            }
+
+                        ok, text, err = call(prompt, **call_kwargs)
                         if ok and isinstance(text, str):
                             return text
                         if err == "timeout":
@@ -1041,6 +1146,7 @@ class LLMMetadataGeneratorService:
         """Call a completion function with a bounded timeout when supported."""
 
         kwargs: Dict[str, Any] = {}
+        bounded_max_tokens = min(max_tokens, self._llm_num_predict)
         try:
             signature = inspect.signature(fn)
         except (TypeError, ValueError):  # pragma: no cover - builtins
@@ -1051,7 +1157,18 @@ class LLMMetadataGeneratorService:
             if "timeout" in params:
                 kwargs["timeout"] = self._llm_timeout
             if "max_tokens" in params and "max_tokens" not in kwargs:
-                kwargs["max_tokens"] = max_tokens
+                kwargs["max_tokens"] = bounded_max_tokens
+            if "num_predict" in params:
+                kwargs["num_predict"] = self._llm_num_predict
+            if "temperature" in params:
+                kwargs.setdefault("temperature", self._llm_temperature)
+            if "top_p" in params:
+                kwargs["top_p"] = self._llm_top_p
+            stop_keys = ("stop", "stop_sequences", "stop_tokens", "stop_words")
+            for key in stop_keys:
+                if key in params:
+                    kwargs[key] = list(self._llm_stop_tokens)
+                    break
         try:
             return fn(prompt, **kwargs)  # type: ignore[misc]
         except TypeError as exc:
