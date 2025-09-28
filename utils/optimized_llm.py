@@ -5,16 +5,62 @@
 Basé sur l'analyse brillante de l'utilisateur : prompts simples + spécialisation intelligente
 """
 
+import os
 import requests
 import json
 import time
 import logging
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Sequence, Tuple, Any
 from pathlib import Path
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _parse_int_env(name: str, default: int, *, minimum: int = 0) -> int:
+    value = os.getenv(name)
+    try:
+        parsed = int(value) if value is not None else default
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, parsed)
+
+
+def _parse_float_env(
+    name: str,
+    default: float,
+    *,
+    minimum: float = 0.0,
+    maximum: Optional[float] = None,
+) -> float:
+    value = os.getenv(name)
+    try:
+        parsed = float(value) if value is not None else default
+    except (TypeError, ValueError):
+        parsed = default
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return max(minimum, parsed)
+
+
+def _parse_stop_tokens_env(name: str, default: Sequence[str]) -> List[str]:
+    value = os.getenv(name)
+    if not value:
+        return list(default)
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, (list, tuple)):
+            return [str(token) for token in parsed if str(token)]
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+    tokens = [token.strip() for token in value.split("|") if token.strip()]
+    if tokens:
+        return tokens
+    return list(default)
+
+
+_DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
 
 class OptimizedLLM:
     """Système LLM avec prompts minimalistes et spécialisation via pipeline"""
@@ -23,6 +69,46 @@ class OptimizedLLM:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = 60  # Timeout plus court pour détecter rapidement les blocages
+        self.num_predict = _parse_int_env("PIPELINE_LLM_NUM_PREDICT", 256, minimum=1)
+        self.temperature = _parse_float_env("PIPELINE_LLM_TEMP", 0.1, minimum=0.0)
+        self.top_p = _parse_float_env("PIPELINE_LLM_TOP_P", 0.9, minimum=0.0, maximum=1.0)
+        self.repeat_penalty = _parse_float_env("PIPELINE_LLM_REPEAT_PENALTY", 1.1, minimum=0.0)
+        self.stop: List[str] = _parse_stop_tokens_env("PIPELINE_LLM_STOP_TOKENS", _DEFAULT_STOP_TOKENS)
+
+    def configure_generation(
+        self,
+        *,
+        num_predict: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        repeat_penalty: Optional[float] = None,
+        stop: Optional[Sequence[str]] = None,
+    ) -> None:
+        if num_predict is not None:
+            try:
+                self.num_predict = max(1, int(num_predict))
+            except (TypeError, ValueError):
+                pass
+        if temperature is not None:
+            try:
+                self.temperature = float(temperature)
+            except (TypeError, ValueError):
+                pass
+        if top_p is not None:
+            try:
+                self.top_p = float(top_p)
+            except (TypeError, ValueError):
+                pass
+        if repeat_penalty is not None:
+            try:
+                self.repeat_penalty = float(repeat_penalty)
+            except (TypeError, ValueError):
+                pass
+        if stop is not None:
+            try:
+                self.stop = [str(token) for token in stop if str(token)]
+            except Exception:
+                pass
 
     def _call_llm(
         self,
@@ -34,12 +120,20 @@ class OptimizedLLM:
     ) -> Tuple[bool, str, Optional[str]]:
         """Appel LLM simple avec gestion d'erreur"""
         try:
+            options = {
+                "num_predict": max_tokens if max_tokens is not None else self.num_predict,
+                "temperature": temperature if temperature is not None else self.temperature,
+                "top_p": self.top_p,
+                "repeat_penalty": self.repeat_penalty,
+                "stop": self.stop,
+            }
+            options = {key: value for key, value in options.items() if value is not None}
+
             payload = {
                 "model": self.model,
                 "prompt": prompt,
-                "temperature": temperature,
                 "stream": False,
-                "max_tokens": max_tokens,
+                "options": options,
             }
 
             start_time = time.time()
