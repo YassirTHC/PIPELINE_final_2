@@ -465,14 +465,15 @@ def _dedupe_queries(seq, cap: int) -> list[str]:
             break
     return out
 
-def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
-    """Extract up to `cap` clean terms (queries then keywords) for a given segment index."""
-    if not isinstance(dyn, dict) or cap <= 0:
-        return []
+def _segment_brief_terms(dyn: dict, seg_idx: int) -> tuple[list[str], list[str]]:
+    """Return (queries, keywords) declared for a segment inside the dynamic briefs."""
+
+    if not isinstance(dyn, dict):
+        return [], []
 
     briefs = dyn.get("segment_briefs")
     if not isinstance(briefs, list):
-        return []
+        return [], []
 
     matching_briefs: list[dict] = []
     for br in briefs:
@@ -486,10 +487,7 @@ def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
         matching_briefs.append(br)
 
     if not matching_briefs:
-        return []
-
-    seen: set[str] = set()
-    out: list[str] = []
+        return [], []
 
     def _iter_terms(value):
         if value is None:
@@ -500,18 +498,278 @@ def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
             return [v for v in value if isinstance(v, str)]
         return []
 
-    for key in ("queries", "keywords"):
-        for br in matching_briefs:
-            for term in _iter_terms(br.get(key)):
-                cleaned = term.replace("_", " ").strip()
-                if not cleaned or cleaned in seen:
-                    continue
-                out.append(cleaned)
-                seen.add(cleaned)
-                if len(out) >= cap:
-                    return out
+    queries: list[str] = []
+    keywords: list[str] = []
+    seen_queries: set[str] = set()
+    seen_keywords: set[str] = set()
 
+    for br in matching_briefs:
+        for term in _iter_terms(br.get("queries")):
+            cleaned = term.replace("_", " ").strip()
+            if not cleaned or cleaned in seen_queries:
+                continue
+            queries.append(cleaned)
+            seen_queries.add(cleaned)
+
+    for br in matching_briefs:
+        for term in _iter_terms(br.get("keywords")):
+            cleaned = term.replace("_", " ").strip()
+            if not cleaned or cleaned in seen_keywords:
+                continue
+            keywords.append(cleaned)
+            seen_keywords.add(cleaned)
+
+    return queries, keywords
+
+
+def _segment_terms_from_briefs(dyn: dict, seg_idx: int, cap: int) -> list[str]:
+    """Extract up to `cap` clean terms (queries then keywords) for a given segment index."""
+
+    if cap <= 0:
+        return []
+
+    queries, keywords = _segment_brief_terms(dyn, seg_idx)
+    out: list[str] = []
+    for term in queries:
+        if len(out) >= cap:
+            break
+        out.append(term)
+    if len(out) < cap:
+        for term in keywords:
+            if len(out) >= cap:
+                break
+            if term in out:
+                continue
+            out.append(term)
     return out
+
+
+def _flatten_seed_terms(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple, set)):
+        out: list[str] = []
+        for item in value:
+            out.extend(_flatten_seed_terms(item))
+        return out
+    if isinstance(value, dict):
+        out: list[str] = []
+        for item in value.values():
+            out.extend(_flatten_seed_terms(item))
+        return out
+    return []
+
+
+_SEED_QUERY_CACHE: Optional[list[str]] = None
+
+
+def _load_seed_queries() -> list[str]:
+    global _SEED_QUERY_CACHE
+    if _SEED_QUERY_CACHE is not None:
+        return _SEED_QUERY_CACHE
+
+    candidates: list[str] = []
+    env_path = os.getenv("BROLL_SEED_QUERIES")
+    search_paths: list[Path] = []
+    if env_path:
+        try:
+            search_paths.append(Path(env_path).expanduser())
+        except Exception:
+            pass
+    search_paths.append(PROJECT_ROOT / "seed_queries.json")
+    search_paths.append(PROJECT_ROOT / "config" / "seed_queries.json")
+
+    for path in search_paths:
+        try:
+            if not path or not path.is_file():
+                continue
+        except Exception:
+            continue
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except Exception:
+            continue
+        candidates = _flatten_seed_terms(payload)
+        if candidates:
+            break
+
+    cleaned = []
+    seen: set[str] = set()
+    for term in candidates:
+        if not isinstance(term, str):
+            continue
+        normalised = term.replace("_", " ").strip()
+        if not normalised or normalised in seen:
+            continue
+        seen.add(normalised)
+        cleaned.append(normalised)
+
+    _SEED_QUERY_CACHE = cleaned
+    return _SEED_QUERY_CACHE
+
+
+def _relaxed_normalise_terms(raw_terms: Sequence[str], limit: int) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for term in raw_terms or []:
+        if len(out) >= limit > 0:
+            break
+        if not isinstance(term, str):
+            continue
+        candidate = _norm_query_term(term)
+        if not candidate or candidate in seen:
+            continue
+        candidate = re.sub(r"\s+", " ", candidate).strip()
+        if not candidate:
+            continue
+        seen.add(candidate)
+        out.append(candidate)
+    return out[: max(0, limit)]
+
+
+_CURATED_TRANSCRIPT_SUBJECTS = (
+    ("team", "collaborating"),
+    ("person", "presenting"),
+    ("audience", "listening"),
+    ("hands", "typing"),
+    ("city", "timelapse"),
+    ("nature", "exploring"),
+)
+
+
+def _build_transcript_fallback_terms(
+    segment_text: str,
+    segment_keywords: Sequence[str],
+    *,
+    limit: int,
+) -> list[str]:
+    if limit <= 0:
+        return []
+
+    tokens: list[str] = []
+    for source in (segment_keywords or []):
+        if not isinstance(source, str):
+            continue
+        tokens.extend(re.findall(r"[a-zA-Z]{4,}", source.lower()))
+
+    tokens.extend(re.findall(r"[a-zA-Z]{4,}", (segment_text or "").lower()))
+
+    unique_tokens: list[str] = []
+    seen_tokens: set[str] = set()
+    for token in tokens:
+        cleaned = token.replace("_", " ").strip()
+        if len(cleaned) < 3:
+            continue
+        if cleaned in seen_tokens:
+            continue
+        seen_tokens.add(cleaned)
+        unique_tokens.append(cleaned)
+
+    phrases: list[str] = []
+    for token in unique_tokens:
+        for subject, action in _CURATED_TRANSCRIPT_SUBJECTS:
+            if len(phrases) >= limit:
+                return phrases[:limit]
+            phrase = f"{subject} {action} {token}".strip()
+            if phrase in phrases:
+                continue
+            phrases.append(phrase)
+
+    if len(phrases) < limit:
+        for subject, action in _CURATED_TRANSCRIPT_SUBJECTS:
+            if len(phrases) >= limit:
+                break
+            phrase = f"{subject} {action}".strip()
+            if phrase in phrases:
+                continue
+            phrases.append(phrase)
+
+    if not phrases:
+        return ["people collaborating"][:limit]
+
+    return phrases[:limit]
+
+
+def _merge_segment_query_sources(
+    *,
+    segment_text: str,
+    llm_queries: Sequence[str],
+    brief_queries: Sequence[str],
+    brief_keywords: Sequence[str],
+    segment_keywords: Sequence[str],
+    selector_keywords: Sequence[str],
+    cap: int,
+) -> tuple[list[str], str]:
+    cap = max(1, int(cap or 0))
+    combined: list[str] = []
+    seen: set[str] = set()
+    primary_source = "none"
+
+    def _consume(source_name: str, terms: Sequence[str], *, relax: bool = False) -> bool:
+        nonlocal primary_source
+        if not terms:
+            return False
+        remaining = cap - len(combined)
+        if remaining <= 0:
+            return False
+        prepared = [t.replace("_", " ").strip() for t in terms if isinstance(t, str)]
+        prepared = [t for t in prepared if t]
+        if not prepared:
+            return False
+        if relax:
+            cleaned = _relaxed_normalise_terms(prepared, remaining)
+        else:
+            cleaned = _dedupe_queries(prepared, cap=remaining)
+        added = False
+        for term in cleaned:
+            if len(combined) >= cap:
+                break
+            normalised = re.sub(r"\s+", " ", term.strip())
+            if not normalised or normalised in seen:
+                continue
+            seen.add(normalised)
+            combined.append(normalised)
+            if primary_source == "none":
+                if source_name.startswith("segment_brief"):
+                    primary_source = "segment_brief"
+                else:
+                    primary_source = source_name
+            added = True
+        return added
+
+    _consume("llm_hint", llm_queries)
+    brief_pool: list[str] = []
+    brief_pool.extend(brief_keywords or [])
+    brief_pool.extend(brief_queries or [])
+    _consume("segment_brief", brief_pool)
+
+    if not combined:
+        if _consume("segment_keywords", segment_keywords):
+            pass
+    if not combined:
+        _consume("selector_keywords", selector_keywords)
+    if not combined:
+        seed_queries = _load_seed_queries()
+        _consume("seed_queries", seed_queries)
+
+    if not combined:
+        fallback_terms = _build_transcript_fallback_terms(
+            segment_text,
+            segment_keywords,
+            limit=cap,
+        )
+        _consume("transcript_fallback", fallback_terms, relax=True)
+
+    if not combined:
+        _consume("transcript_fallback", ["people collaborating"], relax=True)
+
+    if primary_source == "none" and combined:
+        primary_source = "transcript_fallback"
+
+    return combined[:cap], primary_source
 
 def _choose_dynamic_domain(dyn: dict):
     """Pick the best domain from LLM dynamic context.
@@ -1378,38 +1636,59 @@ class VideoProcessor:
             segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
             keyword_terms = _dedupe_queries(segment_keywords, cap=SEGMENT_REFINEMENT_MAX_TERMS)
 
-            queries: List[str] = []
+            try:
+                brief_queries, brief_keywords = _segment_brief_terms(dyn_ctx or {}, idx)
+            except Exception:
+                brief_queries, brief_keywords = [], []
+
+            llm_queries: List[str] = []
             query_source = 'segment_brief'
 
-            try:
-                brief_terms = _segment_terms_from_briefs(dyn_ctx or {}, idx, SEGMENT_REFINEMENT_MAX_TERMS)
-            except Exception:
-                brief_terms = []
+            should_consult_llm = not brief_queries and not brief_keywords and not keyword_terms
 
-            if brief_terms:
-                queries = brief_terms
-            elif keyword_terms:
-                queries = keyword_terms
-                query_source = 'segment_keywords'
-            else:
-                if getattr(self, '_llm_service', None):
-                    try:
-                        llm_hints = self._llm_service.generate_hints_for_segment(segment.text, segment.start, segment.end)
-                    except Exception:
-                        llm_hints = None
-                        llm_healthy = False
-                    else:
-                        llm_healthy = True
-                if llm_hints and isinstance(llm_hints.get('queries'), list):
-                    queries = _dedupe_queries(llm_hints['queries'], cap=SEGMENT_REFINEMENT_MAX_TERMS)
-                    query_source = 'llm_hint' if queries else 'llm_hint_empty'
-                if not queries:
-                    fallback_terms = _dedupe_queries(segment_keywords, cap=SEGMENT_REFINEMENT_MAX_TERMS)
-                    queries = fallback_terms
-                    query_source = 'fallback_keywords' if fallback_terms else 'none'
+            if should_consult_llm and getattr(self, '_llm_service', None):
+                try:
+                    llm_hints = self._llm_service.generate_hints_for_segment(
+                        segment.text,
+                        segment.start,
+                        segment.end,
+                    )
+                except Exception:
+                    llm_hints = None
+                    llm_healthy = False
+                else:
+                    llm_healthy = True
+            elif getattr(self, '_llm_service', None):
+                llm_healthy = True
+
+            if llm_hints and isinstance(llm_hints.get('queries'), list):
+                llm_queries = _dedupe_queries(llm_hints['queries'], cap=SEGMENT_REFINEMENT_MAX_TERMS)
+
+            selector_keywords = list(getattr(self, '_selector_keywords', []))
+            queries, query_source = _merge_segment_query_sources(
+                segment_text=getattr(segment, 'text', '') or '',
+                llm_queries=llm_queries,
+                brief_queries=brief_queries,
+                brief_keywords=brief_keywords,
+                segment_keywords=keyword_terms,
+                selector_keywords=selector_keywords,
+                cap=SEGMENT_REFINEMENT_MAX_TERMS,
+            )
 
             if dyn_language in ('', 'en'):
                 queries = enforce_fetch_language(queries, dyn_language or None)
+
+            if not queries:
+                fallback_terms = _build_transcript_fallback_terms(
+                    getattr(segment, 'text', '') or '',
+                    keyword_terms,
+                    limit=max(1, SEGMENT_REFINEMENT_MAX_TERMS),
+                )
+                queries = _relaxed_normalise_terms(fallback_terms, max(1, SEGMENT_REFINEMENT_MAX_TERMS))
+                if dyn_language in ('', 'en'):
+                    queries = enforce_fetch_language(queries, dyn_language or None)
+                if queries:
+                    query_source = 'transcript_fallback'
 
             query_source_counter[query_source] += 1
 
