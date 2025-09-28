@@ -442,7 +442,7 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
     input_clip = tmp_path / "input.mp4"
     input_clip.write_bytes(b"base")
 
-    inserted_count, rendered_path = processor._insert_brolls_pipeline_core(
+    inserted_count, rendered_path, meta = processor._insert_brolls_pipeline_core(
         [types.SimpleNamespace(start=0.0, end=2.0, text="hello world")],
         ["sample"],
         subtitles=[],
@@ -452,6 +452,7 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
     assert inserted_count == 1
     assert rendered_path is not None
     assert rendered_path != input_clip
+    assert meta.get("render_ok") is True
     assert captured_timeline.get("timeline")
     first_entry = captured_timeline["timeline"][0]
     assert isinstance(first_entry, module.CoreTimelineEntry)
