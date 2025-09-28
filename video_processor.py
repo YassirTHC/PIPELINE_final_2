@@ -26,6 +26,16 @@ import gc
 import re
 
 try:
+    from pipeline_core import llm_service as _pipeline_llm_service
+except ImportError:
+    _pipeline_llm_service = None
+
+if _pipeline_llm_service is not None:
+    generate_metadata_as_json = getattr(_pipeline_llm_service, "generate_metadata_as_json", None)
+else:
+    generate_metadata_as_json = None
+
+try:
     from config import Config as _ROOT_CONFIG
 except Exception:  # pragma: no cover - fallback when root config is unavailable
     class _ROOT_CONFIG:
@@ -3868,44 +3878,33 @@ class VideoProcessor:
         
         # 🚀 NOUVEAU: Utilisation du système LLM industriel
         try:
-            # Import du nouveau système
-            import sys
-            from pathlib import Path
-            sys.path.insert(0, str(Path(__file__).parent / "utils"))
-            
-            from pipeline_integration import create_pipeline_integration
-            
-            # Créer l'intégration LLM
-            llm_integration = create_pipeline_integration()
-            
+            if generate_metadata_as_json is None:
+                raise RuntimeError("generate_metadata_as_json indisponible")
+
             print(f"    🚀 [LLM INDUSTRIEL] Génération de métadonnées pour {len(full_text)} caractères")
-            
-            # Traitement avec le nouveau système
-            result = llm_integration.process_video_transcript(
-                transcript=full_text,
-                video_id=f"video_{int(time.time())}",
-                segment_timestamps=[(s.get('start', 0), s.get('end', 0)) for s in subtitles if 'start' in s and 'end' in s]
+
+            metadata_result = generate_metadata_as_json(
+                subtitles,
+                video_id=f"video_{int(time.time())}"
             )
-            
-            if result.get('success', False):
-                metadata = result.get('metadata', {})
-                broll_data = result.get('broll_data', {})
-                
-                title = metadata.get('title', '').strip()
-                description = metadata.get('description', '').strip()
-                hashtags = [h for h in (metadata.get('hashtags') or []) if h]
-                broll_keywords = broll_data.get('keywords', [])
-                
-                print(f"    ✅ [LLM INDUSTRIEL] Métadonnées générées avec succès")
-                print(f"    🎯 Titre: {title}")
-                print(f"    📝 Description: {description[:100]}...")
-                print(f"    #️⃣ Hashtags: {len(hashtags)} générés")
-                print(f"    🎬 Mots-clés B-roll: {len(broll_keywords)} termes optimisés")
-                
-                return title, description, hashtags, broll_keywords
-            else:
-                print(f"    ⚠️ [LLM INDUSTRIEL] Échec, fallback vers ancien système")
-                raise Exception("LLM industriel échoué")
+
+            title = (metadata_result.get('title') or '').strip()
+            description = (metadata_result.get('description') or '').strip()
+            hashtags = [h for h in (metadata_result.get('hashtags') or []) if h]
+            broll_keywords = metadata_result.get('broll_keywords') or []
+            queries = metadata_result.get('queries') or []
+            response_len = metadata_result.get('raw_response_length')
+
+            print(f"    ✅ [LLM INDUSTRIEL] Métadonnées générées avec succès (JSON)")
+            print(f"    🎯 Titre: {title}")
+            print(f"    📝 Description: {description[:100]}...")
+            print(f"    #️⃣ Hashtags JSON: {len(hashtags)} générés")
+            print(f"    🎬 Mots-clés B-roll JSON: {len(broll_keywords)} termes optimisés")
+            print(f"    🔎 Requêtes JSON: {len(queries)} générées")
+            if response_len is not None:
+                print(f"    📏 Réponse LLM (caractères): {response_len}")
+
+            return title, description, hashtags, list(broll_keywords)
                 
         except Exception as e:
             print(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")

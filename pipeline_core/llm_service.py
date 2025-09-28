@@ -16,6 +16,8 @@ import unicodedata
 import inspect
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
+import requests
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 UTILS_DIR = PROJECT_ROOT / 'utils'
@@ -51,6 +53,10 @@ logger = logging.getLogger(__name__)
 
 
 _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
+
+_DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
+_DEFAULT_OLLAMA_MODEL = "mistral:7b-instruct"
+_DEFAULT_OLLAMA_KEEP_ALIVE = "5m"
 
 
 def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
@@ -94,6 +100,247 @@ def _safe_parse_json(s: str) -> Dict[str, Any]:
                 except Exception:
                     break
     return {}
+
+
+def _extract_json_braces(text: str) -> Dict[str, Any]:
+    """Fallback extraction that keeps searching for balanced ``{...}`` blocks."""
+
+    if not isinstance(text, str):
+        return {}
+
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        snippet = match.group(0)
+        try:
+            return json.loads(snippet)
+        except Exception:
+            pass
+
+    start = -1
+    depth = 0
+    for idx, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = idx
+            depth += 1
+        elif ch == "}":
+            if depth:
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    snippet = text[start : idx + 1]
+                    try:
+                        return json.loads(snippet)
+                    except Exception:
+                        start = -1
+    return {}
+
+
+def _env_to_bool(value: Optional[str]) -> Optional[bool]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def _normalise_string(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
+def _normalise_string_list(value: Any) -> List[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        candidates = re.split(r"[\n,]+", value)
+    elif isinstance(value, dict):
+        candidates = list(value.values())
+    else:
+        try:
+            candidates = list(value)
+        except TypeError:
+            candidates = [value]
+    normalised: List[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        if isinstance(candidate, str):
+            cleaned = candidate.strip()
+        else:
+            cleaned = str(candidate).strip()
+        if not cleaned:
+            continue
+        if cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalised.append(cleaned)
+    return normalised
+
+
+def _normalise_hashtags(value: Any) -> List[str]:
+    hashtags = []
+    for tag in _normalise_string_list(value):
+        cleaned = tag.strip()
+        if not cleaned:
+            continue
+        if " " in cleaned:
+            cleaned = cleaned.replace(" ", "")
+        if not cleaned.startswith("#"):
+            cleaned = "#" + cleaned.lstrip("#")
+        if cleaned not in hashtags:
+            hashtags.append(cleaned)
+    return hashtags
+
+
+def _resolve_ollama_endpoint(endpoint: Optional[str]) -> str:
+    base_url = endpoint or os.getenv("PIPELINE_LLM_ENDPOINT") or os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
+    base_url = (base_url or _DEFAULT_OLLAMA_ENDPOINT).strip()
+    return base_url.rstrip("/") or _DEFAULT_OLLAMA_ENDPOINT
+
+
+def _resolve_ollama_model(model: Optional[str]) -> str:
+    candidate = model or os.getenv("PIPELINE_LLM_MODEL") or os.getenv("OLLAMA_MODEL")
+    candidate = (candidate or _DEFAULT_OLLAMA_MODEL).strip()
+    return candidate or _DEFAULT_OLLAMA_MODEL
+
+
+def _resolve_keep_alive(value: Optional[str]) -> Optional[str]:
+    raw = value
+    if raw is None:
+        raw = os.getenv("PIPELINE_LLM_KEEP_ALIVE")
+    if raw is None:
+        raw = _DEFAULT_OLLAMA_KEEP_ALIVE
+    cleaned = (raw or "").strip()
+    return cleaned or None
+
+
+def _metadata_transcript_limit() -> int:
+    limit_env = os.getenv("PIPELINE_LLM_JSON_TRANSCRIPT_LIMIT")
+    try:
+        limit = int(limit_env) if limit_env is not None else 5500
+    except (TypeError, ValueError):
+        limit = 5500
+    return max(500, limit)
+
+
+def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = None) -> str:
+    override = os.getenv("PIPELINE_LLM_JSON_PROMPT")
+    cleaned = (transcript or "").strip()
+    limit = _metadata_transcript_limit()
+    if len(cleaned) > limit:
+        cleaned = cleaned[:limit]
+
+    if override:
+        try:
+            return override.format(transcript=cleaned, video_id=video_id or "")
+        except KeyError:
+            return override.replace("{transcript}", cleaned)
+
+    video_reference = f"Video ID: {video_id}\n" if video_id else ""
+    return (
+        "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
+        "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
+        "  \"title\": string accrocheur en français ou langue source,\n"
+        "  \"description\": string synthétique (1-2 phrases),\n"
+        "  \"hashtags\": array de 8-18 chaînes uniques (avec #),\n"
+        "  \"broll_keywords\": array de mots-clés visuels,\n"
+        "  \"queries\": array de requêtes de recherche de stock (2-5 mots).\n"
+        "Aucune explication ni texte hors JSON.\n\n"
+        f"{video_reference}TRANSCRIPT:\n{cleaned}"
+    )
+
+
+def _ollama_generate_json(
+    prompt: str,
+    *,
+    model: Optional[str] = None,
+    endpoint: Optional[str] = None,
+    timeout: Optional[int] = None,
+    options: Optional[Dict[str, Any]] = None,
+    keep_alive: Optional[str] = None,
+    json_mode: Optional[bool] = None,
+) -> Tuple[Dict[str, Any], Dict[str, Any], Optional[int]]:
+    """Send a prompt to Ollama and parse the JSON payload when possible."""
+
+    target_endpoint = _resolve_ollama_endpoint(endpoint)
+    model_name = _resolve_ollama_model(model)
+    keep_alive_value = _resolve_keep_alive(keep_alive)
+    json_mode_env = json_mode
+    if json_mode_env is None:
+        json_mode_env = _env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
+    payload: Dict[str, Any] = {
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False,
+    }
+
+    opts: Dict[str, Any] = {}
+    if options:
+        for key, value in options.items():
+            if value is None:
+                continue
+            if key == "stop":
+                try:
+                    stop_values = [str(token) for token in value if str(token)]
+                except TypeError:
+                    stop_values = []
+                if stop_values:
+                    opts[key] = stop_values
+                continue
+            opts[key] = value
+    if opts:
+        payload["options"] = opts
+
+    json_flag = bool(json_mode_env)
+    if json_flag:
+        payload["format"] = "json"
+    if keep_alive_value:
+        payload["keep_alive"] = keep_alive_value
+
+    request_timeout = timeout if timeout is not None else 60
+    url = f"{target_endpoint}/api/generate"
+
+    try:
+        response = requests.post(url, json=payload, timeout=request_timeout)
+        response.raise_for_status()
+    except requests.Timeout as exc:
+        raise TimeoutError("Ollama request timed out") from exc
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Ollama request failed: {exc}") from exc
+
+    try:
+        raw_payload: Dict[str, Any] = response.json()
+    except ValueError as exc:
+        raise ValueError("Ollama did not return JSON payload") from exc
+
+    raw_response = raw_payload.get("response")
+    raw_length: Optional[int] = len(raw_response) if isinstance(raw_response, str) else None
+
+    if isinstance(raw_response, dict):
+        parsed = raw_response
+    elif isinstance(raw_response, str):
+        parsed = _safe_parse_json(raw_response)
+        if not parsed:
+            parsed = _extract_json_braces(raw_response)
+    else:
+        parsed = {}
+
+    if not parsed:
+        if isinstance(raw_payload.get("message"), dict):
+            parsed = raw_payload["message"]
+        elif isinstance(raw_payload.get("data"), dict):
+            parsed = raw_payload["data"]
+
+    return parsed or {}, raw_payload, raw_length
 
 
 _TERM_MIN_LEN = 3
@@ -1378,3 +1625,113 @@ class LLMMetadataGeneratorService:
             "synonyms": synonyms or ["healthcare", "therapy", "consultation"],
             "filters": {"orientation": "landscape", "min_duration_s": 3.0},
         }
+
+
+def generate_metadata_as_json(
+    segments: Sequence[Dict[str, Any]] | str,
+    *,
+    video_id: Optional[str] = None,
+    service: Optional[LLMMetadataGeneratorService] = None,
+) -> Dict[str, Any]:
+    """Generate metadata using the Ollama JSON endpoint."""
+
+    if isinstance(segments, str):
+        transcript_text = segments
+    else:
+        valid_segments = [
+            SubtitleSegment.from_mapping(seg)
+            for seg in segments
+            if seg and seg.get("text")
+        ]
+        transcript_text = " ".join(seg.text for seg in valid_segments if seg.text)
+
+    transcript = (transcript_text or "").strip()
+    if not transcript:
+        raise ValueError("No transcript provided for metadata generation")
+
+    llm_service = service or LLMMetadataGeneratorService.get_shared()
+    prompt = _build_json_metadata_prompt(transcript, video_id=video_id)
+
+    options = {
+        "num_predict": llm_service._llm_num_predict,
+        "temperature": llm_service._llm_temperature,
+        "top_p": llm_service._llm_top_p,
+        "repeat_penalty": llm_service._llm_repeat_penalty,
+        "stop": list(llm_service._llm_stop_tokens),
+    }
+
+    parsed_payload, raw_payload, raw_length = _ollama_generate_json(
+        prompt,
+        timeout=llm_service._llm_timeout,
+        options=options,
+    )
+
+    if not parsed_payload:
+        raise ValueError("Empty metadata payload returned by LLM")
+
+    metadata_section: Dict[str, Any] = parsed_payload
+    for key in ("metadata", "result", "data"):
+        candidate = metadata_section.get(key) if isinstance(metadata_section, dict) else None
+        if isinstance(candidate, dict):
+            metadata_section = candidate
+
+    title = _normalise_string(
+        metadata_section.get("title")
+        or parsed_payload.get("title")
+    )
+    description = _normalise_string(
+        metadata_section.get("description")
+        or parsed_payload.get("description")
+    )
+
+    hashtags_raw = (
+        metadata_section.get("hashtags")
+        or parsed_payload.get("hashtags")
+    )
+    hashtags = _normalise_hashtags(hashtags_raw)
+
+    broll_raw = (
+        metadata_section.get("broll_keywords")
+        or metadata_section.get("keywords")
+        or parsed_payload.get("broll_keywords")
+        or parsed_payload.get("keywords")
+    )
+    if not broll_raw and isinstance(parsed_payload.get("broll_data"), dict):
+        broll_raw = parsed_payload["broll_data"].get("keywords")
+    broll_keywords = _normalise_string_list(broll_raw)
+
+    queries_raw = (
+        metadata_section.get("queries")
+        or metadata_section.get("search_queries")
+        or parsed_payload.get("queries")
+        or parsed_payload.get("search_queries")
+    )
+    if not queries_raw and isinstance(parsed_payload.get("broll_data"), dict):
+        queries_raw = parsed_payload["broll_data"].get("queries")
+    queries = _normalise_string_list(queries_raw)
+
+    if not any((title, description, hashtags, broll_keywords, queries)):
+        raise ValueError("Metadata payload missing expected fields")
+
+    logger.info(
+        "[LLM] JSON metadata generated",
+        extra={
+            "hashtags": len(hashtags),
+            "broll_keywords": len(broll_keywords),
+            "queries": len(queries),
+            "raw_response_length": raw_length,
+        },
+    )
+
+    result: Dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "hashtags": hashtags,
+        "broll_keywords": broll_keywords,
+        "queries": queries,
+        "raw_payload": raw_payload,
+    }
+    if raw_length is not None:
+        result["raw_response_length"] = raw_length
+
+    return result
