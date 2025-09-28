@@ -135,6 +135,45 @@ def _extract_json_braces(text: str) -> Dict[str, Any]:
     return {}
 
 
+def _first_balanced_json_block(text: str) -> Optional[str]:
+    """Return the first balanced JSON object found in ``text`` if possible."""
+
+    if not isinstance(text, str):
+        return None
+
+    start_match = re.search(r"\{", text)
+    if not start_match:
+        return None
+
+    start_idx = start_match.start()
+    depth = 0
+    in_string = False
+    escape = False
+
+    for idx in range(start_idx, len(text)):
+        ch = text[idx]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            if depth:
+                depth -= 1
+                if depth == 0:
+                    return text[start_idx : idx + 1]
+
+    return None
+
+
 def _env_to_bool(value: Optional[str]) -> Optional[bool]:
     if value is None:
         return None
@@ -1632,7 +1671,7 @@ def generate_metadata_as_json(
     *,
     video_id: Optional[str] = None,
     service: Optional[LLMMetadataGeneratorService] = None,
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """Generate metadata using the Ollama JSON endpoint."""
 
     if isinstance(segments, str):
@@ -1666,10 +1705,29 @@ def generate_metadata_as_json(
         options=options,
     )
 
-    if not parsed_payload:
-        raise ValueError("Empty metadata payload returned by LLM")
+    parsed_payload_dict: Dict[str, Any] = {}
+    original_payload = parsed_payload
 
-    metadata_section: Dict[str, Any] = parsed_payload
+    if isinstance(original_payload, dict):
+        parsed_payload_dict = original_payload
+    elif isinstance(original_payload, str):
+        snippet = _first_balanced_json_block(original_payload)
+        if snippet:
+            try:
+                parsed_payload_dict = json.loads(snippet)
+            except json.JSONDecodeError as exc:
+                logger.debug("Failed to parse JSON snippet from string payload: %s", exc)
+        if not parsed_payload_dict:
+            logger.debug("String payload without JSON block: %s", original_payload)
+
+    if not parsed_payload_dict:
+        logger.warning(
+            "[LLM] Empty metadata payload returned; raw Ollama payload=%s",
+            raw_payload,
+        )
+        return None
+
+    metadata_section: Dict[str, Any] = parsed_payload_dict
     for key in ("metadata", "result", "data"):
         candidate = metadata_section.get(key) if isinstance(metadata_section, dict) else None
         if isinstance(candidate, dict):
@@ -1677,37 +1735,37 @@ def generate_metadata_as_json(
 
     title = _normalise_string(
         metadata_section.get("title")
-        or parsed_payload.get("title")
+        or parsed_payload_dict.get("title")
     )
     description = _normalise_string(
         metadata_section.get("description")
-        or parsed_payload.get("description")
+        or parsed_payload_dict.get("description")
     )
 
     hashtags_raw = (
         metadata_section.get("hashtags")
-        or parsed_payload.get("hashtags")
+        or parsed_payload_dict.get("hashtags")
     )
     hashtags = _normalise_hashtags(hashtags_raw)
 
     broll_raw = (
         metadata_section.get("broll_keywords")
         or metadata_section.get("keywords")
-        or parsed_payload.get("broll_keywords")
-        or parsed_payload.get("keywords")
+        or parsed_payload_dict.get("broll_keywords")
+        or parsed_payload_dict.get("keywords")
     )
-    if not broll_raw and isinstance(parsed_payload.get("broll_data"), dict):
-        broll_raw = parsed_payload["broll_data"].get("keywords")
+    if not broll_raw and isinstance(parsed_payload_dict.get("broll_data"), dict):
+        broll_raw = parsed_payload_dict["broll_data"].get("keywords")
     broll_keywords = _normalise_string_list(broll_raw)
 
     queries_raw = (
         metadata_section.get("queries")
         or metadata_section.get("search_queries")
-        or parsed_payload.get("queries")
-        or parsed_payload.get("search_queries")
+        or parsed_payload_dict.get("queries")
+        or parsed_payload_dict.get("search_queries")
     )
-    if not queries_raw and isinstance(parsed_payload.get("broll_data"), dict):
-        queries_raw = parsed_payload["broll_data"].get("queries")
+    if not queries_raw and isinstance(parsed_payload_dict.get("broll_data"), dict):
+        queries_raw = parsed_payload_dict["broll_data"].get("queries")
     queries = _normalise_string_list(queries_raw)
 
     if not any((title, description, hashtags, broll_keywords, queries)):
