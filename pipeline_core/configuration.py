@@ -55,6 +55,14 @@ def _default_allow_videos() -> bool:
     return True
 
 
+def _default_max_segments_in_flight() -> int:
+    return _coerce_positive_int(os.getenv("PIPELINE_MAX_SEGMENTS_IN_FLIGHT"), 1)
+
+
+def _default_llm_queries_per_segment() -> int:
+    return _coerce_positive_int(os.getenv("PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT"), 3)
+
+
 def _parse_provider_list(raw: Optional[str]) -> Optional[set[str]]:
     if not raw:
         return None
@@ -273,7 +281,10 @@ class SelectionConfig:
 class OrchestratorRuntimeConfig:
     """Runtime tuning for the orchestrator."""
 
-    max_segments_in_flight: int = 2
+    max_segments_in_flight: int = field(default_factory=_default_max_segments_in_flight)
+
+    def __post_init__(self) -> None:
+        self.max_segments_in_flight = max(1, int(self.max_segments_in_flight or 1))
 
 
 @dataclass(slots=True)
@@ -298,10 +309,13 @@ class LLMServiceConfig:
     """Runtime settings for the LLM keyword/metadata generator."""
 
     provider_name: str = "pipeline_integration"
-    max_queries_per_segment: int = 6
+    max_queries_per_segment: int = field(default_factory=_default_llm_queries_per_segment)
     include_bigrams: bool = True
     include_trigrams: bool = True
     cache_ttl_s: float = 15 * 60  # 15 minutes
+
+    def __post_init__(self) -> None:
+        self.max_queries_per_segment = _coerce_positive_int(self.max_queries_per_segment, 3)
 
 
 @dataclass(slots=True)
