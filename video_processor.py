@@ -385,7 +385,6 @@ import random
 import numpy as np
 import shutil
 from datetime import datetime  # NEW: pour métadonnées intelligentes
-from temp_function import _llm_generate_caption_hashtags_fixed
 import whisper
 import requests
 import cv2
@@ -474,6 +473,76 @@ def _dedupe_queries(seq, cap: int) -> list[str]:
         if len(out) >= cap:
             break
     return out
+
+
+def _basic_metadata_fallback(full_text: str) -> Dict[str, Any]:
+    """Generate simple metadata using the transcript when advanced services fail."""
+
+    text = (full_text or "").strip()
+    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+", text)
+    first_words = tokens[:8]
+
+    if first_words:
+        raw_title = " ".join(first_words).strip()
+        title = raw_title[:1].upper() + raw_title[1:]
+    else:
+        title = "Instant Highlight"
+
+    snippet = text[:180].strip()
+    if snippet:
+        description = f"Key moment from this clip: {snippet}"
+    else:
+        description = "Key moment from this clip."
+
+    significant = [w.lower() for w in tokens if len(w) > 3]
+    counts = Counter(significant)
+    dominant_terms = [term for term, _ in counts.most_common(5)]
+
+    base_hashtags = ["#shorts", "#highlights", "#viralclip"]
+    for term in dominant_terms:
+        cleaned = re.sub(r"[^A-Za-z0-9]", "", term)
+        if cleaned:
+            base_hashtags.append(f"#{cleaned}")
+
+    hashtags: List[str] = []
+    for tag in base_hashtags:
+        if tag and tag not in hashtags:
+            hashtags.append(tag)
+
+    broll_keywords = dominant_terms[:]
+    fallback_keywords = [
+        "audience reaction",
+        "speaker close up",
+        "dynamic text overlay",
+        "city skyline",
+        "motivational crowd",
+    ]
+    for term in fallback_keywords:
+        if len(broll_keywords) >= 5:
+            break
+        if term not in broll_keywords:
+            broll_keywords.append(term)
+
+    queries = [f"{term} b-roll" for term in dominant_terms[:3]]
+    fallback_queries = [
+        "motivational speech b-roll",
+        "audience clapping stock footage",
+        "city skyline night aerial",
+    ]
+    for query in fallback_queries:
+        if len(queries) >= 3:
+            break
+        if query not in queries:
+            queries.append(query)
+
+    return {
+        "title": title,
+        "description": description,
+        "hashtags": hashtags,
+        "broll_keywords": broll_keywords,
+        "queries": queries,
+    }
+
 
 def _segment_brief_terms(dyn: dict, seg_idx: int) -> tuple[list[str], list[str]]:
     """Return (queries, keywords) declared for a segment inside the dynamic briefs."""
@@ -3909,26 +3978,25 @@ class VideoProcessor:
         except Exception as e:
             print(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")
             # Fallback vers l'ancien système
-            llm_res = _llm_generate_caption_hashtags(full_text)
-            if llm_res and (llm_res.get('title') or llm_res.get('description') or llm_res.get('hashtags')):
-                title = (llm_res.get('title') or '').strip()
-                description = (llm_res.get('description') or '').strip()
-                hashtags = [h for h in (llm_res.get('hashtags') or []) if h]
-                
-                # 🚀 NOUVEAU: Extraction des mots-clés B-roll du LLM
-                broll_keywords = llm_res.get('broll_keywords', [])
+            fallback_meta = _basic_metadata_fallback(full_text)
+            if fallback_meta:
+                title = (fallback_meta.get('title') or '').strip()
+                description = (fallback_meta.get('description') or '').strip()
+                hashtags = [h for h in (fallback_meta.get('hashtags') or []) if h]
+                broll_keywords = list(fallback_meta.get('broll_keywords') or [])
+                queries = fallback_meta.get('queries') or []
+
+                print("    🪫 [Fallback] Métadonnées générées sans LLM avancé")
+                print(f"    🎯 Titre fallback: {title}")
+                if description:
+                    print(f"    📝 Description fallback: {description[:100]}...")
+                if hashtags:
+                    print(f"    #️⃣ Hashtags fallback: {', '.join(hashtags[:5])}...")
                 if broll_keywords:
-                    print(f"    🤖 [LLM] Titre/description/hashtags + {len(broll_keywords)} mots-clés B-roll générés par LLM local")
-                    print(f"    🎯 Mots-clés B-roll LLM: {', '.join(broll_keywords[:8])}...")
-                else:
-                    print("    🤖 [LLM] Titre/description/hashtags générés par LLM local")
-                    # Fallback: extraire des mots-clés basiques du titre et de la description
-                    fallback_text = f"{title} {description}".lower()
-                    broll_keywords = [word for word in fallback_text.split() if len(word) > 3 and word.isalpha()]
-                    broll_keywords = list(set(broll_keywords))[:10]
-                    print(f"    🔄 Fallback mots-clés B-roll: {', '.join(broll_keywords[:5])}...")
-                
-                # Back-compat: si titre vide mais description présente, promouvoir description en titre court
+                    print(f"    🎬 Mots-clés B-roll fallback: {', '.join(broll_keywords[:5])}...")
+                if queries:
+                    print(f"    🔎 Requêtes fallback: {', '.join(queries[:3])}...")
+
                 if not title and description:
                     title = (description[:60] + ('…' if len(description) > 60 else ''))
                 return title, description, hashtags, broll_keywords
