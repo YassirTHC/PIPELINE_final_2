@@ -389,7 +389,10 @@ import whisper
 import requests
 import cv2
 
-from pipeline_core.configuration import PipelineConfigBundle, detected_provider_names
+try:
+    from pipeline_core.configuration import PipelineConfigBundle
+except Exception:  # pragma: no cover - optional in stubbed environments
+    PipelineConfigBundle = None  # type: ignore[assignment]
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
@@ -435,6 +438,41 @@ ENABLE_SELECTOR_DYNAMIC_DOMAIN = os.getenv("ENABLE_SELECTOR_DYNAMIC_DOMAIN", "tr
 
 # --- Provider anti-terms and helpers for query building
 _ANTI_TERMS = {"people","thing","nice","background","start","generic","template","stock"}
+
+
+def _get_provider_names(cfg) -> List[str]:
+    """Best-effort detection of enabled provider names for diagnostics."""
+
+    try:
+        from pipeline_core.configuration import detected_provider_names  # type: ignore
+    except Exception:
+        detected_provider_names = None  # type: ignore[assignment]
+
+    if detected_provider_names is not None:
+        try:
+            providers = detected_provider_names(getattr(cfg, "fetcher", None))
+            if providers:
+                return list(providers)
+        except Exception:
+            pass
+
+    fetcher = getattr(cfg, "fetcher", None)
+    provider_seq = getattr(fetcher, "providers", None)
+    if not provider_seq:
+        return []
+
+    detected = []
+    for provider in provider_seq:
+        try:
+            enabled = getattr(provider, "enabled")
+        except Exception:
+            enabled = None
+        if not enabled:
+            continue
+        name = getattr(provider, "name", None)
+        if name:
+            detected.append(name)
+    return detected
 
 def _norm_query_term(s: str) -> str:
     s = (s or "").strip().lower().replace("_"," ")
@@ -1426,7 +1464,7 @@ class VideoProcessor:
         try:
             env_payload = {
                 'event': 'broll_env_ready',
-                'providers': detected_provider_names(),
+                'providers': _get_provider_names(self._pipeline_config),
             }
             event_logger.log(env_payload)
         except Exception:
@@ -1499,7 +1537,7 @@ class VideoProcessor:
             try:
                 env_payload = {
                     'event': 'broll_env_ready',
-                    'providers': detected_provider_names(),
+                    'providers': _get_provider_names(self._pipeline_config),
                 }
                 logger_obj.log(env_payload)
             except Exception:
