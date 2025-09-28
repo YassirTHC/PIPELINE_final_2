@@ -2206,6 +2206,8 @@ class VideoProcessor:
             durations = []
             providers = Counter()
 
+        summary_event_payload: Optional[Dict[str, Any]] = None
+
         try:
             selection_rate = (final_inserted / total_segments) if total_segments else 0.0
             avg_duration = (sum(durations) / len(durations)) if durations else 0.0
@@ -2243,7 +2245,7 @@ class VideoProcessor:
                     'render_ok': render_ok_flag,
                 }
             )
-            event_logger.log({k: v for k, v in summary_payload.items() if v is not None})
+            summary_event_payload = {k: v for k, v in summary_payload.items() if v is not None}
 
             providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
             render_ok_value = summary_payload.get('render_ok')
@@ -2259,6 +2261,12 @@ class VideoProcessor:
             )
         except Exception:
             pass
+
+        if summary_event_payload is not None:
+            try:
+                event_logger.log(summary_event_payload)
+            except Exception:
+                pass
 
         # Persist compact selection report next to JSONL
         try:
@@ -2315,7 +2323,43 @@ class VideoProcessor:
                     destination.unlink()
             except Exception:
                 pass
+            try:
+                event_logger = self._get_broll_event_logger()
+            except Exception:
+                event_logger = None
+            provider = getattr(candidate, 'provider', None)
+            if event_logger is not None:
+                try:
+                    event_logger.log(
+                        {
+                            'event': 'broll_asset_download_failed',
+                            'provider': provider,
+                            'url': url,
+                            'path': str(destination),
+                            'error': str(exc),
+                        }
+                    )
+                except Exception:
+                    pass
             return None
+
+        try:
+            event_logger = self._get_broll_event_logger()
+        except Exception:
+            event_logger = None
+        if event_logger is not None:
+            provider = getattr(candidate, 'provider', None)
+            try:
+                event_logger.log(
+                    {
+                        'event': 'broll_asset_downloaded',
+                        'provider': provider,
+                        'url': url,
+                        'path': str(destination),
+                    }
+                )
+            except Exception:
+                pass
 
         return destination
 
@@ -2326,7 +2370,24 @@ class VideoProcessor:
     ) -> Optional[Path]:
         """Render a simple composite video using the downloaded core assets."""
 
+        try:
+            event_logger = self._get_broll_event_logger()
+        except Exception:
+            event_logger = None
+
         if not timeline:
+            if event_logger is not None:
+                try:
+                    event_logger.log(
+                        {
+                            'event': 'broll_timeline_failed',
+                            'clips': 0,
+                            'output': None,
+                            'reason': 'empty_timeline',
+                        }
+                    )
+                except Exception:
+                    pass
             return None
 
         normalized: List[CoreTimelineEntry] = []
@@ -2358,7 +2419,21 @@ class VideoProcessor:
                     )
                 )
 
+        clip_count = len(normalized)
+
         if not normalized:
+            if event_logger is not None:
+                try:
+                    event_logger.log(
+                        {
+                            'event': 'broll_timeline_failed',
+                            'clips': 0,
+                            'output': None,
+                            'reason': 'no_valid_clips',
+                        }
+                    )
+                except Exception:
+                    pass
             return None
 
         output_dir = Config.TEMP_FOLDER / 'with_broll_core'
@@ -2388,6 +2463,8 @@ class VideoProcessor:
         except Exception:
             render_video = None  # type: ignore
 
+        last_error: Optional[str] = None
+
         if render_video is not None:
             render_cfg = types.SimpleNamespace(
                 input_video=str(input_path),
@@ -2400,6 +2477,18 @@ class VideoProcessor:
             )
             try:
                 render_video(render_cfg, [], plan_events)
+                if event_logger is not None:
+                    try:
+                        event_logger.log(
+                            {
+                                'event': 'broll_timeline_rendered',
+                                'clips': clip_count,
+                                'output': str(output_path),
+                                'renderer': 'pipeline',
+                            }
+                        )
+                    except Exception:
+                        pass
                 return output_path
             except Exception as exc:
                 logger.warning('[BROLL] core renderer (pipeline renderer) failed: %s', exc)
@@ -2408,6 +2497,7 @@ class VideoProcessor:
                         output_path.unlink()
                 except Exception:
                     pass
+                last_error = str(exc)
 
         try:
             with ExitStack() as stack:
@@ -2468,9 +2558,35 @@ class VideoProcessor:
                     logger=None,
                 )
                 composite.close()
+                if event_logger is not None:
+                    try:
+                        event_logger.log(
+                            {
+                                'event': 'broll_timeline_rendered',
+                                'clips': clip_count,
+                                'output': str(output_path),
+                                'renderer': 'moviepy',
+                            }
+                        )
+                    except Exception:
+                        pass
                 return output_path
         except Exception as exc:
             logger.warning('[BROLL] core renderer failed: %s', exc)
+            last_error = str(exc)
+
+        if event_logger is not None:
+            try:
+                event_logger.log(
+                    {
+                        'event': 'broll_timeline_failed',
+                        'clips': clip_count,
+                        'output': str(output_path),
+                        'reason': last_error,
+                    }
+                )
+            except Exception:
+                pass
 
         return None
 

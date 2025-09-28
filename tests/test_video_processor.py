@@ -419,25 +419,68 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
         processor,
     )
 
-    downloaded_asset = temp_dir / "core" / "asset.mp4"
-    downloaded_asset.parent.mkdir(parents=True, exist_ok=True)
-    downloaded_asset.write_bytes(b"data")
+    class DummyResponse:
+        def __init__(self, payload: bytes):
+            self._payload = payload
 
-    captured_timeline = {}
+        def raise_for_status(self):
+            return None
 
-    def fake_download(self, _candidate, directory, order):
-        captured_timeline.setdefault("download_calls", []).append((directory, order))
-        return downloaded_asset
+        def iter_content(self, chunk_size):
+            yield self._payload
 
-    def fake_render(self, base_path, timeline):
-        captured_timeline["timeline"] = list(timeline)
-        rendered_path = temp_dir / "core" / "rendered.mp4"
-        rendered_path.parent.mkdir(parents=True, exist_ok=True)
-        rendered_path.write_bytes(b"render")
-        return rendered_path
+    def fake_get(_url, stream=True, timeout=15):
+        assert stream is True
+        assert timeout == 15
+        return DummyResponse(b"downloaded")
 
-    monkeypatch.setattr(module.VideoProcessor, "_download_core_candidate", fake_download, raising=False)
-    monkeypatch.setattr(module.VideoProcessor, "_render_core_broll_timeline", fake_render, raising=False)
+    monkeypatch.setattr(module.requests, "get", fake_get)
+
+    class DummyClip:
+        def __init__(self, path):
+            self.path = Path(path)
+            self.h = 720
+            self.duration = 1.5
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def resize(self, *args, **kwargs):
+            return self
+
+        def without_audio(self):
+            return self
+
+        def set_audio(self, *_args, **_kwargs):
+            return self
+
+        def subclip(self, *_args, **_kwargs):
+            return self
+
+        def set_start(self, *_args, **_kwargs):
+            return self
+
+        def set_duration(self, *_args, **_kwargs):
+            return self
+
+        def set_position(self, *_args, **_kwargs):
+            return self
+
+    class DummyComposite:
+        def __init__(self, layers):
+            self.layers = layers
+
+        def write_videofile(self, path, **_kwargs):
+            Path(path).write_bytes(b"render")
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(module, "VideoFileClip", DummyClip)
+    monkeypatch.setattr(module, "CompositeVideoClip", DummyComposite)
 
     input_clip = tmp_path / "input.mp4"
     input_clip.write_bytes(b"base")
@@ -453,12 +496,39 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
     assert rendered_path is not None
     assert rendered_path != input_clip
     assert meta.get("render_ok") is True
-    assert captured_timeline.get("timeline")
-    first_entry = captured_timeline["timeline"][0]
+    assert rendered_path.exists()
+
+    timeline_entries = [
+        entry
+        for entry in processor._core_last_timeline
+    ]
+    assert timeline_entries
+    first_entry = timeline_entries[0]
     assert isinstance(first_entry, module.CoreTimelineEntry)
-    assert first_entry.path == downloaded_asset
+    assert first_entry.path.exists()
     assert pytest.approx(first_entry.start, rel=1e-6) == 0.0
     assert pytest.approx(first_entry.end, rel=1e-6) == 1.5
+
+    events = event_logger.entries
+    download_events = [entry for entry in events if entry.get("event") == "broll_asset_downloaded"]
+    assert download_events
+    download_event = download_events[-1]
+    assert download_event["url"] == candidate.url
+    assert download_event["provider"] == candidate.provider
+    assert Path(download_event["path"]).exists()
+
+    timeline_events = [entry for entry in events if entry.get("event") == "broll_timeline_rendered"]
+    assert timeline_events
+    timeline_event = timeline_events[-1]
+    assert timeline_event["clips"] == 1
+    assert timeline_event["output"] == str(rendered_path)
+
+    summary_events = [entry for entry in events if entry.get("event") == "broll_summary"]
+    assert summary_events
+    summary_event = summary_events[-1]
+    assert summary_event["render_ok"] is True
+    assert summary_event["inserted"] == inserted_count
+    assert events.index(timeline_event) < events.index(summary_event)
 
     sys.modules.pop("video_processor", None)
 
