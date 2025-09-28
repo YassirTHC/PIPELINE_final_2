@@ -50,6 +50,24 @@ else:
 logger = logging.getLogger(__name__)
 
 
+_DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
+
+
+def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
+    if not value:
+        return _DEFAULT_STOP_TOKENS
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, (list, tuple)):
+            tokens = [str(token).strip() for token in parsed if str(token).strip()]
+            if tokens:
+                return tokens
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+    tokens = [token.strip() for token in value.split("|") if token.strip()]
+    return tokens or _DEFAULT_STOP_TOKENS
+
+
 # --- Robust JSON extraction from LLM responses -------------------------------
 def _safe_parse_json(s: str) -> Dict[str, Any]:
     """Extract the first valid JSON object from text; return {} on failure."""
@@ -926,6 +944,8 @@ class LLMMetadataGeneratorService:
         num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
         temperature_env = os.getenv("PIPELINE_LLM_TEMP")
         top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
+        repeat_penalty_env = os.getenv("PIPELINE_LLM_REPEAT_PENALTY")
+        stop_tokens_env = os.getenv("PIPELINE_LLM_STOP_TOKENS")
 
         def _parse_int(value: Optional[str], *, default: int, minimum: int) -> int:
             try:
@@ -953,19 +973,16 @@ class LLMMetadataGeneratorService:
         self._llm_num_predict = _parse_int(num_predict_env, default=256, minimum=1)
         self._llm_temperature = _parse_float(temperature_env, default=0.3, minimum=0.0)
         self._llm_top_p = _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0)
-        self._llm_stop_tokens: Sequence[str] = (
-            "```",
-            "\n\n\n",
-            "END_OF_CONTEXT",
-            "</json>",
-        )
+        self._llm_repeat_penalty = _parse_float(repeat_penalty_env, default=1.1, minimum=0.0)
+        self._llm_stop_tokens: Sequence[str] = tuple(_parse_stop_tokens(stop_tokens_env))
 
         logger.info(
-            "[LLM] using timeout=%ss num_predict=%s temp=%s top_p=%s",
+            "[LLM] using timeout=%ss num_predict=%s temp=%s top_p=%s repeat_penalty=%s",
             self._llm_timeout,
             self._llm_num_predict,
             self._llm_temperature,
             self._llm_top_p,
+            self._llm_repeat_penalty,
         )
 
     @classmethod
@@ -1029,18 +1046,33 @@ class LLMMetadataGeneratorService:
         if llm is None:
             return
 
+        stop_values = list(self._llm_stop_tokens)
+
+        configure = getattr(llm, "configure_generation", None)
+        if callable(configure):
+            try:
+                configure(
+                    num_predict=self._llm_num_predict,
+                    temperature=self._llm_temperature,
+                    top_p=self._llm_top_p,
+                    repeat_penalty=self._llm_repeat_penalty,
+                    stop=stop_values,
+                )
+            except Exception:  # pragma: no cover - best effort configuration
+                pass
+
         for attr, value in (
             ("timeout", self._llm_timeout),
             ("num_predict", self._llm_num_predict),
             ("temperature", self._llm_temperature),
             ("top_p", self._llm_top_p),
+            ("repeat_penalty", self._llm_repeat_penalty),
         ):
             try:
                 setattr(llm, attr, value)
             except Exception:  # pragma: no cover - best effort configuration
                 continue
 
-        stop_values = list(self._llm_stop_tokens)
         for attr in ("stop", "stop_sequences", "stop_tokens", "stop_words"):
             if hasattr(llm, attr):
                 try:
