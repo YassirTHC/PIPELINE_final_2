@@ -140,7 +140,47 @@ class FetcherOrchestrator:
             for fut in pending:
                 fut.cancel()
 
-        return raw_results[: self.config.per_segment_limit]
+        processed: List[RemoteAssetCandidate] = []
+        seen_urls = set()
+        video_extensions = (
+            ".mp4",
+            ".mov",
+            ".webm",
+            ".mkv",
+            ".m4v",
+            ".avi",
+        )
+
+        for candidate in raw_results:
+            url = str(getattr(candidate, "url", "") or "").strip()
+            if not url:
+                continue
+            normalized_url = url.lower()
+            has_video_extension = normalized_url.endswith(video_extensions)
+            duration = getattr(candidate, "duration", None)
+            has_positive_duration = False
+            if isinstance(duration, (int, float)):
+                try:
+                    has_positive_duration = float(duration) > 0
+                except Exception:
+                    has_positive_duration = False
+
+            is_video = has_video_extension or has_positive_duration
+            if is_video and not self.config.allow_videos:
+                continue
+            if not is_video and not self.config.allow_images:
+                continue
+
+            if normalized_url in seen_urls:
+                continue
+
+            seen_urls.add(normalized_url)
+            processed.append(candidate)
+
+            if len(processed) >= self.config.per_segment_limit:
+                break
+
+        return processed
 
     # ------------------------------------------------------------------
     # Provider fetch helpers
