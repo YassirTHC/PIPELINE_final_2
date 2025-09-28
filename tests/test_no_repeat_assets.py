@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import importlib
 import importlib.machinery as machinery
+import tempfile
 
 
 def _load_video_processor():
@@ -235,14 +236,37 @@ def test_fallback_selects_candidate_when_min_score_too_high():
     original_dedupe_by_phash = vp.dedupe_by_phash
     original_download = vp.VideoProcessor._download_core_candidate
     original_render = vp.VideoProcessor._render_core_broll_timeline
+    created_paths = []
     try:
         vp.FetcherOrchestrator = lambda cfg: SimpleNamespace(
             fetch_candidates=fake_fetch_candidates,
             evaluate_candidate_filters=lambda *args, **kwargs: (True, None),
         )
         vp.dedupe_by_phash = lambda candidates: (candidates, 0)
-        vp.VideoProcessor._download_core_candidate = lambda self, *_args, **_kwargs: Path("core_asset.mp4")
-        vp.VideoProcessor._render_core_broll_timeline = lambda self, *_args, **_kwargs: Path("rendered.mp4")
+        def _fake_download(self, *_args, **_kwargs):
+            handle = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            try:
+                handle.write(b'0')
+                handle.flush()
+            finally:
+                handle.close()
+            path = Path(handle.name)
+            created_paths.append(path)
+            return path
+
+        def _fake_render(self, *_args, **_kwargs):
+            handle = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            try:
+                handle.write(b'1')
+                handle.flush()
+            finally:
+                handle.close()
+            path = Path(handle.name)
+            created_paths.append(path)
+            return path
+
+        vp.VideoProcessor._download_core_candidate = _fake_download
+        vp.VideoProcessor._render_core_broll_timeline = _fake_render
 
         processor._insert_brolls_pipeline_core(
             segments=[SimpleNamespace(start=0.0, end=4.0, text="hello world")],
@@ -255,6 +279,12 @@ def test_fallback_selects_candidate_when_min_score_too_high():
         vp.dedupe_by_phash = original_dedupe_by_phash
         vp.VideoProcessor._download_core_candidate = original_download
         vp.VideoProcessor._render_core_broll_timeline = original_render
+        for path in created_paths:
+            try:
+                if path.exists():
+                    path.unlink()
+            except Exception:
+                pass
 
     assert "https://cdn/fallback.mp4" in vp.SEEN_URLS
     assert "asset-1" in vp.SEEN_IDENTIFIERS
