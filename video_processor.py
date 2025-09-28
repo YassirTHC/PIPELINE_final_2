@@ -26,13 +26,8 @@ import gc
 import re
 
 try:
-    from pipeline_core import llm_service as _pipeline_llm_service
-except ImportError:
-    _pipeline_llm_service = None
-
-if _pipeline_llm_service is not None:
-    generate_metadata_as_json = getattr(_pipeline_llm_service, "generate_metadata_as_json", None)
-else:
+    from pipeline_core.llm_service import generate_metadata_as_json
+except Exception:
     generate_metadata_as_json = None
 
 try:
@@ -3968,12 +3963,58 @@ class VideoProcessor:
     def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> (str, str, List[str], List[str]):
         """Génère une légende, des hashtags et des mots-clés B-roll avec le système LLM industriel."""
         full_text = ' '.join(s.get('text', '') for s in subtitles)
-        
-        # 🚀 NOUVEAU: Utilisation du système LLM industriel
-        try:
-            if generate_metadata_as_json is None:
-                raise RuntimeError("generate_metadata_as_json indisponible")
 
+        # 🚀 NOUVEAU: Utilisation du système LLM industriel
+        def _run_fallback(reason: Optional[str] = None):
+            if reason:
+                print(reason)
+            fallback_meta = _basic_metadata_fallback(full_text)
+            if fallback_meta:
+                title_fb = (fallback_meta.get('title') or '').strip()
+                description_fb = (fallback_meta.get('description') or '').strip()
+                hashtags_fb = [h for h in (fallback_meta.get('hashtags') or []) if h]
+                broll_keywords_fb = list(fallback_meta.get('broll_keywords') or [])
+                queries_fb = fallback_meta.get('queries') or []
+
+                print("    🪫 [Fallback] Métadonnées générées sans LLM avancé")
+                print(f"    🎯 Titre fallback: {title_fb}")
+                if description_fb:
+                    print(f"    📝 Description fallback: {description_fb[:100]}...")
+                if hashtags_fb:
+                    print(f"    #️⃣ Hashtags fallback: {', '.join(hashtags_fb[:5])}...")
+                if broll_keywords_fb:
+                    print(f"    🎬 Mots-clés B-roll fallback: {', '.join(broll_keywords_fb[:5])}...")
+                if queries_fb:
+                    print(f"    🔎 Requêtes fallback: {', '.join(queries_fb[:3])}...")
+
+                if not title_fb and description_fb:
+                    title_fb = (description_fb[:60] + ('…' if len(description_fb) > 60 else ''))
+                return title_fb, description_fb, hashtags_fb, broll_keywords_fb
+            return None
+
+        def _run_heuristics():
+            words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9éèàùçêîôâ]+", full_text) if len(w) > 2]
+            counts = Counter(words)
+            common = [w for w, _ in counts.most_common(12) if w.isalpha()]
+            hashtags_h = [f"#{w}" for w in common[:12]]
+
+            # 🚀 NOUVEAU: Mots-clés B-roll de fallback basés sur les mots communs
+            broll_keywords_h = [w for w in common if len(w) > 3][:15]
+
+            # Heuristic title/description
+            title_h = (full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
+            description_h = (full_text.strip()[:180] + ("…" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
+            print("    🧩 [Heuristics] Meta générées en fallback")
+            print(f"    🔑 Mots-clés B-roll fallback: {', '.join(broll_keywords_h[:5])}...")
+            return title_h, description_h, hashtags_h, broll_keywords_h
+
+        if generate_metadata_as_json is None:
+            fallback_result = _run_fallback("    ⚠️ [LLM INDUSTRIEL] Service indisponible, utilisation du fallback historique")
+            if fallback_result:
+                return fallback_result
+            return _run_heuristics()
+
+        try:
             print(f"    🚀 [LLM INDUSTRIEL] Génération de métadonnées pour {len(full_text)} caractères")
 
             metadata_result = generate_metadata_as_json(
@@ -3982,8 +4023,10 @@ class VideoProcessor:
             )
 
             if not metadata_result:
-                print("    ⚠️ [LLM INDUSTRIEL] Réponse JSON vide ou non analysable")
-                raise ValueError("Réponse JSON vide ou non analysable")
+                fallback_result = _run_fallback("    ⚠️ [LLM INDUSTRIEL] Réponse JSON vide ou non analysable, activation du fallback")
+                if fallback_result:
+                    return fallback_result
+                return _run_heuristics()
 
             title = (metadata_result.get('title') or '').strip()
             description = (metadata_result.get('description') or '').strip()
@@ -4002,49 +4045,13 @@ class VideoProcessor:
                 print(f"    📏 Réponse LLM (caractères): {response_len}")
 
             return title, description, hashtags, list(broll_keywords)
-                
+
         except Exception as e:
-            print(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")
-            # Fallback vers l'ancien système
-            fallback_meta = _basic_metadata_fallback(full_text)
-            if fallback_meta:
-                title = (fallback_meta.get('title') or '').strip()
-                description = (fallback_meta.get('description') or '').strip()
-                hashtags = [h for h in (fallback_meta.get('hashtags') or []) if h]
-                broll_keywords = list(fallback_meta.get('broll_keywords') or [])
-                queries = fallback_meta.get('queries') or []
+            fallback_result = _run_fallback(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")
+            if fallback_result:
+                return fallback_result
 
-                print("    🪫 [Fallback] Métadonnées générées sans LLM avancé")
-                print(f"    🎯 Titre fallback: {title}")
-                if description:
-                    print(f"    📝 Description fallback: {description[:100]}...")
-                if hashtags:
-                    print(f"    #️⃣ Hashtags fallback: {', '.join(hashtags[:5])}...")
-                if broll_keywords:
-                    print(f"    🎬 Mots-clés B-roll fallback: {', '.join(broll_keywords[:5])}...")
-                if queries:
-                    print(f"    🔎 Requêtes fallback: {', '.join(queries[:3])}...")
-
-                if not title and description:
-                    title = (description[:60] + ('…' if len(description) > 60 else ''))
-                return title, description, hashtags, broll_keywords
-        
-        # Fallback heuristic
-        words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9éèàùçêîôâ]+", full_text) if len(w) > 2]
-        from collections import Counter
-        counts = Counter(words)
-        common = [w for w,_ in counts.most_common(12) if w.isalpha()]
-        hashtags = [f"#{w}" for w in common[:12]]
-        
-        # 🚀 NOUVEAU: Mots-clés B-roll de fallback basés sur les mots communs
-        broll_keywords = [w for w in common if len(w) > 3][:15]
-        
-        # Heuristic title/description
-        title = (full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
-        description = (full_text.strip()[:180] + ("…" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
-        print("    🧩 [Heuristics] Meta générées en fallback")
-        print(f"    🔑 Mots-clés B-roll fallback: {', '.join(broll_keywords[:5])}...")
-        return title, description, hashtags, broll_keywords
+        return _run_heuristics()
 
     def insert_brolls_if_enabled(self, input_path: Path, subtitles: List[Dict], broll_keywords: List[str]) -> Path:
         """Point d'extension B-roll: retourne le chemin vidéo après insertion si activée."""
