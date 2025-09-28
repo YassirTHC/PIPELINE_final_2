@@ -370,3 +370,128 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
     banner_success, banner_text = format_broll_completion_banner(count, origin="pipeline_core")
     assert banner_success is False
     assert "⚠️" in banner_text
+
+    report_path = tmp_path / "output" / "meta" / "selection_report_input.json"
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["selection_rate"] == 1.0
+    assert len(report_payload["segments"]) == 1
+    segment_entry = report_payload["segments"][0]
+    assert segment_entry["segment"] == 0
+    assert segment_entry["candidates"]
+    assert segment_entry["selected"]
+    assert len(segment_entry["candidates"]) == 1
+    assert len(segment_entry["selected"]) == 1
+    assert segment_entry["candidates"][0] == {
+        "provider": "pexels",
+        "url": "http://example.com/a.mp4",
+        "score": 1.0,
+        "reject_reason": None,
+        "selected": True,
+    }
+    assert segment_entry["selected"][0] == {
+        "provider": "pexels",
+        "url": "http://example.com/a.mp4",
+        "score": 1.0,
+    }
+
+
+def test_selection_report_captures_candidates_success(monkeypatch, tmp_path):
+    monkeypatch.setenv("FAST_TESTS", "1")
+
+    monkeypatch.setattr(video_processor.Config, "CLIPS_FOLDER", tmp_path / "clips", raising=False)
+    monkeypatch.setattr(video_processor.Config, "OUTPUT_FOLDER", tmp_path / "output", raising=False)
+    monkeypatch.setattr(video_processor.Config, "TEMP_FOLDER", tmp_path / "temp", raising=False)
+
+    processor = VideoProcessor()
+    processor._pipeline_config.selection.min_score = 0.0  # type: ignore[attr-defined]
+
+    events = []
+
+    class _DummyLogger:
+        def log(self, payload):
+            events.append(dict(payload))
+
+    monkeypatch.setattr(processor, "_get_broll_event_logger", lambda: _DummyLogger())
+
+    class _DummyOrchestrator:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def fetch_candidates(self, *args, **kwargs):
+            return [
+                types.SimpleNamespace(
+                    url="http://example.com/a.mp4",
+                    provider="pexels",
+                    duration=2.0,
+                    width=1920,
+                    height=1080,
+                ),
+                types.SimpleNamespace(
+                    url="http://example.com/b.mp4",
+                    provider="pixabay",
+                    duration=2.0,
+                    width=1080,
+                    height=1080,
+                ),
+            ]
+
+        def evaluate_candidate_filters(self, *_args, **_kwargs):
+            return True, None
+
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", _DummyOrchestrator)
+
+    def _fake_rank(_text, candidate, *_args, **_kwargs):
+        return 0.9 if getattr(candidate, "url", "").endswith("a.mp4") else 0.3
+
+    monkeypatch.setattr(processor, "_rank_candidate", _fake_rank)
+
+    def _fake_download(_self, candidate, download_dir, order):
+        download_dir.mkdir(parents=True, exist_ok=True)
+        path = download_dir / f"asset_{order}.mp4"
+        path.write_text("data", encoding="utf-8")
+        return path
+
+    monkeypatch.setattr(processor, "_download_core_candidate", _fake_download.__get__(processor, VideoProcessor))
+
+    render_output = tmp_path / "output" / "render.mp4"
+
+    def _fake_render(_self, _input_path, timeline):
+        render_output.parent.mkdir(parents=True, exist_ok=True)
+        render_output.write_text("render", encoding="utf-8")
+        return render_output
+
+    monkeypatch.setattr(processor, "_render_core_broll_timeline", _fake_render.__get__(processor, VideoProcessor))
+
+    segment = types.SimpleNamespace(start=0.0, end=5.0, text="greetings earthlings")
+    input_path = tmp_path / "clip.mp4"
+    input_path.write_text("dummy", encoding="utf-8")
+
+    count, render_path, meta = processor._insert_brolls_pipeline_core(
+        [segment],
+        ["greetings"],
+        subtitles=None,
+        input_path=input_path,
+    )
+
+    assert count == 1
+    assert render_path == render_output
+    assert meta.get("render_ok") is True
+
+    report_path = tmp_path / "output" / "meta" / "selection_report_clip.json"
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["selection_rate"] == 1.0
+    assert len(report_payload["segments"]) == 1
+    segment_entry = report_payload["segments"][0]
+    assert segment_entry["segment"] == 0
+    assert segment_entry["queries"]
+    assert len(segment_entry["candidates"]) == 2
+    assert sum(1 for candidate in segment_entry["candidates"] if candidate["selected"]) == 1
+    assert segment_entry["selected"] == [
+        {
+            "provider": "pexels",
+            "url": "http://example.com/a.mp4",
+            "score": 0.9,
+        }
+    ]
+    providers = {candidate["provider"] for candidate in segment_entry["candidates"]}
+    assert providers == {"pexels", "pixabay"}
