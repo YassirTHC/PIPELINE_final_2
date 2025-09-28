@@ -7,7 +7,7 @@ from pipeline_core.configuration import SelectionConfig
 from tests.test_no_repeat_assets import _load_video_processor
 
 
-def test_forced_keep_budget_is_enforced(monkeypatch):
+def test_forced_keep_budget_is_enforced(monkeypatch, tmp_path):
     monkeypatch.setenv("BROLL_MIN_SCORE", "0.95")
     monkeypatch.setenv("BROLL_FORCED_KEEP", "1")
 
@@ -41,7 +41,7 @@ def test_forced_keep_budget_is_enforced(monkeypatch):
     processor._selector_keywords = []
     processor._fetch_keywords = []
     processor._get_broll_event_logger = lambda: dummy_logger
-    processor._derive_segment_keywords = lambda segment, keywords: ["keyword"]
+    processor._derive_segment_keywords = lambda segment, keywords: ["doctor"]
 
     candidate_one = SimpleNamespace(
         url="https://cdn/fallback-one.mp4",
@@ -73,6 +73,10 @@ def test_forced_keep_budget_is_enforced(monkeypatch):
     original_download = vp.VideoProcessor._download_core_candidate
     original_render = vp.VideoProcessor._render_core_broll_timeline
     original_rank = vp.VideoProcessor._rank_candidate
+    temp_asset = tmp_path / "core_asset.mp4"
+    temp_render = tmp_path / "rendered.mp4"
+    original_phrases = getattr(vp, "build_visual_phrases", None)
+    vp.build_visual_phrases = lambda seq, limit=None: list(seq or [])
     try:
         vp.FetcherOrchestrator = lambda cfg: SimpleNamespace(
             fetch_candidates=fake_fetch_candidates,
@@ -80,19 +84,21 @@ def test_forced_keep_budget_is_enforced(monkeypatch):
         )
         vp.dedupe_by_phash = lambda candidates: (candidates, 0)
         vp.VideoProcessor._download_core_candidate = (
-            lambda self, *_args, **_kwargs: Path("core_asset.mp4")
+            lambda self, *_args, **_kwargs: temp_asset
         )
         vp.VideoProcessor._render_core_broll_timeline = (
-            lambda self, *_args, **_kwargs: Path("rendered.mp4")
+            lambda self, *_args, **_kwargs: temp_render
         )
         vp.VideoProcessor._rank_candidate = lambda *args, **kwargs: 0.1
+        temp_asset.write_bytes(b"core")
+        temp_render.write_bytes(b"render")
 
-        inserted, _ = processor._insert_brolls_pipeline_core(
+        inserted, _, meta = processor._insert_brolls_pipeline_core(
             segments=[
                 SimpleNamespace(start=0.0, end=4.0, text="hello world"),
                 SimpleNamespace(start=5.0, end=9.0, text="another"),
             ],
-            broll_keywords=["keyword"],
+            broll_keywords=["doctor"],
             subtitles=None,
             input_path=Path("video.mp4"),
         )
@@ -102,8 +108,20 @@ def test_forced_keep_budget_is_enforced(monkeypatch):
         vp.VideoProcessor._download_core_candidate = original_download
         vp.VideoProcessor._render_core_broll_timeline = original_render
         vp.VideoProcessor._rank_candidate = original_rank
+        if original_phrases is not None:
+            vp.build_visual_phrases = original_phrases
+        else:
+            delattr(vp, "build_visual_phrases")
+        try:
+            if temp_asset.exists():
+                temp_asset.unlink()
+            if temp_render.exists():
+                temp_render.unlink()
+        except Exception:
+            pass
 
     assert inserted == 1
+    assert meta.get("render_ok") is True
 
     forced_events = [event for event in events if event.get("event") == "forced_keep_consumed"]
     assert len(forced_events) == 1

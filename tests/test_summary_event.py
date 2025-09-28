@@ -1,5 +1,6 @@
 import json
 import importlib.machinery
+import os
 import sys
 import types
 from collections import Counter
@@ -49,6 +50,40 @@ class _StubPipelineConfigBundle:
 
 
 setattr(dummy_config, "PipelineConfigBundle", _StubPipelineConfigBundle)
+
+
+class _StubSelectionConfig:
+    def __init__(self):
+        self.min_score = 0.6
+        self.prefer_landscape = False
+        self.min_duration_s = 0.0
+        self.forced_keep_budget = 0
+        self.allow_forced_keep = False
+
+    @classmethod
+    def from_environment(cls):
+        instance = cls()
+        raw_min_score = os.getenv("BROLL_MIN_SCORE")
+        if raw_min_score is not None:
+            try:
+                instance.min_score = float(raw_min_score)
+            except (TypeError, ValueError):
+                pass
+        raw_forced_keep = os.getenv("BROLL_FORCED_KEEP")
+        if raw_forced_keep is not None:
+            try:
+                instance.forced_keep_budget = max(0, int(float(raw_forced_keep)))
+            except (TypeError, ValueError):
+                instance.forced_keep_budget = 0
+        if instance.forced_keep_budget > 0:
+            instance.allow_forced_keep = True
+        raw_allow = os.getenv("BROLL_ALLOW_FORCED_KEEP")
+        if raw_allow is not None:
+            instance.allow_forced_keep = raw_allow.strip().lower() not in {"0", "false", "no", "off"}
+        return instance
+
+
+setattr(dummy_config, "SelectionConfig", _StubSelectionConfig)
 _ensure_stub("pipeline_core.configuration", dummy_config)
 
 dummy_logging = types.ModuleType("pipeline_core.logging")
@@ -142,6 +177,17 @@ setattr(dummy_dedupe, "compute_phash", lambda *args, **kwargs: None)
 setattr(dummy_dedupe, "hamming_distance", lambda *args, **kwargs: 0)
 _ensure_stub("pipeline_core.dedupe", dummy_dedupe)
 
+
+def teardown_module(module):
+    for name in (
+        "pipeline_core.fetchers",
+        "pipeline_core.configuration",
+        "pipeline_core.logging",
+        "pipeline_core.llm_service",
+        "pipeline_core.dedupe",
+    ):
+        sys.modules.pop(name, None)
+
 from pipeline_core.logging import JsonlLogger, log_pipeline_summary
 from pipeline_core.runtime import PipelineResult
 import video_processor
@@ -185,14 +231,17 @@ def test_broll_summary_matches_console(tmp_path):
         "avg_latency_ms": 420.0,
         "refined_ratio": round(1 / 3, 4),
         "provider_mix": {"pexels": 2},
+        "providers_used": ["pexels"],
         "query_source_counts": {"segment_brief": 2, "fallback_keywords": 1},
         "total_url_dedup_hits": 1,
         "total_phash_dedup_hits": 0,
+        "dedupe_counts": {"url": 1, "phash": 0},
         "forced_keep_segments": 1,
         "forced_keep_count": 1,
         "total_candidates": 9,
         "total_unique_candidates": 4,
         "video_duration_s": 75.0,
+        "render_ok": True,
     })
 
     content = log_path.read_text(encoding="utf-8").strip().splitlines()
@@ -202,10 +251,13 @@ def test_broll_summary_matches_console(tmp_path):
     assert payload["inserted"] == 2
     assert payload["segments"] == 3
     assert payload["provider_mix"] == {"pexels": 2}
+    assert payload["providers_used"] == ["pexels"]
     assert payload["selection_rate"] == round(2 / 3, 4)
     assert payload["query_source_counts"] == {"segment_brief": 2, "fallback_keywords": 1}
     assert payload["forced_keep_segments"] == 1
     assert payload["forced_keep_count"] == 1
+    assert payload["dedupe_counts"] == {"url": 1, "phash": 0}
+    assert payload["render_ok"] is True
 
     fake_console_line = "    📊 B-roll sélectionnés: 2/3 (66.7%); providers=pexels:2"
     import re
@@ -229,6 +281,13 @@ def test_format_broll_banner_keeps_success_icon():
     assert "✅" in banner
     assert "3" in banner
     assert "B-roll" in banner
+
+
+def test_format_broll_banner_warns_on_failed_render():
+    success, banner = format_broll_completion_banner(2, origin="pipeline_core", render_ok=False)
+    assert success is False
+    assert "⚠️" in banner
+    assert "rendu" in banner
 
 
 def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
@@ -274,7 +333,7 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
     input_path = tmp_path / "input.mp4"
     input_path.write_text("dummy", encoding="utf-8")
 
-    count, render_path = processor._insert_brolls_pipeline_core(
+    count, render_path, meta = processor._insert_brolls_pipeline_core(
         [segment],
         ["hello"],
         subtitles=None,
@@ -283,6 +342,7 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
 
     assert count == 0
     assert render_path is None
+    assert meta.get("render_ok") is False
 
     candidate_events = [event for event in events if event.get("event") == "broll_candidate_evaluated"]
     assert candidate_events, "expected per-candidate telemetry"
@@ -305,6 +365,7 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
     summary_events = [event for event in events if event.get("event") == "broll_summary"]
     assert summary_events, "expected a summary event"
     assert summary_events[-1]["inserted"] == 0
+    assert summary_events[-1]["render_ok"] is False
 
     banner_success, banner_text = format_broll_completion_banner(count, origin="pipeline_core")
     assert banner_success is False

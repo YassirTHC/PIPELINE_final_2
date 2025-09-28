@@ -55,7 +55,12 @@ def print_realtime(message):
     logger.info(message)
 
 
-def format_broll_completion_banner(inserted_count: int, *, origin: str = "pipeline") -> Tuple[bool, str]:
+def format_broll_completion_banner(
+    inserted_count: int,
+    *,
+    origin: str = "pipeline",
+    render_ok: Optional[bool] = None,
+) -> Tuple[bool, str]:
     """Return a (success, banner) tuple describing the B-roll insertion result.
 
     The banner preserves the historical success message so downstream log parsing
@@ -71,8 +76,13 @@ def format_broll_completion_banner(inserted_count: int, *, origin: str = "pipeli
 
     origin_key = (origin or "pipeline").strip().lower()
 
-    if count > 0:
+    effective_ok = (render_ok if render_ok is not None else count > 0) and count > 0
+
+    if effective_ok:
         return True, f"    ✅ B-roll insérés avec succès ({count})"
+
+    if count > 0:
+        return False, "    ⚠️ B-roll sélectionnés mais rendu indisponible; retour à la vidéo d'origine"
 
     if origin_key == "pipeline_core":
         return False, "    ⚠️ Pipeline core: aucun B-roll sélectionné; retour à la vidéo d'origine"
@@ -1217,7 +1227,14 @@ class VideoProcessor:
         )
         return inserted
 
-    def _insert_brolls_pipeline_core(self, segments, broll_keywords, *, subtitles, input_path: Path) -> Tuple[int, Optional[Path]]:
+    def _insert_brolls_pipeline_core(
+        self,
+        segments,
+        broll_keywords,
+        *,
+        subtitles,
+        input_path: Path,
+    ) -> Tuple[int, Optional[Path], Dict[str, Any]]:
         global SEEN_URLS, SEEN_PHASHES, SEEN_IDENTIFIERS
         SEEN_URLS.clear()
         SEEN_PHASHES.clear()
@@ -1717,14 +1734,20 @@ class VideoProcessor:
             'avg_latency_ms': round(avg_latency, 1) if avg_latency else 0.0,
             'refined_ratio': round(refined_ratio, 4),
             'provider_mix': {},
+            'providers_used': [],
             'query_source_counts': dict(query_source_counter),
             'total_url_dedup_hits': total_url_dedup_hits,
             'total_phash_dedup_hits': total_phash_dedup_hits,
+            'dedupe_counts': {
+                'url': total_url_dedup_hits,
+                'phash': total_phash_dedup_hits,
+            },
             'forced_keep_segments': forced_keep_consumed,
             'forced_keep_count': forced_keep_consumed,
             'total_candidates': total_candidates,
             'total_unique_candidates': total_unique_candidates,
             'video_duration_s': round(total_duration, 3) if total_duration else 0.0,
+            'render_ok': False,
         }
 
         render_path: Optional[Path] = None
@@ -1840,6 +1863,12 @@ class VideoProcessor:
             broll_per_min = (final_inserted / (total_duration / 60.0)) if total_duration > 0 else 0.0
             provider_mix = {k: v for k, v in sorted(providers.items()) if v > 0}
 
+            overlay_paths = [entry.path for entry in materialized_entries if getattr(entry, 'path', None)]
+            overlays_exist = bool(overlay_paths) and all(Path(path).exists() for path in overlay_paths)
+            render_path_obj = Path(render_path) if render_path else None
+            render_path_exists = bool(render_path_obj and render_path_obj.exists())
+            render_ok_flag = bool(final_inserted > 0 and overlays_exist and render_path_exists)
+
             summary_payload.update(
                 {
                     'inserted': final_inserted,
@@ -1848,16 +1877,20 @@ class VideoProcessor:
                     'avg_broll_duration': round(avg_duration, 3) if durations else 0.0,
                     'broll_per_min': round(broll_per_min, 3) if broll_per_min else 0.0,
                     'provider_mix': provider_mix,
+                    'providers_used': sorted(provider_mix.keys()),
+                    'render_ok': render_ok_flag,
                 }
             )
             event_logger.log({k: v for k, v in summary_payload.items() if v is not None})
 
             providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
-            icon = "📊"
+            render_ok_value = summary_payload.get('render_ok')
+            icon = "📊" if render_ok_value else "⚠️"
             suffix = ""
             if final_inserted == 0 and initial_selected > 0:
-                icon = "⚠️"
                 suffix = " (échec du téléchargement/rendu)"
+            elif final_inserted > 0 and not render_ok_value:
+                suffix = " (rendu indisponible)"
             print(
                 f"    {icon} B-roll sélectionnés: {final_inserted}/{total_segments} "
                 f"({selection_rate * 100:.1f}%); providers={providers_display}{suffix}"
@@ -1885,7 +1918,7 @@ class VideoProcessor:
             except Exception as e:
                 print(f"[REPORT] failed: {e}")
 
-        return final_inserted, render_path
+        return final_inserted, render_path, {'render_ok': summary_payload.get('render_ok')}
 
     def _download_core_candidate(self, candidate, download_dir: Path, order: int) -> Optional[Path]:
         """Download a remote candidate selected by the core orchestrator."""
@@ -2082,12 +2115,13 @@ class VideoProcessor:
     def _normalize_core_result(
         self,
         result: Any,
-    ) -> Tuple[Optional[int], Optional[Path], Optional[List[Dict[str, Any]]]]:
-        """Extract count, rendered path, and selection plan from core result payloads."""
+    ) -> Tuple[Optional[int], Optional[Path], Optional[List[Dict[str, Any]]], Optional[bool]]:
+        """Extract count, rendered path, selection plan, and render flag."""
 
         inserted: Optional[int] = None
         render_path: Optional[Path] = None
         selections: Optional[List[Dict[str, Any]]] = None
+        render_ok: Optional[bool] = None
 
         def _coerce_int(value: Any) -> Optional[int]:
             try:
@@ -2098,7 +2132,7 @@ class VideoProcessor:
                 return None
 
         def _maybe_update_from_payload(payload: Any) -> None:
-            nonlocal render_path, selections
+            nonlocal render_path, selections, render_ok
             if render_path is None:
                 candidate = self._coerce_core_path(payload)
                 if candidate is not None:
@@ -2106,6 +2140,17 @@ class VideoProcessor:
             plan = self._coerce_core_plan(payload)
             if plan:
                 selections = plan
+            if render_ok is None:
+                try:
+                    candidate_flag = None
+                    if isinstance(payload, dict):
+                        candidate_flag = payload.get('render_ok')
+                    elif hasattr(payload, 'render_ok'):
+                        candidate_flag = getattr(payload, 'render_ok')
+                    if candidate_flag is not None:
+                        render_ok = bool(candidate_flag)
+                except Exception:
+                    pass
 
         if isinstance(result, tuple):
             if result:
@@ -2137,7 +2182,7 @@ class VideoProcessor:
                     _maybe_update_from_payload(as_dict)
             _maybe_update_from_payload(result)
 
-        return inserted, render_path, selections
+        return inserted, render_path, selections, render_ok
 
     def _coerce_core_path(self, payload: Any) -> Optional[Path]:
         if payload is None:
@@ -3822,11 +3867,16 @@ class VideoProcessor:
             core_path: Optional[Path] = None
             core_plan: Optional[List[Dict[str, Any]]] = None
             if core_result is not None:
-                core_inserted, core_path, core_plan = self._normalize_core_result(core_result)
+                core_inserted, core_path, core_plan, core_render_ok = self._normalize_core_result(core_result)
                 display_count = core_inserted or 0
-                success, banner = format_broll_completion_banner(display_count, origin="pipeline_core")
+                render_ok_flag = core_render_ok if core_render_ok is not None else (display_count > 0)
+                success, banner = format_broll_completion_banner(
+                    display_count,
+                    origin="pipeline_core",
+                    render_ok=render_ok_flag,
+                )
                 print(banner)
-                if display_count > 0:
+                if display_count > 0 and render_ok_flag:
                     if core_path is not None:
                         candidate_path = Path(core_path)
                         if candidate_path.exists():
@@ -3861,7 +3911,7 @@ class VideoProcessor:
                         legacy_logger.log({'event': 'legacy_skipped', 'reason': 'disabled_by_config'})
                     except Exception:
                         pass
-                if core_path is not None:
+                if core_path is not None and render_ok_flag:
                     candidate = Path(core_path)
                     if candidate.exists():
                         return candidate
