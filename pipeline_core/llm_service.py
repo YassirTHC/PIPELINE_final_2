@@ -55,7 +55,8 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
 
-_LAST_METADATA_KEYWORDS: List[str] = []
+_LAST_METADATA_KEYWORDS: Dict[str, Any] = {"values": [], "updated_at": 0.0}
+_LAST_METADATA_QUERIES: Dict[str, Any] = {"values": [], "updated_at": 0.0}
 
 _DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
 _DEFAULT_OLLAMA_MODEL = "mistral:7b-instruct"
@@ -436,6 +437,50 @@ def _strip_accents(text: str) -> str:
         return ""
     normalized = unicodedata.normalize("NFKD", text)
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _normalise_provider_terms(
+    values: Iterable[str],
+    *,
+    target_lang: Optional[str] = None,
+) -> List[str]:
+    language = (target_lang or "").strip().lower() or _target_language_default()
+    language = (language or "").strip().lower()
+    english_aliases = {
+        "en",
+        "en-us",
+        "en-gb",
+        "en-ca",
+        "en-au",
+        "en_us",
+        "en_gb",
+        "en_ca",
+        "en_au",
+        "english",
+    }
+    is_english = language in english_aliases
+
+    normalised: List[str] = []
+    seen: Set[str] = set()
+
+    for raw in _normalise_string_list(values):
+        if not raw:
+            continue
+        base = _strip_accents(raw)
+        if not base:
+            continue
+        cleaned = re.sub(r"[^0-9A-Za-z]+", " ", base)
+        tokens = [token for token in cleaned.lower().split() if token]
+        if is_english:
+            tokens = [token for token in tokens if len(token) >= 3 and token not in _STOPWORDS_EN]
+        if not tokens:
+            continue
+        term = " ".join(tokens)
+        if term not in seen:
+            seen.add(term)
+            normalised.append(term)
+
+    return normalised
 
 
 def _normalise_search_terms(
@@ -2311,7 +2356,10 @@ class LLMMetadataGeneratorService:
         primary_keywords = _normalise_search_terms(raw_keywords, target_lang=target_lang)[:12]
         primary_queries = _normalise_search_terms(payload.get("queries") or [], target_lang=target_lang)[:12]
 
-        metadata_terms = _normalise_search_terms(_LAST_METADATA_KEYWORDS, target_lang=target_lang)[:12]
+        metadata_terms = _normalise_search_terms(
+            _LAST_METADATA_KEYWORDS.get("values", []),
+            target_lang=target_lang,
+        )[:12]
 
         fallback_terms: List[str] = []
         used_metadata_fallback = False
@@ -2553,8 +2601,12 @@ def generate_metadata_as_json(
     title = _normalise_string(metadata_section.get("title")) or defaults["title"]
     description = _normalise_string(metadata_section.get("description")) or defaults["description"]
 
+    hashtags_disabled = _hashtags_disabled()
+    if hashtags_disabled:
+        metadata_section["hashtags"] = []
+
     hashtags: List[str] = []
-    if not _hashtags_disabled():
+    if not hashtags_disabled:
         hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))[:5]
 
     raw_keyword_values = (
@@ -2602,11 +2654,21 @@ def generate_metadata_as_json(
                 break
     queries = queries[:12]
 
-    if not hashtags:
+    provider_keywords = _normalise_provider_terms(broll_keywords, target_lang=target_lang)[:12]
+    provider_queries = _normalise_provider_terms(queries, target_lang=target_lang)[:12]
+
+    broll_keywords = provider_keywords
+    queries = provider_queries
+
+    if not hashtags and not hashtags_disabled:
         hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
 
-    global _LAST_METADATA_KEYWORDS
-    _LAST_METADATA_KEYWORDS = list(broll_keywords)
+    now = time.time()
+    global _LAST_METADATA_KEYWORDS, _LAST_METADATA_QUERIES
+    _LAST_METADATA_KEYWORDS["values"] = list(broll_keywords)
+    _LAST_METADATA_KEYWORDS["updated_at"] = now
+    _LAST_METADATA_QUERIES["values"] = list(queries)
+    _LAST_METADATA_QUERIES["updated_at"] = now
 
     result: Dict[str, Any] = {
         "title": title,
@@ -2615,6 +2677,7 @@ def generate_metadata_as_json(
         "broll_keywords": broll_keywords,
         "queries": queries,
         "raw_response_length": raw_length if raw_length is not None else 0,
+        "llm_status": "ok",
     }
 
     logger.info(
