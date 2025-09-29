@@ -94,3 +94,88 @@ def test_generate_hints_for_segment_integrates(monkeypatch):
     assert result["broll_keywords"] == expected_keywords
     assert isinstance(result.get("filters"), dict)
 
+
+def test_service_exposes_call_llm_and_fallbacks(monkeypatch):
+    monkeypatch.setattr(
+        llm_service,
+        "_LAST_METADATA_KEYWORDS",
+        {"values": [], "updated_at": 0.0},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        llm_service,
+        "_LAST_METADATA_QUERIES",
+        {"values": [], "updated_at": 0.0},
+        raising=False,
+    )
+
+    def fail_call_llm(self, prompt: str, max_tokens: int = 192):
+        raise ValueError("timeout")
+
+    monkeypatch.setattr(
+        llm_service.LLMMetadataGeneratorService,
+        "_call_llm",
+        fail_call_llm,
+        raising=False,
+    )
+
+    service = llm_service.LLMMetadataGeneratorService(reuse_shared=False)
+    result = service.generate_hints_for_segment(
+        "Marketing teams review analytics dashboards, share growth metrics, and plan new campaigns.",
+        0.0,
+        10.0,
+    )
+
+    queries = [query for query in result.get("queries", []) if query]
+    assert len(queries) >= 4
+
+
+def test_disable_hashtags_env_clears_result(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_DISABLE_HASHTAGS", "1")
+    monkeypatch.setattr(
+        llm_service,
+        "_LAST_METADATA_KEYWORDS",
+        {"values": [], "updated_at": 0.0},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        llm_service,
+        "_LAST_METADATA_QUERIES",
+        {"values": [], "updated_at": 0.0},
+        raising=False,
+    )
+
+    payload = {
+        "title": "Campaign Strategy",
+        "description": "A quick summary of the marketing campaign roadmap.",
+        "hashtags": ["#GrowthMarketing", "#CampaignLaunch"],
+        "broll_keywords": [
+            "marketing team meeting",
+            "analytics dashboard review",
+            "digital strategy planning",
+            "startup founders collaboration",
+            "customer journey mapping",
+            "social media scheduling",
+        ],
+        "queries": [
+            "marketing team collaboration",
+            "analytics dashboard presentation",
+            "digital strategy meeting",
+            "startup founders planning",
+            "customer journey workshop",
+            "social media strategy session",
+        ],
+    }
+
+    def fake_generate_json(*args, **kwargs):
+        serialized = json.dumps(payload)
+        return payload, {"response": serialized}, len(serialized)
+
+    monkeypatch.setattr(llm_service, "_ollama_generate_json", fake_generate_json)
+
+    result = llm_service.generate_metadata_as_json(
+        "The host outlines a marketing campaign, reviews analytics, and discusses customer journeys."
+    )
+
+    assert result["hashtags"] == []
+
