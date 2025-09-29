@@ -72,8 +72,12 @@ class MemoryLogger:
 
 
 class DummyLLM:
+    def __init__(self):
+        self.calls = 0
+
     def generate_hints_for_segment(self, *args, **kwargs):
-        raise AssertionError("generate_hints_for_segment should not be called when briefs are present")
+        self.calls += 1
+        return {"queries": []}
 
 
 class DummyOrchestrator:
@@ -127,7 +131,8 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases
             }
         ],
     }
-    processor._llm_service = DummyLLM()
+    llm = DummyLLM()
+    processor._llm_service = llm
     processor._core_last_run_used = False
 
     def fake_event_logger(self):
@@ -143,6 +148,8 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases
 
     segment = SimpleNamespace(start=0.0, end=1.0, text="Brain science dopamine focus")
     processor._insert_brolls_pipeline_core([segment], ["doctor"], subtitles=None, input_path=SimpleNamespace(name="clip.mp4"))
+
+    assert llm.calls == 1
 
     logged_queries = [
         event
@@ -236,3 +243,63 @@ def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
     queries_event = logged_queries[0]
     assert queries_event["source"] == "seed_queries"
     assert queries_event["queries"], "expected resolved queries"
+
+
+def test_llm_hint_queries_bypass_merge(monkeypatch):
+    memory_logger = MemoryLogger()
+
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", DummyOrchestrator)
+    DummyOrchestrator.instances = []
+
+    processor = video_processor.VideoProcessor.__new__(video_processor.VideoProcessor)
+    processor._pipeline_config = SimpleNamespace(
+        fetcher=SimpleNamespace(),
+        selection=SimpleNamespace(min_score=-1.0),
+        timeboxing=SimpleNamespace(fetch_rank_ms=0, request_timeout_s=0),
+    )
+    processor._dyn_context = {"language": "en", "segment_briefs": []}
+    processor._selector_keywords = []
+    processor._core_last_run_used = False
+
+    class HintLLM:
+        def __init__(self):
+            self.calls = 0
+
+        def generate_hints_for_segment(self, *_args, **_kwargs):
+            self.calls += 1
+            return {"queries": ["Cinematic Skyline", "Happy Team Meeting"], "source": "llm_direct"}
+
+    llm = HintLLM()
+    processor._llm_service = llm
+
+    def fake_event_logger(self):
+        return memory_logger
+
+    processor._broll_event_logger = memory_logger
+    processor._get_broll_event_logger = MethodType(fake_event_logger, processor)
+    processor._derive_segment_keywords = MethodType(lambda self, *_: [], processor)
+    processor._rank_candidate = MethodType(lambda self, *_args, **_kwargs: 0.0, processor)
+
+    segment = SimpleNamespace(start=0.0, end=1.0, text="Inspiring marketing speech")
+    processor._insert_brolls_pipeline_core([segment], [], subtitles=None, input_path=SimpleNamespace(name="clip.mp4"))
+
+    assert llm.calls == 1
+    assert DummyOrchestrator.instances, "expected orchestrator to be constructed"
+    fetch_calls = DummyOrchestrator.instances[0].fetch_calls
+    assert fetch_calls, "expected orchestrator fetch to be invoked"
+    queries_used, _, _ = fetch_calls[0]
+    expected_queries = video_processor._dedupe_queries(
+        ["Cinematic Skyline", "Happy Team Meeting"],
+        cap=video_processor.SEGMENT_REFINEMENT_MAX_TERMS,
+    )
+    assert queries_used == expected_queries
+
+    logged_queries = [
+        event
+        for event in memory_logger.events
+        if event.get("event") == "broll_segment_queries" and event.get("segment") == 0
+    ]
+    assert logged_queries, "expected queries event"
+    queries_event = logged_queries[0]
+    assert queries_event["source"] == "llm_direct"
+    assert queries_event["queries"] == expected_queries

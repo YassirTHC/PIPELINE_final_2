@@ -1746,12 +1746,10 @@ class VideoProcessor:
 
             query_source = 'segment_brief'
 
-            should_consult_llm = not brief_queries and not brief_keywords and not keyword_terms
-
             llm_attempted = False
             fallback_source_label: Optional[str] = None
 
-            if should_consult_llm and getattr(self, '_llm_service', None):
+            if getattr(self, '_llm_service', None):
                 llm_attempted = True
                 try:
                     llm_hints = self._llm_service.generate_hints_for_segment(
@@ -1764,12 +1762,22 @@ class VideoProcessor:
                     llm_healthy = False
                 else:
                     llm_healthy = True
-            elif getattr(self, '_llm_service', None):
-                llm_healthy = True
 
-            hint_payload = []
+            hint_payload: List[str] = []
+            hint_source: Optional[str] = None
             if llm_hints and isinstance(llm_hints.get('queries'), list):
-                hint_payload = list(llm_hints['queries'])
+                hint_payload = [item for item in llm_hints['queries'] if isinstance(item, str)]
+                raw_hint_source = llm_hints.get('source') if isinstance(llm_hints, dict) else None
+                if isinstance(raw_hint_source, str) and raw_hint_source.strip():
+                    hint_source = raw_hint_source.strip()
+
+            hint_terms: List[str] = []
+            if hint_payload:
+                hint_terms = _dedupe_queries(hint_payload, cap=metadata_query_cap)
+                if hint_terms and not hint_source:
+                    hint_source = llm_source_label
+            if not hint_source:
+                hint_source = llm_source_label
 
             if llm_attempted and not hint_payload and getattr(self, '_llm_service', None):
                 fallback_terms: Sequence[str] = []
@@ -1792,38 +1800,45 @@ class VideoProcessor:
                 if not hint_payload:
                     llm_healthy = False
 
-            if hint_payload:
-                hint_terms = _dedupe_queries(hint_payload, cap=metadata_query_cap)
-                llm_queries = _dedupe_queries(list(llm_queries) + hint_terms, cap=metadata_query_cap)
-
-            selector_keywords = list(getattr(self, '_selector_keywords', []))
-            queries, query_source = _merge_segment_query_sources(
-                segment_text=getattr(segment, 'text', '') or '',
-                llm_queries=llm_queries,
-                brief_queries=brief_queries,
-                brief_keywords=brief_keywords,
-                segment_keywords=keyword_terms,
-                selector_keywords=selector_keywords,
-                cap=SEGMENT_REFINEMENT_MAX_TERMS,
-            )
-
-            if query_source == 'llm_hint':
-                query_source = llm_source_label
-
-            if dyn_language in ('', 'en'):
-                queries = enforce_fetch_language(queries, dyn_language or None)
-
-            if not queries:
-                fallback_terms = _build_transcript_fallback_terms(
-                    getattr(segment, 'text', '') or '',
-                    keyword_terms,
-                    limit=max(1, SEGMENT_REFINEMENT_MAX_TERMS),
-                )
-                queries = _relaxed_normalise_terms(fallback_terms, max(1, SEGMENT_REFINEMENT_MAX_TERMS))
+            queries: List[str]
+            if hint_terms:
+                queries = hint_terms
+                query_source = hint_source or 'llm_hint'
+                try:
+                    print(f"[BROLL][LLM] segment={idx} (source={query_source})")
+                except Exception:
+                    pass
                 if dyn_language in ('', 'en'):
                     queries = enforce_fetch_language(queries, dyn_language or None)
-                if queries:
-                    query_source = 'transcript_fallback'
+            else:
+                selector_keywords = list(getattr(self, '_selector_keywords', []))
+                queries, query_source = _merge_segment_query_sources(
+                    segment_text=getattr(segment, 'text', '') or '',
+                    llm_queries=llm_queries,
+                    brief_queries=brief_queries,
+                    brief_keywords=brief_keywords,
+                    segment_keywords=keyword_terms,
+                    selector_keywords=selector_keywords,
+                    cap=SEGMENT_REFINEMENT_MAX_TERMS,
+                )
+
+                if query_source == 'llm_hint':
+                    query_source = llm_source_label
+
+                if dyn_language in ('', 'en'):
+                    queries = enforce_fetch_language(queries, dyn_language or None)
+
+                if not queries:
+                    fallback_terms = _build_transcript_fallback_terms(
+                        getattr(segment, 'text', '') or '',
+                        keyword_terms,
+                        limit=max(1, SEGMENT_REFINEMENT_MAX_TERMS),
+                    )
+                    queries = _relaxed_normalise_terms(fallback_terms, max(1, SEGMENT_REFINEMENT_MAX_TERMS))
+                    if dyn_language in ('', 'en'):
+                        queries = enforce_fetch_language(queries, dyn_language or None)
+                    if queries:
+                        query_source = 'transcript_fallback'
 
             query_source_counter[query_source] += 1
 
