@@ -28,7 +28,7 @@ except ImportError:  # pragma: no cover - keep working if optional dependency mi
         return False
 
 from config import Config
-from pipeline_core.configuration import FetcherOrchestratorConfig
+from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.logging import JsonlLogger
 from pipeline_core.runtime import PipelineResult
@@ -176,7 +176,7 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     event_logger = _get_diag_event_logger()
     config = FetcherOrchestratorConfig.from_environment()
     provider_configs = {provider.name.lower(): provider for provider in config.providers}
-    resolved_providers = [provider.name for provider in config.providers]
+    resolved_names = resolved_providers(config)
     active_names = [provider.name for provider in config.providers if provider.enabled]
     per_segment_limit = int(config.per_segment_limit)
     allow_images = bool(config.allow_images)
@@ -187,8 +187,8 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
         meta['enabled'] = bool(provider_cfg.enabled) if provider_cfg is not None else False
         meta['max_results'] = int(provider_cfg.max_results) if provider_cfg is not None else None
 
-    providers_display = ','.join(active_names) if active_names else 'none'
-    resolved_display = ','.join(resolved_providers) if resolved_providers else 'none'
+    providers_display = ','.join(active_names) if active_names else ','.join(resolved_names)
+    resolved_display = ','.join(resolved_names) if resolved_names else 'none'
     print(
         "[DIAG] providers="
         f"{providers_display} | resolved_providers={resolved_display} | allow_images={str(allow_images).lower()} | "
@@ -290,7 +290,7 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     payload = {
         'timestamp': time.time(),
         'providers_actifs': active_names,
-        'providers_resolved': resolved_providers,
+        'providers_resolved': resolved_names,
         'allow_images': allow_images,
         'per_segment_limit': per_segment_limit,
         'providers': results,
