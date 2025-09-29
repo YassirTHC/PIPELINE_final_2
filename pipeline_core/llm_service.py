@@ -1676,6 +1676,38 @@ class LLMMetadataGeneratorService:
             self._llm_repeat_penalty,
         )
 
+    def _call_llm(self, prompt: str, *, max_tokens: int = 256) -> str:
+        """Proxy Ollama completion that normalises failures and responses."""
+
+        cleaned_prompt = str(prompt or "").strip()
+        if not cleaned_prompt:
+            raise ValueError("empty prompt")
+
+        try:
+            requested_tokens = int(max_tokens)
+        except (TypeError, ValueError):
+            requested_tokens = self._llm_num_predict
+        bounded_tokens = max(1, min(requested_tokens, self._llm_num_predict))
+
+        try:
+            result = self._complete_text(cleaned_prompt, max_tokens=bounded_tokens)
+        except TimeoutError as exc:
+            raise ValueError("timeout") from exc
+        except Exception as exc:
+            raise ValueError("request failed") from exc
+
+        if isinstance(result, dict):
+            try:
+                result = json.dumps(result, ensure_ascii=False)
+            except Exception as exc:
+                raise ValueError("request failed") from exc
+
+        text = str(result or "").strip()
+        if not text:
+            raise ValueError("empty response")
+
+        return text
+
     @classmethod
     def get_shared(cls, config: Optional[Any] = None):
         """Return a service bound to the shared integration, initialising once."""
@@ -2049,16 +2081,29 @@ class LLMMetadataGeneratorService:
         raw_response: Any = None
         try:
             raw_response = self._call_llm(prompt, max_tokens=192)
-        except TimeoutError:
-            logger.warning(
-                "[LLM] Segment hint generation timed out",
-                extra={"segment_start": start, "segment_end": end},
-            )
-        except Exception:
-            logger.exception(
-                "[LLM] Segment hint generation failed",
-                extra={"segment_start": start, "segment_end": end},
-            )
+        except ValueError as exc:
+            message = str(exc).strip().lower()
+            if message == "timeout":
+                logger.warning(
+                    "[LLM] Segment hint generation timed out",
+                    extra={"segment_start": start, "segment_end": end},
+                )
+            elif message == "empty response":
+                logger.warning(
+                    "[LLM] Segment hint generation returned empty payload",
+                    extra={"segment_start": start, "segment_end": end},
+                )
+            elif message == "empty prompt":
+                logger.warning(
+                    "[LLM] Segment hint skipped due to empty prompt",
+                    extra={"segment_start": start, "segment_end": end},
+                )
+            else:
+                logger.exception(
+                    "[LLM] Segment hint generation failed",
+                    extra={"segment_start": start, "segment_end": end, "error": message},
+                )
+            raw_response = None
 
         if isinstance(raw_response, dict):
             payload = raw_response
