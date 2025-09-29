@@ -75,6 +75,120 @@ def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
     return tokens or _DEFAULT_STOP_TOKENS
 
 
+def _ollama_json(prompt: str) -> Dict[str, Any]:
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return {}
+
+    model_name = _resolve_ollama_model(None)
+    base_url = os.getenv("PIPELINE_LLM_ENDPOINT") or os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
+    base_url = (base_url or "http://localhost:11434").strip() or "http://localhost:11434"
+    url = f"{base_url.rstrip('/')}/api/generate"
+
+    timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+    try:
+        timeout = float(timeout_env) if timeout_env is not None else 35.0
+    except (TypeError, ValueError):
+        timeout = 35.0
+    timeout = max(1.0, timeout)
+
+    num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
+    temperature_env = os.getenv("PIPELINE_LLM_TEMP")
+    top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
+    repeat_penalty_env = os.getenv("PIPELINE_LLM_REPEAT_PENALTY")
+    stop_tokens_env = os.getenv("PIPELINE_LLM_STOP_TOKENS")
+    keep_alive = _resolve_keep_alive(None)
+    json_mode = _env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
+
+    def _parse_int(value: Optional[str], *, default: int, minimum: int) -> int:
+        try:
+            parsed = int(value) if value is not None else default
+        except (TypeError, ValueError):
+            parsed = default
+        return max(minimum, parsed)
+
+    def _parse_float(
+        value: Optional[str],
+        *,
+        default: float,
+        minimum: float,
+        maximum: Optional[float] = None,
+    ) -> float:
+        try:
+            parsed = float(value) if value is not None else default
+        except (TypeError, ValueError):
+            parsed = default
+        if maximum is not None:
+            parsed = min(maximum, parsed)
+        return max(minimum, parsed)
+
+    options: Dict[str, Any] = {
+        "num_predict": _parse_int(num_predict_env, default=256, minimum=1),
+        "temperature": _parse_float(temperature_env, default=0.3, minimum=0.0),
+        "top_p": _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0),
+        "repeat_penalty": _parse_float(repeat_penalty_env, default=1.1, minimum=0.0),
+        "stop": list(_parse_stop_tokens(stop_tokens_env)),
+    }
+
+    payload: Dict[str, Any] = {
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False,
+        "options": options,
+    }
+
+    if json_mode:
+        payload["format"] = "json"
+    if keep_alive:
+        payload["keep_alive"] = keep_alive
+
+    started = time.perf_counter()
+
+    try:
+        response = requests.post(url, json=payload, timeout=timeout)
+        response.raise_for_status()
+    except requests.Timeout:
+        logger.warning("[LLM] Ollama request timed out", extra={"model": model_name, "duration_s": round(time.perf_counter() - started, 3)})
+        return {}
+    except requests.RequestException as exc:
+        logger.warning("[LLM] Ollama request failed", extra={"model": model_name, "error": str(exc)})
+        return {}
+
+    try:
+        payload_json = response.json()
+    except ValueError:
+        payload_json = None
+
+    chunks: List[str] = []
+    if isinstance(payload_json, dict):
+        for key in ("response", "message", "data", "metadata", "result"):
+            value = payload_json.get(key)
+            if isinstance(value, dict) and value:
+                return value
+            if isinstance(value, str) and value.strip():
+                chunks.append(value)
+    chunks.append(response.text or "")
+
+    best_payload: Dict[str, Any] = {}
+    best_length = -1
+    pattern = re.compile(r"\{[\s\S]*?\}")
+    for chunk in chunks:
+        if not chunk:
+            continue
+        for match in pattern.finditer(chunk):
+            snippet = match.group(0)
+            try:
+                parsed = json.loads(snippet)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if isinstance(parsed, dict):
+                if len(snippet) > best_length:
+                    best_payload = parsed
+                    best_length = len(snippet)
+
+    return best_payload if best_payload else {}
+
+
 # --- Robust JSON extraction from LLM responses -------------------------------
 def _safe_parse_json(s: str) -> Dict[str, Any]:
     """Extract the first valid JSON object from text; return {} on failure."""
@@ -248,8 +362,8 @@ def _normalise_string(value: Any) -> str:
     return str(value).strip()
 
 
-def _normalise_string_list(value: Any) -> List[str]:
-    if not value:
+def _as_list(value: Any) -> List[str]:
+    if value is None:
         return []
     if isinstance(value, str):
         candidates = re.split(r"[\n,]+", value)
@@ -261,21 +375,24 @@ def _normalise_string_list(value: Any) -> List[str]:
         except TypeError:
             candidates = [value]
     normalised: List[str] = []
-    seen: set[str] = set()
     for candidate in candidates:
         if candidate is None:
             continue
-        if isinstance(candidate, str):
-            cleaned = candidate.strip()
-        else:
-            cleaned = str(candidate).strip()
-        if not cleaned:
-            continue
-        if cleaned in seen:
-            continue
-        seen.add(cleaned)
-        normalised.append(cleaned)
+        text = candidate.strip() if isinstance(candidate, str) else str(candidate).strip()
+        if text:
+            normalised.append(text)
     return normalised
+
+
+def _normalise_string_list(value: Any) -> List[str]:
+    seen: set[str] = set()
+    result: List[str] = []
+    for item in _as_list(value):
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
 
 
 def _normalise_hashtags(value: Any) -> List[str]:
@@ -1719,8 +1836,8 @@ class LLMMetadataGeneratorService:
         }
 
 
-def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None) -> Dict[str, Any]:
-    """Call Ollama directly and return normalised metadata or an empty dict."""
+def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None, **kwargs: Any) -> Dict[str, Any]:
+    """Call Ollama directly, enforce JSON output and normalise the fields."""
 
     cleaned_transcript = (transcript or "").strip()
     if not cleaned_transcript:
@@ -1730,100 +1847,34 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
     if len(cleaned_transcript) > limit:
         cleaned_transcript = cleaned_transcript[:limit]
 
-    prompt_template = os.getenv("PIPELINE_LLM_JSON_PROMPT")
-    if prompt_template:
-        try:
-            prompt = prompt_template.format(transcript=cleaned_transcript)
-        except KeyError:
-            prompt = prompt_template.replace("{transcript}", cleaned_transcript)
-    else:
-        prompt = (
-            "Tu es un expert des métadonnées pour vidéos courtes. "
-            "Retourne uniquement un objet JSON avec les clés "
-            '"title", "description", "hashtags", "broll_keywords", "queries".'
-            "\nTranscript:\n"
-            f"{cleaned_transcript}"
-        )
+    video_id = kwargs.get("video_id")
+    prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
 
-    timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
-    num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
-    temperature_env = os.getenv("PIPELINE_LLM_TEMP")
-    top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
-    repeat_penalty_env = os.getenv("PIPELINE_LLM_REPEAT_PENALTY")
-    stop_tokens_env = os.getenv("PIPELINE_LLM_STOP_TOKENS")
-
-    def _parse_int_env(value: Optional[str], *, default: int, minimum: int) -> int:
+    original_timeout = None
+    if timeout_s is not None:
+        original_timeout = os.getenv("PIPELINE_LLM_TIMEOUT_S")
         try:
-            parsed = int(value) if value is not None else default
+            timeout_override = max(1.0, float(timeout_s))
         except (TypeError, ValueError):
-            parsed = default
-        return max(minimum, parsed)
+            timeout_override = 1.0
+        os.environ["PIPELINE_LLM_TIMEOUT_S"] = str(timeout_override)
 
-    def _parse_float_env(
-        value: Optional[str],
-        *,
-        default: float,
-        minimum: float,
-        maximum: Optional[float] = None,
-    ) -> float:
-        try:
-            parsed = float(value) if value is not None else default
-        except (TypeError, ValueError):
-            parsed = default
-        if maximum is not None:
-            parsed = min(maximum, parsed)
-        return max(minimum, parsed)
-
-    request_timeout = timeout_s
-    if request_timeout is None:
-        try:
-            request_timeout = float(timeout_env) if timeout_env is not None else 35.0
-        except (TypeError, ValueError):
-            request_timeout = 35.0
-        request_timeout = max(1.0, request_timeout)
-
-    options: Dict[str, Any] = {
-        "num_predict": _parse_int_env(num_predict_env, default=256, minimum=1),
-        "temperature": _parse_float_env(temperature_env, default=0.3, minimum=0.0),
-        "top_p": _parse_float_env(top_p_env, default=0.9, minimum=0.0, maximum=1.0),
-        "repeat_penalty": _parse_float_env(repeat_penalty_env, default=1.1, minimum=0.0),
-        "stop": list(_parse_stop_tokens(stop_tokens_env)),
-    }
+    started = time.perf_counter()
+    try:
+        raw_payload = _ollama_json(prompt)
+    finally:
+        if timeout_s is not None:
+            if original_timeout is None:
+                os.environ.pop("PIPELINE_LLM_TIMEOUT_S", None)
+            else:
+                os.environ["PIPELINE_LLM_TIMEOUT_S"] = original_timeout
 
     model_name = _resolve_ollama_model(None)
-    base_url = _resolve_ollama_endpoint(None)
-    keep_alive = _resolve_keep_alive(None)
-    json_mode = _env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
+    duration = time.perf_counter() - started
 
-    payload: Dict[str, Any] = {
-        "model": model_name,
-        "prompt": prompt,
-        "stream": False,
-        "options": options,
-    }
-
-    if json_mode:
-        payload["format"] = "json"
-    if keep_alive:
-        payload["keep_alive"] = keep_alive
-
-    url = f"{base_url}/api/generate"
-    started = time.perf_counter()
-
-    try:
-        response = requests.post(url, json=payload, timeout=request_timeout)
-        response.raise_for_status()
-    except requests.Timeout as exc:
-        raise TimeoutError("Ollama request timed out") from exc
-    except requests.RequestException as exc:
-        raise RuntimeError(f"Ollama request failed: {exc}") from exc
-
-    try:
-        data = response.json()
-    except ValueError:
-        duration = time.perf_counter() - started
+    if not raw_payload:
         logger.warning(
-            "[LLM] Invalid JSON metadata response",
+            "[LLM] JSON metadata payload missing",
             extra={
                 "model": model_name,
                 "duration_s": round(duration, 3),
@@ -1832,36 +1883,15 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
         )
         return {}
 
-    parsed = _coerce_ollama_json(data.get("response"))
-    if not parsed:
-        parsed = _coerce_ollama_json(data.get("message"))
-    if not parsed:
-        parsed = _coerce_ollama_json(data.get("data"))
-    if not parsed:
-        parsed = _coerce_ollama_json(data)
-
-    if not parsed:
-        duration = time.perf_counter() - started
-        logger.warning(
-            "[LLM] Empty metadata payload",
-            extra={
-                "model": model_name,
-                "duration_s": round(duration, 3),
-                "transcript_length": len(cleaned_transcript),
-            },
-        )
-        return {}
-
-    metadata_section: Dict[str, Any] = parsed
+    metadata_section: Dict[str, Any] = raw_payload
     for key in ("metadata", "result", "data"):
         candidate = metadata_section.get(key) if isinstance(metadata_section, dict) else None
         if isinstance(candidate, dict):
             metadata_section = candidate
 
     if not isinstance(metadata_section, dict):
-        duration = time.perf_counter() - started
         logger.warning(
-            "[LLM] Metadata payload not a JSON object",
+            "[LLM] Metadata payload is not a JSON object",
             extra={
                 "model": model_name,
                 "duration_s": round(duration, 3),
@@ -1870,32 +1900,48 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
         )
         return {}
 
-    normalised = dict(metadata_section)
-    normalised.setdefault("title", "")
-    normalised.setdefault("description", "")
-    normalised.setdefault("hashtags", [])
-    normalised.setdefault("broll_keywords", [])
-    normalised.setdefault("queries", [])
+    title = _normalise_string(metadata_section.get("title"))
+    description = _normalise_string(metadata_section.get("description"))
+    hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))
+    broll_keywords = _normalise_string_list(metadata_section.get("broll_keywords"))
+    queries = _normalise_string_list(metadata_section.get("queries"))
+
+    fallback_used = False
+    if not queries:
+        _, fallback_queries = _tfidf_fallback(cleaned_transcript)
+        if fallback_queries:
+            queries = _normalise_string_list(fallback_queries[:8])
+            fallback_used = True
 
     result: Dict[str, Any] = {
-        "title": _normalise_string(normalised.get("title")),
-        "description": _normalise_string(normalised.get("description")),
-        "hashtags": _normalise_hashtags(normalised.get("hashtags")),
-        "broll_keywords": _normalise_string_list(normalised.get("broll_keywords")),
-        "queries": _normalise_string_list(normalised.get("queries")),
+        "title": title,
+        "description": description,
+        "hashtags": hashtags,
+        "broll_keywords": broll_keywords,
+        "queries": queries,
     }
 
-    duration = time.perf_counter() - started
-    logger.info(
-        "[LLM] JSON metadata generated",
+    log_level = logger.info if title or description or hashtags or broll_keywords or queries else logger.warning
+    log_level(
+        "[LLM] JSON metadata processed",
         extra={
             "model": model_name,
             "duration_s": round(duration, 3),
             "transcript_length": len(cleaned_transcript),
-            "hashtags": len(result["hashtags"]),
-            "broll_keywords": len(result["broll_keywords"]),
-            "queries": len(result["queries"]),
+            "hashtags": len(hashtags),
+            "broll_keywords": len(broll_keywords),
+            "queries": len(queries),
+            "queries_fallback": fallback_used,
         },
     )
+
+    if fallback_used:
+        logger.info(
+            "[LLM] Queries fallback generated",
+            extra={
+                "model": model_name,
+                "queries": len(queries),
+            },
+        )
 
     return result
