@@ -133,28 +133,6 @@ class _CoreSegment:
     text: str
 
 
-class _BrollLoggerProxy:
-    """Small proxy adding in-memory storage for JSONL events."""
-
-    def __init__(self, inner_logger):
-        self._inner = inner_logger
-        self.entries: List[Dict[str, Any]] = []
-
-    def log(self, payload: Dict[str, Any]):
-        try:
-            entry = dict(payload)
-        except Exception:
-            entry = {'event': 'unknown', 'payload': payload}
-        self.entries.append(entry)
-        try:
-            self._inner.log(payload)
-        except Exception:
-            pass
-
-    def __getattr__(self, name):  # pragma: no cover - passthrough accessors
-        return getattr(self._inner, name)
-
-
 def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
     if timeout_s <= 0:
         return fn(*args, **kwargs)
@@ -1382,7 +1360,10 @@ class VideoProcessor:
         self._core_last_run_used = False
         self._last_broll_insert_count = 0
         self._pipeline_config = PipelineConfigBundle()
-        self._broll_event_logger = None
+        meta_dir = Config.OUTPUT_FOLDER / 'meta'
+        log_file = meta_dir / 'broll_pipeline_events.jsonl'
+        self._broll_event_logger: Optional[JsonlLogger] = JsonlLogger(log_file)
+        self._broll_env_logged = False
 
     def get_last_broll_insert_count(self) -> int:
         """Return the number of B-roll clips inserted during the last run."""
@@ -1430,17 +1411,8 @@ class VideoProcessor:
             folder.mkdir(parents=True, exist_ok=True)
 
         session_id = f"{clip_path.stem}-{int(time.time() * 1000)}"
-        log_file = meta_dir / 'broll_pipeline_events.jsonl'
-        event_logger = _BrollLoggerProxy(JsonlLogger(log_file))
-        self._broll_event_logger = event_logger
-        try:
-            env_payload = {
-                'event': 'broll_env_ready',
-                'providers': _get_provider_names(self._pipeline_config),
-            }
-            event_logger.log(env_payload)
-        except Exception:
-            pass
+        self._broll_env_logged = False
+        event_logger = self._get_broll_event_logger()
 
         use_core = enable_core if enable_core is not None else _pipeline_core_fetcher_enabled()
         logger.info('[CORE] Orchestrator %s', 'enabled' if use_core else 'disabled (legacy path)')
@@ -1497,21 +1469,17 @@ class VideoProcessor:
     def _get_broll_event_logger(self):
         logger_obj = getattr(self, '_broll_event_logger', None)
         if logger_obj is None:
-            log_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_pipeline_events.jsonl'
-            logger_obj = _BrollLoggerProxy(JsonlLogger(log_file))
+            meta_dir = Config.OUTPUT_FOLDER / 'meta'
+            logger_obj = JsonlLogger(meta_dir / 'broll_pipeline_events.jsonl')
             self._broll_event_logger = logger_obj
-        try:
-            entries = getattr(logger_obj, 'entries', [])
-            has_env = any(event.get('event') == 'broll_env_ready' for event in entries)
-        except Exception:
-            has_env = False
-        if not has_env:
+        if not getattr(self, '_broll_env_logged', False):
             try:
                 env_payload = {
                     'event': 'broll_env_ready',
                     'providers': _get_provider_names(self._pipeline_config),
                 }
                 logger_obj.log(env_payload)
+                self._broll_env_logged = True
             except Exception:
                 pass
         return logger_obj
@@ -2003,6 +1971,8 @@ class VideoProcessor:
                 if reason:
                     reject_reason_counts[reason] += 1
                     reject_reasons.append(reason)
+                candidate_obj = record.get('candidate') if isinstance(record, dict) else getattr(record, 'candidate', None)
+                candidate_url = getattr(candidate_obj, 'url', None)
                 summary_entry = {
                     'provider': record['provider'],
                     'orientation': record['orientation'],
@@ -2010,6 +1980,7 @@ class VideoProcessor:
                     'score': record['score'],
                     'reject_reason': reason,
                     'selected': is_selected,
+                    'url': candidate_url,
                 }
                 candidate_summary.append(summary_entry)
                 try:
@@ -2018,7 +1989,11 @@ class VideoProcessor:
                             {
                                 'event': 'broll_candidate_evaluated',
                                 'segment': idx,
-                                **summary_entry,
+                                'provider': summary_entry['provider'],
+                                'url': candidate_url,
+                                'score': summary_entry['score'],
+                                'reject_reason': summary_entry['reject_reason'],
+                                'selected': is_selected,
                             }
                         )
                 except Exception:
@@ -2214,13 +2189,18 @@ class VideoProcessor:
                 candidate = asset.get('candidate') if isinstance(asset, dict) else None
                 if not candidate or download_dir is None:
                     continue
-                local_path = self._download_core_candidate(candidate, download_dir, order)
+                try:
+                    segment_idx = int(asset.get('segment', order))
+                except Exception:
+                    segment_idx = order
+                local_path = self._download_core_candidate(candidate, download_dir, order, segment_idx)
                 if not local_path:
                     try:
                         event_logger.log({
                             'event': 'core_asset_materialize_failed',
                             'url': asset.get('url'),
                             'provider': asset.get('provider'),
+                            'segment': segment_idx,
                         })
                     except Exception:
                         pass
@@ -2233,11 +2213,6 @@ class VideoProcessor:
                     end = min(end, start + float(duration)) if end > start else start + float(duration)
                 if end <= start:
                     continue
-
-                try:
-                    segment_idx = int(asset.get('segment', order))
-                except Exception:
-                    segment_idx = order
 
                 timeline_entries.append(
                     CoreTimelineEntry(
@@ -2396,7 +2371,7 @@ class VideoProcessor:
 
         return final_inserted, render_path, {'render_ok': summary_payload.get('render_ok')}
 
-    def _download_core_candidate(self, candidate, download_dir: Path, order: int) -> Optional[Path]:
+    def _download_core_candidate(self, candidate, download_dir: Path, order: int, segment: Optional[int] = None) -> Optional[Path]:
         """Download a remote candidate selected by the core orchestrator."""
 
         url = getattr(candidate, 'url', None)
@@ -2443,6 +2418,7 @@ class VideoProcessor:
                             'url': url,
                             'path': str(destination),
                             'error': str(exc),
+                            'segment': segment,
                         }
                     )
                 except Exception:
@@ -2462,6 +2438,7 @@ class VideoProcessor:
                         'provider': provider,
                         'url': url,
                         'path': str(destination),
+                        'segment': segment,
                     }
                 )
             except Exception:
@@ -2526,6 +2503,7 @@ class VideoProcessor:
                 )
 
         clip_count = len(normalized)
+        total_timeline_duration = sum(entry.duration for entry in normalized)
 
         if not normalized:
             if event_logger is not None:
@@ -2589,6 +2567,8 @@ class VideoProcessor:
                             {
                                 'event': 'broll_timeline_rendered',
                                 'clips': clip_count,
+                                'count': clip_count,
+                                'duration_s': round(total_timeline_duration, 3),
                                 'output': str(output_path),
                                 'renderer': 'pipeline',
                             }
@@ -2670,6 +2650,8 @@ class VideoProcessor:
                             {
                                 'event': 'broll_timeline_rendered',
                                 'clips': clip_count,
+                                'count': clip_count,
+                                'duration_s': round(total_timeline_duration, 3),
                                 'output': str(output_path),
                                 'renderer': 'moviepy',
                             }
