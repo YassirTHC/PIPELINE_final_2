@@ -173,19 +173,28 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
             'masked_key': _mask_api_key(raw),
         })
 
-    active_names = [item['name'] for item in providers_meta if item['key_present']]
-    allow_images = _as_bool(os.environ.get('BROLL_FETCH_ALLOW_IMAGES'), default=False)
-    fetch_max_raw = os.environ.get('BROLL_FETCH_MAX_PER_KEYWORD') or '0'
-    try:
-        fetch_max = int(fetch_max_raw)
-    except ValueError:
-        fetch_max = 0
-
-    providers_display = ','.join(active_names) if active_names else 'none'
-    print(f"[DIAG] providers={providers_display} | allow_images={str(allow_images).lower()} | fetch_max={fetch_max}")
-
     event_logger = _get_diag_event_logger()
     config = FetcherOrchestratorConfig.from_environment()
+    provider_configs = {provider.name.lower(): provider for provider in config.providers}
+    resolved_providers = [provider.name for provider in config.providers]
+    active_names = [provider.name for provider in config.providers if provider.enabled]
+    per_segment_limit = int(config.per_segment_limit)
+    allow_images = bool(config.allow_images)
+
+    for meta in providers_meta:
+        provider_cfg = provider_configs.get(meta['name'].lower())
+        meta['selected'] = provider_cfg is not None
+        meta['enabled'] = bool(provider_cfg.enabled) if provider_cfg is not None else False
+        meta['max_results'] = int(provider_cfg.max_results) if provider_cfg is not None else None
+
+    providers_display = ','.join(active_names) if active_names else 'none'
+    resolved_display = ','.join(resolved_providers) if resolved_providers else 'none'
+    print(
+        "[DIAG] providers="
+        f"{providers_display} | resolved_providers={resolved_display} | allow_images={str(allow_images).lower()} | "
+        f"per_segment_limit={per_segment_limit}"
+    )
+
     orchestrator = FetcherOrchestrator(config, event_logger=event_logger)
 
     for meta in providers_meta:
@@ -241,10 +250,25 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     for provider in providers_meta:
         status = dict(provider)
         name = status['name']
+        provider_cfg = provider_configs.get(name.lower())
         if not status['key_present']:
             status['success'] = False
             status['error'] = 'missing_api_key'
             print(f"[DIAG] provider={name} skipped (missing key)")
+            results.append(status)
+            continue
+
+        if not status.get('selected'):
+            status['success'] = False
+            status['error'] = 'not_selected'
+            print(f"[DIAG] provider={name} skipped (not selected)")
+            results.append(status)
+            continue
+
+        if provider_cfg is not None and not provider_cfg.enabled:
+            status['success'] = False
+            status['error'] = 'disabled'
+            print(f"[DIAG] provider={name} skipped (disabled)")
             results.append(status)
             continue
 
@@ -266,8 +290,9 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     payload = {
         'timestamp': time.time(),
         'providers_actifs': active_names,
+        'providers_resolved': resolved_providers,
         'allow_images': allow_images,
-        'fetch_max': fetch_max,
+        'per_segment_limit': per_segment_limit,
         'providers': results,
     }
     output_path = repo_root / 'diagnostic_broll.json'
