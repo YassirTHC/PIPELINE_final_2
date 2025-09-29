@@ -112,20 +112,20 @@ class BrollSelector:
         self.config = self._get_default_config()
         if config:
             self.config.update(config)
-        
+
+        # Initialiser le logger avant toute utilisation
+        self.logger = logging.getLogger(__name__)
+
         # 🚀 NOUVEAU: Mode DIRECT - utilise directement les résultats API
         self.direct_api_mode = self.config.get('direct_api_mode', False)  # HYBRIDE INTELLIGENT PAR DÉFAUT
-        
+
         if self.direct_api_mode:
-            print("🎯 MODE DIRECT API ACTIVÉ - Téléchargement automatique depuis Pexels/Pixabay")
-            print("    📡 FETCH par API = Téléchargement automatique de vidéos B-roll depuis Internet")
-            print("    Sources: Pexels (videos), Pixabay (videos)")
-            print("    🔄 Process: Mots-clés -> Recherche API -> Téléchargement -> Insertion dans vidéo")
+            self.logger.info("🎯 MODE DIRECT API ACTIVÉ - Téléchargement automatique depuis Pexels/Pixabay")
+            self.logger.info("    📡 FETCH par API = Téléchargement automatique de vidéos B-roll depuis Internet")
+            self.logger.info("    Sources: Pexels (videos), Pixabay (videos)")
+            self.logger.info("    🔄 Process: Mots-clés -> Recherche API -> Téléchargement -> Insertion dans vidéo")
         else:
-            print("🔍 MODE SÉLECTION ACTIVÉ - Re-scoring des résultats API")
-        
-        # Initialiser le logger
-        self.logger = logging.getLogger(__name__)
+            self.logger.info("🔍 MODE SÉLECTION ACTIVÉ - Re-scoring des résultats API")
         
         # Initialiser les modèles si disponibles
         self.embedding_model = None
@@ -1663,8 +1663,52 @@ class BrollSelector:
         
         return diverse_selection[:desired_count]
 
-# Instance globale pour compatibilité
-broll_selector = BrollSelector()
+# Instance globale paresseuse pour compatibilité
+_broll_selector_instance: Optional[BrollSelector] = None
+
+
+def get_broll_selector(config: Optional[Dict[str, Any]] = None, *, force_reload: bool = False) -> BrollSelector:
+    """Retourne une instance partagée du :class:`BrollSelector`.
+
+    Cette fonction instancie le sélecteur uniquement lors de la première
+    utilisation, évitant ainsi les effets de bord (logs, téléchargements,
+    initialisations coûteuses) pendant l'import du module.
+
+    Args:
+        config: Configuration optionnelle à fusionner lors de la création ou à
+            appliquer dynamiquement si l'instance existe déjà.
+        force_reload: Si ``True``, remplace l'instance existante par une
+            nouvelle en utilisant la configuration fournie.
+    """
+
+    global _broll_selector_instance
+
+    if force_reload or _broll_selector_instance is None:
+        _broll_selector_instance = BrollSelector(config)
+    elif config:
+        # Mettre à jour dynamiquement la configuration existante
+        _broll_selector_instance.config.update(config)
+
+    return _broll_selector_instance
+
+
+class _BrollSelectorProxy:
+    """Proxy léger conservant la compatibilité avec l'ancienne API module."""
+
+    def __call__(self, config: Optional[Dict[str, Any]] = None, *, force_reload: bool = False) -> BrollSelector:
+        return get_broll_selector(config, force_reload=force_reload)
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(get_broll_selector(), item)
+
+    def __repr__(self) -> str:
+        instance = _broll_selector_instance
+        if instance is None:
+            return "<BrollSelector lazy proxy (uninitialized)>"
+        return repr(instance)
+
+
+broll_selector = _BrollSelectorProxy()
 
 # 🚀 FONCTION DE COMPATIBILITÉ MANQUANTE
 def find_broll_matches(keywords: List[str], max_count: int = 10, 
@@ -1676,7 +1720,7 @@ def find_broll_matches(keywords: List[str], max_count: int = 10,
     """
     try:
         # Utiliser l'instance globale du BrollSelector
-        selector = broll_selector
+        selector = get_broll_selector()
         
         # Normaliser et étendre les mots-clés
         normalized_keywords = selector.normalize_keywords(keywords)
