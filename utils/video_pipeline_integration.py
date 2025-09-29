@@ -372,7 +372,7 @@ def enhance_video_processor_methods(video_processor_class):
         video_processor_class: Votre classe VideoProcessor
     """
     
-    def enhanced_generate_caption_and_hashtags(self, subtitles: List[Dict]) -> Tuple[str, str, List[str], List[str]]:
+    def enhanced_generate_caption_and_hashtags(self, subtitles: List[Dict]) -> Dict[str, Any]:
         """
         Version améliorée de votre méthode generate_caption_and_hashtags
         Utilise notre système LLM industriel
@@ -391,9 +391,17 @@ def enhance_video_processor_methods(video_processor_class):
                 description = metadata.get('description', 'Video Description')
                 hashtags = metadata.get('hashtags', [])
                 broll_keywords = result['broll_data'].get('keywords', [])
-                
+                queries = metadata.get('queries', result['broll_data'].get('queries', []))
+
                 print(f"    🚀 LLM industriel: {len(broll_keywords)} mots-clés B-roll générés")
-                return title, description, hashtags, broll_keywords
+                return {
+                    'title': title,
+                    'description': description,
+                    'hashtags': hashtags,
+                    'broll_keywords': broll_keywords,
+                    'queries': queries,
+                    'llm_status': 'ok',
+                }
             else:
                 # Fallback vers votre méthode existante
                 print(f"    ⚠️ LLM échoué, fallback vers méthode existante")

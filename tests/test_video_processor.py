@@ -153,12 +153,14 @@ def test_process_single_clip_smoke(tmp_path, monkeypatch, video_processor_module
     monkeypatch.setattr(video_processor.VideoProcessor, "transcribe_segments", fake_transcribe)
 
     def fake_generate(self, subtitles):
-        return (
-            "Test Title",
-            "Test Description",
-            ["#test"],
-            ["keyword1", "keyword2"],
-        )
+        return {
+            "title": "Test Title",
+            "description": "Test Description",
+            "hashtags": ["#test"],
+            "broll_keywords": ["keyword1", "keyword2"],
+            "queries": ["keyword1 b-roll"],
+            "llm_status": "ok",
+        }
 
     monkeypatch.setattr(video_processor.VideoProcessor, "generate_caption_and_hashtags", fake_generate)
 

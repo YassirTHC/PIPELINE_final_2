@@ -742,16 +742,6 @@ def _relaxed_normalise_terms(raw_terms: Sequence[str], limit: int) -> list[str]:
     return out[: max(0, limit)]
 
 
-_CURATED_TRANSCRIPT_SUBJECTS = (
-    ("team", "collaborating"),
-    ("person", "presenting"),
-    ("audience", "listening"),
-    ("hands", "typing"),
-    ("city", "timelapse"),
-    ("nature", "exploring"),
-)
-
-
 def _build_transcript_fallback_terms(
     segment_text: str,
     segment_keywords: Sequence[str],
@@ -782,25 +772,12 @@ def _build_transcript_fallback_terms(
 
     phrases: list[str] = []
     for token in unique_tokens:
-        for subject, action in _CURATED_TRANSCRIPT_SUBJECTS:
-            if len(phrases) >= limit:
-                return phrases[:limit]
-            phrase = f"{subject} {action} {token}".strip()
-            if phrase in phrases:
-                continue
-            phrases.append(phrase)
-
-    if len(phrases) < limit:
-        for subject, action in _CURATED_TRANSCRIPT_SUBJECTS:
-            if len(phrases) >= limit:
-                break
-            phrase = f"{subject} {action}".strip()
-            if phrase in phrases:
-                continue
-            phrases.append(phrase)
+        if len(phrases) >= limit:
+            break
+        phrases.append(token)
 
     if not phrases:
-        return ["people collaborating"][:limit]
+        return ["stock footage"][:limit]
 
     return phrases[:limit]
 
@@ -876,7 +853,7 @@ def _merge_segment_query_sources(
         _consume("transcript_fallback", fallback_terms, relax=True)
 
     if not combined:
-        _consume("transcript_fallback", ["people collaborating"], relax=True)
+        _consume("transcript_fallback", ["stock footage"], relax=True)
 
     if primary_source == "none" and combined:
         primary_source = "transcript_fallback"
@@ -1758,7 +1735,34 @@ class VideoProcessor:
             except Exception:
                 brief_queries, brief_keywords = [], []
 
+            metadata_payload = {}
+            try:
+                maybe_meta = getattr(self, '_latest_metadata', {})
+                if isinstance(maybe_meta, dict):
+                    metadata_payload = maybe_meta
+            except Exception:
+                metadata_payload = {}
+
+            metadata_status = str(metadata_payload.get('llm_status') or '').strip().lower()
+            llm_source_label = 'llm_metadata' if metadata_status == 'ok' else 'transcript_normalized'
+            metadata_query_cap = max(1, min(8, SEGMENT_REFINEMENT_MAX_TERMS))
             llm_queries: List[str] = []
+            if metadata_status == 'ok':
+                llm_queries = _relaxed_normalise_terms(metadata_payload.get('queries') or [], metadata_query_cap)
+                if not llm_queries:
+                    metadata_status = 'fallback'
+
+            if metadata_status != 'ok':
+                transcript_source = getattr(segment, 'text', '') or ''
+                transcript_tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+", transcript_source.lower())
+                llm_queries = _normalize_queries(
+                    list(metadata_payload.get('broll_keywords') or []),
+                    transcript_tokens,
+                    max_queries=metadata_query_cap,
+                )
+                if llm_queries:
+                    llm_source_label = 'transcript_normalized'
+
             query_source = 'segment_brief'
 
             should_consult_llm = not brief_queries and not brief_keywords and not keyword_terms
@@ -1779,7 +1783,8 @@ class VideoProcessor:
                 llm_healthy = True
 
             if llm_hints and isinstance(llm_hints.get('queries'), list):
-                llm_queries = _dedupe_queries(llm_hints['queries'], cap=SEGMENT_REFINEMENT_MAX_TERMS)
+                hint_terms = _dedupe_queries(llm_hints['queries'], cap=metadata_query_cap)
+                llm_queries = _dedupe_queries(list(llm_queries) + hint_terms, cap=metadata_query_cap)
 
             selector_keywords = list(getattr(self, '_selector_keywords', []))
             queries, query_source = _merge_segment_query_sources(
@@ -1791,6 +1796,9 @@ class VideoProcessor:
                 selector_keywords=selector_keywords,
                 cap=SEGMENT_REFINEMENT_MAX_TERMS,
             )
+
+            if query_source == 'llm_hint':
+                query_source = llm_source_label
 
             if dyn_language in ('', 'en'):
                 queries = enforce_fetch_language(queries, dyn_language or None)
@@ -3421,10 +3429,18 @@ class VideoProcessor:
         print(f"  🎞️ Étape 3/4: Insertion des B-rolls {'(activée)' if getattr(Config, 'ENABLE_BROLL', False) else '(désactivée)'}...")
         
         # 🚀 CORRECTION: Générer les mots-clés LLM AVANT l'insertion des B-rolls
-        broll_keywords = []
+        metadata: Dict[str, Any] = {}
+        broll_keywords: List[str] = []
+        title = ""
+        description = ""
+        hashtags: List[str] = []
         try:
             print("    🤖 Génération précoce des mots-clés LLM pour B-rolls...")
-            title, description, hashtags, broll_keywords = self.generate_caption_and_hashtags(subtitles)
+            metadata = self.generate_caption_and_hashtags(subtitles) or {}
+            title = str(metadata.get('title') or '').strip()
+            description = str(metadata.get('description') or '').strip()
+            hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
+            broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
             print(f"    ✅ Mots-clés B-roll LLM générés: {len(broll_keywords)} termes")
             print(f"    🎯 Exemples: {', '.join(broll_keywords[:5])}")
         except Exception as e:
@@ -3446,8 +3462,12 @@ class VideoProcessor:
         try:
             # Réutiliser les données déjà générées
             if not broll_keywords:  # Fallback si pas encore généré
-                title, description, hashtags, broll_keywords = self.generate_caption_and_hashtags(subtitles)
-            
+                metadata = self.generate_caption_and_hashtags(subtitles) or metadata or {}
+                title = str(metadata.get('title') or '').strip()
+                description = str(metadata.get('description') or '').strip()
+                hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
+                broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
+
             print(f"  📝 Title: {title}")
             print(f"  📝 Description: {description}")
             print(f"  #️⃣ Hashtags: {' '.join(hashtags)}")
@@ -3960,9 +3980,44 @@ class VideoProcessor:
         print(f"    ✅ {len(subtitles)} segments de sous-titres générés")
         return subtitles
 
-    def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> (str, str, List[str], List[str]):
-        """Génère une légende, des hashtags et des mots-clés B-roll avec le système LLM industriel."""
+    def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> Dict[str, Any]:
+        """Génère un dictionnaire complet de métadonnées via le système LLM industriel."""
         full_text = ' '.join(s.get('text', '') for s in subtitles)
+
+        def _finalize_metadata(
+            status: str,
+            *,
+            title: str,
+            description: str,
+            hashtags: Sequence[str],
+            broll_keywords: Sequence[str],
+            queries: Sequence[str],
+            base: Optional[Dict[str, Any]] = None,
+            source_label: Optional[str] = None,
+        ) -> Dict[str, Any]:
+            payload: Dict[str, Any] = {}
+            if isinstance(base, dict):
+                payload.update(base)
+            payload['title'] = title
+            payload['description'] = description
+            payload['hashtags'] = [h for h in (hashtags or []) if isinstance(h, str) and h]
+            payload['broll_keywords'] = [kw for kw in (broll_keywords or []) if isinstance(kw, str) and kw]
+            payload['queries'] = [q for q in (queries or []) if isinstance(q, str) and q]
+            payload['metadata_source'] = source_label or status
+            payload['llm_status'] = status
+            return payload
+
+        def _remember(metadata: Dict[str, Any]) -> Dict[str, Any]:
+            try:
+                self._latest_metadata = dict(metadata)
+            except Exception:
+                pass
+            return metadata
+
+        try:
+            self._latest_metadata = {}
+        except Exception:
+            pass
 
         # 🚀 NOUVEAU: Utilisation du système LLM industriel
         def _run_fallback(reason: Optional[str] = None):
@@ -3989,7 +4044,17 @@ class VideoProcessor:
 
                 if not title_fb and description_fb:
                     title_fb = (description_fb[:60] + ('…' if len(description_fb) > 60 else ''))
-                return title_fb, description_fb, hashtags_fb, broll_keywords_fb
+                payload = _finalize_metadata(
+                    'fallback',
+                    title=title_fb,
+                    description=description_fb,
+                    hashtags=hashtags_fb,
+                    broll_keywords=broll_keywords_fb,
+                    queries=queries_fb,
+                    base=fallback_meta,
+                    source_label='fallback',
+                )
+                return _remember(payload)
             return None
 
         def _run_heuristics():
@@ -4000,13 +4065,23 @@ class VideoProcessor:
 
             # 🚀 NOUVEAU: Mots-clés B-roll de fallback basés sur les mots communs
             broll_keywords_h = [w for w in common if len(w) > 3][:15]
+            queries_h = [f"{w} b-roll" for w in common[:8]]
 
             # Heuristic title/description
             title_h = (full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
             description_h = (full_text.strip()[:180] + ("…" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
             print("    🧩 [Heuristics] Meta générées en fallback")
             print(f"    🔑 Mots-clés B-roll fallback: {', '.join(broll_keywords_h[:5])}...")
-            return title_h, description_h, hashtags_h, broll_keywords_h
+            payload = _finalize_metadata(
+                'heuristic',
+                title=title_h,
+                description=description_h,
+                hashtags=hashtags_h,
+                broll_keywords=broll_keywords_h,
+                queries=queries_h,
+                source_label='heuristic',
+            )
+            return _remember(payload)
 
         if generate_metadata_as_json is None:
             fallback_result = _run_fallback("    ⚠️ [LLM INDUSTRIEL] Service indisponible, utilisation du fallback historique")
@@ -4044,7 +4119,17 @@ class VideoProcessor:
             if response_len is not None:
                 print(f"    📏 Réponse LLM (caractères): {response_len}")
 
-            return title, description, hashtags, list(broll_keywords)
+            payload = _finalize_metadata(
+                'ok',
+                title=title,
+                description=description,
+                hashtags=hashtags,
+                broll_keywords=broll_keywords,
+                queries=queries,
+                base=metadata_result,
+                source_label='llm',
+            )
+            return _remember(payload)
 
         except Exception as e:
             fallback_result = _run_fallback(f"    🔄 [FALLBACK] Retour vers ancien système: {e}")

@@ -39,7 +39,14 @@ def test_cli_warns_when_no_broll_inserted(monkeypatch, tmp_path, capsys):
             return ["segment"]
 
         def generate_caption_and_hashtags(self, subtitles):
-            return "title", "description", ["#tag"], ["kw1", "kw2"]
+            return {
+                "title": "title",
+                "description": "description",
+                "hashtags": ["#tag"],
+                "broll_keywords": ["kw1", "kw2"],
+                "queries": ["sample query"],
+                "llm_status": "ok",
+            }
 
         def insert_brolls_if_enabled(self, clip_path, subtitles, keywords):
             return tmp_path / "with_broll.mp4"
@@ -115,7 +122,14 @@ def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
             return ["segment"]
 
         def generate_caption_and_hashtags(self, subtitles):
-            return "title", "description", ["#tag"], ["kw1", "kw2"]
+            return {
+                "title": "title",
+                "description": "description",
+                "hashtags": ["#tag"],
+                "broll_keywords": ["kw1", "kw2"],
+                "queries": ["sample query"],
+                "llm_status": "ok",
+            }
 
         def insert_brolls_if_enabled(self, clip_path, subtitles, keywords):
             self._count = 2
