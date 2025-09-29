@@ -18,6 +18,19 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+
+def _raw_provider_spec() -> str:
+    for key in ("BROLL_FETCH_PROVIDER", "AI_BROLL_FETCH_PROVIDER"):
+        raw_value = os.environ.get(key)
+        if not raw_value:
+            continue
+        cleaned = raw_value.strip()
+        if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+            cleaned = cleaned[1:-1].strip()
+        if cleaned:
+            return cleaned
+    return "default"
+
 os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
 os.environ.setdefault('PYTHONUTF8', '1')
 for stream in (sys.stdout, sys.stderr):
@@ -161,7 +174,6 @@ def _fetcher_config_snapshot(
     per_segment_limit = int(config.per_segment_limit)
     allow_images = bool(config.allow_images)
     allow_videos = bool(config.allow_videos)
-    providers_env_raw = os.getenv('BROLL_FETCH_PROVIDER') or os.getenv('AI_BROLL_FETCH_PROVIDER') or ''
 
     provider_configs = {provider.name.lower(): provider for provider in config.providers}
 
@@ -174,36 +186,15 @@ def _fetcher_config_snapshot(
         'per_segment_limit': per_segment_limit,
         'allow_images': allow_images,
         'allow_videos': allow_videos,
-        'providers_env_raw': providers_env_raw,
         'provider_configs': provider_configs,
     }
 
 
-def _render_fetcher_config_lines(snapshot: dict[str, Any]) -> list[str]:
+def _render_provider_limit_lines(snapshot: dict[str, Any]) -> list[str]:
     config: FetcherOrchestratorConfig = snapshot['config']
-    providers_env_raw = snapshot['providers_env_raw'] or 'default'
-    resolved_names: list[str] = list(snapshot['resolved_names'])
-    active_names: list[str] = list(snapshot['active_names'])
-
-    if active_names:
-        resolved_display = ','.join(active_names)
-    elif resolved_names:
-        resolved_display = ','.join(resolved_names)
-    else:
-        resolved_display = 'none'
-
-    allow_images = str(bool(snapshot['allow_images'])).lower()
-    allow_videos = str(bool(snapshot['allow_videos'])).lower()
     per_segment_limit = int(snapshot['per_segment_limit'])
 
-    lines = [
-        f"providers={providers_env_raw}",
-        f"resolved_providers={resolved_display}",
-        f"allow_images={allow_images}",
-        f"allow_videos={allow_videos}",
-        f"per_segment_limit={per_segment_limit}",
-    ]
-
+    lines: list[str] = []
     for provider in config.providers:
         if not getattr(provider, 'enabled', True):
             continue
@@ -244,8 +235,20 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     per_segment_limit = snapshot['per_segment_limit']
     allow_images = snapshot['allow_images']
     allow_videos = snapshot['allow_videos']
+    if active_names:
+        resolved_display = ','.join(active_names)
+    elif resolved_names:
+        resolved_display = ','.join(resolved_names)
+    else:
+        resolved_display = 'none'
 
-    for line in _render_fetcher_config_lines(snapshot):
+    allow_line = f"allow_images={str(bool(allow_images)).lower()}|allow_videos={str(bool(allow_videos)).lower()}"
+
+    print(f"[DIAG] providers={_raw_provider_spec()}")
+    print(f"[DIAG] resolved_providers={resolved_display}")
+    print(f"[DIAG] {allow_line}")
+    print(f"[DIAG] per_segment_limit={per_segment_limit}")
+    for line in _render_provider_limit_lines(snapshot):
         print(f"[DIAG] {line}")
 
     for meta in providers_meta:
@@ -387,7 +390,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()
         snapshot = _fetcher_config_snapshot(config)
-        for line in _render_fetcher_config_lines(snapshot):
+        resolved_names: list[str] = list(snapshot['resolved_names'])
+        active_names: list[str] = list(snapshot['active_names'])
+        if active_names:
+            resolved_display = ','.join(active_names)
+        elif resolved_names:
+            resolved_display = ','.join(resolved_names)
+        else:
+            resolved_display = 'none'
+
+        allow_images = str(bool(snapshot['allow_images'])).lower()
+        allow_videos = str(bool(snapshot['allow_videos'])).lower()
+        per_segment_limit = int(snapshot['per_segment_limit'])
+
+        print(f"providers={_raw_provider_spec()}")
+        print(f"resolved_providers={resolved_display}")
+        print(f"allow_images={allow_images}|allow_videos={allow_videos}")
+        print(f"per_segment_limit={per_segment_limit}")
+        for line in _render_provider_limit_lines(snapshot):
             print(line)
         return 0
 
