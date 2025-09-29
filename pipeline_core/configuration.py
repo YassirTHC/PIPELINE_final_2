@@ -7,10 +7,53 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+import re
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
 from config import Config
+
+
+def to_bool(value: Optional[object], *, default: Optional[bool] = None) -> Optional[bool]:
+    """Interpret different value types as booleans."""
+
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if not text:
+        return default
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def to_list(value: Optional[object]) -> list[str]:
+    """Normalise arbitrary values into a flat list of strings."""
+
+    if value is None:
+        return []
+    if isinstance(value, str):
+        chunks = re.split(r"[\n,;]+", value)
+    elif isinstance(value, dict):
+        chunks = list(value.values())
+    else:
+        try:
+            chunks = list(value)
+        except TypeError:
+            chunks = [value]
+
+    normalised: list[str] = []
+    for chunk in chunks:
+        if chunk is None:
+            continue
+        text = chunk.strip() if isinstance(chunk, str) else str(chunk).strip()
+        if text:
+            normalised.append(text)
+    return normalised
 
 
 def _split_csv(raw: Optional[str]) -> list[str]:
@@ -269,33 +312,47 @@ class FetcherOrchestratorConfig:
             8.0,
         )
 
-        raw_selection = os.getenv("BROLL_FETCH_PROVIDER") or os.getenv("AI_BROLL_FETCH_PROVIDER")
-        selected = _parse_provider_list(raw_selection)
+        fetch_max_candidates = to_list(os.getenv("FETCH_MAX"))
+        fetch_max = _coerce_positive_int(fetch_max_candidates[0] if fetch_max_candidates else None, 8)
 
-        per_segment_limit = _env_int(
-            "BROLL_FETCH_MAX_PER_KEYWORD",
-            "FETCH_MAX",
-            minimum=1,
-        )
-        if per_segment_limit is None:
-            per_segment_limit = _default_per_segment_limit()
+        per_segment_raw = os.getenv("BROLL_FETCH_MAX_PER_KEYWORD")
+        if per_segment_raw is not None:
+            per_segment_limit = _coerce_positive_int(per_segment_raw, fetch_max)
+        else:
+            per_segment_limit = _coerce_positive_int(
+                getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None),
+                fetch_max,
+            )
+
+        provider_value = os.getenv("BROLL_FETCH_PROVIDER")
+        if not provider_value:
+            provider_value = os.getenv("AI_BROLL_FETCH_PROVIDER")
+        provider_tokens = to_list(provider_value)
+        fallback_providers = ["pixabay"]
+
+        selection: Optional[Iterable[str]]
+        if provider_tokens:
+            normalized_selection = {token.lower() for token in provider_tokens}
+            if normalized_selection == {"all"}:
+                selection = None
+            else:
+                selection = normalized_selection
+        else:
+            provider_tokens = fallback_providers
+            selection = fallback_providers
 
         providers = []
-        for provider in _build_provider_defaults(selected=selected, limit=per_segment_limit):
+        for provider in _build_provider_defaults(selected=selection, limit=per_segment_limit):
             if provider.enabled:
                 provider.max_results = per_segment_limit
             providers.append(provider)
 
-        allow_images_override = _env_bool("BROLL_FETCH_ALLOW_IMAGES")
-        if allow_images_override is not None:
-            allow_images = allow_images_override
-        else:
+        allow_images = to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"))
+        if allow_images is None:
             allow_images = _default_allow_images()
 
-        allow_videos_override = _env_bool("BROLL_FETCH_ALLOW_VIDEOS")
-        if allow_videos_override is not None:
-            allow_videos = allow_videos_override
-        else:
+        allow_videos = to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"))
+        if allow_videos is None:
             allow_videos = _default_allow_videos()
 
         return cls(
@@ -307,6 +364,33 @@ class FetcherOrchestratorConfig:
         )
 
 
+def resolved_providers(cfg: Optional[FetcherOrchestratorConfig]) -> list[str]:
+    """Return configured provider names, falling back to pixabay."""
+
+    if cfg is None:
+        return ["pixabay"]
+
+    names: list[str] = []
+    for provider in getattr(cfg, "providers", ()):
+        name = str(getattr(provider, "name", "") or "").strip()
+        if name:
+            names.append(name)
+
+    if names:
+        # Preserve order but de-duplicate while keeping first occurrence.
+        seen: set[str] = set()
+        unique: list[str] = []
+        for name in names:
+            lowered = name.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            unique.append(name)
+        return unique
+
+    return ["pixabay"]
+
+
 def detected_provider_names(
     config: Optional[FetcherOrchestratorConfig] = None,
     *,
@@ -314,13 +398,16 @@ def detected_provider_names(
 ) -> list[str]:
     if config is None:
         config = FetcherOrchestratorConfig.from_environment()
-    providers = config.providers
+    providers = list(getattr(config, "providers", ()))
     names: list[str] = []
     for provider in providers:
         if only_enabled and not provider.enabled:
             continue
         names.append(provider.name)
-    return names
+    if names:
+        return names
+    fallback = resolved_providers(config)
+    return list(fallback)
 
 
 def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Optional[bool]:
@@ -330,16 +417,7 @@ def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Opt
     ``default`` when the value is empty/unknown.
     """
 
-    if value is None:
-        return default
-    if isinstance(value, bool):  # pragma: no cover - defensive (env always str)
-        return value
-    normalized = str(value).strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    return default
+    return to_bool(value, default=default)
 
 
 def _selection_config_from_environment() -> "SelectionConfig":
