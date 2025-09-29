@@ -2,6 +2,13 @@
 """Stable wrapper around video_processor with sane environment defaults."""
 from __future__ import annotations
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except ImportError:  # pragma: no cover - keep working if optional dependency missing
+    def load_dotenv(*_args, **_kwargs):
+        return False
+
 import argparse
 import importlib
 import inspect
@@ -20,12 +27,6 @@ for stream in (sys.stdout, sys.stderr):
             stream.reconfigure(encoding='utf-8')
         except Exception:
             pass
-
-try:
-    from dotenv import load_dotenv
-except ImportError:  # pragma: no cover - keep working if optional dependency missing
-    def load_dotenv(*_args, **_kwargs):
-        return False
 
 from config import Config
 from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
@@ -151,6 +152,30 @@ def _get_diag_event_logger() -> _DiagEventLogger:
     return _DIAG_EVENT_LOGGER
 
 
+def _fetcher_config_snapshot(
+    config: FetcherOrchestratorConfig,
+) -> dict[str, Any]:
+    resolved_names = resolved_providers(config)
+    active_names = [provider.name for provider in config.providers if provider.enabled]
+    providers_display = ','.join(active_names) if active_names else ','.join(resolved_names)
+    resolved_display = ','.join(resolved_names) if resolved_names else 'none'
+    per_segment_limit = int(config.per_segment_limit)
+    allow_images = bool(config.allow_images)
+
+    provider_configs = {provider.name.lower(): provider for provider in config.providers}
+
+    return {
+        'config': config,
+        'resolved_names': resolved_names,
+        'active_names': active_names,
+        'providers_display': providers_display,
+        'resolved_display': resolved_display,
+        'per_segment_limit': per_segment_limit,
+        'allow_images': allow_images,
+        'provider_configs': provider_configs,
+    }
+
+
 def _run_broll_diagnostic(repo_root: Path) -> int:
     try:
         import json
@@ -175,11 +200,14 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
 
     event_logger = _get_diag_event_logger()
     config = FetcherOrchestratorConfig.from_environment()
-    provider_configs = {provider.name.lower(): provider for provider in config.providers}
-    resolved_names = resolved_providers(config)
-    active_names = [provider.name for provider in config.providers if provider.enabled]
-    per_segment_limit = int(config.per_segment_limit)
-    allow_images = bool(config.allow_images)
+    snapshot = _fetcher_config_snapshot(config)
+    provider_configs = snapshot['provider_configs']
+    resolved_names = snapshot['resolved_names']
+    active_names = snapshot['active_names']
+    per_segment_limit = snapshot['per_segment_limit']
+    allow_images = snapshot['allow_images']
+    providers_display = snapshot['providers_display']
+    resolved_display = snapshot['resolved_display']
 
     for meta in providers_meta:
         provider_cfg = provider_configs.get(meta['name'].lower())
@@ -187,8 +215,6 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
         meta['enabled'] = bool(provider_cfg.enabled) if provider_cfg is not None else False
         meta['max_results'] = int(provider_cfg.max_results) if provider_cfg is not None else None
 
-    providers_display = ','.join(active_names) if active_names else ','.join(resolved_names)
-    resolved_display = ','.join(resolved_names) if resolved_names else 'none'
     print(
         "[DIAG] providers="
         f"{providers_display} | resolved_providers={resolved_display} | allow_images={str(allow_images).lower()} | "
@@ -315,10 +341,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     parser.add_argument("--video", help="Path to the source video (mp4, mov, etc.)")
     parser.add_argument("--diag-broll", action="store_true", help="Run a B-roll API diagnostic and exit.")
+    parser.add_argument(
+        "--print-config",
+        action="store_true",
+        help="Print the resolved fetcher configuration and exit.",
+    )
     parser.add_argument("--legacy", action="store_true", help="Disable the modern pipeline_core orchestrator.")
     parser.add_argument("--verbose", action="store_true", help="Print verbose logs in the console.")
     parser.add_argument("--no-emoji", action="store_true", help="Disable emoji in console output.")
     args, passthrough = parser.parse_known_args(argv)
+
+    if args.print_config:
+        config = FetcherOrchestratorConfig.from_environment()
+        snapshot = _fetcher_config_snapshot(config)
+        pexels_key_present = bool(os.environ.get('PEXELS_API_KEY'))
+        print(
+            "[CONFIG] providers="
+            f"{snapshot['providers_display']} | resolved_providers={snapshot['resolved_display']} | "
+            f"allow_images={str(snapshot['allow_images']).lower()} | "
+            f"per_segment_limit={snapshot['per_segment_limit']} | "
+            f"pexels_key_present={str(pexels_key_present).lower()}"
+        )
+        return 0
 
     if args.diag_broll:
         return _run_broll_diagnostic(repo_root)
