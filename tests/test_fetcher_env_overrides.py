@@ -28,6 +28,34 @@ def test_config_reads_environment_defaults(monkeypatch):
     assert config.allow_videos is False
 
 
+def test_provider_specific_override(monkeypatch):
+    monkeypatch.setenv("FETCH_MAX", "10")
+    monkeypatch.setenv("BROLL_FETCH_MAX_PER_KEYWORD", "7")
+    monkeypatch.setenv("BROLL_FETCH_PROVIDER", "all")
+    monkeypatch.setenv("BROLL_PEXELS_MAX_PER_KEYWORD", "3")
+
+    config = FetcherOrchestratorConfig.from_environment()
+
+    enabled = {provider.name: provider for provider in config.providers if provider.enabled}
+    assert enabled["pexels"].max_results == 3
+    assert enabled["pixabay"].max_results == 7
+    assert config.per_segment_limit == 3
+
+
+def test_fetch_max_caps_provider_override(monkeypatch):
+    monkeypatch.setenv("FETCH_MAX", "5")
+    monkeypatch.setenv("BROLL_FETCH_MAX_PER_KEYWORD", "9")
+    monkeypatch.setenv("BROLL_FETCH_PROVIDER", "pexels,pixabay")
+    monkeypatch.setenv("BROLL_PEXELS_MAX_PER_KEYWORD", "12")
+
+    config = FetcherOrchestratorConfig.from_environment()
+
+    enabled = {provider.name: provider for provider in config.providers if provider.enabled}
+    assert enabled["pexels"].max_results == 5
+    assert enabled["pixabay"].max_results == 5
+    assert config.per_segment_limit == 5
+
+
 def test_fetcher_respects_allow_flags(monkeypatch):
     monkeypatch.setenv("BROLL_FETCH_MAX_PER_KEYWORD", "3")
     monkeypatch.setenv("BROLL_FETCH_PROVIDER", "pexels")

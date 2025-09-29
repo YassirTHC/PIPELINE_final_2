@@ -277,7 +277,14 @@ class FetcherOrchestratorConfig:
         providers: list[ProviderConfig] = []
         for provider in self.providers:
             provider.enabled = bool(getattr(provider, "enabled", True))
-            provider.max_results = max(1, min(int(getattr(provider, "max_results", limit) or limit), limit))
+            raw_limit = getattr(provider, "max_results", limit)
+            try:
+                parsed_limit = int(raw_limit)
+            except (TypeError, ValueError):
+                parsed_limit = limit
+            if parsed_limit <= 0:
+                parsed_limit = limit
+            provider.max_results = parsed_limit
             providers.append(provider)
 
         # ``providers`` is declared as a Sequence for flexibility but we keep an
@@ -294,29 +301,18 @@ class FetcherOrchestratorConfig:
             8.0,
         )
 
-        fetch_max_raw = os.getenv("FETCH_MAX")
-        try:
-            per_segment_limit = int(str(fetch_max_raw).strip()) if fetch_max_raw is not None else 8
-        except (TypeError, ValueError):
-            per_segment_limit = 8
-        if per_segment_limit <= 0:
-            per_segment_limit = 8
+        def _positive_int(value: object) -> Optional[int]:
+            try:
+                parsed = int(str(value).strip())
+            except (TypeError, ValueError, AttributeError):
+                return None
+            return parsed if parsed > 0 else None
 
-        override_limit = os.getenv("BROLL_FETCH_MAX_PER_KEYWORD")
-        if override_limit is not None:
-            try:
-                parsed = int(str(override_limit).strip())
-            except (TypeError, ValueError):
-                parsed = per_segment_limit
-            if parsed > 0:
-                per_segment_limit = parsed
-        elif getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None):
-            try:
-                parsed = int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD"))
-            except (TypeError, ValueError):
-                parsed = per_segment_limit
-            if parsed > 0:
-                per_segment_limit = parsed
+        fetch_max = _positive_int(os.getenv("FETCH_MAX")) or 8
+
+        global_override = _positive_int(os.getenv("BROLL_FETCH_MAX_PER_KEYWORD"))
+        if global_override is None:
+            global_override = _positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None))
 
         provider_env = os.getenv("BROLL_FETCH_PROVIDER")
         if not provider_env:
@@ -331,11 +327,36 @@ class FetcherOrchestratorConfig:
         else:
             selection = normalized_selection
 
-        providers = []
-        for provider in _build_provider_defaults(selected=selection, limit=per_segment_limit):
+        providers: list[ProviderConfig] = []
+        effective_limits: list[int] = []
+
+        for provider in _build_provider_defaults(selected=selection):
+            name_token = provider.name.strip().upper().replace(" ", "_")
+            provider_override = _positive_int(os.getenv(f"BROLL_{name_token}_MAX_PER_KEYWORD"))
+
+            candidates = [fetch_max]
+            if global_override is not None:
+                candidates.append(global_override)
+            if provider_override is not None:
+                candidates.append(provider_override)
+
+            eff_limit = min(candidates)
+
             if provider.enabled:
-                provider.max_results = per_segment_limit
+                provider.max_results = eff_limit
+                effective_limits.append(eff_limit)
+            else:
+                provider.max_results = eff_limit
+
             providers.append(provider)
+
+        if effective_limits:
+            per_segment_limit = min(effective_limits)
+        else:
+            base_limits = [fetch_max]
+            if global_override is not None:
+                base_limits.append(global_override)
+            per_segment_limit = min(base_limits)
 
         allow_images = to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"), default=_default_allow_images())
         allow_videos = to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"), default=_default_allow_videos())
