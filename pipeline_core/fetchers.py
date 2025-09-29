@@ -60,6 +60,7 @@ class FetcherOrchestrator:
         self,
         keywords: Sequence[str],
         *,
+        segment_index: Optional[int] = None,
         duration_hint: Optional[float] = None,
         filters: Optional[dict] = None,
         segment_timeout_s: Optional[float] = None,
@@ -179,6 +180,35 @@ class FetcherOrchestrator:
 
             if len(processed) >= self.config.per_segment_limit:
                 break
+
+        provider_counts: Dict[str, int] = {}
+        for provider_conf in providers:
+            name = str(getattr(provider_conf, "name", "") or "").strip()
+            if name:
+                provider_counts.setdefault(name, 0)
+
+        for candidate in processed:
+            provider = str(getattr(candidate, "provider", "") or "").strip()
+            if not provider:
+                provider = "unknown"
+            provider_counts[provider] = provider_counts.get(provider, 0) + 1
+
+        for provider_name, count in provider_counts.items():
+            if not provider_name:
+                continue
+            payload: Dict[str, Any] = {
+                "event": "broll_candidate_evaluated",
+                "provider": provider_name,
+                "count": int(count),
+            }
+            if segment_index is not None:
+                try:
+                    segment_value = int(segment_index)
+                except Exception:
+                    segment_value = segment_index
+                payload["segment_index"] = segment_value
+                payload.setdefault("segment", segment_value)
+            self._log_event(payload)
 
         return processed
 

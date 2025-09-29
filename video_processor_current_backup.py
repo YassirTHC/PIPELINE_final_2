@@ -2731,9 +2731,8 @@ class VideoProcessor:
                 return orchestrator.fetch_candidates(
 
                     queries,
-
+                    segment_index=idx,
                     duration_hint=seg_duration,
-
                     filters=filters,
 
                     segment_timeout_s=eff_timeout,

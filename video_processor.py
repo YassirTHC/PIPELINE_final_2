@@ -1895,6 +1895,7 @@ class VideoProcessor:
             def _do_fetch():
                 return orchestrator.fetch_candidates(
                     queries,
+                    segment_index=idx,
                     duration_hint=seg_duration,
                     filters=filters,
                 )

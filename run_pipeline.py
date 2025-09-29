@@ -7,8 +7,10 @@ import importlib
 import inspect
 import os
 import sys
+import time
+from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
 os.environ.setdefault('PYTHONUTF8', '1')
@@ -25,6 +27,10 @@ except ImportError:  # pragma: no cover - keep working if optional dependency mi
     def load_dotenv(*_args, **_kwargs):
         return False
 
+from config import Config
+from pipeline_core.configuration import FetcherOrchestratorConfig
+from pipeline_core.fetchers import FetcherOrchestrator
+from pipeline_core.logging import JsonlLogger
 from pipeline_core.runtime import PipelineResult
 
 # Expose the video_processor module at import time for compatibility with tests.
@@ -108,17 +114,48 @@ def _mask_api_key(value: Optional[str]) -> Optional[str]:
     return f'****{tail}'
 
 
+class _DiagEventLogger:
+    """Proxy logger that tees events to disk and keeps them in memory."""
+
+    def __init__(self, destination: Path) -> None:
+        self._jsonl = JsonlLogger(destination)
+        self.entries: List[Dict[str, Any]] = []
+
+    @property
+    def path(self) -> Path:
+        return self._jsonl.path
+
+    def log(self, payload: Dict[str, Any]) -> None:
+        if isinstance(payload, dict):
+            self.entries.append(dict(payload))
+        else:
+            self.entries.append({"event": "unknown", "payload": payload})
+        self._jsonl.log(payload)
+
+
+_DIAG_EVENT_LOGGER: Optional[_DiagEventLogger] = None
+
+
+def _broll_events_path() -> Path:
+    try:
+        base_dir = Path(getattr(Config, "OUTPUT_FOLDER", Path("output")))
+    except Exception:
+        base_dir = Path("output")
+    return base_dir / "meta" / "broll_pipeline_events.jsonl"
+
+
+def _get_diag_event_logger() -> _DiagEventLogger:
+    global _DIAG_EVENT_LOGGER
+    if _DIAG_EVENT_LOGGER is None:
+        _DIAG_EVENT_LOGGER = _DiagEventLogger(_broll_events_path())
+    return _DIAG_EVENT_LOGGER
+
+
 def _run_broll_diagnostic(repo_root: Path) -> int:
     try:
         import json
-        import time
     except ImportError as exc:
         print(f"[DIAG] missing stdlib dependency: {exc}", file=sys.stderr)
-        return 1
-    try:
-        import requests  # type: ignore[import-not-found]
-    except ImportError:
-        print('[DIAG] python-requests is required for --diag-broll.', file=sys.stderr)
         return 1
 
     provider_defs = [
@@ -147,6 +184,59 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     providers_display = ','.join(active_names) if active_names else 'none'
     print(f"[DIAG] providers={providers_display} | allow_images={str(allow_images).lower()} | fetch_max={fetch_max}")
 
+    event_logger = _get_diag_event_logger()
+    config = FetcherOrchestratorConfig.from_environment()
+    orchestrator = FetcherOrchestrator(config, event_logger=event_logger)
+
+    for meta in providers_meta:
+        if not meta['key_present']:
+            event_logger.log({'event': 'provider_skipped_missing_key', 'provider': meta['name']})
+
+    base_index = len(event_logger.entries)
+    try:
+        candidates = orchestrator.fetch_candidates(['nature'], segment_index=0, duration_hint=6.0, segment_timeout_s=0.7)
+    except Exception as exc:  # pragma: no cover - unexpected runtime faults
+        print(f"[DIAG] fetch orchestrator failed: {exc}", file=sys.stderr)
+        candidates = []
+
+    new_events = event_logger.entries[base_index:]
+    provider_counts: Dict[str, int] = defaultdict(int)
+    for candidate in candidates:
+        provider = str(getattr(candidate, 'provider', '') or '').strip() or 'unknown'
+        provider_counts[provider] += 1
+
+    latency_by_provider: Dict[str, Optional[int]] = {}
+    error_by_provider: Dict[str, str] = {}
+
+    for event in new_events:
+        provider = str(event.get('provider', '') or '').strip()
+        event_name = event.get('event')
+        if not provider and event_name != 'broll_candidate_evaluated':
+            continue
+        if event_name == 'fetch_request':
+            latency = event.get('latency_ms')
+            if isinstance(latency, (int, float)):
+                latency_by_provider[provider] = int(latency)
+            count = event.get('count')
+            if isinstance(count, int):
+                provider_counts.setdefault(provider, 0)
+                provider_counts[provider] = max(provider_counts[provider], int(count))
+        elif event_name == 'fetch_timeout':
+            error_by_provider[provider] = 'timeout'
+        elif event_name == 'fetch_error':
+            error_by_provider[provider] = str(event.get('error') or 'error')
+        elif event_name == 'provider_skipped_missing_key':
+            error_by_provider[provider] = 'missing_api_key'
+        elif event_name == 'broll_candidate_evaluated':
+            prov_name = str(event.get('provider', '') or '').strip()
+            if not prov_name:
+                continue
+            count = event.get('count')
+            if isinstance(count, int):
+                provider_counts[prov_name] = int(count)
+            if prov_name and provider not in latency_by_provider:
+                latency_by_provider.setdefault(prov_name, None)
+
     results = []
     for provider in providers_meta:
         status = dict(provider)
@@ -158,69 +248,18 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
             results.append(status)
             continue
 
-        try:
-            start = time.perf_counter()
-            if name == 'pexels':
-                resp = requests.get(
-                    'https://api.pexels.com/videos/search',
-                    headers={'Authorization': os.environ[status['env_key']]},
-                    params={'query': 'nature', 'per_page': 1},
-                    timeout=0.7,
-                )
-                latency_ms = int((time.perf_counter() - start) * 1000)
-                status['latency_ms'] = latency_ms
-                status['http_status'] = resp.status_code
-                if resp.ok:
-                    try:
-                        payload = resp.json()
-                    except Exception as exc:
-                        status['success'] = False
-                        status['error'] = f'json_error:{exc}'
-                    else:
-                        videos = payload.get('videos') or []
-                        status['candidates'] = len(videos)
-                        status['success'] = len(videos) > 0
-                        if not status['success']:
-                            status['error'] = 'no_videos'
-                else:
-                    status['success'] = False
-                    status['error'] = f'http_{resp.status_code}'
-            elif name == 'pixabay':
-                resp = requests.get(
-                    'https://pixabay.com/api/videos/',
-                    params={'key': os.environ[status['env_key']], 'q': 'nature', 'per_page': 3},
-                    timeout=0.7,
-                )
-                latency_ms = int((time.perf_counter() - start) * 1000)
-                status['latency_ms'] = latency_ms
-                status['http_status'] = resp.status_code
-                if resp.ok:
-                    try:
-                        payload = resp.json()
-                    except Exception as exc:
-                        status['success'] = False
-                        status['error'] = f'json_error:{exc}'
-                    else:
-                        hits = payload.get('hits') or []
-                        status['candidates'] = len(hits)
-                        status['success'] = len(hits) > 0
-                        if not status['success']:
-                            status['error'] = 'no_hits'
-                else:
-                    status['success'] = False
-                    status['error'] = f'http_{resp.status_code}'
-            else:
-                status['success'] = False
-                status['error'] = 'unsupported_provider'
-        except requests.Timeout:
-            status['success'] = False
-            status['error'] = 'timeout'
-        except Exception as exc:
-            status['success'] = False
-            status['error'] = str(exc)
+        count = provider_counts.get(name, 0)
+        status['candidates'] = count
+        status['latency_ms'] = latency_by_provider.get(name)
+        status['success'] = count > 0
+        if not status['success']:
+            status['error'] = error_by_provider.get(name, 'no_results')
 
+        latency_display = status.get('latency_ms')
+        if latency_display is None:
+            latency_display = 'n/a'
         print(
-            f"[DIAG] provider={name} success={status.get('success')} latency_ms={status.get('latency_ms', 'n/a')} candidates={status.get('candidates', 0)}"
+            f"[DIAG] provider={name} success={status.get('success')} latency_ms={latency_display} candidates={status.get('candidates', 0)}"
         )
         results.append(status)
 
