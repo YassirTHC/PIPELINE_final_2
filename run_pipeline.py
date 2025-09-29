@@ -179,6 +179,40 @@ def _fetcher_config_snapshot(
     }
 
 
+def _render_fetcher_config_lines(snapshot: dict[str, Any]) -> list[str]:
+    config: FetcherOrchestratorConfig = snapshot['config']
+    providers_env_raw = snapshot['providers_env_raw'] or 'default'
+    resolved_names: list[str] = list(snapshot['resolved_names'])
+    active_names: list[str] = list(snapshot['active_names'])
+
+    if active_names:
+        resolved_display = ','.join(active_names)
+    elif resolved_names:
+        resolved_display = ','.join(resolved_names)
+    else:
+        resolved_display = 'none'
+
+    allow_images = str(bool(snapshot['allow_images'])).lower()
+    allow_videos = str(bool(snapshot['allow_videos'])).lower()
+    per_segment_limit = int(snapshot['per_segment_limit'])
+
+    lines = [
+        f"providers={providers_env_raw}",
+        f"resolved_providers={resolved_display}",
+        f"allow_images={allow_images}",
+        f"allow_videos={allow_videos}",
+        f"per_segment_limit={per_segment_limit}",
+    ]
+
+    for provider in config.providers:
+        if not getattr(provider, 'enabled', True):
+            continue
+        max_results = int(getattr(provider, 'max_results', per_segment_limit))
+        lines.append(f"provider={provider.name} max_results={max_results}")
+
+    return lines
+
+
 def _run_broll_diagnostic(repo_root: Path) -> int:
     try:
         import json
@@ -210,22 +244,15 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     per_segment_limit = snapshot['per_segment_limit']
     allow_images = snapshot['allow_images']
     allow_videos = snapshot['allow_videos']
-    resolved_display = snapshot['resolved_display']
-    env_raw = snapshot['providers_env_raw'] or 'default'
-    pexels_key_present = bool(os.environ.get('PEXELS_API_KEY'))
+
+    for line in _render_fetcher_config_lines(snapshot):
+        print(f"[DIAG] {line}")
 
     for meta in providers_meta:
         provider_cfg = provider_configs.get(meta['name'].lower())
         meta['selected'] = provider_cfg is not None
         meta['enabled'] = bool(provider_cfg.enabled) if provider_cfg is not None else False
         meta['max_results'] = int(provider_cfg.max_results) if provider_cfg is not None else None
-
-    print(
-        "[DIAG] providers="
-        f"{env_raw} | resolved_providers={resolved_display} | allow_images={str(allow_images).lower()} | "
-        f"allow_videos={str(allow_videos).lower()} | per_segment_limit={per_segment_limit} | "
-        f"pexels_key_present={str(pexels_key_present).lower()}"
-    )
 
     orchestrator = FetcherOrchestrator(config, event_logger=event_logger)
 
@@ -359,19 +386,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()
-        providers_env_raw = os.getenv('BROLL_FETCH_PROVIDER') or os.getenv('AI_BROLL_FETCH_PROVIDER') or ''
-        resolved = resolved_providers(config)
-        resolved_display = ','.join(resolved) if resolved else 'pixabay'
-        pexels_key_present = bool(os.getenv('PEXELS_API_KEY'))
-        line = (
-            f"providers={providers_env_raw or 'default'} | "
-            f"resolved_providers={resolved_display} | "
-            f"allow_images={str(bool(config.allow_images)).lower()} | "
-            f"allow_videos={str(bool(config.allow_videos)).lower()} | "
-            f"per_segment_limit={int(config.per_segment_limit)} | "
-            f"pexels_key_present={str(pexels_key_present)}"
-        )
-        print(line)
+        snapshot = _fetcher_config_snapshot(config)
+        for line in _render_fetcher_config_lines(snapshot):
+            print(line)
         return 0
 
     if args.diag_broll:
