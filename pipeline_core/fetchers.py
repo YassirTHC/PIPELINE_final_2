@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import logging
 import os
+import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from pipeline_core.configuration import FetcherOrchestratorConfig
+from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
 
 try:  # pragma: no cover - exercised indirectly via tests
     from src.pipeline.fetchers import (  # type: ignore
@@ -141,6 +144,40 @@ class FetcherOrchestrator:
             for fut in pending:
                 fut.cancel()
 
+        allow_images_active = bool(self.config.allow_images)
+
+        if not raw_results:
+            resolved_names = {name.lower() for name in resolved_providers(self.config)}
+            if "pixabay" not in resolved_names:
+                fallback_candidates: List[RemoteAssetCandidate] = []
+                attempted_queries: List[str] = []
+                for query in queries[:3]:
+                    clean_query = (query or "").strip()
+                    if not clean_query:
+                        continue
+                    attempted_queries.append(clean_query)
+                    try:
+                        candidates = self._fetch_from_pixabay(clean_query, self.config.per_segment_limit)
+                    except Exception:
+                        candidates = []
+                    if candidates:
+                        fallback_candidates.extend(candidates)
+                    if len(fallback_candidates) >= self.config.per_segment_limit:
+                        break
+
+                self._log_event(
+                    {
+                        'event': 'fallback_fetch',
+                        'provider': 'pixabay',
+                        'queries': attempted_queries,
+                        'added_candidates': len(fallback_candidates),
+                    }
+                )
+
+                if fallback_candidates:
+                    allow_images_active = True
+                    raw_results.extend(fallback_candidates)
+
         processed: List[RemoteAssetCandidate] = []
         seen_urls = set()
         video_extensions = (
@@ -169,7 +206,7 @@ class FetcherOrchestrator:
             is_video = has_video_extension or has_positive_duration
             if is_video and not self.config.allow_videos:
                 continue
-            if not is_video and not self.config.allow_images:
+            if not is_video and not allow_images_active:
                 continue
 
             if normalized_url in seen_urls:
@@ -448,6 +485,7 @@ class FetcherOrchestrator:
         return True, None
 
     def _log_event(self, payload: Dict[str, Any]) -> None:
+        _emit_event(payload)
         if self._event_logger:
             try:
                 self._event_logger.log(payload)
@@ -455,3 +493,42 @@ class FetcherOrchestrator:
                 self._logger.debug('[fetcher] failed to log event', exc_info=True)
         else:
             self._logger.debug('[fetcher] %s', payload)
+
+
+_EVENT_LOG_LOCK = threading.Lock()
+
+
+def _events_path() -> Path:
+    base_dir: Optional[Path]
+    try:
+        config_module = __import__('config', fromlist=['Config'])
+        raw = getattr(config_module.Config, 'OUTPUT_FOLDER', None)
+        base_dir = Path(raw) if raw else None
+    except Exception:
+        base_dir = None
+
+    if not base_dir:
+        base_dir = Path('output')
+    return base_dir / 'meta' / 'broll_pipeline_events.jsonl'
+
+
+def _emit_event(payload: Dict[str, Any]) -> None:
+    if not isinstance(payload, dict):
+        record: Dict[str, Any] = {'event': 'unknown', 'payload': payload}
+    else:
+        record = dict(payload)
+
+    try:
+        destination = _events_path()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        serialized = json.dumps(record, ensure_ascii=False)
+    except Exception:
+        logging.getLogger(__name__).debug('[fetcher] failed to prepare event payload', exc_info=True)
+        return
+
+    try:
+        with _EVENT_LOG_LOCK:
+            with destination.open('a', encoding='utf-8') as handle:
+                handle.write(serialized + "\n")
+    except Exception:
+        logging.getLogger(__name__).debug('[fetcher] failed to emit event', exc_info=True)
