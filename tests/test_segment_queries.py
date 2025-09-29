@@ -5,6 +5,7 @@ import importlib
 import json
 import os
 import re
+import logging
 
 import pytest
 
@@ -95,6 +96,19 @@ class DummyOrchestrator:
 
     def evaluate_candidate_filters(self, *_args, **_kwargs):
         return True, None
+
+
+@pytest.fixture
+def core_event_log(monkeypatch, tmp_path):
+    output_dir = tmp_path / "output"
+    monkeypatch.setattr(video_processor.Config, "OUTPUT_FOLDER", output_dir, raising=False)
+    monkeypatch.setattr(video_processor.Config, "TEMP_FOLDER", tmp_path / "temp", raising=False)
+    monkeypatch.setattr(video_processor, "_GLOBAL_BROLL_EVENTS_LOGGER", None, raising=False)
+
+    events_path = output_dir / "meta" / "broll_pipeline_events.jsonl"
+    if events_path.exists():
+        events_path.unlink()
+    return events_path
 
 
 @pytest.mark.parametrize(
@@ -305,3 +319,102 @@ def test_llm_hint_queries_bypass_merge(monkeypatch):
     queries_event = logged_queries[0]
     assert queries_event["source"] == "llm_direct"
     assert queries_event["queries"] == expected_queries
+
+
+def test_metadata_fallback_logging_and_events(monkeypatch, caplog, core_event_log, tmp_path):
+    class FallbackLLM:
+        def __init__(self):
+            self.calls = 0
+
+        def generate_hints_for_segment(self, *_args, **_kwargs):
+            self.calls += 1
+            return {
+                "queries": ["sunset beach", "calm ocean"],
+                "source": "metadata_keywords_fallback",
+            }
+
+    class FetcherStub:
+        def __init__(self, config):
+            self.config = config
+
+        def fetch_candidates(self, queries, *, segment_index=None, duration_hint=None, filters=None):
+            self.last_queries = list(queries)
+            candidates = []
+            for idx in range(3):
+                candidates.append(
+                    SimpleNamespace(
+                        url=f"http://example.com/{idx}.mp4",
+                        provider="pexels",
+                        width=1080,
+                        height=1920,
+                        duration=3.5 + idx,
+                        title=f"Scene {idx}",
+                        tags=("beach",),
+                        order=idx,
+                    )
+                )
+            return candidates
+
+        def evaluate_candidate_filters(self, *_args, **_kwargs):
+            return True, None
+
+    def fake_download(self, _candidate, download_dir, order, _segment=None):
+        if download_dir is None:
+            return None
+        download_dir.mkdir(parents=True, exist_ok=True)
+        path = download_dir / f"candidate-{order}.mp4"
+        path.write_text("data", encoding="utf-8")
+        return path
+
+    llm = FallbackLLM()
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", FetcherStub)
+    monkeypatch.setattr(video_processor.VideoProcessor, "_download_core_candidate", fake_download)
+    monkeypatch.setattr(video_processor.Config, "ENABLE_PIPELINE_CORE_FETCHER", True, raising=False)
+
+    processor = video_processor.VideoProcessor.__new__(video_processor.VideoProcessor)
+    processor._pipeline_config = SimpleNamespace(
+        fetcher=SimpleNamespace(
+            providers=[SimpleNamespace(name="pexels", enabled=True, max_results=3)],
+            per_segment_limit=3,
+            allow_images=True,
+            allow_videos=True,
+            request_timeout_s=0,
+        ),
+        selection=SimpleNamespace(
+            min_score=0.0,
+            prefer_landscape=False,
+            min_duration_s=0.0,
+            allow_forced_keep=False,
+            forced_keep_budget=0,
+        ),
+        timeboxing=SimpleNamespace(fetch_rank_ms=0, request_timeout_s=0),
+    )
+    processor._dyn_context = {"language": "en", "segment_briefs": []}
+    processor._selector_keywords = []
+    processor._fetch_keywords = []
+    processor._latest_metadata = {}
+    processor._llm_service = llm
+    processor._broll_event_logger = None
+    processor._broll_env_logged = False
+    processor._core_last_run_used = False
+    processor._derive_segment_keywords = MethodType(lambda self, *_args, **_kwargs: [], processor)
+    processor._rank_candidate = MethodType(
+        lambda self, _text, candidate, _cfg, _duration: 0.9 - 0.1 * getattr(candidate, "order", 0),
+        processor,
+    )
+
+    input_path = tmp_path / "clip.mp4"
+    input_path.write_text("source", encoding="utf-8")
+    segment = SimpleNamespace(start=0.0, end=5.0, text="Relaxing beach talk about sunsets")
+
+    caplog.set_level(logging.INFO)
+    caplog.clear()
+    processor._insert_brolls_pipeline_core([segment], ["beach"], subtitles=None, input_path=input_path)
+
+    assert llm.calls == 1
+    assert "[BROLL][LLM] segment=0.00-5.00 queries=['sunset beach', 'calm ocean'] (source=metadata_keywords_fallback)" in caplog.text
+
+    assert core_event_log.exists()
+    events = [json.loads(line) for line in core_event_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    candidate_events = [event for event in events if event.get("event") == "broll_candidate_evaluated"]
+    assert candidate_events, "expected at least one candidate evaluation event in JSONL log"
