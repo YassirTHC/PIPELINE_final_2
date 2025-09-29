@@ -60,6 +60,28 @@ _DEFAULT_OLLAMA_MODEL = "mistral:7b-instruct"
 _DEFAULT_OLLAMA_KEEP_ALIVE = "5m"
 
 
+def _keywords_first_enabled() -> bool:
+    flag = _env_to_bool(os.getenv("PIPELINE_LLM_KEYWORDS_FIRST"))
+    if flag is None:
+        return True
+    return flag
+
+
+def _target_language_default() -> str:
+    raw = os.getenv("PIPELINE_LLM_TARGET_LANG", "en")
+    if raw is None:
+        return "en"
+    cleaned = raw.strip().lower()
+    return cleaned or "en"
+
+
+def _hashtags_disabled() -> bool:
+    flag = _env_to_bool(os.getenv("PIPELINE_LLM_DISABLE_HASHTAGS"))
+    if flag is None:
+        return False
+    return flag
+
+
 def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
     if not value:
         return _DEFAULT_STOP_TOKENS
@@ -445,54 +467,6 @@ def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int = 5) -> List[
     return tags
 
 
-def _generate_query_fallback(
-    keywords: Sequence[str],
-    transcript: str,
-    *,
-    limit: int = 8,
-) -> List[str]:
-    limit = max(1, limit)
-    transcript_text = (transcript or "").strip()
-    seen: set[str] = set()
-    queries: List[str] = []
-
-    for keyword in _as_list(keywords):
-        cleaned = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ0-9' ]+", " ", keyword)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        lowered = cleaned.lower()
-        if not cleaned or lowered in seen:
-            continue
-        seen.add(lowered)
-        queries.append(cleaned)
-        if len(queries) >= limit:
-            return queries[:limit]
-
-    if transcript_text:
-        tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+", transcript_text.lower())
-        for token in tokens:
-            if len(token) < 3 or token in seen:
-                continue
-            seen.add(token)
-            queries.append(token)
-            if len(queries) >= limit:
-                return queries[:limit]
-
-    if transcript_text and len(queries) < limit:
-        _, tfidf_terms = _tfidf_fallback(transcript_text, top_k=limit)
-        for term in tfidf_terms:
-            cleaned = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ0-9' ]+", " ", term)
-            cleaned = re.sub(r"\s+", " ", cleaned).strip()
-            lowered = cleaned.lower()
-            if not cleaned or lowered in seen:
-                continue
-            seen.add(lowered)
-            queries.append(cleaned)
-            if len(queries) >= limit:
-                break
-
-    return queries[:limit]
-
-
 def _resolve_ollama_endpoint(endpoint: Optional[str]) -> str:
     base_url = endpoint or os.getenv("PIPELINE_LLM_ENDPOINT") or os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
     base_url = (base_url or _DEFAULT_OLLAMA_ENDPOINT).strip()
@@ -522,6 +496,184 @@ def _metadata_transcript_limit() -> int:
     except (TypeError, ValueError):
         limit = 5500
     return max(500, limit)
+
+
+_FALLBACK_STOPWORDS: set[str] = {
+    "the",
+    "a",
+    "an",
+    "to",
+    "of",
+    "in",
+    "on",
+    "for",
+    "and",
+    "or",
+    "but",
+    "with",
+    "from",
+    "by",
+    "as",
+    "is",
+    "are",
+    "be",
+    "was",
+    "were",
+    "it",
+    "its",
+    "this",
+    "that",
+    "those",
+    "these",
+    "you",
+    "your",
+    "we",
+    "they",
+    "their",
+    "there",
+    "have",
+    "has",
+    "had",
+    "will",
+    "can",
+    "should",
+    "would",
+    "could",
+    "just",
+    "really",
+    "like",
+    "about",
+    "into",
+    "over",
+    "some",
+    "very",
+}
+
+_DEFAULT_FALLBACK_PHRASES: List[str] = [
+    "motivational speaker on stage",
+    "business team brainstorming",
+    "audience applauding event",
+    "closeup writing notes",
+    "hands typing on laptop",
+    "city skyline at sunset",
+    "coach guiding athlete",
+    "doctor consulting patient",
+    "scientist working laboratory",
+    "students listening in class",
+    "team celebrating success",
+    "entrepreneur pitching investors",
+]
+
+
+def _fallback_keywords_from_transcript(
+    transcript: str,
+    *,
+    min_terms: int = 8,
+    max_terms: int = 12,
+) -> List[str]:
+    min_terms = max(1, min_terms)
+    max_terms = max(min_terms, max_terms)
+    text = (transcript or "").strip()
+    if not text:
+        return _DEFAULT_FALLBACK_PHRASES[:max_terms]
+
+    tokens = [t.lower() for t in re.findall(r"[A-Za-z]{3,}", text)]
+    filtered = [tok for tok in tokens if tok and tok not in _FALLBACK_STOPWORDS]
+    if not filtered:
+        return _DEFAULT_FALLBACK_PHRASES[:max_terms]
+
+    unigram_counts = Counter(filtered)
+    ngram_counts: Counter[str] = Counter()
+    for window in (3, 2):
+        if len(filtered) < window:
+            continue
+        for idx in range(len(filtered) - window + 1):
+            chunk = filtered[idx : idx + window]
+            if any(tok in _FALLBACK_STOPWORDS for tok in chunk):
+                continue
+            phrase = " ".join(chunk)
+            ngram_counts[phrase] += 1
+
+    phrases: List[str] = []
+    for phrase, _ in ngram_counts.most_common(max_terms * 2):
+        if phrase not in phrases:
+            phrases.append(phrase)
+        if len(phrases) >= max_terms:
+            break
+
+    if len(phrases) < max_terms:
+        for token, _ in unigram_counts.most_common(max_terms * 2):
+            candidate = f"{token} visuals"
+            if candidate not in phrases:
+                phrases.append(candidate)
+            if len(phrases) >= max_terms:
+                break
+
+    if len(phrases) < min_terms:
+        for fallback in _DEFAULT_FALLBACK_PHRASES:
+            if fallback not in phrases:
+                phrases.append(fallback)
+            if len(phrases) >= max_terms:
+                break
+
+    return phrases[:max_terms]
+
+
+def _merge_with_fallback(
+    primary: Sequence[str],
+    fallback: Sequence[str],
+    *,
+    min_count: int = 8,
+    max_count: int = 12,
+) -> List[str]:
+    min_count = max(1, min_count)
+    max_count = max(min_count, max_count)
+
+    merged: List[str] = []
+    seen: set[str] = set()
+
+    for item in primary or []:
+        candidate = _normalise_string(item)
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            merged.append(candidate)
+        if len(merged) >= max_count:
+            return merged[:max_count]
+
+    for item in fallback or []:
+        if len(merged) >= max_count:
+            break
+        candidate = _normalise_string(item)
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            merged.append(candidate)
+
+    if len(merged) < min_count:
+        for candidate in _DEFAULT_FALLBACK_PHRASES:
+            if len(merged) >= max_count:
+                break
+            normalised = _normalise_string(candidate)
+            if normalised and normalised not in seen:
+                seen.add(normalised)
+                merged.append(normalised)
+            if len(merged) >= max_count:
+                break
+
+    return merged[:max_count]
+
+
+def _build_keywords_prompt(transcript_snippet: str, target_lang: str) -> str:
+    snippet = (transcript_snippet or "").strip()
+    language = (target_lang or "en").strip().lower() or "en"
+    return (
+        "You craft concise metadata for short social videos.\n"
+        f"Use {language} language for every field.\n"
+        "Return ONLY a JSON object with keys: title (string), description (string), "
+        f"queries (array of 8-12 short search queries in {language}), "
+        f"broll_keywords (array of 8-12 short visual noun phrases in {language}). "
+        "No prose, no markdown.\n"
+        f"Transcript snippet:\n{snippet}"
+    )
 
 
 def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = None) -> str:
@@ -1867,55 +2019,77 @@ class LLMMetadataGeneratorService:
 
     def generate_hints_for_segment(self, text: str, start: float, end: float) -> Dict:
         """Produce visual search hints for a transcript segment."""
+
+        snippet = (text or "").strip()
+        if not snippet:
+            fallback_terms = _fallback_keywords_from_transcript("", min_terms=8, max_terms=12)
+            return {
+                "title": "",
+                "description": "",
+                "queries": fallback_terms[:8],
+                "broll_keywords": fallback_terms[:8],
+                "filters": {"orientation": "landscape", "min_duration_s": 3.0},
+            }
+
+        if not _keywords_first_enabled():
+            fallback_terms = _fallback_keywords_from_transcript(snippet, min_terms=8, max_terms=12)
+            return {
+                "title": "",
+                "description": "",
+                "queries": fallback_terms[:8],
+                "broll_keywords": fallback_terms[:8],
+                "filters": {"orientation": "landscape", "min_duration_s": 3.0},
+            }
+
+        target_lang = _target_language_default()
+        max_chars = min(_metadata_transcript_limit(), 1800)
+        prompt_snippet = snippet[:max_chars]
+        prompt = _build_keywords_prompt(prompt_snippet, target_lang)
+
+        raw_response: Any = None
         try:
-            tokens = [t.lower() for t in re.findall(r"[A-Za-z']+", text) if len(t) > 3]
+            raw_response = self._call_llm(prompt, max_tokens=192)
+        except TimeoutError:
+            logger.warning(
+                "[LLM] Segment hint generation timed out",
+                extra={"segment_start": start, "segment_end": end},
+            )
         except Exception:
-            tokens = []
-        stopwords = {
-            'this', 'that', 'with', 'have', 'there', 'their', 'would', 'could', 'where', 'when',
-            'these', 'those', 'which', 'about', 'because', 'being', 'while', 'after', 'before',
-        }
-        keywords = [t for t in tokens if t not in stopwords]
-        anti_terms = {
-            'person',
-            'doctor',
-            'stethoscope',
-            'patient',
-            'clinic',
-            'workspace',
-            'discussing',
-            'nurse',
-        }
+            logger.exception(
+                "[LLM] Segment hint generation failed",
+                extra={"segment_start": start, "segment_end": end},
+            )
 
-        candidates: List[str] = []
-        for window in (3, 2):
-            if len(keywords) < window:
-                continue
-            for i in range(len(keywords) - window + 1):
-                phrase = " ".join(keywords[i : i + window])
-                if phrase:
-                    candidates.append(phrase)
+        if isinstance(raw_response, dict):
+            payload = raw_response
+        elif isinstance(raw_response, str):
+            payload = _coerce_ollama_json(raw_response)
+        else:
+            payload = {}
 
-        if not candidates and keywords:
-            span = min(3, len(keywords))
-            candidates.append(" ".join(keywords[:span]))
+        title = _normalise_string(payload.get("title"))
+        description = _normalise_string(payload.get("description"))
+        broll_keywords = _normalise_string_list(payload.get("broll_keywords"))[:12]
+        queries = _normalise_string_list(payload.get("queries"))[:12]
 
-        queries: List[str] = []
-        seen: set[str] = set()
-        for phrase in candidates:
-            tokens = [tok for tok in phrase.split() if tok]
-            if any(tok in anti_terms for tok in tokens):
-                continue
-            if phrase not in seen:
-                seen.add(phrase)
-                queries.append(phrase)
-            if len(queries) >= 8:
-                break
-        synonyms = sorted(set(keywords[:6]))
+        fallback_terms: List[str] = []
+        if len(broll_keywords) < 6 or len(queries) < 6:
+            fallback_terms = _fallback_keywords_from_transcript(snippet, min_terms=8, max_terms=12)
+
+        if len(broll_keywords) < 6:
+            broll_keywords = _merge_with_fallback(broll_keywords, fallback_terms, min_count=8, max_count=12)
+        if len(queries) < 6:
+            seed_terms = fallback_terms or broll_keywords
+            queries = _merge_with_fallback(queries, seed_terms, min_count=8, max_count=12)
+
+        filters = {"orientation": "landscape", "min_duration_s": 3.0}
+
         return {
-            "queries": queries or keywords[:3],
-            "synonyms": synonyms or ["healthcare", "therapy", "consultation"],
-            "filters": {"orientation": "landscape", "min_duration_s": 3.0},
+            "title": title,
+            "description": description,
+            "queries": queries[:12],
+            "broll_keywords": broll_keywords[:12],
+            "filters": filters,
         }
 
 
@@ -1939,7 +2113,13 @@ def generate_metadata_as_json(
         cleaned_transcript = cleaned_transcript[:limit]
 
     video_id = kwargs.get("video_id")
-    prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+    use_keywords_prompt = _keywords_first_enabled()
+    target_lang = _target_language_default()
+    prompt = (
+        _build_keywords_prompt(cleaned_transcript, target_lang)
+        if use_keywords_prompt
+        else _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+    )
 
     model_name = (os.getenv("PIPELINE_LLM_MODEL") or "qwen3:8b").strip() or "qwen3:8b"
 
@@ -1952,9 +2132,51 @@ def generate_metadata_as_json(
             timeout_override = 1.0
         os.environ["PIPELINE_LLM_TIMEOUT_S"] = str(timeout_override)
 
+    parsed_payload: Dict[str, Any] = {}
+    raw_payload: Dict[str, Any] = {}
+    raw_length: Optional[int] = None
+    error: Optional[BaseException] = None
     started = time.perf_counter()
     try:
-        raw_payload = _ollama_json(prompt)
+        if use_keywords_prompt:
+            try:
+                num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
+                try:
+                    configured_predict = int(num_predict_env) if num_predict_env is not None else 192
+                except (TypeError, ValueError):
+                    configured_predict = 192
+                bounded_predict = max(64, min(192, configured_predict))
+
+                temp_env = os.getenv("PIPELINE_LLM_TEMP")
+                try:
+                    configured_temp = float(temp_env) if temp_env is not None else 0.2
+                except (TypeError, ValueError):
+                    configured_temp = 0.2
+                bounded_temp = max(0.0, min(0.4, configured_temp))
+
+                parsed_payload, raw_payload, raw_length = _ollama_generate_json(
+                    prompt,
+                    options={
+                        "num_predict": bounded_predict,
+                        "temperature": bounded_temp,
+                        "top_p": 0.9,
+                    },
+                    json_mode=True,
+                )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                error = exc
+        else:
+            raw_payload = _ollama_json(prompt)
+            if isinstance(raw_payload, dict):
+                parsed_payload = raw_payload
+            else:
+                parsed_payload = _coerce_ollama_json(raw_payload)
+                if not isinstance(parsed_payload, dict):
+                    parsed_payload = {}
+            try:
+                raw_length = len(json.dumps(raw_payload, ensure_ascii=False)) if raw_payload else 0
+            except Exception:
+                raw_length = 0
     finally:
         if timeout_s is not None:
             if original_timeout is None:
@@ -1964,44 +2186,66 @@ def generate_metadata_as_json(
 
     duration = time.perf_counter() - started
 
-    if not raw_payload:
+    if raw_length is None:
+        try:
+            raw_length = len(json.dumps(raw_payload, ensure_ascii=False)) if raw_payload else 0
+        except Exception:
+            raw_length = 0
+
+    if error is not None:
         failure = _empty_metadata_payload()
         failure["raw_response_length"] = 0
+        logger.warning(
+            "[LLM] Metadata generation failed",
+            extra={
+                "model": model_name,
+                "duration_s": round(duration, 3),
+                "transcript_length": len(cleaned_transcript),
+                "keywords_prompt": use_keywords_prompt,
+                "error": str(error),
+            },
+        )
+        return failure
+
+    metadata_section: Dict[str, Any] = parsed_payload if isinstance(parsed_payload, dict) else {}
+
+    for key in ("metadata", "result", "data"):
+        candidate = metadata_section.get(key) if isinstance(metadata_section, dict) else None
+        if isinstance(candidate, dict):
+            metadata_section = candidate
+
+    if not metadata_section:
         logger.warning(
             "[LLM] JSON metadata payload missing",
             extra={
                 "model": model_name,
                 "duration_s": round(duration, 3),
                 "transcript_length": len(cleaned_transcript),
+                "keywords_prompt": use_keywords_prompt,
             },
         )
-        return failure
-
-    metadata_section: Dict[str, Any] = raw_payload
-    for key in ("metadata", "result", "data"):
-        candidate = metadata_section.get(key) if isinstance(metadata_section, dict) else None
-        if isinstance(candidate, dict):
-            metadata_section = candidate
+        metadata_section = {}
 
     if not isinstance(metadata_section, dict):
-        failure = _empty_metadata_payload()
-        failure["raw_response_length"] = 0
         logger.warning(
             "[LLM] Metadata payload is not a JSON object",
             extra={
                 "model": model_name,
                 "duration_s": round(duration, 3),
                 "transcript_length": len(cleaned_transcript),
+                "keywords_prompt": use_keywords_prompt,
             },
         )
-        return failure
+        metadata_section = {}
 
     defaults = _default_metadata_payload()
 
     title = _normalise_string(metadata_section.get("title")) or defaults["title"]
     description = _normalise_string(metadata_section.get("description")) or defaults["description"]
 
-    hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))[:5]
+    hashtags: List[str] = []
+    if not _hashtags_disabled():
+        hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))[:5]
 
     raw_keyword_values = (
         metadata_section.get("broll_keywords")
@@ -2009,16 +2253,30 @@ def generate_metadata_as_json(
         or metadata_section.get("keywords")
         or []
     )
-    broll_keywords = _normalise_string_list(raw_keyword_values)[:10]
+    initial_broll = _normalise_string_list(raw_keyword_values)[:12]
+
+    queries_raw = metadata_section.get("queries")
+    initial_queries = _normalise_string_list(queries_raw)[:12]
+
+    fallback_terms: List[str] = []
+    keywords_fallback = len(initial_broll) < 6
+    queries_fallback = len(initial_queries) < 6
+    if keywords_fallback or queries_fallback:
+        fallback_terms = _fallback_keywords_from_transcript(cleaned_transcript, min_terms=8, max_terms=12)
+
+    if keywords_fallback:
+        broll_keywords = _merge_with_fallback(initial_broll, fallback_terms, min_count=8, max_count=12)
+    else:
+        broll_keywords = initial_broll[:12]
+
+    if queries_fallback:
+        seed_terms = fallback_terms or broll_keywords
+        queries = _merge_with_fallback(initial_queries, seed_terms, min_count=8, max_count=12)
+    else:
+        queries = initial_queries[:12]
 
     if not hashtags:
         hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
-
-    queries = _normalise_string_list(metadata_section.get("queries"))[:8]
-    fallback_queries_used = False
-    if not queries:
-        queries = _generate_query_fallback(broll_keywords, cleaned_transcript, limit=8)
-        fallback_queries_used = bool(queries)
 
     result: Dict[str, Any] = {
         "title": title,
@@ -2026,7 +2284,7 @@ def generate_metadata_as_json(
         "hashtags": hashtags,
         "broll_keywords": broll_keywords,
         "queries": queries,
-        "raw_response_length": len(json.dumps(raw_payload, ensure_ascii=False)) if raw_payload else 0,
+        "raw_response_length": raw_length if raw_length is not None else 0,
     }
 
     logger.info(
@@ -2038,7 +2296,9 @@ def generate_metadata_as_json(
             "hashtags": len(hashtags),
             "broll_keywords": len(broll_keywords),
             "queries": len(queries),
-            "queries_fallback": fallback_queries_used,
+            "queries_fallback": queries_fallback,
+            "keywords_fallback": keywords_fallback,
+            "keywords_prompt": use_keywords_prompt,
         },
     )
 
