@@ -5,7 +5,7 @@ from __future__ import annotations
 try:
     from dotenv import load_dotenv
     load_dotenv(override=True)
-except ImportError:  # pragma: no cover - keep working if optional dependency missing
+except Exception:  # pragma: no cover - keep working if optional dependency missing
     def load_dotenv(*_args, **_kwargs):
         return False
 
@@ -360,16 +360,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()
-        snapshot = _fetcher_config_snapshot(config)
-        pexels_key_present = bool(os.environ.get('PEXELS_API_KEY'))
-        print(
-            "[CONFIG] providers="
-            f"{snapshot['providers_env_raw'] or 'default'} | resolved_providers={snapshot['resolved_display']} | "
-            f"allow_images={str(snapshot['allow_images']).lower()} | "
-            f"allow_videos={str(snapshot['allow_videos']).lower()} | "
-            f"per_segment_limit={snapshot['per_segment_limit']} | "
-            f"pexels_key_present={str(pexels_key_present).lower()}"
+        providers_env_raw = os.getenv('BROLL_FETCH_PROVIDER') or os.getenv('AI_BROLL_FETCH_PROVIDER') or ''
+        resolved = resolved_providers(config)
+        resolved_display = ','.join(resolved) if resolved else 'pixabay'
+        pexels_key_present = bool(os.getenv('PEXELS_API_KEY'))
+        line = (
+            f"providers={providers_env_raw or 'default'} | "
+            f"resolved_providers={resolved_display} | "
+            f"allow_images={str(bool(config.allow_images)).lower()} | "
+            f"allow_videos={str(bool(config.allow_videos)).lower()} | "
+            f"per_segment_limit={int(config.per_segment_limit)} | "
+            f"pexels_key_present={str(pexels_key_present)}"
         )
+        print(line)
         return 0
 
     if args.diag_broll:
