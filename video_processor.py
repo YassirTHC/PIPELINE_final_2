@@ -1725,10 +1725,11 @@ class VideoProcessor:
 
             metadata_status = str(metadata_payload.get('llm_status') or '').strip().lower()
             llm_source_label = 'llm_metadata' if metadata_status == 'ok' else 'transcript_normalized'
-            metadata_query_cap = max(1, min(8, SEGMENT_REFINEMENT_MAX_TERMS))
+            metadata_query_cap = min(12, max(SEGMENT_REFINEMENT_MAX_TERMS, 8))
             llm_queries: List[str] = []
             if metadata_status == 'ok':
-                llm_queries = _relaxed_normalise_terms(metadata_payload.get('queries') or [], metadata_query_cap)
+                metadata_queries_raw = metadata_payload.get('queries') or []
+                llm_queries = _relaxed_normalise_terms(metadata_queries_raw, metadata_query_cap)
                 if not llm_queries:
                     metadata_status = 'fallback'
 
