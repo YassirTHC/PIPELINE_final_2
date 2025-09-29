@@ -15,7 +15,7 @@ from pathlib import Path
 import unicodedata
 import inspect
 import time
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import requests
 
@@ -54,6 +54,8 @@ logger = logging.getLogger(__name__)
 
 
 _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
+
+_LAST_METADATA_KEYWORDS: List[str] = []
 
 _DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
 _DEFAULT_OLLAMA_MODEL = "mistral:7b-instruct"
@@ -429,6 +431,46 @@ def _normalise_hashtags(value: Any) -> List[str]:
     return hashtags
 
 
+def _strip_accents(text: str) -> str:
+    if not isinstance(text, str):
+        return ""
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _normalise_search_terms(
+    terms: Sequence[str],
+    *,
+    target_lang: Optional[str] = None,
+) -> List[str]:
+    language = (target_lang or "").split("-")[0].strip().lower()
+    stopwords = _BASIC_STOPWORDS.get(language, set())
+
+    normalised: List[str] = []
+    seen: Set[str] = set()
+
+    for candidate in _normalise_string_list(terms):
+        base = _strip_accents(candidate)
+        if not base:
+            continue
+        cleaned = re.sub(r"[^0-9A-Za-z]+", " ", base)
+        tokens: List[str] = []
+        for token in cleaned.lower().split():
+            if len(token) < 3:
+                continue
+            if stopwords and token in stopwords:
+                continue
+            tokens.append(token)
+        if not tokens:
+            continue
+        phrase = " ".join(tokens)
+        if phrase and phrase not in seen:
+            seen.add(phrase)
+            normalised.append(phrase)
+
+    return normalised
+
+
 def _default_metadata_payload() -> Dict[str, Any]:
     return {
         "title": "Auto-generated Clip Title",
@@ -565,11 +607,104 @@ _DEFAULT_FALLBACK_PHRASES: List[str] = [
 ]
 
 
+_BASIC_STOPWORDS: Dict[str, Set[str]] = {
+    "en": set(_FALLBACK_STOPWORDS),
+    "fr": {
+        "le",
+        "la",
+        "les",
+        "des",
+        "une",
+        "un",
+        "dans",
+        "avec",
+        "pour",
+        "mais",
+        "plus",
+        "sans",
+        "tout",
+        "tous",
+        "toute",
+        "toutes",
+        "cela",
+        "cette",
+        "ces",
+        "comme",
+        "elles",
+        "ils",
+        "nous",
+        "vous",
+        "sont",
+        "est",
+        "avoir",
+        "etre",
+    },
+}
+
+_PROVIDER_QUERY_TEMPLATES: Tuple[str, ...] = (
+    "{kw} stock b-roll",
+    "{kw} stock footage",
+    "{kw} cinematic b-roll",
+    "teamwork {kw}",
+    "{kw} cinematic video",
+    "{kw} background footage",
+)
+
+
+def _extract_terms_from_text(
+    text: str,
+    *,
+    min_length: int = 4,
+    language: Optional[str] = None,
+) -> List[str]:
+    cleaned_text = _strip_accents(text or "").lower()
+    if not cleaned_text:
+        return []
+
+    pattern = rf"[a-z0-9]{{{min_length},}}"
+    raw_tokens = re.findall(pattern, cleaned_text)
+    if not raw_tokens:
+        return []
+
+    stopwords = _BASIC_STOPWORDS.get((language or "").split("-")[0].strip().lower(), set())
+
+    terms: List[str] = []
+    seen: Set[str] = set()
+    for token in raw_tokens:
+        if stopwords and token in stopwords:
+            continue
+        if token not in seen:
+            seen.add(token)
+            terms.append(token)
+    return terms
+
+
+def _build_provider_queries_from_terms(terms: Sequence[str]) -> List[str]:
+    queries: List[str] = []
+    seen: Set[str] = set()
+    for term in terms:
+        if not term:
+            continue
+        for template in _PROVIDER_QUERY_TEMPLATES:
+            candidate = template.format(kw=term).strip()
+            if not candidate:
+                continue
+            normalized = " ".join(candidate.split()).lower()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            queries.append(normalized)
+            if len(queries) >= 12:
+                return queries[:12]
+    return queries[:12]
+
+
 def _fallback_keywords_from_transcript(
     transcript: str,
     *,
     min_terms: int = 8,
     max_terms: int = 12,
+    language: Optional[str] = None,
 ) -> List[str]:
     min_terms = max(1, min_terms)
     max_terms = max(min_terms, max_terms)
@@ -577,7 +712,7 @@ def _fallback_keywords_from_transcript(
     if not text:
         return _DEFAULT_FALLBACK_PHRASES[:max_terms]
 
-    tokens = [t.lower() for t in re.findall(r"[A-Za-z]{3,}", text)]
+    tokens = _extract_terms_from_text(text, min_length=4, language=language)
     filtered = [tok for tok in tokens if tok and tok not in _FALLBACK_STOPWORDS]
     if not filtered:
         return _DEFAULT_FALLBACK_PHRASES[:max_terms]
@@ -762,9 +897,25 @@ def _ollama_generate_json(
         raise RuntimeError(f"Ollama request failed: {exc}") from exc
 
     try:
-        raw_payload: Dict[str, Any] = response.json()
+        raw_payload = response.json()
+    except json.JSONDecodeError as exc:
+        response_text = response.text or ""
+        logger.warning(
+            "[LLM] Ollama JSON decoding failed",
+            extra={"error": str(exc), "endpoint": target_endpoint},
+        )
+        parsed_fallback = _safe_parse_json(response_text) or _extract_json_braces(response_text)
+        raw_length = len(response_text) if response_text else None
+        return parsed_fallback or {}, {"response": response_text}, raw_length
     except ValueError as exc:
-        raise ValueError("Ollama did not return JSON payload") from exc
+        response_text = response.text or ""
+        logger.warning(
+            "[LLM] Ollama returned non-JSON payload",
+            extra={"error": str(exc), "endpoint": target_endpoint},
+        )
+        parsed_fallback = _safe_parse_json(response_text) or _extract_json_braces(response_text)
+        raw_length = len(response_text) if response_text else None
+        return parsed_fallback or {}, {"response": response_text}, raw_length
 
     raw_response = raw_payload.get("response")
     raw_length: Optional[int] = len(raw_response) if isinstance(raw_response, str) else None
@@ -2053,27 +2204,47 @@ class LLMMetadataGeneratorService:
         """Produce visual search hints for a transcript segment."""
 
         snippet = (text or "").strip()
+        target_lang = _target_language_default()
         if not snippet:
-            fallback_terms = _fallback_keywords_from_transcript("", min_terms=8, max_terms=12)
+            fallback_terms = _fallback_keywords_from_transcript(
+                "",
+                min_terms=8,
+                max_terms=12,
+                language=target_lang,
+            )
+            keywords = _normalise_search_terms(fallback_terms, target_lang=target_lang)[:12]
+            queries = _build_provider_queries_from_terms(keywords)
+            normalised_queries = _normalise_search_terms(queries, target_lang=target_lang)[:12]
+            if not normalised_queries:
+                normalised_queries = keywords[:8]
             return {
                 "title": "",
                 "description": "",
-                "queries": fallback_terms[:8],
-                "broll_keywords": fallback_terms[:8],
+                "queries": normalised_queries[:8],
+                "broll_keywords": keywords[:8],
                 "filters": {"orientation": "landscape", "min_duration_s": 3.0},
             }
 
         if not _keywords_first_enabled():
-            fallback_terms = _fallback_keywords_from_transcript(snippet, min_terms=8, max_terms=12)
+            fallback_terms = _fallback_keywords_from_transcript(
+                snippet,
+                min_terms=8,
+                max_terms=12,
+                language=target_lang,
+            )
+            keywords = _normalise_search_terms(fallback_terms, target_lang=target_lang)[:12]
+            queries = _build_provider_queries_from_terms(keywords or fallback_terms)
+            normalised_queries = _normalise_search_terms(queries, target_lang=target_lang)[:12]
+            if not normalised_queries:
+                normalised_queries = keywords[:8]
             return {
                 "title": "",
                 "description": "",
-                "queries": fallback_terms[:8],
-                "broll_keywords": fallback_terms[:8],
+                "queries": normalised_queries[:8],
+                "broll_keywords": keywords[:8],
                 "filters": {"orientation": "landscape", "min_duration_s": 3.0},
             }
 
-        target_lang = _target_language_default()
         max_chars = min(_metadata_transcript_limit(), 1800)
         prompt_snippet = snippet[:max_chars]
         prompt = _build_keywords_prompt(prompt_snippet, target_lang)
@@ -2105,35 +2276,129 @@ class LLMMetadataGeneratorService:
                 )
             raw_response = None
 
+        payload: Dict[str, Any] = {}
         if isinstance(raw_response, dict):
             payload = raw_response
         elif isinstance(raw_response, str):
-            payload = _coerce_ollama_json(raw_response)
-        else:
+            text_response = raw_response.strip()
+            if text_response:
+                try:
+                    direct = json.loads(text_response)
+                except json.JSONDecodeError as exc:
+                    logger.warning(
+                        "[BROLL][LLM] Segment JSON decoding failed",
+                        extra={
+                            "segment_start": start,
+                            "segment_end": end,
+                            "error": str(exc),
+                        },
+                    )
+                    payload = _coerce_ollama_json(text_response)
+                else:
+                    payload = direct if isinstance(direct, dict) else _coerce_ollama_json(text_response)
+        if not isinstance(payload, dict):
             payload = {}
 
         title = _normalise_string(payload.get("title"))
         description = _normalise_string(payload.get("description"))
-        broll_keywords = _normalise_string_list(payload.get("broll_keywords"))[:12]
-        queries = _normalise_string_list(payload.get("queries"))[:12]
+
+        raw_keywords = (
+            payload.get("broll_keywords")
+            or payload.get("brollKeywords")
+            or payload.get("keywords")
+            or []
+        )
+        primary_keywords = _normalise_search_terms(raw_keywords, target_lang=target_lang)[:12]
+        primary_queries = _normalise_search_terms(payload.get("queries") or [], target_lang=target_lang)[:12]
+
+        metadata_terms = _normalise_search_terms(_LAST_METADATA_KEYWORDS, target_lang=target_lang)[:12]
 
         fallback_terms: List[str] = []
-        if len(broll_keywords) < 6 or len(queries) < 6:
-            fallback_terms = _fallback_keywords_from_transcript(snippet, min_terms=8, max_terms=12)
+        used_metadata_fallback = False
+        used_transcript_fallback = False
 
-        if len(broll_keywords) < 6:
-            broll_keywords = _merge_with_fallback(broll_keywords, fallback_terms, min_count=8, max_count=12)
-        if len(queries) < 6:
-            seed_terms = fallback_terms or broll_keywords
-            queries = _merge_with_fallback(queries, seed_terms, min_count=8, max_count=12)
+        if len(primary_keywords) < 6 or len(primary_queries) < 6:
+            if metadata_terms:
+                fallback_terms = metadata_terms
+                used_metadata_fallback = True
+            else:
+                transcript_terms = _fallback_keywords_from_transcript(
+                    snippet,
+                    min_terms=8,
+                    max_terms=12,
+                    language=target_lang,
+                )
+                fallback_terms = _normalise_search_terms(transcript_terms, target_lang=target_lang)[:12]
+                if not fallback_terms:
+                    fallback_terms = _normalise_search_terms(
+                        _DEFAULT_FALLBACK_PHRASES,
+                        target_lang=target_lang,
+                    )[:12]
+                used_transcript_fallback = True
+
+        combined_keywords = primary_keywords[:]
+        for term in fallback_terms:
+            if term not in combined_keywords:
+                combined_keywords.append(term)
+            if len(combined_keywords) >= 12:
+                break
+        if len(combined_keywords) < 6:
+            for fallback in _normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, target_lang=target_lang):
+                if fallback not in combined_keywords:
+                    combined_keywords.append(fallback)
+                if len(combined_keywords) >= 12:
+                    break
+        broll_keywords = combined_keywords[:12]
+
+        combined_queries = primary_queries[:]
+        fallback_queries: List[str] = []
+        if fallback_terms or len(combined_queries) < 6:
+            base_for_queries = fallback_terms or broll_keywords or primary_keywords
+            fallback_queries_raw = _build_provider_queries_from_terms(base_for_queries)
+            fallback_queries = _normalise_search_terms(
+                fallback_queries_raw,
+                target_lang=target_lang,
+            )[:12]
+
+        for query in fallback_queries:
+            if query not in combined_queries:
+                combined_queries.append(query)
+            if len(combined_queries) >= 12:
+                break
+        if len(combined_queries) < 6:
+            extra_sources = broll_keywords or _normalise_search_terms(
+                _DEFAULT_FALLBACK_PHRASES,
+                target_lang=target_lang,
+            )
+            extra_queries = _build_provider_queries_from_terms(extra_sources)
+            for candidate in _normalise_search_terms(extra_queries, target_lang=target_lang):
+                if candidate not in combined_queries:
+                    combined_queries.append(candidate)
+                if len(combined_queries) >= 12:
+                    break
+        queries = combined_queries[:12]
+
+        source = "llm_segment"
+        if used_metadata_fallback:
+            source = "metadata_keywords_fallback"
+        elif used_transcript_fallback:
+            source = "transcript_fallback"
 
         filters = {"orientation": "landscape", "min_duration_s": 3.0}
+
+        seg_idx = f"{start:.2f}-{end:.2f}"
+        logger.info(
+            "[BROLL][LLM] segment=%s queries=%s (source=%s)",
+            seg_idx,
+            queries[:4],
+            source,
+        )
 
         return {
             "title": title,
             "description": description,
-            "queries": queries[:12],
-            "broll_keywords": broll_keywords[:12],
+            "queries": queries,
+            "broll_keywords": broll_keywords,
             "filters": filters,
         }
 
@@ -2298,16 +2563,21 @@ def generate_metadata_as_json(
         or metadata_section.get("keywords")
         or []
     )
-    initial_broll = _normalise_string_list(raw_keyword_values)[:12]
+    initial_broll = _normalise_search_terms(raw_keyword_values, target_lang=target_lang)[:12]
 
     queries_raw = metadata_section.get("queries")
-    initial_queries = _normalise_string_list(queries_raw)[:12]
+    initial_queries = _normalise_search_terms(queries_raw, target_lang=target_lang)[:12]
 
     fallback_terms: List[str] = []
     keywords_fallback = len(initial_broll) < 6
     queries_fallback = len(initial_queries) < 6
     if keywords_fallback or queries_fallback:
-        fallback_terms = _fallback_keywords_from_transcript(cleaned_transcript, min_terms=8, max_terms=12)
+        fallback_terms = _fallback_keywords_from_transcript(
+            cleaned_transcript,
+            min_terms=8,
+            max_terms=12,
+            language=target_lang,
+        )
 
     if keywords_fallback:
         broll_keywords = _merge_with_fallback(initial_broll, fallback_terms, min_count=8, max_count=12)
@@ -2320,8 +2590,23 @@ def generate_metadata_as_json(
     else:
         queries = initial_queries[:12]
 
+    broll_keywords = _normalise_search_terms(broll_keywords, target_lang=target_lang)[:12]
+
+    queries = _normalise_search_terms(queries, target_lang=target_lang)[:12]
+    if len(queries) < 6 and broll_keywords:
+        fallback_queries = _build_provider_queries_from_terms(broll_keywords)
+        for candidate in _normalise_search_terms(fallback_queries, target_lang=target_lang):
+            if candidate not in queries:
+                queries.append(candidate)
+            if len(queries) >= 12:
+                break
+    queries = queries[:12]
+
     if not hashtags:
         hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
+
+    global _LAST_METADATA_KEYWORDS
+    _LAST_METADATA_KEYWORDS = list(broll_keywords)
 
     result: Dict[str, Any] = {
         "title": title,
