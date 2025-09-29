@@ -86,7 +86,10 @@ def test_diag_broll_reports_provider_limits(monkeypatch):
     )
 
     output = proc.stdout.decode("utf-8")
-    assert "[DIAG] providers=default" in output
+    lines = [line for line in output.splitlines() if line.strip()]
+
+    assert lines, "expected diagnostic output"
+    assert lines[0] == "[DIAG] providers=default"
     assert "[DIAG] resolved_providers=pixabay" in output
     assert "[DIAG] per_segment_limit=4" in output
     assert "[DIAG] provider=pixabay max_results=4" in output

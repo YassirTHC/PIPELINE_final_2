@@ -18,7 +18,7 @@ import subprocess
 import shlex
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple
+from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO
 from collections import Counter
 from dataclasses import dataclass
 import types
@@ -52,6 +52,42 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# --- Deferred dependency status reporting -----------------------------------
+_DEPENDENCY_STATUS_MESSAGES: List[str] = []
+_DEPENDENCY_STATUS_EMITTED = False
+
+
+def _register_dependency_status(message: str) -> None:
+    """Store dependency status messages to be emitted on demand."""
+
+    _DEPENDENCY_STATUS_MESSAGES.append(message)
+
+
+def emit_dependency_status(stream: Optional[TextIO] = None, *, once: bool = True) -> None:
+    """Print deferred dependency status messages.
+
+    Parameters
+    ----------
+    stream:
+        Destination stream; defaults to ``sys.stdout``.
+    once:
+        When ``True`` (the default), messages are emitted only the first time the
+        function is called. Subsequent calls become no-ops to avoid duplicated
+        headers when multiple processor instances are created.
+    """
+
+    global _DEPENDENCY_STATUS_EMITTED
+
+    if once and _DEPENDENCY_STATUS_EMITTED:
+        return
+
+    output = stream or sys.stdout
+    for message in _DEPENDENCY_STATUS_MESSAGES:
+        print(message, file=output)
+
+    if once:
+        _DEPENDENCY_STATUS_EMITTED = True
 
 # 🚀 NOUVEAU: Fonction print temps réel
 def print_realtime(message):
@@ -946,21 +982,21 @@ def safe_remove_tree(directory: Path, max_retries: int = 3, delay: float = 1.0) 
 try:
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
-    print("✅ Mediapipe disponible - Utilisation des fonctionnalités IA avancées")
+    _register_dependency_status("✅ Mediapipe disponible - Utilisation des fonctionnalités IA avancées")
 except ImportError:
     MEDIAPIPE_AVAILABLE = False
     mp = None
-    print("⚠️ Mediapipe non disponible - Utilisation du fallback OpenCV (fonctionnalités réduites)")
+    _register_dependency_status("⚠️ Mediapipe non disponible - Utilisation du fallback OpenCV (fonctionnalités réduites)")
 
 # 🚀 NOUVEAU: Import du sélecteur B-roll générique
 try:
     from broll_selector import BrollSelector, Asset, ScoringFeatures, BrollCandidate
     BROLL_SELECTOR_AVAILABLE = True
-    print("✅ Sélecteur B-roll générique disponible - Scoring mixte activé")
+    _register_dependency_status("✅ Sélecteur B-roll générique disponible - Scoring mixte activé")
 except ImportError as e:
     BROLL_SELECTOR_AVAILABLE = False
-    print(f"⚠️ Sélecteur B-roll générique non disponible: {e}")
-    print("   🔄 Utilisation du système de scoring existant")
+    _register_dependency_status(f"⚠️ Sélecteur B-roll générique non disponible: {e}")
+    _register_dependency_status("   🔄 Utilisation du système de scoring existant")
 
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 from tqdm import tqdm  # NEW: console progress
@@ -1094,14 +1130,14 @@ def configure_imagemagick():
         for path in possible_paths:
             if os.path.exists(path):
                 cfg.change_settings({"IMAGEMAGICK_BINARY": path})
-                print(f"✅ ImageMagick configuré: {path}")
+                _register_dependency_status(f"✅ ImageMagick configuré: {path}")
                 return True
-        
-        print("⚠️ ImageMagick non trouvé, utilisation du mode fallback")
+
+        _register_dependency_status("⚠️ ImageMagick non trouvé, utilisation du mode fallback")
         return False
-        
+
     except Exception as e:
-        print(f"⚠️ Erreur configuration ImageMagick: {e}")
+        _register_dependency_status(f"⚠️ Erreur configuration ImageMagick: {e}")
         return False
 
 # Configuration automatique au démarrage
@@ -1346,6 +1382,7 @@ class VideoProcessor:
     """Classe principale pour traiter les vidéos"""
 
     def __init__(self):
+        emit_dependency_status()
         if os.getenv("FAST_TESTS") == "1":
             self.whisper_model = object()
         else:
