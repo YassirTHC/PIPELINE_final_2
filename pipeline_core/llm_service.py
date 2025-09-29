@@ -76,29 +76,28 @@ def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
 
 
 def _ollama_json(prompt: str) -> Dict[str, Any]:
+    """Send a prompt to Ollama and try to extract the largest JSON object."""
+
     prompt = (prompt or "").strip()
     if not prompt:
         return {}
 
-    model_name = _resolve_ollama_model(None)
-    base_url = os.getenv("PIPELINE_LLM_ENDPOINT") or os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
-    base_url = (base_url or "http://localhost:11434").strip() or "http://localhost:11434"
+    model_name = (os.getenv("PIPELINE_LLM_MODEL") or "qwen3:8b").strip() or "qwen3:8b"
+    base_url = (
+        os.getenv("PIPELINE_LLM_ENDPOINT")
+        or os.getenv("PIPELINE_LLM_BASE_URL")
+        or os.getenv("OLLAMA_HOST")
+        or "http://localhost:11434"
+    )
+    base_url = base_url.strip() or "http://localhost:11434"
     url = f"{base_url.rstrip('/')}/api/generate"
 
-    timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
-    try:
-        timeout = float(timeout_env) if timeout_env is not None else 35.0
-    except (TypeError, ValueError):
-        timeout = 35.0
-    timeout = max(1.0, timeout)
-
-    num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
-    temperature_env = os.getenv("PIPELINE_LLM_TEMP")
-    top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
-    repeat_penalty_env = os.getenv("PIPELINE_LLM_REPEAT_PENALTY")
-    stop_tokens_env = os.getenv("PIPELINE_LLM_STOP_TOKENS")
-    keep_alive = _resolve_keep_alive(None)
-    json_mode = _env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
+    def _parse_float(value: Optional[str], *, default: float, minimum: float) -> float:
+        try:
+            parsed = float(value) if value is not None else default
+        except (TypeError, ValueError):
+            parsed = default
+        return max(minimum, parsed)
 
     def _parse_int(value: Optional[str], *, default: int, minimum: int) -> int:
         try:
@@ -107,40 +106,23 @@ def _ollama_json(prompt: str) -> Dict[str, Any]:
             parsed = default
         return max(minimum, parsed)
 
-    def _parse_float(
-        value: Optional[str],
-        *,
-        default: float,
-        minimum: float,
-        maximum: Optional[float] = None,
-    ) -> float:
-        try:
-            parsed = float(value) if value is not None else default
-        except (TypeError, ValueError):
-            parsed = default
-        if maximum is not None:
-            parsed = min(maximum, parsed)
-        return max(minimum, parsed)
-
-    options: Dict[str, Any] = {
-        "num_predict": _parse_int(num_predict_env, default=256, minimum=1),
-        "temperature": _parse_float(temperature_env, default=0.3, minimum=0.0),
-        "top_p": _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0),
-        "repeat_penalty": _parse_float(repeat_penalty_env, default=1.1, minimum=0.0),
-        "stop": list(_parse_stop_tokens(stop_tokens_env)),
-    }
+    timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+    timeout = _parse_float(timeout_env, default=60.0, minimum=1.0)
+    num_predict = _parse_int(os.getenv("PIPELINE_LLM_NUM_PREDICT"), default=256, minimum=1)
+    temperature = _parse_float(os.getenv("PIPELINE_LLM_TEMP"), default=0.3, minimum=0.0)
+    top_p = _parse_float(os.getenv("PIPELINE_LLM_TOP_P"), default=0.9, minimum=0.0)
 
     payload: Dict[str, Any] = {
         "model": model_name,
         "prompt": prompt,
+        "format": "json",
         "stream": False,
-        "options": options,
+        "options": {
+            "num_predict": num_predict,
+            "temperature": temperature,
+            "top_p": max(0.0, min(1.0, top_p)),
+        },
     }
-
-    if json_mode:
-        payload["format"] = "json"
-    if keep_alive:
-        payload["keep_alive"] = keep_alive
 
     started = time.perf_counter()
 
@@ -148,31 +130,47 @@ def _ollama_json(prompt: str) -> Dict[str, Any]:
         response = requests.post(url, json=payload, timeout=timeout)
         response.raise_for_status()
     except requests.Timeout:
-        logger.warning("[LLM] Ollama request timed out", extra={"model": model_name, "duration_s": round(time.perf_counter() - started, 3)})
+        logger.warning(
+            "[LLM] Ollama request timed out",
+            extra={"model": model_name, "duration_s": round(time.perf_counter() - started, 3)},
+        )
         return {}
     except requests.RequestException as exc:
-        logger.warning("[LLM] Ollama request failed", extra={"model": model_name, "error": str(exc)})
+        logger.warning(
+            "[LLM] Ollama request failed",
+            extra={"model": model_name, "error": str(exc)},
+        )
         return {}
 
+    response_text = response.text or ""
     try:
         payload_json = response.json()
     except ValueError:
         payload_json = None
 
-    chunks: List[str] = []
+    candidates: List[str] = []
     if isinstance(payload_json, dict):
-        for key in ("response", "message", "data", "metadata", "result"):
+        # Common Ollama schema: {"response": "..."}
+        for key in ("response", "content", "data", "message", "result", "metadata"):
             value = payload_json.get(key)
-            if isinstance(value, dict) and value:
+            if isinstance(value, dict):
                 return value
             if isinstance(value, str) and value.strip():
-                chunks.append(value)
-    chunks.append(response.text or "")
+                candidates.append(value)
+        if not candidates:
+            try:
+                serialised = json.dumps(payload_json)
+            except Exception:
+                serialised = ""
+            if serialised:
+                candidates.append(serialised)
+    if response_text and response_text not in candidates:
+        candidates.append(response_text)
 
-    best_payload: Dict[str, Any] = {}
+    best_match: Dict[str, Any] = {}
     best_length = -1
-    pattern = re.compile(r"\{[\s\S]*?\}")
-    for chunk in chunks:
+    pattern = re.compile(r"\{.*?\}", re.DOTALL)
+    for chunk in candidates:
         if not chunk:
             continue
         for match in pattern.finditer(chunk):
@@ -181,12 +179,11 @@ def _ollama_json(prompt: str) -> Dict[str, Any]:
                 parsed = json.loads(snippet)
             except (TypeError, ValueError, json.JSONDecodeError):
                 continue
-            if isinstance(parsed, dict):
-                if len(snippet) > best_length:
-                    best_payload = parsed
-                    best_length = len(snippet)
+            if isinstance(parsed, dict) and len(snippet) > best_length:
+                best_match = parsed
+                best_length = len(snippet)
 
-    return best_payload if best_payload else {}
+    return best_match if best_match else {}
 
 
 # --- Robust JSON extraction from LLM responses -------------------------------
@@ -410,6 +407,92 @@ def _normalise_hashtags(value: Any) -> List[str]:
     return hashtags
 
 
+def _default_metadata_payload() -> Dict[str, Any]:
+    return {
+        "title": "Auto-generated Clip Title",
+        "description": "Auto-generated description from transcript.",
+        "hashtags": [],
+        "broll_keywords": [],
+        "queries": [],
+    }
+
+
+def _empty_metadata_payload() -> Dict[str, Any]:
+    return {
+        "title": "",
+        "description": "",
+        "hashtags": [],
+        "broll_keywords": [],
+        "queries": [],
+    }
+
+
+def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int = 5) -> List[str]:
+    tags: List[str] = []
+    seen: set[str] = set()
+    for keyword in _as_list(keywords):
+        cleaned = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ0-9]", "", keyword)
+        if not cleaned:
+            continue
+        hashtag = "#" + cleaned
+        lower = hashtag.lower()
+        if lower in seen:
+            continue
+        seen.add(lower)
+        tags.append(hashtag)
+        if len(tags) >= limit:
+            break
+    return tags
+
+
+def _generate_query_fallback(
+    keywords: Sequence[str],
+    transcript: str,
+    *,
+    limit: int = 8,
+) -> List[str]:
+    limit = max(1, limit)
+    transcript_text = (transcript or "").strip()
+    seen: set[str] = set()
+    queries: List[str] = []
+
+    for keyword in _as_list(keywords):
+        cleaned = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ0-9' ]+", " ", keyword)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        lowered = cleaned.lower()
+        if not cleaned or lowered in seen:
+            continue
+        seen.add(lowered)
+        queries.append(cleaned)
+        if len(queries) >= limit:
+            return queries[:limit]
+
+    if transcript_text:
+        tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+", transcript_text.lower())
+        for token in tokens:
+            if len(token) < 3 or token in seen:
+                continue
+            seen.add(token)
+            queries.append(token)
+            if len(queries) >= limit:
+                return queries[:limit]
+
+    if transcript_text and len(queries) < limit:
+        _, tfidf_terms = _tfidf_fallback(transcript_text, top_k=limit)
+        for term in tfidf_terms:
+            cleaned = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ0-9' ]+", " ", term)
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+            lowered = cleaned.lower()
+            if not cleaned or lowered in seen:
+                continue
+            seen.add(lowered)
+            queries.append(cleaned)
+            if len(queries) >= limit:
+                break
+
+    return queries[:limit]
+
+
 def _resolve_ollama_endpoint(endpoint: Optional[str]) -> str:
     base_url = endpoint or os.getenv("PIPELINE_LLM_ENDPOINT") or os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
     base_url = (base_url or _DEFAULT_OLLAMA_ENDPOINT).strip()
@@ -458,12 +541,12 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
     return (
         "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
         "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
-        "  \"title\": string accrocheur en français ou langue source,\n"
-        "  \"description\": string synthétique (1-2 phrases),\n"
-        "  \"hashtags\": array de 8-18 chaînes uniques (avec #),\n"
-        "  \"broll_keywords\": array de mots-clés visuels,\n"
-        "  \"queries\": array de requêtes de recherche de stock (2-5 mots).\n"
-        "Aucune explication ni texte hors JSON.\n\n"
+        "  \"title\": chaîne accrocheuse en langue source,\n"
+        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
+        "  \"hashtags\": tableau de 5 hashtags pertinents sans doublons,\n"
+        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels concrets,\n"
+        "  \"queries\": tableau de 4 à 8 requêtes de recherche prêtes pour des banques d'images/vidéos.\n"
+        "N'ajoute aucune explication hors JSON.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
 
@@ -1836,12 +1919,20 @@ class LLMMetadataGeneratorService:
         }
 
 
-def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None, **kwargs: Any) -> Dict[str, Any]:
+def generate_metadata_as_json(
+    transcript: str,
+    *,
+    timeout_s: float | None = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
     """Call Ollama directly, enforce JSON output and normalise the fields."""
 
     cleaned_transcript = (transcript or "").strip()
     if not cleaned_transcript:
-        raise ValueError("No transcript provided for metadata generation")
+        logger.warning("[LLM] Empty transcript provided for metadata generation")
+        failure = _empty_metadata_payload()
+        failure["raw_response_length"] = 0
+        return failure
 
     limit = _metadata_transcript_limit()
     if len(cleaned_transcript) > limit:
@@ -1849,6 +1940,8 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
 
     video_id = kwargs.get("video_id")
     prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+
+    model_name = (os.getenv("PIPELINE_LLM_MODEL") or "qwen3:8b").strip() or "qwen3:8b"
 
     original_timeout = None
     if timeout_s is not None:
@@ -1869,10 +1962,11 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
             else:
                 os.environ["PIPELINE_LLM_TIMEOUT_S"] = original_timeout
 
-    model_name = _resolve_ollama_model(None)
     duration = time.perf_counter() - started
 
     if not raw_payload:
+        failure = _empty_metadata_payload()
+        failure["raw_response_length"] = 0
         logger.warning(
             "[LLM] JSON metadata payload missing",
             extra={
@@ -1881,7 +1975,7 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
                 "transcript_length": len(cleaned_transcript),
             },
         )
-        return {}
+        return failure
 
     metadata_section: Dict[str, Any] = raw_payload
     for key in ("metadata", "result", "data"):
@@ -1890,6 +1984,8 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
             metadata_section = candidate
 
     if not isinstance(metadata_section, dict):
+        failure = _empty_metadata_payload()
+        failure["raw_response_length"] = 0
         logger.warning(
             "[LLM] Metadata payload is not a JSON object",
             extra={
@@ -1898,20 +1994,31 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
                 "transcript_length": len(cleaned_transcript),
             },
         )
-        return {}
+        return failure
 
-    title = _normalise_string(metadata_section.get("title"))
-    description = _normalise_string(metadata_section.get("description"))
-    hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))
-    broll_keywords = _normalise_string_list(metadata_section.get("broll_keywords"))
-    queries = _normalise_string_list(metadata_section.get("queries"))
+    defaults = _default_metadata_payload()
 
-    fallback_used = False
+    title = _normalise_string(metadata_section.get("title")) or defaults["title"]
+    description = _normalise_string(metadata_section.get("description")) or defaults["description"]
+
+    hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))[:5]
+
+    raw_keyword_values = (
+        metadata_section.get("broll_keywords")
+        or metadata_section.get("brollKeywords")
+        or metadata_section.get("keywords")
+        or []
+    )
+    broll_keywords = _normalise_string_list(raw_keyword_values)[:10]
+
+    if not hashtags:
+        hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
+
+    queries = _normalise_string_list(metadata_section.get("queries"))[:8]
+    fallback_queries_used = False
     if not queries:
-        _, fallback_queries = _tfidf_fallback(cleaned_transcript)
-        if fallback_queries:
-            queries = _normalise_string_list(fallback_queries[:8])
-            fallback_used = True
+        queries = _generate_query_fallback(broll_keywords, cleaned_transcript, limit=8)
+        fallback_queries_used = bool(queries)
 
     result: Dict[str, Any] = {
         "title": title,
@@ -1919,11 +2026,11 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
         "hashtags": hashtags,
         "broll_keywords": broll_keywords,
         "queries": queries,
+        "raw_response_length": len(json.dumps(raw_payload, ensure_ascii=False)) if raw_payload else 0,
     }
 
-    log_level = logger.info if title or description or hashtags or broll_keywords or queries else logger.warning
-    log_level(
-        "[LLM] JSON metadata processed",
+    logger.info(
+        "[LLM] JSON metadata generated",
         extra={
             "model": model_name,
             "duration_s": round(duration, 3),
@@ -1931,17 +2038,8 @@ def generate_metadata_as_json(transcript: str, *, timeout_s: float | None = None
             "hashtags": len(hashtags),
             "broll_keywords": len(broll_keywords),
             "queries": len(queries),
-            "queries_fallback": fallback_used,
+            "queries_fallback": fallback_queries_used,
         },
     )
-
-    if fallback_used:
-        logger.info(
-            "[LLM] Queries fallback generated",
-            extra={
-                "model": model_name,
-                "queries": len(queries),
-            },
-        )
 
     return result

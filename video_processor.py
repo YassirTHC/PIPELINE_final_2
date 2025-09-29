@@ -100,6 +100,9 @@ SEEN_IDENTIFIERS: Set[str] = set()
 PHASH_DISTANCE = 6
 
 
+_GLOBAL_BROLL_EVENTS_LOGGER: Optional['JsonlLogger'] = None
+
+
 @dataclass
 class CoreTimelineEntry:
     """Minimal description of a clip selected by the core pipeline."""
@@ -1467,11 +1470,20 @@ class VideoProcessor:
         return final_path
 
     def _get_broll_event_logger(self):
-        logger_obj = getattr(self, '_broll_event_logger', None)
+        global _GLOBAL_BROLL_EVENTS_LOGGER
+
+        logger_obj = _GLOBAL_BROLL_EVENTS_LOGGER
         if logger_obj is None:
-            meta_dir = Config.OUTPUT_FOLDER / 'meta'
-            logger_obj = JsonlLogger(meta_dir / 'broll_pipeline_events.jsonl')
-            self._broll_event_logger = logger_obj
+            try:
+                base_dir = Path(getattr(Config, 'OUTPUT_FOLDER', Path('output')))
+            except Exception:
+                base_dir = Path('output')
+            events_path = base_dir / 'meta' / 'broll_pipeline_events.jsonl'
+            events_path.parent.mkdir(parents=True, exist_ok=True)
+            logger_obj = JsonlLogger(events_path)
+            _GLOBAL_BROLL_EVENTS_LOGGER = logger_obj
+
+        self._broll_event_logger = logger_obj
         if not getattr(self, '_broll_env_logged', False):
             try:
                 env_payload = {
@@ -1985,13 +1997,18 @@ class VideoProcessor:
                 candidate_summary.append(summary_entry)
                 try:
                     if event_logger:
+                        score_value = summary_entry['score']
+                        if isinstance(score_value, (int, float)):
+                            score_payload: Optional[float] = float(score_value)
+                        else:
+                            score_payload = None
                         event_logger.log(
                             {
                                 'event': 'broll_candidate_evaluated',
                                 'segment': idx,
                                 'provider': summary_entry['provider'],
                                 'url': candidate_url,
-                                'score': summary_entry['score'],
+                                'score': score_payload,
                                 'reject_reason': summary_entry['reject_reason'],
                                 'selected': is_selected,
                             }
@@ -3379,7 +3396,12 @@ class VideoProcessor:
     
     def _process_single_clip_impl(self, clip_path: Path, *, verbose: bool = False):
         """Traite un clip individuel (reframe -> transcription (pour B-roll) -> B-roll -> sous-titres)"""
-        
+
+        try:
+            self._current_video_id = Path(clip_path).stem
+        except Exception:
+            pass
+
         # Dossier de sortie dédié et unique
         per_clip_dir = self._generate_unique_output_dir(clip_path.stem)
         
@@ -3965,6 +3987,9 @@ class VideoProcessor:
     def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> Dict[str, Any]:
         """Génère un dictionnaire complet de métadonnées via le système LLM industriel."""
         full_text = ' '.join(s.get('text', '') for s in subtitles)
+        video_id_hint = getattr(self, '_current_video_id', None)
+        if not video_id_hint:
+            video_id_hint = f"video_{int(time.time())}"
 
         def _finalize_metadata(
             status: str,
@@ -4074,23 +4099,23 @@ class VideoProcessor:
         try:
             print(f"    🚀 [LLM INDUSTRIEL] Génération de métadonnées pour {len(full_text)} caractères")
 
-            metadata_result = generate_metadata_as_json(
-                subtitles,
-                video_id=f"video_{int(time.time())}"
+            meta = generate_metadata_as_json(
+                full_text,
+                video_id=video_id_hint,
             )
 
-            if not metadata_result:
+            if not meta or not any(meta.get(key) for key in ("title", "description", "hashtags", "broll_keywords", "queries")):
                 fallback_result = _run_fallback("    ⚠️ [LLM INDUSTRIEL] Réponse JSON vide ou non analysable, activation du fallback")
                 if fallback_result:
                     return fallback_result
                 return _run_heuristics()
 
-            title = (metadata_result.get('title') or '').strip()
-            description = (metadata_result.get('description') or '').strip()
-            hashtags = [h for h in (metadata_result.get('hashtags') or []) if h]
-            broll_keywords = metadata_result.get('broll_keywords') or []
-            queries = metadata_result.get('queries') or []
-            response_len = metadata_result.get('raw_response_length')
+            title = (meta.get('title') or '').strip()
+            description = (meta.get('description') or '').strip()
+            hashtags = [h for h in (meta.get('hashtags') or []) if h]
+            broll_keywords = meta.get('broll_keywords') or []
+            queries = meta.get('queries') or []
+            response_len = meta.get('raw_response_length')
 
             print(f"    ✅ [LLM INDUSTRIEL] Métadonnées générées avec succès (JSON)")
             print(f"    🎯 Titre: {title}")
@@ -4108,7 +4133,7 @@ class VideoProcessor:
                 hashtags=hashtags,
                 broll_keywords=broll_keywords,
                 queries=queries,
-                base=metadata_result,
+                base=meta,
                 source_label='llm',
             )
             return _remember(payload)
