@@ -60,7 +60,11 @@ def integrate_with_existing_pipeline():
         try:
             print("    🎯 Test de la méthode generate_caption_and_hashtags améliorée...")
             
-            title, description, hashtags, broll_keywords = processor.generate_caption_and_hashtags(test_subtitles)
+            metadata = processor.generate_caption_and_hashtags(test_subtitles) or {}
+            title = str(metadata.get('title') or '')
+            description = str(metadata.get('description') or '')
+            hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
+            broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
             
             print(f"    ✅ Titre: {title}")
             print(f"    ✅ Description: {description}")

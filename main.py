@@ -554,7 +554,11 @@ def main():
 			metadata_start = time.time()
 			
 			# 🚀 CORRECTION PRINCIPALE: Générer les mots-clés LLM
-			title, description, hashtags, broll_keywords = processor.generate_caption_and_hashtags(subtitles)
+			metadata = processor.generate_caption_and_hashtags(subtitles) or {}
+			title = str(metadata.get('title') or '').strip()
+			description = str(metadata.get('description') or '').strip()
+			hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
+			broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
 			
 			# Validation des mots-clés LLM
 			if not broll_keywords:
