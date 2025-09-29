@@ -1748,7 +1748,11 @@ class VideoProcessor:
 
             should_consult_llm = not brief_queries and not brief_keywords and not keyword_terms
 
+            llm_attempted = False
+            fallback_source_label: Optional[str] = None
+
             if should_consult_llm and getattr(self, '_llm_service', None):
+                llm_attempted = True
                 try:
                     llm_hints = self._llm_service.generate_hints_for_segment(
                         segment.text,
@@ -1763,8 +1767,33 @@ class VideoProcessor:
             elif getattr(self, '_llm_service', None):
                 llm_healthy = True
 
+            hint_payload = []
             if llm_hints and isinstance(llm_hints.get('queries'), list):
-                hint_terms = _dedupe_queries(llm_hints['queries'], cap=metadata_query_cap)
+                hint_payload = list(llm_hints['queries'])
+
+            if llm_attempted and not hint_payload and getattr(self, '_llm_service', None):
+                fallback_terms: Sequence[str] = []
+                provider_fallback = getattr(self._llm_service, 'provider_fallback_queries', None)
+                if callable(provider_fallback):
+                    try:
+                        fallback_terms, fallback_source_label = provider_fallback(
+                            getattr(segment, 'text', '') or '',
+                            max_items=metadata_query_cap,
+                            language=dyn_language or None,
+                        )
+                    except Exception:
+                        fallback_terms, fallback_source_label = [], None
+
+                normalised_fallback = _relaxed_normalise_terms(fallback_terms, metadata_query_cap)
+                if normalised_fallback:
+                    llm_queries = _dedupe_queries(list(llm_queries) + normalised_fallback, cap=metadata_query_cap)
+                    if fallback_source_label and fallback_source_label != 'none':
+                        llm_source_label = fallback_source_label
+                if not hint_payload:
+                    llm_healthy = False
+
+            if hint_payload:
+                hint_terms = _dedupe_queries(hint_payload, cap=metadata_query_cap)
                 llm_queries = _dedupe_queries(list(llm_queries) + hint_terms, cap=metadata_query_cap)
 
             selector_keywords = list(getattr(self, '_selector_keywords', []))

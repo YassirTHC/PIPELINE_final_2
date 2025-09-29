@@ -2450,6 +2450,77 @@ class LLMMetadataGeneratorService:
             "filters": filters,
         }
 
+    def provider_fallback_queries(
+        self,
+        transcript: str = "",
+        *,
+        max_items: int = 12,
+        language: Optional[str] = None,
+    ) -> Tuple[List[str], str]:
+        """Return provider-friendly fallback queries and their origin label.
+
+        The routine first reuses cached metadata queries (already normalised for
+        providers), then derives queries from cached keywords, and finally
+        falls back to transcript heuristics or default phrases.  The returned
+        queries are deduplicated and normalised using the provider helper to
+        ensure consistent downstream behaviour.
+        """
+
+        limit = max(1, int(max_items or 0))
+        target_lang = (language or "").strip().lower() or _target_language_default()
+
+        collected: List[str] = []
+        seen: Set[str] = set()
+        origin = "none"
+
+        def _extend(values: Sequence[str], label: str) -> bool:
+            nonlocal origin
+            if not values:
+                return False
+            normalised = _normalise_provider_terms(values, target_lang=target_lang)
+            added = False
+            for candidate in normalised:
+                if not candidate or candidate in seen:
+                    continue
+                seen.add(candidate)
+                collected.append(candidate)
+                added = True
+                if len(collected) >= limit:
+                    break
+            if added and origin == "none":
+                origin = label
+            return len(collected) >= limit
+
+        cached_queries = _LAST_METADATA_QUERIES.get("values", [])
+        if _extend(cached_queries, "metadata_cached_queries"):
+            return collected[:limit], origin
+
+        cached_keywords = _LAST_METADATA_KEYWORDS.get("values", [])
+        if cached_keywords:
+            keyword_queries = _build_provider_queries_from_terms(cached_keywords)
+            if _extend(keyword_queries, "metadata_keywords_fallback"):
+                return collected[:limit], origin
+
+        cleaned_transcript = (transcript or "").strip()
+        if cleaned_transcript:
+            transcript_terms = _fallback_keywords_from_transcript(
+                cleaned_transcript,
+                min_terms=8,
+                max_terms=max(limit, 8),
+                language=target_lang,
+            )
+            transcript_queries = _build_provider_queries_from_terms(transcript_terms)
+            if _extend(transcript_queries, "transcript_fallback"):
+                return collected[:limit], origin
+
+        default_queries = _build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)
+        _extend(default_queries, "default_fallback")
+
+        if origin == "none":
+            origin = "default_fallback" if collected else "none"
+
+        return collected[:limit], origin
+
 
 def generate_metadata_as_json(
     transcript: str,
