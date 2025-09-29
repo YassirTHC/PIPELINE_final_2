@@ -89,8 +89,8 @@ class DummyOrchestrator:
             instances = DummyOrchestrator.instances
         instances.append(self)
 
-    def fetch_candidates(self, queries, *, duration_hint, filters):  # noqa: D401 - simple stub
-        self.fetch_calls.append((list(queries), duration_hint, dict(filters or {})))
+    def fetch_candidates(self, queries, *, segment_index=None, duration_hint, filters):  # noqa: D401 - simple stub
+        self.fetch_calls.append((list(queries), segment_index, duration_hint, dict(filters or {})))
         return []
 
     def evaluate_candidate_filters(self, *_args, **_kwargs):
@@ -231,7 +231,8 @@ def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
     assert DummyOrchestrator.instances, "expected orchestrator to be constructed"
     fetch_calls = DummyOrchestrator.instances[0].fetch_calls
     assert fetch_calls, "expected orchestrator fetch to be invoked"
-    queries_used, _, _ = fetch_calls[0]
+    queries_used, seg_idx, *_ = fetch_calls[0]
+    assert seg_idx == 0
     assert queries_used, "expected non-empty queries"
 
     logged_queries = [
@@ -287,7 +288,8 @@ def test_llm_hint_queries_bypass_merge(monkeypatch):
     assert DummyOrchestrator.instances, "expected orchestrator to be constructed"
     fetch_calls = DummyOrchestrator.instances[0].fetch_calls
     assert fetch_calls, "expected orchestrator fetch to be invoked"
-    queries_used, _, _ = fetch_calls[0]
+    queries_used, seg_idx, *_ = fetch_calls[0]
+    assert seg_idx == 0
     expected_queries = video_processor._dedupe_queries(
         ["Cinematic Skyline", "Happy Team Meeting"],
         cap=video_processor.SEGMENT_REFINEMENT_MAX_TERMS,
