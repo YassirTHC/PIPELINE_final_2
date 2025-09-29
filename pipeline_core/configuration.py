@@ -7,53 +7,35 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-import re
 from pathlib import Path
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence
 
 from config import Config
 
 
-def to_bool(value: Optional[object], *, default: Optional[bool] = None) -> Optional[bool]:
-    """Interpret different value types as booleans."""
+TRUE_SET = {"1", "true", "t", "yes", "y", "on"}
+FALSE_SET = {"0", "false", "f", "no", "n", "off"}
 
-    if value is None:
+
+def to_bool(v: object, default: bool = False) -> bool:
+    if isinstance(v, bool):
+        return v
+    if v is None:
         return default
-    if isinstance(value, bool):
-        return value
-    text = str(value).strip().lower()
-    if not text:
-        return default
-    if text in {"1", "true", "yes", "on"}:
+    s = str(v).strip().lower()
+    if s in TRUE_SET:
         return True
-    if text in {"0", "false", "no", "off"}:
+    if s in FALSE_SET:
         return False
     return default
 
 
-def to_list(value: Optional[object]) -> list[str]:
-    """Normalise arbitrary values into a flat list of strings."""
-
-    if value is None:
+def to_list(v: object, sep: str = ",") -> List[str]:
+    if v is None:
         return []
-    if isinstance(value, str):
-        chunks = re.split(r"[\n,;]+", value)
-    elif isinstance(value, dict):
-        chunks = list(value.values())
-    else:
-        try:
-            chunks = list(value)
-        except TypeError:
-            chunks = [value]
-
-    normalised: list[str] = []
-    for chunk in chunks:
-        if chunk is None:
-            continue
-        text = chunk.strip() if isinstance(chunk, str) else str(chunk).strip()
-        if text:
-            normalised.append(text)
-    return normalised
+    if isinstance(v, (list, tuple, set)):
+        return [str(x).strip() for x in v if str(x).strip()]
+    return [x.strip() for x in str(v).split(sep) if x.strip()]
 
 
 def _split_csv(raw: Optional[str]) -> list[str]:
@@ -312,34 +294,42 @@ class FetcherOrchestratorConfig:
             8.0,
         )
 
-        fetch_max_candidates = to_list(os.getenv("FETCH_MAX"))
-        fetch_max = _coerce_positive_int(fetch_max_candidates[0] if fetch_max_candidates else None, 8)
+        fetch_max_raw = os.getenv("FETCH_MAX")
+        try:
+            per_segment_limit = int(str(fetch_max_raw).strip()) if fetch_max_raw is not None else 8
+        except (TypeError, ValueError):
+            per_segment_limit = 8
+        if per_segment_limit <= 0:
+            per_segment_limit = 8
 
-        per_segment_raw = os.getenv("BROLL_FETCH_MAX_PER_KEYWORD")
-        if per_segment_raw is not None:
-            per_segment_limit = _coerce_positive_int(per_segment_raw, fetch_max)
+        override_limit = os.getenv("BROLL_FETCH_MAX_PER_KEYWORD")
+        if override_limit is not None:
+            try:
+                parsed = int(str(override_limit).strip())
+            except (TypeError, ValueError):
+                parsed = per_segment_limit
+            if parsed > 0:
+                per_segment_limit = parsed
+        elif getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None):
+            try:
+                parsed = int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD"))
+            except (TypeError, ValueError):
+                parsed = per_segment_limit
+            if parsed > 0:
+                per_segment_limit = parsed
+
+        provider_env = os.getenv("BROLL_FETCH_PROVIDER")
+        if not provider_env:
+            provider_env = os.getenv("AI_BROLL_FETCH_PROVIDER")
+        provider_tokens = to_list(provider_env)
+        if not provider_tokens:
+            provider_tokens = ["pixabay"]
+
+        normalized_selection = {token.lower() for token in provider_tokens}
+        if normalized_selection == {"all"}:
+            selection: Optional[Iterable[str]] = None
         else:
-            per_segment_limit = _coerce_positive_int(
-                getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None),
-                fetch_max,
-            )
-
-        provider_value = os.getenv("BROLL_FETCH_PROVIDER")
-        if not provider_value:
-            provider_value = os.getenv("AI_BROLL_FETCH_PROVIDER")
-        provider_tokens = to_list(provider_value)
-        fallback_providers = ["pixabay"]
-
-        selection: Optional[Iterable[str]]
-        if provider_tokens:
-            normalized_selection = {token.lower() for token in provider_tokens}
-            if normalized_selection == {"all"}:
-                selection = None
-            else:
-                selection = normalized_selection
-        else:
-            provider_tokens = fallback_providers
-            selection = fallback_providers
+            selection = normalized_selection
 
         providers = []
         for provider in _build_provider_defaults(selected=selection, limit=per_segment_limit):
@@ -347,13 +337,8 @@ class FetcherOrchestratorConfig:
                 provider.max_results = per_segment_limit
             providers.append(provider)
 
-        allow_images = to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"))
-        if allow_images is None:
-            allow_images = _default_allow_images()
-
-        allow_videos = to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"))
-        if allow_videos is None:
-            allow_videos = _default_allow_videos()
+        allow_images = to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"), default=_default_allow_images())
+        allow_videos = to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"), default=_default_allow_videos())
 
         return cls(
             providers=tuple(providers),
@@ -416,8 +401,16 @@ def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Opt
     Returns ``True``/``False`` when the input can be interpreted as such, or
     ``default`` when the value is empty/unknown.
     """
-
-    return to_bool(value, default=default)
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if not text:
+        return default
+    if text in TRUE_SET:
+        return True
+    if text in FALSE_SET:
+        return False
+    return default
 
 
 def _selection_config_from_environment() -> "SelectionConfig":

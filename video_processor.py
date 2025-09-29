@@ -1770,23 +1770,28 @@ class VideoProcessor:
                 raw_hint_source = llm_hints.get('source') if isinstance(llm_hints, dict) else None
                 if isinstance(raw_hint_source, str) and raw_hint_source.strip():
                     hint_source = raw_hint_source.strip()
-                if hint_payload:
-                    try:
-                        logger.info(
-                            "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
-                            float(getattr(segment, 'start', 0.0) or 0.0),
-                            float(getattr(segment, 'end', 0.0) or 0.0),
-                            hint_payload,
-                            hint_source or 'llm_hint',
-                        )
-                    except Exception:
-                        pass
 
             hint_terms: List[str] = []
             if hint_payload:
                 hint_terms = _dedupe_queries(hint_payload, cap=metadata_query_cap)
                 if hint_terms and not hint_source:
                     hint_source = 'llm_hint'
+                if hint_terms:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', 0.0) or 0.0),
+                        hint_terms,
+                        hint_source or 'llm_hint',
+                    )
+                elif hint_payload:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', 0.0) or 0.0),
+                        hint_payload,
+                        hint_source or 'llm_hint',
+                    )
             if not hint_source:
                 hint_source = llm_source_label
 
@@ -1815,10 +1820,6 @@ class VideoProcessor:
             if hint_terms:
                 queries = hint_terms
                 query_source = hint_source or 'llm_hint'
-                try:
-                    print(f"[BROLL][LLM] segment={idx} (source={query_source})")
-                except Exception:
-                    pass
                 if dyn_language in ('', 'en'):
                     queries = enforce_fetch_language(queries, dyn_language or None)
             else:
@@ -2267,7 +2268,7 @@ class VideoProcessor:
                     segment_idx = int(asset.get('segment', order))
                 except Exception:
                     segment_idx = order
-                local_path = self._download_core_candidate(candidate, download_dir, order, segment_idx)
+                local_path = self._download_core_candidate(candidate, download_dir, order)
                 if not local_path:
                     try:
                         event_logger.log({

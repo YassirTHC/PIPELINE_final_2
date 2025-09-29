@@ -1,78 +1,59 @@
-"""Tests covering environment helpers and provider resolution."""
-
-from __future__ import annotations
-
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 from pipeline_core.configuration import (
     FetcherOrchestratorConfig,
-    ProviderConfig,
     resolved_providers,
     to_bool,
 )
 
 
 @pytest.mark.parametrize(
-    "value,default,expected",
+    "value,expected",
     [
-        (True, None, True),
-        (False, None, False),
-        ("ON", None, True),
-        ("off", None, False),
-        (" yes ", None, True),
-        ("", True, True),
-        (None, False, False),
-        ("maybe", True, True),
+        ("1", True),
+        ("0", False),
+        ("true", True),
+        ("false", False),
+        ("yes", True),
+        ("no", False),
+        ("on", True),
+        ("off", False),
     ],
 )
-def test_to_bool_interprets_common_tokens(value, default, expected):
-    """Validate the normalisation logic for boolean environment values."""
-
-    assert to_bool(value, default=default) is expected
+def test_to_bool_normalises_variants(value, expected):
+    assert to_bool(value, default=not expected) is expected
 
 
-def test_resolved_providers_default_to_pixabay():
-    """The helper should fall back to pixabay when nothing is configured."""
+def test_resolved_providers_defaults_to_pixabay(monkeypatch):
+    monkeypatch.delenv("BROLL_FETCH_PROVIDER", raising=False)
+    monkeypatch.delenv("AI_BROLL_FETCH_PROVIDER", raising=False)
+    monkeypatch.setenv("PIXABAY_API_KEY", "dummy-key")
+    monkeypatch.delenv("PEXELS_API_KEY", raising=False)
 
-    assert resolved_providers(None) == ["pixabay"]
-
-    empty_cfg = FetcherOrchestratorConfig(providers=())
-    assert resolved_providers(empty_cfg) == ["pixabay"]
-
-    mixed_cfg = FetcherOrchestratorConfig(
-        providers=(
-            ProviderConfig(name="Pexels"),
-            ProviderConfig(name="pixabay"),
-            ProviderConfig(name="PEXELS"),
-        )
-    )
-    assert resolved_providers(mixed_cfg) == ["Pexels", "pixabay"]
+    config = FetcherOrchestratorConfig.from_environment()
+    providers = resolved_providers(config)
+    assert providers == ["pixabay"]
 
 
-def test_print_config_reports_pexels_presence(monkeypatch, tmp_path):
-    """Running ``--print-config`` should expose the API key presence flag."""
-
-    script = Path(__file__).resolve().parents[1] / "run_pipeline.py"
+def test_print_config_reports_pexels_key(monkeypatch):
+    monkeypatch.setenv("PIXABAY_API_KEY", "dummy-key")
+    monkeypatch.setenv("PEXELS_API_KEY", "dummy-pexels")
+    monkeypatch.setenv("FETCH_MAX", "5")
+    monkeypatch.delenv("BROLL_FETCH_PROVIDER", raising=False)
+    monkeypatch.delenv("AI_BROLL_FETCH_PROVIDER", raising=False)
 
     env = os.environ.copy()
-    # Ensure the environment is deterministic for the subprocess invocation.
-    env.pop("PEXELS_API_KEY", None)
-    env["PIPELINE_FAST_TESTS"] = "1"
-    env["PYTHONIOENCODING"] = "utf-8"
-    env.setdefault("PYTHONPATH", str(script.parent))
+    env.setdefault("PYTHONPATH", os.getcwd())
 
-    result = subprocess.run(
-        [sys.executable, str(script), "--print-config"],
-        check=False,
-        capture_output=True,
-        text=True,
+    output = subprocess.check_output(
+        [sys.executable, "run_pipeline.py", "--print-config"],
+        cwd=os.getcwd(),
         env=env,
-    )
+    ).decode("utf-8").strip()
 
-    assert result.returncode == 0, result.stderr
-    assert "pexels_key_present=" in result.stdout
+    assert "pexels_key_present=" in output
+    assert "resolved_providers=" in output

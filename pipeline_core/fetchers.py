@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
+from pipeline_core.configuration import FetcherOrchestratorConfig
 
 try:  # pragma: no cover - exercised indirectly via tests
     from src.pipeline.fetchers import (  # type: ignore
@@ -74,6 +74,7 @@ class FetcherOrchestrator:
         if not queries:
             return []
 
+        allow_images_active = bool(self.config.allow_images)
         providers = []
         for provider_conf in self.config.providers:
             if not getattr(provider_conf, 'enabled', True):
@@ -85,101 +86,83 @@ class FetcherOrchestrator:
             if supports_images and not self.config.allow_images:
                 continue
             providers.append(provider_conf)
-
-        if not providers:
-            return []
-
         ready_providers = []
+        attempted_names: set[str] = set()
         for provider_conf in providers:
             requires_key, has_key = self._provider_key_status(getattr(provider_conf, 'name', ''))
+            provider_name = str(getattr(provider_conf, 'name', '') or '').strip()
             if requires_key and not has_key:
                 self._log_event({
                     'event': 'provider_skipped_missing_key',
                     'provider': getattr(provider_conf, 'name', ''),
                 })
                 continue
+            if provider_name:
+                attempted_names.add(provider_name.lower())
             ready_providers.append(provider_conf)
         providers = ready_providers
-        if not providers:
-            return []
-
-        start = time.perf_counter()
         raw_results: List[RemoteAssetCandidate] = []
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.parallel_requests or 1) as pool:
-            futures = []
-            for provider_conf in providers:
-                for query in queries:
-                    futures.append(
-                        pool.submit(self._run_provider_fetch, provider_conf, query, filters, segment_timeout_s)
-                    )
+        if providers:
+            start = time.perf_counter()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.parallel_requests or 1) as pool:
+                futures = []
+                for provider_conf in providers:
+                    for query in queries:
+                        futures.append(
+                            pool.submit(self._run_provider_fetch, provider_conf, query, filters, segment_timeout_s)
+                        )
 
-            timeout_s = max(self.config.request_timeout_s, 0.1)
-            deadline = start + timeout_s
-            pending = set(futures)
-            while pending and len(raw_results) < self.config.per_segment_limit:
-                remaining = deadline - time.perf_counter()
-                if remaining <= 0:
-                    break
-                done, pending = concurrent.futures.wait(
-                    pending,
-                    timeout=remaining,
-                    return_when=concurrent.futures.FIRST_COMPLETED,
-                )
-                if not done:
-                    break
-                for fut in done:
-                    try:
-                        candidates = fut.result() or []
-                    except concurrent.futures.TimeoutError:
-                        continue
-                    except Exception:
-                        continue
-                    if not candidates:
-                        continue
-                    for candidate in candidates:
-                        raw_results.append(candidate)
-                        if len(raw_results) >= self.config.per_segment_limit:
-                            break
-            for fut in pending:
-                fut.cancel()
-
-        allow_images_active = bool(self.config.allow_images)
-
-        if not raw_results:
-            resolved_names = {name.lower() for name in resolved_providers(self.config)}
-            if "pixabay" not in resolved_names:
-                fallback_candidates: List[RemoteAssetCandidate] = []
-                attempted_queries: List[str] = []
-                for query in queries[:3]:
-                    clean_query = (query or "").strip()
-                    if not clean_query:
-                        continue
-                    attempted_queries.append(clean_query)
-                    try:
-                        candidates = self._fetch_from_pixabay(clean_query, self.config.per_segment_limit)
-                    except Exception:
-                        candidates = []
-                    if candidates:
-                        fallback_candidates.extend(candidates)
-                    if len(fallback_candidates) >= self.config.per_segment_limit:
+                timeout_s = max(self.config.request_timeout_s, 0.1)
+                deadline = start + timeout_s
+                pending = set(futures)
+                while pending and len(raw_results) < self.config.per_segment_limit:
+                    remaining = deadline - time.perf_counter()
+                    if remaining <= 0:
                         break
+                    done, pending = concurrent.futures.wait(
+                        pending,
+                        timeout=remaining,
+                        return_when=concurrent.futures.FIRST_COMPLETED,
+                    )
+                    if not done:
+                        break
+                    for fut in done:
+                        try:
+                            candidates = fut.result() or []
+                        except concurrent.futures.TimeoutError:
+                            continue
+                        except Exception:
+                            continue
+                        if not candidates:
+                            continue
+                        for candidate in candidates:
+                            raw_results.append(candidate)
+                            if len(raw_results) >= self.config.per_segment_limit:
+                                break
+                for fut in pending:
+                    fut.cancel()
+        else:
+            fallback_candidates = self._run_pixabay_fallback(
+                queries,
+                self.config.per_segment_limit,
+                segment_index=segment_index,
+            )
+            if fallback_candidates:
+                allow_images_active = True
+                raw_results.extend(fallback_candidates)
 
-                self._log_event(
-                    {
-                        'event': 'fallback_fetch',
-                        'provider': 'pixabay',
-                        'queries': attempted_queries,
-                        'added_candidates': len(fallback_candidates),
-                    }
-                )
-
-                if fallback_candidates:
-                    allow_images_active = True
-                    raw_results.extend(fallback_candidates)
+        if not raw_results and "pixabay" not in attempted_names:
+            fallback_candidates = self._run_pixabay_fallback(
+                queries,
+                self.config.per_segment_limit,
+                segment_index=segment_index,
+            )
+            if fallback_candidates:
+                allow_images_active = True
+                raw_results.extend(fallback_candidates)
 
         processed: List[RemoteAssetCandidate] = []
-        seen_urls = set()
         video_extensions = (
             ".mp4",
             ".mov",
@@ -208,11 +191,6 @@ class FetcherOrchestrator:
                 continue
             if not is_video and not allow_images_active:
                 continue
-
-            if normalized_url in seen_urls:
-                continue
-
-            seen_urls.add(normalized_url)
             processed.append(candidate)
 
             if len(processed) >= self.config.per_segment_limit:
@@ -324,6 +302,43 @@ class FetcherOrchestrator:
                         })
                         return []
         return []
+
+    def _run_pixabay_fallback(
+        self,
+        queries: Sequence[str],
+        limit: int,
+        *,
+        segment_index: Optional[int] = None,
+    ) -> List[RemoteAssetCandidate]:
+        fallback_candidates: List[RemoteAssetCandidate] = []
+        attempted_queries: List[str] = []
+        for query in queries[:3]:
+            clean_query = (query or "").strip()
+            if not clean_query:
+                continue
+            attempted_queries.append(clean_query)
+            try:
+                candidates = self._fetch_from_pixabay(clean_query, limit)
+            except Exception:
+                candidates = []
+            if candidates:
+                fallback_candidates.extend(candidates)
+            if len(fallback_candidates) >= limit:
+                break
+
+        payload: Dict[str, Any] = {
+            'event': 'fallback_fetch',
+            'provider': 'pixabay',
+            'queries': attempted_queries,
+            'added_candidates': len(fallback_candidates),
+        }
+        if segment_index is not None:
+            try:
+                payload['segment_index'] = int(segment_index)
+            except Exception:
+                payload['segment_index'] = segment_index
+        self._log_event(payload)
+        return fallback_candidates
 
 
     def _fetch_from_pexels(self, query: str, limit: int) -> List[RemoteAssetCandidate]:
