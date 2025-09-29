@@ -4,7 +4,6 @@ from __future__ import annotations
 
 try:
     from dotenv import load_dotenv
-    load_dotenv(override=True)
 except Exception:  # pragma: no cover - keep working if optional dependency missing
     def load_dotenv(*_args, **_kwargs):
         return False

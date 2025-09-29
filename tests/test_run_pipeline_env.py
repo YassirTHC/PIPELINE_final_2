@@ -1,5 +1,9 @@
-﻿import json
+import importlib
+import json
 import os
+import sys
+import types
+
 
 import run_pipeline
 
@@ -37,3 +41,33 @@ def test_diag_missing_keys_writes_report(monkeypatch, tmp_path):
     data = json.loads(report.read_text(encoding='utf-8'))
     assert data['providers'][0]['error'] == 'missing_api_key'
     assert data['providers'][1]['error'] == 'missing_api_key'
+
+
+def test_import_does_not_load_dotenv():
+    original_run_pipeline = sys.modules.pop('run_pipeline', None)
+    original_dotenv = sys.modules.pop('dotenv', None)
+
+    calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    def fake_load_dotenv(*args, **kwargs):
+        calls.append((args, kwargs))
+        return True
+
+    fake_dotenv = types.SimpleNamespace(load_dotenv=fake_load_dotenv)
+    sys.modules['dotenv'] = fake_dotenv
+
+    imported = importlib.import_module('run_pipeline')
+
+    assert imported.load_dotenv is fake_load_dotenv
+    assert calls == []
+
+    sys.modules.pop('run_pipeline', None)
+    if original_dotenv is not None:
+        sys.modules['dotenv'] = original_dotenv
+    else:
+        sys.modules.pop('dotenv', None)
+
+    if original_run_pipeline is not None:
+        sys.modules['run_pipeline'] = original_run_pipeline
+    else:
+        importlib.import_module('run_pipeline')
