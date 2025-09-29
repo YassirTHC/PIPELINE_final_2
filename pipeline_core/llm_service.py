@@ -1881,7 +1881,7 @@ class LLMMetadataGeneratorService:
         max_count: int = 12,
         language: Optional[str] = None,
     ) -> Tuple[List[str], str]:
-        """Derive multi-term provider queries from cached metadata or transcript."""
+        """Derive fallback provider queries prioritising cached metadata."""
 
         min_count = max(1, min(12, min_count))
         min_count = max(8, min_count)
@@ -1894,38 +1894,60 @@ class LLMMetadataGeneratorService:
         seen: Set[str] = set()
         origin = "metadata_keywords_fallback"
 
-        def _append(values: Iterable[str]) -> None:
-            for raw in values or []:
-                candidate = _normalise_string(raw)
-                if not candidate:
-                    continue
-                normalised = " ".join(candidate.split()).lower()
-                if not normalised or len(normalised.split()) < 2:
-                    continue
-                if normalised in seen:
-                    continue
-                seen.add(normalised)
-                queries.append(normalised)
-                if len(queries) >= max_count:
-                    return
+        def _add_query(value: str) -> bool:
+            candidate = _normalise_string(value)
+            if not candidate:
+                return False
+            normalised = " ".join(candidate.split()).lower()
+            if not normalised or len(normalised.split()) < 2:
+                return False
+            if normalised in seen:
+                return False
+            seen.add(normalised)
+            queries.append(normalised)
+            return len(queries) >= max_count
+
+        def _extend(values: Iterable[str]) -> bool:
+            for item in values or []:
+                if _add_query(item):
+                    return True
+            return False
 
         metadata_payload = getattr(self, "last_metadata", {}) or {}
         metadata_queries = metadata_payload.get("queries") or []
-        metadata_keywords = metadata_payload.get("broll_keywords") or metadata_payload.get("keywords") or []
+        metadata_keywords = (
+            metadata_payload.get("broll_keywords")
+            or metadata_payload.get("keywords")
+            or []
+        )
         if not metadata_queries:
             metadata_queries = list(_LAST_METADATA_QUERIES.get("values", []))
         if not metadata_keywords:
             metadata_keywords = list(_LAST_METADATA_KEYWORDS.get("values", []))
 
-        _append(_normalise_provider_terms(metadata_queries, target_lang=target_lang))
+        if metadata_queries:
+            if _extend(
+                _normalise_provider_terms(metadata_queries, target_lang=target_lang)
+            ) and len(queries) >= min_count:
+                return queries[:max_count], "metadata_queries_fallback"
+
+        metadata_terms = _normalise_search_terms(
+            metadata_keywords,
+            target_lang=target_lang,
+        )
+        if not metadata_terms and metadata_keywords:
+            metadata_terms = _normalise_provider_terms(
+                metadata_keywords,
+                target_lang=target_lang,
+            )
+        if not metadata_terms and metadata_keywords:
+            metadata_terms = _normalise_string_list(metadata_keywords)
+        if metadata_terms:
+            keyword_templates = _build_provider_queries_from_terms(metadata_terms)
+            if keyword_templates:
+                _extend(keyword_templates)
 
         if len(queries) < min_count:
-            keyword_templates = _build_provider_queries_from_terms(
-                _normalise_search_terms(metadata_keywords, target_lang=target_lang)
-            )
-            _append(keyword_templates)
-
-        if not queries:
             tokens = _tokenise(transcript)
             ngrams: List[str] = []
             for window in (3, 2):
@@ -1940,20 +1962,18 @@ class LLMMetadataGeneratorService:
                         break
                 if len(ngrams) >= max_count * 2:
                     break
-
             if ngrams:
-                origin = "transcript_ngram_fallback"
                 transcript_templates = _build_provider_queries_from_terms(ngrams)
-                _append(transcript_templates)
+                if transcript_templates:
+                    origin = "transcript_ngram_fallback"
+                    _extend(transcript_templates)
 
         if len(queries) < min_count:
-            if not queries:
-                origin = "default_fallback"
-            default_templates = _build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)
-            _append(default_templates)
-
-        if not queries:
             origin = "default_fallback"
+            default_templates = _build_provider_queries_from_terms(
+                _DEFAULT_FALLBACK_PHRASES
+            )
+            _extend(default_templates)
 
         return queries[:max_count], origin
 
@@ -2445,20 +2465,28 @@ class LLMMetadataGeneratorService:
             payload = {}
 
         if not payload:
-            fallback_queries, origin = self._fallback_queries_from_metadata_or_transcript(
+            logger.warning(
+                "[LLM] Segment hint generation returned empty payload -> using metadata_keywords_fallback",
+                extra={"segment_start": start, "segment_end": end},
+            )
+            previous_metadata = getattr(self, "last_metadata", {}) or {}
+            previous_keywords = list(previous_metadata.get("broll_keywords") or [])[:12]
+            fallback_queries, _origin = self._fallback_queries_from_metadata_or_transcript(
                 snippet,
                 min_count=8,
                 max_count=12,
                 language=target_lang,
             )
-            return {
+            fallback_result = {
                 "title": "",
                 "description": "",
                 "queries": fallback_queries[:12],
-                "broll_keywords": [],
-                "filters": {"orientation": "landscape", "min_duration_s": 3.0},
-                "source": origin,
+                "broll_keywords": previous_keywords,
+                "filters": {},
+                "source": "metadata_keywords_fallback",
             }
+            self.last_metadata = fallback_result
+            return fallback_result
 
         title = _normalise_string(payload.get("title"))
         description = _normalise_string(payload.get("description"))
