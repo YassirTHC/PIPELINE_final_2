@@ -161,6 +161,8 @@ def _fetcher_config_snapshot(
     resolved_display = ','.join(resolved_names) if resolved_names else 'none'
     per_segment_limit = int(config.per_segment_limit)
     allow_images = bool(config.allow_images)
+    allow_videos = bool(config.allow_videos)
+    providers_env_raw = os.getenv('BROLL_FETCH_PROVIDER') or os.getenv('AI_BROLL_FETCH_PROVIDER') or ''
 
     provider_configs = {provider.name.lower(): provider for provider in config.providers}
 
@@ -172,6 +174,8 @@ def _fetcher_config_snapshot(
         'resolved_display': resolved_display,
         'per_segment_limit': per_segment_limit,
         'allow_images': allow_images,
+        'allow_videos': allow_videos,
+        'providers_env_raw': providers_env_raw,
         'provider_configs': provider_configs,
     }
 
@@ -206,8 +210,10 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     active_names = snapshot['active_names']
     per_segment_limit = snapshot['per_segment_limit']
     allow_images = snapshot['allow_images']
-    providers_display = snapshot['providers_display']
+    allow_videos = snapshot['allow_videos']
     resolved_display = snapshot['resolved_display']
+    env_raw = snapshot['providers_env_raw'] or 'default'
+    pexels_key_present = bool(os.environ.get('PEXELS_API_KEY'))
 
     for meta in providers_meta:
         provider_cfg = provider_configs.get(meta['name'].lower())
@@ -217,8 +223,9 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
 
     print(
         "[DIAG] providers="
-        f"{providers_display} | resolved_providers={resolved_display} | allow_images={str(allow_images).lower()} | "
-        f"per_segment_limit={per_segment_limit}"
+        f"{env_raw} | resolved_providers={resolved_display} | allow_images={str(allow_images).lower()} | "
+        f"allow_videos={str(allow_videos).lower()} | per_segment_limit={per_segment_limit} | "
+        f"pexels_key_present={str(pexels_key_present).lower()}"
     )
 
     orchestrator = FetcherOrchestrator(config, event_logger=event_logger)
@@ -357,8 +364,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         pexels_key_present = bool(os.environ.get('PEXELS_API_KEY'))
         print(
             "[CONFIG] providers="
-            f"{snapshot['providers_display']} | resolved_providers={snapshot['resolved_display']} | "
+            f"{snapshot['providers_env_raw'] or 'default'} | resolved_providers={snapshot['resolved_display']} | "
             f"allow_images={str(snapshot['allow_images']).lower()} | "
+            f"allow_videos={str(snapshot['allow_videos']).lower()} | "
             f"per_segment_limit={snapshot['per_segment_limit']} | "
             f"pexels_key_present={str(pexels_key_present).lower()}"
         )
