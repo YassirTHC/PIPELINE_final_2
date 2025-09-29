@@ -1770,12 +1770,23 @@ class VideoProcessor:
                 raw_hint_source = llm_hints.get('source') if isinstance(llm_hints, dict) else None
                 if isinstance(raw_hint_source, str) and raw_hint_source.strip():
                     hint_source = raw_hint_source.strip()
+                if hint_payload:
+                    try:
+                        logger.info(
+                            "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                            float(getattr(segment, 'start', 0.0) or 0.0),
+                            float(getattr(segment, 'end', 0.0) or 0.0),
+                            hint_payload,
+                            hint_source or 'llm_hint',
+                        )
+                    except Exception:
+                        pass
 
             hint_terms: List[str] = []
             if hint_payload:
                 hint_terms = _dedupe_queries(hint_payload, cap=metadata_query_cap)
                 if hint_terms and not hint_source:
-                    hint_source = llm_source_label
+                    hint_source = 'llm_hint'
             if not hint_source:
                 hint_source = llm_source_label
 
