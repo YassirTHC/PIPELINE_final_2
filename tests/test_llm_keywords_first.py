@@ -1,5 +1,6 @@
 import importlib.machinery
 import json
+import logging
 import sys
 from types import MethodType, ModuleType, SimpleNamespace
 
@@ -204,6 +205,49 @@ def test_generate_hints_handles_invalid_json_with_metadata_fallback(monkeypatch)
     assert all(" " in query for query in queries)
 
 
+def test_generate_hints_handles_empty_llm_response_with_metadata(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
+
+    monkeypatch.setattr(
+        llm_service,
+        "_LAST_METADATA_QUERIES",
+        {"values": ["sunset beach"], "updated_at": 0.0},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        llm_service,
+        "_LAST_METADATA_KEYWORDS",
+        {"values": ["calm ocean"], "updated_at": 0.0},
+        raising=False,
+    )
+
+    def empty_call_llm(self, prompt: str, max_tokens: int = 192):
+        return ""
+
+    monkeypatch.setattr(
+        llm_service.LLMMetadataGeneratorService,
+        "_call_llm",
+        empty_call_llm,
+        raising=False,
+    )
+
+    service = llm_service.LLMMetadataGeneratorService(reuse_shared=False)
+    service.last_metadata = {
+        "queries": ["sunset beach"],
+        "broll_keywords": ["calm ocean"],
+    }
+
+    result = service.generate_hints_for_segment(
+        "The narrator describes relaxing beach visuals and ocean waves.",
+        0.0,
+        5.0,
+    )
+
+    queries = [query for query in result.get("queries", []) if query]
+    assert queries, "expected metadata fallback queries"
+    assert result.get("source") == "metadata_keywords_fallback"
+
+
 def test_disable_hashtags_env_clears_result(monkeypatch):
     monkeypatch.setenv("PIPELINE_LLM_DISABLE_HASHTAGS", "1")
     monkeypatch.setattr(
@@ -254,7 +298,7 @@ def test_disable_hashtags_env_clears_result(monkeypatch):
     assert result["hashtags"] == []
 
 
-def test_segment_processing_uses_hint_queries_and_logs_candidate_event(monkeypatch, tmp_path):
+def test_segment_processing_uses_hint_queries_and_logs_candidate_event(monkeypatch, tmp_path, caplog):
     monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
     monkeypatch.setenv("PIPELINE_FAST_TESTS", "1")
 
@@ -286,18 +330,26 @@ def test_segment_processing_uses_hint_queries_and_logs_candidate_event(monkeypat
     monkeypatch.setattr(processor, "_get_broll_event_logger", lambda: event_logger)
 
     class _HintService:
-        def generate_hints_for_segment(self, *_args, **_kwargs):
+        def generate_hints_for_segment(self, text, start, end):
+            queries = [
+                "marketing analytics dashboard",
+                "team planning session",
+                "customer journey mapping",
+            ]
+            source = "llm_segment"
+            logging.getLogger("pipeline_core.llm_service").info(
+                "[BROLL][LLM] segment=%s queries=%s (source=%s)",
+                f"{start:.2f}-{end:.2f}",
+                queries[:4],
+                source,
+            )
             return {
-                "queries": [
-                    "marketing analytics dashboard",
-                    "team planning session",
-                    "customer journey mapping",
-                ],
+                "queries": queries,
                 "broll_keywords": [
                     "analytics dashboard",
                     "team planning",
                 ],
-                "source": "llm_segment",
+                "source": source,
                 "filters": {"orientation": "landscape"},
             }
 
@@ -353,16 +405,22 @@ def test_segment_processing_uses_hint_queries_and_logs_candidate_event(monkeypat
 
     segment = SimpleNamespace(start=0.0, end=4.0, text="Discussing marketing analytics and customer journeys")
 
-    processor._insert_brolls_pipeline_core(
-        [segment],
-        ["analytics", "planning"],
-        subtitles=None,
-        input_path=tmp_path / "input.mp4",
-    )
+    with caplog.at_level("INFO", logger="pipeline_core.llm_service"):
+        processor._insert_brolls_pipeline_core(
+            [segment],
+            ["analytics", "planning"],
+            subtitles=None,
+            input_path=tmp_path / "input.mp4",
+        )
 
     assert recorded.get("queries"), "expected orchestrator to receive queries"
     assert all(" " in query for query in recorded["queries"])
 
     candidate_events = [event for event in events if event.get("event") == "broll_candidate_evaluated"]
     assert candidate_events, "expected candidate evaluation telemetry"
+
+    log_lines = [record.getMessage() for record in caplog.records]
+    assert any("[BROLL][LLM] segment=0.00-4.00" in line for line in log_lines), "expected LLM hint log"
+    assert any("marketing analytics dashboard" in line for line in log_lines)
+    assert any("source=llm_segment" in line for line in log_lines)
 
