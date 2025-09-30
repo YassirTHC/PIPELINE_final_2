@@ -100,8 +100,8 @@ class FetcherOrchestrator:
                     self._log_event({
                         'event': 'provider_skipped_incapable',
                         'provider': getattr(provider_conf, 'name', ''),
-                        'requested_images': want_images,
-                        'requested_videos': want_videos,
+                        'allow_images': self.config.allow_images,
+                        'allow_videos': self.config.allow_videos,
                         'supports_images': supports_images,
                         'supports_videos': supports_videos,
                     })
