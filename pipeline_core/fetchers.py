@@ -75,18 +75,36 @@ class FetcherOrchestrator:
             return []
 
         allow_images_active = bool(self.config.allow_images)
+        want_images = bool(self.config.allow_images)
+        want_videos = bool(self.config.allow_videos)
+        requested_any = want_images or want_videos
         providers = []
         for provider_conf in self.config.providers:
             if not getattr(provider_conf, 'enabled', True):
                 continue
             supports_images = getattr(provider_conf, 'supports_images', False)
             supports_videos = getattr(provider_conf, 'supports_videos', True)
-            provider_name = str(getattr(provider_conf, 'name', '') or '').strip().lower()
-            if supports_videos and not self.config.allow_videos:
+            provider_name = str(getattr(provider_conf, 'name', '') or '').strip()
+            provider_name_lc = provider_name.lower()
+            if not want_videos and provider_name_lc in {'pexels', 'pixabay'}:
                 continue
-            if supports_images and not self.config.allow_images:
-                continue
-            if not self.config.allow_videos and provider_name in {'pexels', 'pixabay'}:
+
+            supports_requested = False
+            if want_images and supports_images:
+                supports_requested = True
+            if want_videos and supports_videos:
+                supports_requested = True
+
+            if not supports_requested:
+                if requested_any:
+                    self._log_event({
+                        'event': 'provider_skipped_incapable',
+                        'provider': getattr(provider_conf, 'name', ''),
+                        'requested_images': want_images,
+                        'requested_videos': want_videos,
+                        'supports_images': supports_images,
+                        'supports_videos': supports_videos,
+                    })
                 continue
             providers.append(provider_conf)
         ready_providers = []

@@ -50,3 +50,31 @@ def test_providers_skipped_without_keys(monkeypatch):
     skipped = [evt['provider'] for evt in logger.events if evt.get('event') == 'provider_skipped_missing_key']
     assert skipped.count('pexels') == 1
     assert skipped.count('pixabay') == 1
+
+
+def test_provider_skipped_when_missing_capabilities(monkeypatch):
+    logger = DummyLogger()
+    config = FetcherOrchestratorConfig(
+        providers=(
+            ProviderConfig(
+                name='images-only',
+                supports_images=True,
+                supports_videos=False,
+            ),
+        ),
+        allow_images=False,
+        allow_videos=True,
+    )
+    orchestrator = FetcherOrchestrator(config, event_logger=logger)
+
+    monkeypatch.setattr(
+        FetcherOrchestrator,
+        '_build_queries',
+        lambda self, keywords: ['demo'],
+    )
+
+    results = orchestrator.fetch_candidates(['demo'], segment_timeout_s=0.5)
+
+    assert results == []
+    skipped = [evt for evt in logger.events if evt.get('event') == 'provider_skipped_incapable']
+    assert skipped and skipped[0].get('provider') == 'images-only'
