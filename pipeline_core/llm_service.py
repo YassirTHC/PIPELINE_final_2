@@ -53,6 +53,10 @@ else:
 logger = logging.getLogger(__name__)
 
 
+_SHARED_LOCK: Lock = Lock()
+_SHARED: LLMMetadataGeneratorService | None = None
+
+
 _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
 
 _LAST_METADATA_KEYWORDS: Dict[str, Any] = {"values": [], "updated_at": 0.0}
@@ -2635,6 +2639,17 @@ class LLMMetadataGeneratorService:
         return collected[:limit], origin
 
 
+def get_shared_llm_service() -> LLMMetadataGeneratorService:
+    """Return a process-wide shared instance of :class:`LLMMetadataGeneratorService`."""
+
+    global _SHARED
+    if _SHARED is None:
+        with _SHARED_LOCK:
+            if _SHARED is None:
+                _SHARED = LLMMetadataGeneratorService()
+    return _SHARED
+
+
 def generate_metadata_as_json(
     transcript: str,
     *,
@@ -2643,11 +2658,29 @@ def generate_metadata_as_json(
 ) -> Dict[str, Any]:
     """Call Ollama directly, enforce JSON output and normalise the fields."""
 
+    try:
+        service = get_shared_llm_service()
+    except Exception:
+        logger.exception("[LLM] Unable to initialise shared metadata service")
+        service = None
+
+    def _remember_last_metadata(queries: Sequence[str], keywords: Sequence[str]) -> None:
+        if service is None:
+            return
+        try:
+            service.last_metadata = {
+                "queries": list(queries),
+                "broll_keywords": list(keywords),
+            }
+        except Exception:
+            logger.debug("[LLM] Failed to persist last metadata on shared service", exc_info=True)
+
     cleaned_transcript = (transcript or "").strip()
     if not cleaned_transcript:
         logger.warning("[LLM] Empty transcript provided for metadata generation")
         failure = _empty_metadata_payload()
         failure["raw_response_length"] = 0
+        _remember_last_metadata(failure.get("queries") or [], failure.get("broll_keywords") or [])
         return failure
 
     limit = _metadata_transcript_limit()
@@ -2747,6 +2780,7 @@ def generate_metadata_as_json(
                 "error": str(error),
             },
         )
+        _remember_last_metadata([], [])
         return failure
 
     metadata_section: Dict[str, Any] = parsed_payload if isinstance(parsed_payload, dict) else {}
@@ -2878,5 +2912,7 @@ def generate_metadata_as_json(
             "keywords_prompt": use_keywords_prompt,
         },
     )
+
+    _remember_last_metadata(queries, broll_keywords)
 
     return result

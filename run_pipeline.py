@@ -44,6 +44,7 @@ from config import Config
 from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.logging import JsonlLogger
+from pipeline_core.llm_service import get_shared_llm_service
 from pipeline_core.runtime import PipelineResult
 
 # Expose the video_processor module at import time for compatibility with tests.
@@ -405,7 +406,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         print(f"providers={_raw_provider_spec()}")
         print(f"resolved_providers={resolved_display}")
-        print(f"allow_images={allow_images}|allow_videos={allow_videos}")
+        print(f"allow_images={allow_images}")
+        print(f"allow_videos={allow_videos}")
         print(f"per_segment_limit={per_segment_limit}")
         for line in _render_provider_limit_lines(snapshot):
             print(line)
@@ -451,6 +453,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             module = importlib.import_module("video_processor")
         globals()["video_processor"] = module
         video_processor_module = module
+
+    try:
+        shared_service = get_shared_llm_service()
+    except Exception:
+        shared_service = None
+    else:
+        processor_cls = getattr(video_processor_module, "VideoProcessor", None)
+        if shared_service is not None and processor_cls is not None:
+            try:
+                setattr(processor_cls, "_shared_llm_service", shared_service)
+            except Exception:
+                pass
 
     # Bridge compatible : nouvelle API (retourne PipelineResult) ou legacy (retourne int)
     try:

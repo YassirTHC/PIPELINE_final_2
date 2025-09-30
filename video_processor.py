@@ -413,6 +413,7 @@ try:
         LLMMetadataGeneratorService,
         build_visual_phrases,
         enforce_fetch_language,
+        get_shared_llm_service,
         has_concrete_subject,
     )
 except ImportError:  # pragma: no cover - test environments may stub partial API
@@ -432,6 +433,14 @@ except ImportError:  # pragma: no cover - test environments may stub partial API
 
     def has_concrete_subject(value):  # type: ignore[override]
         return bool(value)
+
+    _FALLBACK_SHARED_SERVICE: LLMMetadataGeneratorService | None = None
+
+    def get_shared_llm_service() -> LLMMetadataGeneratorService:  # type: ignore[override]
+        global _FALLBACK_SHARED_SERVICE
+        if _FALLBACK_SHARED_SERVICE is None:
+            _FALLBACK_SHARED_SERVICE = LLMMetadataGeneratorService()
+        return _FALLBACK_SHARED_SERVICE
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 _MODEL_CACHE = {}
@@ -1393,7 +1402,7 @@ class VideoProcessor:
 
         if VideoProcessor._shared_llm_service is None:
             try:
-                VideoProcessor._shared_llm_service = LLMMetadataGeneratorService()
+                VideoProcessor._shared_llm_service = get_shared_llm_service()
             except Exception as exc:
                 logger.warning("LLM service initialisation failed: %s", exc)
         self._llm_service = VideoProcessor._shared_llm_service
