@@ -34,3 +34,38 @@ def test_fetch_candidates_returns_unfiltered_results(monkeypatch):
     results = orchestrator.fetch_candidates(["demo"], filters={"orientation": "landscape"})
 
     assert results == [candidate]
+
+
+def test_fetch_candidates_skip_video_providers_when_videos_disabled(monkeypatch):
+    provider = ProviderConfig(name="pexels", enabled=True, max_results=3)
+    config = FetcherOrchestratorConfig(
+        providers=(provider,),
+        allow_images=True,
+        allow_videos=False,
+        per_segment_limit=3,
+    )
+    orchestrator = FetcherOrchestrator(config)
+
+    monkeypatch.setattr(
+        FetcherOrchestrator,
+        "_build_queries",
+        lambda self, keywords: ["demo"],
+    )
+
+    run_calls = {"provider": 0, "fallback": 0}
+
+    def _fake_run_provider_fetch(self, provider_conf, query, filters, segment_timeout):
+        run_calls["provider"] += 1
+        return []
+
+    def _fake_run_pixabay_fallback(self, queries, limit, *, segment_index=None):
+        run_calls["fallback"] += 1
+        return []
+
+    monkeypatch.setattr(FetcherOrchestrator, "_run_provider_fetch", _fake_run_provider_fetch)
+    monkeypatch.setattr(FetcherOrchestrator, "_run_pixabay_fallback", _fake_run_pixabay_fallback)
+
+    results = orchestrator.fetch_candidates(["demo"], filters=None)
+
+    assert results == []
+    assert run_calls == {"provider": 0, "fallback": 0}

@@ -81,9 +81,12 @@ class FetcherOrchestrator:
                 continue
             supports_images = getattr(provider_conf, 'supports_images', False)
             supports_videos = getattr(provider_conf, 'supports_videos', True)
+            provider_name = str(getattr(provider_conf, 'name', '') or '').strip().lower()
             if supports_videos and not self.config.allow_videos:
                 continue
             if supports_images and not self.config.allow_images:
+                continue
+            if not self.config.allow_videos and provider_name in {'pexels', 'pixabay'}:
                 continue
             providers.append(provider_conf)
         ready_providers = []
@@ -108,6 +111,17 @@ class FetcherOrchestrator:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.parallel_requests or 1) as pool:
                 futures = []
                 for provider_conf in providers:
+                    if (
+                        not self.config.allow_videos
+                        and (
+                            not getattr(provider_conf, 'supports_images', False)
+                            or str(getattr(provider_conf, 'name', '') or '')
+                            .strip()
+                            .lower()
+                            in {'pexels', 'pixabay'}
+                        )
+                    ):
+                        continue
                     for query in queries:
                         futures.append(
                             pool.submit(self._run_provider_fetch, provider_conf, query, filters, segment_timeout_s)
@@ -142,7 +156,7 @@ class FetcherOrchestrator:
                                 break
                 for fut in pending:
                     fut.cancel()
-        else:
+        elif self.config.allow_videos:
             fallback_candidates = self._run_pixabay_fallback(
                 queries,
                 self.config.per_segment_limit,
@@ -152,7 +166,7 @@ class FetcherOrchestrator:
                 allow_images_active = True
                 raw_results.extend(fallback_candidates)
 
-        if not raw_results and "pixabay" not in attempted_names:
+        if self.config.allow_videos and not raw_results and "pixabay" not in attempted_names:
             fallback_candidates = self._run_pixabay_fallback(
                 queries,
                 self.config.per_segment_limit,
@@ -263,7 +277,9 @@ class FetcherOrchestrator:
     ) -> List[RemoteAssetCandidate]:
         if not query or len(query.strip()) < 3:
             return []
-        name = provider_conf.name.lower()
+        name = str(getattr(provider_conf, 'name', '') or '').strip().lower()
+        if not self.config.allow_videos and name in {'pexels', 'pixabay'}:
+            return []
         limit = max(1, provider_conf.max_results or self.config.per_segment_limit)
         timeout = provider_conf.timeout_s or self.config.request_timeout_s
         timeout = max(timeout, 0.1)
