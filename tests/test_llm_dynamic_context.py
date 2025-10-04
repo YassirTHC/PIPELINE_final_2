@@ -1,9 +1,11 @@
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict
 
 import pytest
 
+import pipeline_core.llm_service as llm_module
 from pipeline_core.llm_service import (
     DynamicCompletionError,
     LLMMetadataGeneratorService,
@@ -59,6 +61,52 @@ def test_dynamic_context_normalisation():
         assert "and" not in tokens
         assert "when" not in tokens
         assert "they" not in tokens
+
+
+def _initialise_with_ready(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    *,
+    payload: Dict[str, Any],
+    base_model: str = "base-model",
+    text_model: str = "text-model",
+    json_model: str = "json-model",
+):
+    repo_root = tmp_path / "repo"
+    ready_dir = repo_root / "tools" / "out"
+    ready_dir.mkdir(parents=True, exist_ok=True)
+    ready_path = ready_dir / "llm_ready.json"
+    ready_path.write_text(json.dumps(payload))
+
+    monkeypatch.setattr(llm_module, "PROJECT_ROOT", repo_root, raising=False)
+    monkeypatch.setattr(llm_module, "_SHARED", None, raising=False)
+    monkeypatch.setenv("PIPELINE_LLM_MODEL", base_model)
+    monkeypatch.setenv("PIPELINE_LLM_MODEL_TEXT", text_model)
+    monkeypatch.setenv("PIPELINE_LLM_MODEL_JSON", json_model)
+
+    caplog.clear()
+    with caplog.at_level("INFO", logger="pipeline_core.llm_service"):
+        service = LLMMetadataGeneratorService(reuse_shared=False)
+
+    readiness_entries = []
+    for record in caplog.records:
+        if record.name != "pipeline_core.llm_service":
+            continue
+        if record.msg != "[LLM] readiness routing decision: %s":
+            continue
+        if not record.args:
+            continue
+        if isinstance(record.args, dict):
+            payload = record.args
+        elif isinstance(record.args, tuple) and record.args:
+            payload = record.args[0]
+        else:
+            payload = record.args
+        if isinstance(payload, dict):
+            readiness_entries.append(dict(payload))
+    assert readiness_entries, "expected readiness routing log entry"
+    return service, readiness_entries[-1]
 
 
 def test_dynamic_context_fallback_keywords():
@@ -202,3 +250,77 @@ def test_force_english_terms_handles_accented_sequences():
     result = service.generate_dynamic_context("Adrénaline récompense contrôle")
     assert result["keywords"] == ["adrenaline reward control"]
     assert result["search_queries"] == ["adrenaline reward control process"]
+
+
+def test_text_model_marked_ready_logs_reason(monkeypatch, tmp_path, caplog):
+    payload = {"text_ready": ["text-model"], "broken": []}
+    _, readiness_log = _initialise_with_ready(
+        monkeypatch,
+        tmp_path,
+        caplog,
+        payload=payload,
+        base_model="base-model",
+        text_model="text-model",
+        json_model="json-model",
+    )
+
+    assert readiness_log["readiness_reason"] == "configured model text-model marked ready"
+    assert readiness_log["chosen_text_model"] == "text-model"
+    assert readiness_log["chosen_json_model"] == "json-model"
+    assert readiness_log["readiness_filename"] == "llm_ready.json"
+
+
+def test_text_model_broken_with_fallback_logs_reason(monkeypatch, tmp_path, caplog):
+    payload = {"text_ready": ["fallback-model"], "broken": ["text-model"]}
+    service, readiness_log = _initialise_with_ready(
+        monkeypatch,
+        tmp_path,
+        caplog,
+        payload=payload,
+        base_model="base-model",
+        text_model="text-model",
+        json_model="json-model",
+    )
+
+    assert service.model_text == "fallback-model"
+    assert readiness_log["readiness_reason"] == (
+        "configured model text-model listed as broken; fallback to fallback-model"
+    )
+    assert readiness_log["fallback_target"] == "fallback-model"
+    assert readiness_log["fallback_note"].endswith("listed as broken in llm_ready.json")
+
+
+def test_text_model_broken_without_fallback_logs_reason(monkeypatch, tmp_path, caplog):
+    payload = {"text_ready": [], "broken": ["text-model"]}
+    service, readiness_log = _initialise_with_ready(
+        monkeypatch,
+        tmp_path,
+        caplog,
+        payload=payload,
+        base_model="base-model",
+        text_model="text-model",
+        json_model="json-model",
+    )
+
+    assert service.model_text == "text-model"
+    assert readiness_log["readiness_reason"] == (
+        "configured model text-model listed as broken; no fallback available"
+    )
+    assert "fallback_target" not in readiness_log
+    assert readiness_log["fallback_note"].endswith("listed as broken in llm_ready.json")
+
+
+def test_readiness_log_includes_chosen_models(monkeypatch, tmp_path, caplog):
+    payload = {"text_ready": ["alt-text"], "broken": []}
+    _, readiness_log = _initialise_with_ready(
+        monkeypatch,
+        tmp_path,
+        caplog,
+        payload=payload,
+        base_model="base-base",
+        text_model="alt-text",
+        json_model="json-variant",
+    )
+
+    assert readiness_log["chosen_text_model"] == "alt-text"
+    assert readiness_log["chosen_json_model"] == "json-variant"
