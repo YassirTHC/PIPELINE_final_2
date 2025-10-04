@@ -64,6 +64,14 @@ BROLL_FETCH_ALLOW_IMAGES=False
 BROLL_FETCH_MAX_PER_KEYWORD=8
 `
 
+### Variables d'environnement supplémentaires
+
+- `PIPELINE_TFIDF_FALLBACK_DISABLED` : lorsque défini sur une valeur vraie (`1`, `true`, `yes`...), le pipeline n'utilise
+  plus le secours TF-IDF pour la génération de contexte dynamique et les indices de segments. Cela permet de forcer un
+  échec explicite lorsque les réponses LLM ne sont pas disponibles ou jugées insuffisantes.
+  - L'ancien drapeau `PIPELINE_DISABLE_TFIDF_FALLBACK` reste pris en charge pour compatibilité mais émet désormais un
+    avertissement de dépréciation ; migrez vers le nouveau nom dès que possible.
+
 ##  Utilisation
 
 ### Interface Graphique (Recommandé)
