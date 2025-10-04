@@ -1,0 +1,3 @@
+FROM gemma3:4b
+PARAMETER format json
+SYSTEM You are a JSON API. Output ONLY valid JSON. No prose.

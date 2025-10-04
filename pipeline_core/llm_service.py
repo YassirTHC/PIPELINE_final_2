@@ -53,6 +53,22 @@ else:
 logger = logging.getLogger(__name__)
 
 
+class DynamicCompletionError(RuntimeError):
+    """Raised when the dedicated text completion returns no usable payload."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = (reason or "unknown").strip() or "unknown"
+        super().__init__(f"dynamic completion failed: {self.reason}")
+
+
+class TfidfFallbackDisabled(RuntimeError):
+    """Raised when TF-IDF fallback is disabled for the current run."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.reason = message
+
+
 _SHARED_LOCK: Lock = Lock()
 _SHARED: LLMMetadataGeneratorService | None = None
 
@@ -104,16 +120,17 @@ def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
     return tokens or _DEFAULT_STOP_TOKENS
 
 
-def _ollama_json(prompt: str) -> Dict[str, Any]:
+def _ollama_json(prompt: str, *, model: Optional[str] = None, endpoint: Optional[str] = None) -> Dict[str, Any]:
     """Send a prompt to Ollama and try to extract the largest JSON object."""
 
     prompt = (prompt or "").strip()
     if not prompt:
         return {}
 
-    model_name = (os.getenv("PIPELINE_LLM_MODEL") or "qwen3:8b").strip() or "qwen3:8b"
+    model_name = (model or os.getenv("PIPELINE_LLM_MODEL") or "qwen2.5:7b").strip() or "qwen2.5:7b"
     base_url = (
-        os.getenv("PIPELINE_LLM_ENDPOINT")
+        endpoint
+        or os.getenv("PIPELINE_LLM_ENDPOINT")
         or os.getenv("PIPELINE_LLM_BASE_URL")
         or os.getenv("OLLAMA_HOST")
         or "http://localhost:11434"
@@ -242,6 +259,293 @@ def _safe_parse_json(s: str) -> Dict[str, Any]:
                     break
     return {}
 
+
+# --- Query sanitization & augmentation ---------------------------------------
+BANNED_GENERIC = {
+    "that",
+    "this",
+    "it",
+    "they",
+    "we",
+    "you",
+    "thing",
+    "stuff",
+    "very",
+    "just",
+    "really",
+}
+
+BANNED_PROVIDER_NOISE = {
+    "stock",
+    "footage",
+    "b-roll",
+    "broll",
+    "roll",
+    "cinematic",
+    "timelapse",
+    "background",
+    "background footage",
+    "visual",
+    "visuals",
+    "clip",
+    "clips",
+    "video",
+    "videos",
+    "shot",
+    "shots",
+    "scene",
+    "scenes",
+    "sequence",
+    "sequences",
+    "demonstration",
+    "demonstrations",
+    "visualization",
+    "visualizations"
+}
+
+BANNED_ALL = BANNED_GENERIC | BANNED_PROVIDER_NOISE
+
+
+def compile_token_blocklist_regex(terms: Iterable[str]) -> re.Pattern:
+    escaped: List[str] = []
+    for term in terms:
+        if term is None:
+            continue
+        text = str(term).strip()
+        if not text:
+            continue
+        escaped.append(re.escape(text))
+    if not escaped:
+        return re.compile(r'^\b$')
+    pattern = r'\b(?:' + '|'.join(escaped) + r')\b'
+    return re.compile(pattern, flags=re.IGNORECASE | re.UNICODE)
+
+
+RX_BANNED = compile_token_blocklist_regex(BANNED_ALL)
+
+
+def remove_blocklisted_tokens(text: str, pattern: Optional[re.Pattern] = None) -> str:
+    if text is None:
+        return ''
+    rx = pattern or RX_BANNED
+    try:
+        cleaned = rx.sub(' ', str(text))
+    except re.error:
+        return str(text)
+    return re.sub(r'\s+', ' ', cleaned).strip()
+
+
+
+# Normalise extended Latin letters without regex ranges to avoid Windows mojibake errors.
+_BASIC_LATIN_CODEPOINT_RANGES: Tuple[Tuple[int, int], ...] = (
+    (ord('0'), ord('9')),
+    (ord('A'), ord('Z')),
+    (ord('a'), ord('z')),
+    (0x00C0, 0x00D6),
+    (0x00D8, 0x00F6),
+    (0x00F8, 0x00FF),
+)
+
+_EXTRA_TOKEN_CHARS: Set[str] = {"'", "-"}
+
+
+def _is_basic_latin_char(ch: str) -> bool:
+    code = ord(ch)
+    for start, end in _BASIC_LATIN_CODEPOINT_RANGES:
+        if start <= code <= end:
+            return True
+    return False
+
+
+def _filter_basic_latin(text: str) -> str:
+    return ''.join(ch for ch in text if _is_basic_latin_char(ch))
+
+
+def _split_basic_latin_runs(text: str, *, keep: Set[str] | None = None) -> List[str]:
+    allowed_extras = keep or set()
+    runs: List[str] = []
+    buffer: List[str] = []
+    for ch in text:
+        if _is_basic_latin_char(ch) or ch in allowed_extras:
+            buffer.append(ch)
+        elif buffer:
+            runs.append(''.join(buffer))
+            buffer.clear()
+    if buffer:
+        runs.append(''.join(buffer))
+    return runs
+
+
+_NEGATIVE_QUERY_TERMS: Set[str] = {
+    "visual",
+    "visuals",
+    "clip",
+    "clips",
+    "video",
+    "videos",
+    "shot",
+    "shots",
+    "scene",
+    "scenes",
+    "sequence",
+    "sequences",
+    "demonstration",
+    "demonstrations",
+    "visualization",
+    "visualizations",
+}
+
+_CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
+    (re.compile(r"internal rewards?", flags=re.IGNORECASE), ("journaling at desk", "smiling after workout", "deep breath at window")),
+    (re.compile(r"mindset shift|conceptual mapping", flags=re.IGNORECASE), ("whiteboard planning", "sticky notes wall", "drawing flowchart")),
+    (re.compile(r"time passing|duration", flags=re.IGNORECASE), ("clock close up", "sunset sky", "hourglass closeup")),
+    (re.compile(r"energy", flags=re.IGNORECASE), ("city night traffic", "powerlines closeup", "spark plug closeup")),
+    (re.compile(r"adrenaline|tension|focus", flags=re.IGNORECASE), ("runner tying shoes", "boxing training", "eyes closeup focus")),
+)
+
+_CONCEPT_FALLBACKS: Tuple[str, ...] = (
+    "typing at desk",
+    "whiteboard sketching",
+    "team huddle meeting",
+    "city street walking",
+)
+
+_DEFAULT_CONCRETE_QUERIES: Tuple[str, ...] = (
+    "typing at desk",
+    "whiteboard planning",
+    "runner tying shoes",
+    "city night traffic",
+)
+
+_ABSTRACT_HINTS: Tuple[str, ...] = (
+    "process",
+    "realization",
+    "formation",
+    "mapping",
+    "framework",
+    "concept",
+    "awareness",
+)
+
+
+def _concretize_queries(values: Sequence[str]) -> List[str]:
+    """Map abstract LLM queries to concrete, filmable prompts."""
+
+    concrete: List[str] = []
+    seen: Set[str] = set()
+
+    for raw in values or []:
+        if raw is None:
+            continue
+        base = str(raw).strip().lower()
+        if not base:
+            continue
+        filtered_tokens = [token for token in base.split() if token and token not in _NEGATIVE_QUERY_TERMS]
+        filtered = " ".join(filtered_tokens).strip()
+        target = filtered or base
+        matched = False
+        for pattern, replacements in _CONCRETIZE_RULES:
+            if pattern.search(target):
+                for replacement in replacements[:2]:
+                    if replacement not in seen:
+                        concrete.append(replacement)
+                        seen.add(replacement)
+                matched = True
+                break
+        if matched:
+            continue
+        if any(hint in target for hint in _ABSTRACT_HINTS):
+            for replacement in _CONCEPT_FALLBACKS[:2]:
+                if replacement not in seen:
+                    concrete.append(replacement)
+                    seen.add(replacement)
+            continue
+        if target and target not in seen:
+            concrete.append(target)
+            seen.add(target)
+
+    if not concrete:
+        for replacement in _DEFAULT_CONCRETE_QUERIES:
+            if replacement not in seen:
+                concrete.append(replacement)
+                seen.add(replacement)
+    return concrete
+
+
+def strip_banned(text: str) -> str:
+    return remove_blocklisted_tokens(text or '', RX_BANNED)
+
+
+def _sanitize_queries(
+    queries: Sequence[str],
+    *,
+    min_words: int = 2,
+    max_words: int = 4,
+    max_len: Optional[int] = 12,
+) -> List[str]:
+    limit = max_len if isinstance(max_len, int) and max_len > 0 else None
+    cleaned: List[str] = []
+    seen: Set[str] = set()
+    for raw in queries or []:
+        candidate = remove_blocklisted_tokens(str(raw or ''), RX_BANNED)
+        candidate = re.sub(r'\s+', ' ', candidate).strip()
+        if not candidate:
+            continue
+        words = candidate.split()
+        if len(words) < min_words or len(words) > max_words:
+            continue
+        key = candidate.lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(candidate)
+        if limit is not None and len(cleaned) >= limit:
+            break
+    return cleaned
+
+SEGMENT_JSON_PROMPT = (
+    "You are a JSON API. Return ONLY one JSON object with keys: broll_keywords, queries. "
+    "broll_keywords: 8–12 visual noun phrases (2–3 words), concrete and shootable. "
+    "queries: 8–12 short, filmable search queries (2–4 words), provider-friendly. "
+    "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, "
+    "stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
+    "Segment transcript:\n{segment_text}"
+)
+
+
+_QUERY_SYNONYMS: Dict[str, List[str]] = {
+    "running": ["jogging", "sprinting"],
+    "workout": ["gym weights", "barbell training"],
+    "typing": ["keyboard typing", "typing at desk"],
+    "planning": ["whiteboard planning", "sticky notes planning"],
+    "coffee": ["coffee brewing", "pour over coffee"],
+}
+
+def _augment_with_synonyms(queries: Sequence[str], *, max_extra_per: int = 1, limit: int = 12) -> List[str]:
+    """Add 0–1 short synonym per base query from a static table, capped by ``limit``."""
+
+    out: List[str] = []
+    seen: Set[str] = set()
+    for q in queries or []:
+        cand = " ".join(str(q).split()).lower()
+        if not cand or cand in seen:
+            continue
+        seen.add(cand)
+        out.append(cand)
+        key = cand.split()[0]
+        added = 0
+        for syn in _QUERY_SYNONYMS.get(key, []):
+            s = " ".join(str(syn).split()).lower()
+            if s in seen:
+                continue
+            seen.add(s)
+            out.append(s)
+            added += 1
+            if added >= max_extra_per or len(out) >= limit:
+                break
+        if len(out) >= limit:
+            break
+    return out[:limit]
 
 def _coerce_ollama_json(payload: Any) -> Dict[str, Any]:
     """Best-effort conversion of Ollama responses into dictionaries."""
@@ -544,7 +848,8 @@ def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int = 5) -> List[
     tags: List[str] = []
     seen: set[str] = set()
     for keyword in _as_list(keywords):
-        cleaned = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ0-9]", "", keyword)
+        keyword_text = str(keyword or '')
+        cleaned = _filter_basic_latin(keyword_text)
         if not cleaned:
             continue
         hashtag = "#" + cleaned
@@ -908,13 +1213,13 @@ def _build_keywords_prompt(transcript_snippet: str, target_lang: str) -> str:
     snippet = (transcript_snippet or "").strip()
     language = (target_lang or "en").strip().lower() or "en"
     return (
-        "You craft concise metadata for short social videos.\n"
+        "You are a JSON API for segment-level B-roll planning.\n"
         f"Use {language} language for every field.\n"
-        "Return ONLY a JSON object with keys: title (string), description (string), "
-        f"queries (array of 8-12 short search queries in {language}), "
-        f"broll_keywords (array of 8-12 short visual noun phrases in {language}). "
-        "No prose, no markdown.\n"
-        f"Transcript snippet:\n{snippet}"
+        "Return ONLY one JSON object with keys: broll_keywords, queries. No prose, no markdown.\n"
+        "broll_keywords: 8-12 visual noun phrases (2-3 words), concrete and shootable.\n"
+        f"queries: 8-12 short, filmable search queries (2-4 words) in {language}, provider-friendly.\n"
+        "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, stock, footage, roll, cinematic, timelapse, background.\n"
+        f"Segment transcript:\n{snippet}"
     )
 
 
@@ -933,13 +1238,13 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
 
     video_reference = f"Video ID: {video_id}\n" if video_id else ""
     return (
-        "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
-        "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
-        "  \"title\": chaîne accrocheuse en langue source,\n"
-        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
+        "Tu es un expert des mÃ©tadonnÃ©es pour vidÃ©os courtes (TikTok, Reels, Shorts).\n"
+        "Retourne STRICTEMENT un objet JSON unique avec les clÃ©s exactes suivantes :\n"
+        "  \"title\": chaÃ®ne accrocheuse en langue source,\n"
+        "  \"description\": texte synthÃ©tique en 1 Ã  2 phrases,\n"
         "  \"hashtags\": tableau de 5 hashtags pertinents sans doublons,\n"
-        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels concrets,\n"
-        "  \"queries\": tableau de 4 à 8 requêtes de recherche prêtes pour des banques d'images/vidéos.\n"
+        "  \"broll_keywords\": tableau de 6 Ã  10 mots-clÃ©s visuels concrets,\n"
+        "  \"queries\": tableau de 4 Ã  8 requÃªtes de recherche prÃªtes pour des banques d'images/vidÃ©os.\n"
         "N'ajoute aucune explication hors JSON.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
@@ -1045,9 +1350,110 @@ def _ollama_generate_json(
     return parsed or {}, raw_payload, raw_length
 
 
+def _ollama_generate_text(
+    prompt: str,
+    *,
+    model: str,
+    options: Optional[Dict[str, Any]] = None,
+    timeout: float = 60.0,
+) -> Tuple[str, str, int]:
+    """Generate plain text from Ollama with retries and diagnostics."""
+
+    cleaned_prompt = str(prompt or "").strip()
+    if not cleaned_prompt:
+        return "", "empty_payload", 0
+
+    model_name = _resolve_ollama_model(model)
+    endpoint = _resolve_ollama_endpoint(None)
+    url = f"{endpoint}/api/generate"
+
+    option_payload: Dict[str, Any] = {}
+    if options:
+        for key, value in options.items():
+            if value is None:
+                continue
+            if key == "stop":
+                try:
+                    stops = [str(token) for token in value if str(token)]
+                except TypeError:
+                    stops = []
+                if stops:
+                    option_payload[key] = stops
+                continue
+            option_payload[key] = value
+
+    payload: Dict[str, Any] = {
+        "model": model_name,
+        "prompt": cleaned_prompt,
+        "stream": True,
+    }
+    keep_alive = _resolve_keep_alive(None)
+    if keep_alive:
+        payload["keep_alive"] = keep_alive
+    if option_payload:
+        payload["options"] = option_payload
+
+    backoffs = (0.6, 1.2, 2.4)
+    raw_text = ""
+    reason = "empty_payload"
+    chunk_count = 0
+    attempts_used = 0
+    request_timeout = max(float(timeout), 1.0)
+
+    for attempt in range(3):
+        attempts_used = attempt + 1
+        chunk_count = 0
+        text_parts: List[str] = []
+        try:
+            with requests.post(
+                url,
+                json=payload,
+                stream=True,
+                timeout=(10, request_timeout),
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+                    chunk_count += 1
+                    try:
+                        message = json.loads(line)
+                    except json.JSONDecodeError:
+                        message = {"response": line}
+                    piece = message.get("response")
+                    if piece:
+                        text_parts.append(str(piece))
+                raw_text = "".join(text_parts)
+                if raw_text.strip():
+                    reason = ""
+                    break
+                reason = "empty_payload"
+        except requests.Timeout:
+            reason = "timeout"
+        except requests.RequestException:
+            reason = "transport_error"
+        except Exception:
+            reason = "stream_err"
+
+        if attempt < len(backoffs):
+            time.sleep(backoffs[attempt])
+
+    stripped_text = raw_text.strip()
+    logger.info(
+        "[LLM] dynamic text completion model=%s json_mode=False prompt_len=%s raw_len=%s chunks=%s reason_if_empty=%s attempts=%s",
+        model_name,
+        len(cleaned_prompt),
+        len(raw_text),
+        chunk_count,
+        reason or "",
+        attempts_used,
+    )
+    return stripped_text, (reason or ""), chunk_count
+
+
 _TERM_MIN_LEN = 3
+# Leave human subject tokens like people/team/crowd out of the generic blocklist.
 _GENERIC_TERMS = {
-    'people',
     'thing',
     'nice',
     'background',
@@ -1132,6 +1538,10 @@ _CONCRETE_SUBJECTS = {
     "technician",
     "woman",
     "worker",
+    "entrepreneur",
+    "presenter",
+    "runner",
+    "speaker",
 }
 
 _CONCRETE_SUBJECT_PATTERN = re.compile(
@@ -1408,7 +1818,7 @@ def _tokenise(text: str) -> List[str]:
     if not text:
         return []
     try:
-        raw = re.findall(r"[A-Za-zÀ-ÿ'\-]+", text.lower())
+        raw = _split_basic_latin_runs(text.lower(), keep={"'", "-"})
     except Exception:
         raw = []
     tokens: List[str] = []
@@ -1813,37 +2223,37 @@ def _normalise_dynamic_payload(raw: Dict[str, Any], *, transcript: str) -> Dict[
 def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
     tx = (transcript_text or "")[:max_len]
     return f"""
-RÔLE
-Tu es planificateur B-roll pour vidéos verticales (TikTok/Shorts, 9:16).
+RÃ”LE
+Tu es planificateur B-roll pour vidÃ©os verticales (TikTok/Shorts, 9:16).
 
 OBJECTIF
-À partir de la transcription, détecte le(s) domaine(s) librement (pas de liste fixe), puis génère :
-1) des mots-clés et phrases-clés visuelles (scènes filmables) utiles aux banques vidéos,
-2) des synonymes/variantes/termes proches pour CHAQUE mot-clé (2–4 max),
-3) des requêtes de recherche (2–4 mots, provider-friendly),
+Ã€ partir de la transcription, dÃ©tecte le(s) domaine(s) librement (pas de liste fixe), puis gÃ©nÃ¨re :
+1) des mots-clÃ©s et phrases-clÃ©s visuelles (scÃ¨nes filmables) utiles aux banques vidÃ©os,
+2) des synonymes/variantes/termes proches pour CHAQUE mot-clÃ© (2â€“4 max),
+3) des requÃªtes de recherche (2â€“4 mots, provider-friendly),
 4) des briefs segmentaires facultatifs.
 
 CONTRAINTES
-- Zéro domaine prédéfini. Déduis librement 1–3 “detected_domains” + confidence (0–1).
-- Évite les anti-termes génériques : people, thing, nice, background, start, generic, template, stock.
-- Priorise des requêtes concrètes et filmables : « sujet_action_contexte », objets précis, lieux identifiables.
-- Fenêtres visuelles recommandées : 3–6 secondes. Format vertical.
-- Si la langue de la transcription n’est pas l’anglais, produis les requêtes en langue d’origine + anglais.
+- ZÃ©ro domaine prÃ©dÃ©fini. DÃ©duis librement 1â€“3 â€œdetected_domainsâ€ + confidence (0â€“1).
+- Ã‰vite les anti-termes gÃ©nÃ©riques : people, thing, nice, background, start, generic, template, stock.
+- Priorise des requÃªtes concrÃ¨tes et filmables : Â« sujet_action_contexte Â», objets prÃ©cis, lieux identifiables.
+- FenÃªtres visuelles recommandÃ©es : 3â€“6 secondes. Format vertical.
+- Si la langue de la transcription nâ€™est pas lâ€™anglais, produis les requÃªtes en langue dâ€™origine + anglais.
 
-RÉPONDS UNIQUEMENT EN JSON:
+RÃ‰PONDS UNIQUEMENT EN JSON:
 {{
   "detected_domains": [{{"name": "...", "confidence": 0.0}}],
-  "language": "fr|en|…",
+  "language": "fr|en|â€¦",
   "keywords": ["..."],
   "synonyms": {{ "keyword": ["variante1","variante2"] }},
   "search_queries": ["..."],
   "segment_briefs": [
     {{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}
   ],
-  "notes": "pièges, anti-termes, risques"
+  "notes": "piÃ¨ges, anti-termes, risques"
 }}
 
-TRANSCRIPT (tronqué à 1500–2000 caractères):
+TRANSCRIPT (tronquÃ© Ã  1500â€“2000 caractÃ¨res):
 {tx}
 """
 
@@ -1925,6 +2335,15 @@ class LLMMetadataGeneratorService:
         self._llm_top_p = _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0)
         self._llm_repeat_penalty = _parse_float(repeat_penalty_env, default=1.1, minimum=0.0)
         self._llm_stop_tokens: Sequence[str] = tuple(_parse_stop_tokens(stop_tokens_env))
+
+        def _clean_model(value: Optional[str], fallback: str) -> str:
+            candidate = (value or "").strip()
+            return candidate or fallback
+
+        base_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL"), "qwen2.5:7b")
+        self.model_default = base_model
+        self.model_json = _clean_model(os.getenv("PIPELINE_LLM_MODEL_JSON"), base_model)
+        self.model_text = _clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), base_model)
 
         logger.info(
             "[LLM] using timeout=%ss num_predict=%s temp=%s top_p=%s repeat_penalty=%s",
@@ -2142,8 +2561,24 @@ class LLMMetadataGeneratorService:
             except Exception:  # pragma: no cover - best effort configuration
                 pass
 
+        target_model = getattr(self, "model_text", None)
+        if isinstance(target_model, str) and target_model.strip():
+            target_model = target_model.strip()
+            for attr in ("model", "model_name"):
+                if hasattr(llm, attr):
+                    try:
+                        setattr(llm, attr, target_model)
+                    except Exception:  # pragma: no cover - best effort configuration
+                        pass
+            for attr in ("model", "model_name"):
+                if hasattr(integration, attr):
+                    try:
+                        setattr(integration, attr, target_model)
+                    except Exception:  # pragma: no cover - best effort configuration
+                        pass
+
     # --- Compatibility layer for plain text completions ---------------------
-    def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:
+    def _complete_text(self, prompt: str, *, max_tokens: int = 800, purpose: str = "generic") -> str:
         """Attempt to invoke a completion method on the underlying integration.
 
         Tries common method names; falls back to calling the optimized LLM engine
@@ -2151,14 +2586,23 @@ class LLMMetadataGeneratorService:
         """
         integration = self._get_integration()
 
+        target_model = getattr(self, "model_text", None) or getattr(self, "model_default", None)
+        if isinstance(target_model, str):
+            target_model = target_model.strip() or None
+
         # 1) Try common completion-shaped methods on integration directly
         last_error: Optional[BaseException] = None
         timed_out = False
-        for attr in ("complete_json", "complete", "chat", "generate"):
+        if purpose == "dynamic":
+            method_order: Tuple[str, ...] = ("complete", "chat", "generate")
+        else:
+            method_order = ("complete_json", "complete", "chat", "generate")
+
+        for attr in method_order:
             fn = getattr(integration, attr, None)
             if callable(fn):
                 try:
-                    return self._invoke_completion(fn, prompt, max_tokens=max_tokens)
+                    return self._invoke_completion(fn, prompt, max_tokens=max_tokens, model=target_model)
                 except Exception as exc:  # pragma: no cover - robustness
                     last_error = exc
                     if self._is_timeout_error(exc):
@@ -2169,12 +2613,15 @@ class LLMMetadataGeneratorService:
         if not timed_out:
             llm = getattr(integration, "llm", None)
             if llm is not None:
-                # Prefer a public method if one exists
-                for attr in ("complete_json", "complete", "generate"):
+                if purpose == "dynamic":
+                    llm_methods: Tuple[str, ...] = ("complete", "chat", "generate")
+                else:
+                    llm_methods = ("complete_json", "complete", "generate")
+                for attr in llm_methods:
                     fn = getattr(llm, attr, None)
                     if callable(fn):
                         try:
-                            return self._invoke_completion(fn, prompt, max_tokens=max_tokens)
+                            return self._invoke_completion(fn, prompt, max_tokens=max_tokens, model=target_model)
                         except Exception as exc:  # pragma: no cover - robustness
                             last_error = exc
                             if self._is_timeout_error(exc):
@@ -2207,12 +2654,27 @@ class LLMMetadataGeneratorService:
                                 if key in params:
                                     call_kwargs[key] = list(self._llm_stop_tokens)
                                     break
+                            if target_model:
+                                cleaned_model = target_model.strip()
+                                if cleaned_model:
+                                    if "model" in params and "model" not in call_kwargs:
+                                        call_kwargs["model"] = cleaned_model
+                                    elif "model_name" in params and "model_name" not in call_kwargs:
+                                        call_kwargs["model_name"] = cleaned_model
+                            if "json_mode" in params and purpose == "dynamic":
+                                call_kwargs["json_mode"] = False
                         else:
                             call_kwargs = {
                                 "temperature": self._llm_temperature,
                                 "max_tokens": bounded_max_tokens,
                                 "timeout": self._llm_timeout,
                             }
+                            if target_model:
+                                cleaned_model = target_model.strip() if isinstance(target_model, str) else None
+                                if cleaned_model:
+                                    call_kwargs["model"] = cleaned_model
+                        if purpose == "dynamic" and "json_mode" not in call_kwargs:
+                            call_kwargs["json_mode"] = False
 
                         ok, text, err = call(prompt, **call_kwargs)
                         if ok and isinstance(text, str):
@@ -2229,7 +2691,7 @@ class LLMMetadataGeneratorService:
 
         raise RuntimeError("No compatible completion method available on integration")
 
-    def _invoke_completion(self, fn, prompt: str, *, max_tokens: int) -> Any:
+    def _invoke_completion(self, fn, prompt: str, *, max_tokens: int, model: Optional[str] = None) -> Any:
         """Call a completion function with a bounded timeout when supported."""
 
         kwargs: Dict[str, Any] = {}
@@ -2251,6 +2713,13 @@ class LLMMetadataGeneratorService:
                 kwargs.setdefault("temperature", self._llm_temperature)
             if "top_p" in params:
                 kwargs["top_p"] = self._llm_top_p
+            if model:
+                cleaned_model = model.strip()
+                if cleaned_model:
+                    if "model" in params and "model" not in kwargs:
+                        kwargs["model"] = cleaned_model
+                    elif "model_name" in params and "model_name" not in kwargs:
+                        kwargs["model_name"] = cleaned_model
             stop_keys = ("stop", "stop_sequences", "stop_tokens", "stop_words")
             for key in stop_keys:
                 if key in params:
@@ -2299,7 +2768,7 @@ class LLMMetadataGeneratorService:
             else:
                 token_budget = 300
             try:
-                raw_text = self._complete_text(prompt, max_tokens=token_budget)
+                raw_text = self._complete_text(prompt, max_tokens=token_budget, purpose="dynamic")
             except TimeoutError:
                 logger.warning(
                     '[LLM] dynamic context attempt %s timed out (limit=%s, tokens=%s)',
@@ -2394,6 +2863,149 @@ class LLMMetadataGeneratorService:
             raw_payload=result,
         )
 
+
+    def _segment_llm_json(
+        self,
+        seg_text: str,
+        *,
+        timeout_s: Optional[float] = None,
+        num_predict: Optional[int] = None,
+    ) -> Optional[Dict[str, List[str]]]:
+        snippet = (seg_text or "").strip()
+        if not snippet:
+            return None
+
+        snippet = snippet[:1200]
+
+        try:
+            requested_predict = int(num_predict) if num_predict is not None else self._llm_num_predict
+        except (TypeError, ValueError):
+            requested_predict = self._llm_num_predict
+        base_predict = max(64, requested_predict)
+
+        timeout_value = int(timeout_s if timeout_s is not None else self._llm_timeout)
+
+        base_options = {
+            "num_predict": base_predict,
+            "temperature": float(self._llm_temperature),
+            "top_p": float(self._llm_top_p),
+            "repeat_penalty": float(self._llm_repeat_penalty),
+        }
+
+        prompt = SEGMENT_JSON_PROMPT.format(segment_text=snippet)
+
+        def _resolve_payload(parsed_payload: Any, raw_payload: Any) -> Dict[str, Any]:
+            payload = parsed_payload if isinstance(parsed_payload, dict) else {}
+            if payload:
+                return payload
+            if isinstance(raw_payload, dict):
+                candidates: List[Any] = []
+                for key in ("response", "content", "data", "message", "result"):
+                    value = raw_payload.get(key)
+                    if isinstance(value, dict) and value:
+                        return value
+                    if isinstance(value, str) and value.strip():
+                        candidates.append(value)
+                for candidate in candidates:
+                    parsed = _coerce_ollama_json(candidate)
+                    if isinstance(parsed, dict) and parsed:
+                        return parsed
+            return payload if isinstance(payload, dict) else {}
+
+        attempts: List[int] = [base_predict]
+        expanded_predict = min(base_predict + 64, 384)
+        if expanded_predict > base_predict:
+            attempts.append(expanded_predict)
+
+        for attempt_index, predict_value in enumerate(attempts):
+            options = dict(base_options)
+            options["num_predict"] = predict_value
+            try:
+                parsed_payload, raw_payload, _ = _ollama_generate_json(
+                    prompt,
+                    model=self.model_json,
+                    options=options,
+                    timeout=timeout_value,
+                    json_mode=True,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "[LLM] Segment JSON request timed out",
+                    extra={"timeout_s": timeout_value, "attempt": attempt_index + 1},
+                )
+                return None
+            except Exception as exc:
+                logger.warning(
+                    "[LLM] Segment JSON request failed",
+                    extra={"error": str(exc), "attempt": attempt_index + 1},
+                )
+                return None
+
+            payload = _resolve_payload(parsed_payload, raw_payload)
+            if not payload:
+                if attempt_index == len(attempts) - 1:
+                    return None
+                continue
+
+            keywords = _sanitize_queries(
+                payload.get("broll_keywords") or payload.get("brollKeywords") or [],
+                max_words=3,
+                max_len=12,
+            )
+            queries = _sanitize_queries(_concretize_queries(payload.get("queries") or []), max_len=12)
+
+            if keywords or queries:
+                return {"broll_keywords": keywords, "queries": queries}
+
+        return None
+
+    def _tfidf_segment_fallback(
+        self,
+        segment_text: str,
+        *,
+        target_lang: Optional[str] = None,
+        seed_queries: Optional[Sequence[str]] = None,
+        seed_keywords: Optional[Sequence[str]] = None,
+    ) -> Dict[str, List[str]]:
+        snippet = (segment_text or "").strip()
+        language = (target_lang or _target_language_default()).strip().lower() or _target_language_default()
+        base_keywords, base_queries = _tfidf_fallback(strip_banned(snippet))
+
+        keyword_sources: List[str] = []
+        for source in (seed_keywords, base_keywords, seed_queries, _DEFAULT_FALLBACK_PHRASES):
+            if not source:
+                continue
+            keyword_sources = [str(item).strip() for item in source if str(item).strip()]
+            if keyword_sources:
+                break
+        if not keyword_sources:
+            keyword_sources = [str(item).strip() for item in _DEFAULT_FALLBACK_PHRASES]
+
+        normalised_keywords = _normalise_search_terms(keyword_sources, target_lang=language)[:12]
+        if not normalised_keywords:
+            normalised_keywords = _normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, target_lang=language)[:12]
+
+        normalised_queries = _normalise_search_terms(base_queries or [], target_lang=language)[:12]
+        if not normalised_queries:
+            provider_queries = _build_provider_queries_from_terms(normalised_keywords or _DEFAULT_FALLBACK_PHRASES)
+            normalised_queries = _normalise_search_terms(provider_queries, target_lang=language)[:12]
+
+        keywords = _sanitize_queries(normalised_keywords, max_words=3, max_len=12)
+        queries = _sanitize_queries(_concretize_queries(normalised_queries), max_len=12)
+
+        if not queries:
+            fallback_provider = _build_provider_queries_from_terms(normalised_keywords or _DEFAULT_FALLBACK_PHRASES)
+            queries = _sanitize_queries(_concretize_queries(fallback_provider), max_len=12)
+
+        if not keywords:
+            keywords = _sanitize_queries(
+                _normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, target_lang=language),
+                max_words=3,
+                max_len=12,
+            )
+
+        return {"broll_keywords": keywords, "queries": queries}
+
     def generate_hints_for_segment(self, text: str, start: float, end: float) -> Dict:
         """Produce visual search hints for a transcript segment."""
 
@@ -2449,7 +3061,7 @@ class LLMMetadataGeneratorService:
                 "description": "",
                 "queries": fallback_queries[:8],
                 "broll_keywords": fallback_keywords_full[:8],
-                "filters": {"orientation": "landscape", "min_duration_s": 3.0},
+                "filters": {"min_duration_s": 3.0},
                 "source": source_label,
             }
 
@@ -2460,122 +3072,40 @@ class LLMMetadataGeneratorService:
 
             return result
 
-        if not _keywords_first_enabled():
-            fallback_terms = _fallback_keywords_from_transcript(
-                snippet,
-                min_terms=8,
-                max_terms=12,
-                language=target_lang,
-            )
-            keywords = _normalise_search_terms(fallback_terms, target_lang=target_lang)[:12]
-            queries = _build_provider_queries_from_terms(keywords or fallback_terms)
-            normalised_queries = _normalise_search_terms(queries, target_lang=target_lang)[:12]
-            if not normalised_queries:
-                normalised_queries = keywords[:8]
-            return {
-                "title": "",
-                "description": "",
-                "queries": normalised_queries[:8],
-                "broll_keywords": keywords[:8],
-                "filters": {"orientation": "landscape", "min_duration_s": 3.0},
-                "source": "transcript_fallback",
-            }
 
         max_chars = min(_metadata_transcript_limit(), 1800)
         prompt_snippet = snippet[:max_chars]
-        prompt = _build_keywords_prompt(prompt_snippet, target_lang)
 
-        raw_response: Any = None
-        try:
-            raw_response = self._call_llm(prompt, max_tokens=192)
-        except ValueError as exc:
-            message = str(exc).strip().lower()
-            if message == "timeout":
-                logger.warning(
-                    "[LLM] Segment hint generation timed out",
-                    extra={"segment_start": start, "segment_end": end},
-                )
-            elif message == "empty response":
-                logger.warning(
-                    "[LLM] Segment hint generation returned empty payload",
-                    extra={"segment_start": start, "segment_end": end},
-                )
-            elif message == "empty prompt":
-                logger.warning(
-                    "[LLM] Segment hint skipped due to empty prompt",
-                    extra={"segment_start": start, "segment_end": end},
-                )
-            else:
-                logger.exception(
-                    "[LLM] Segment hint generation failed",
-                    extra={"segment_start": start, "segment_end": end, "error": message},
-                )
-            raw_response = None
+        llm_payload = self._segment_llm_json(
+            prompt_snippet,
+            timeout_s=self._llm_timeout,
+            num_predict=self._llm_num_predict,
+        )
 
-        payload: Dict[str, Any] = {}
-        if isinstance(raw_response, dict):
-            payload = raw_response
-        elif isinstance(raw_response, str):
-            text_response = raw_response.strip()
-            if text_response:
-                try:
-                    direct = json.loads(text_response)
-                except json.JSONDecodeError as exc:
-                    logger.warning(
-                        "[BROLL][LLM] Segment JSON decoding failed",
-                        extra={
-                            "segment_start": start,
-                            "segment_end": end,
-                            "error": str(exc),
-                        },
-                    )
-                    payload = _coerce_ollama_json(text_response)
-                else:
-                    payload = direct if isinstance(direct, dict) else _coerce_ollama_json(text_response)
-        if not isinstance(payload, dict):
-            payload = {}
+        if not llm_payload:
+            retry_timeout = min(self._llm_timeout + 15, 90)
+            retry_predict = self._llm_num_predict + 64
+            llm_payload = self._segment_llm_json(
+                prompt_snippet,
+                timeout_s=retry_timeout,
+                num_predict=retry_predict,
+            )
 
-        if not payload:
+        llm_failed = False
+        if not llm_payload:
             logger.warning(
-                "[LLM] Segment hint generation returned empty payload -> using metadata_keywords_fallback",
+                "[LLM] Segment hint generation fell back to TF-IDF heuristics",
                 extra={"segment_start": start, "segment_end": end},
             )
-            fallback_queries = self._fallback_queries_from(
-                snippet,
-                metadata_queries=seed_queries,
-                metadata_keywords=seed_keywords,
-                language=target_lang,
-            )
-            if not fallback_queries:
-                fallback_queries = _build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)
-
-            fallback_keywords = _normalise_search_terms(
-                seed_keywords or seed_queries or _DEFAULT_FALLBACK_PHRASES,
+            llm_payload = self._tfidf_segment_fallback(
+                prompt_snippet,
                 target_lang=target_lang,
-            )[:12]
-            if not fallback_keywords:
-                fallback_keywords = _normalise_search_terms(
-                    _DEFAULT_FALLBACK_PHRASES,
-                    target_lang=target_lang,
-                )[:12]
+                seed_queries=seed_queries,
+                seed_keywords=seed_keywords,
+            )
+            llm_failed = True
 
-            fallback_result = {
-                "title": "",
-                "description": "",
-                "hashtags": [],
-                "queries": (fallback_queries or [])[:12],
-                "broll_keywords": fallback_keywords,
-                "filters": {},
-                "source": "metadata_keywords_fallback",
-            }
-            if not fallback_result["queries"]:
-                fallback_result["queries"] = _build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)[:12]
-
-            self.last_metadata = {
-                "queries": fallback_result["queries"][:12],
-                "broll_keywords": fallback_keywords[:12],
-            }
-            return fallback_result
+        payload: Dict[str, Any] = dict(llm_payload or {})
 
         title = _normalise_string(payload.get("title"))
         description = _normalise_string(payload.get("description"))
@@ -2587,7 +3117,11 @@ class LLMMetadataGeneratorService:
             or []
         )
         primary_keywords = _normalise_search_terms(raw_keywords, target_lang=target_lang)[:12]
-        primary_queries = _normalise_search_terms(payload.get("queries") or [], target_lang=target_lang)[:12]
+        raw_llm_queries = list(payload.get("queries") or [])
+        primary_queries = _normalise_search_terms(
+            _concretize_queries(raw_llm_queries),
+            target_lang=target_lang,
+        )[:12]
 
         metadata_terms_source: List[str] = []
         if seed_keywords:
@@ -2603,7 +3137,7 @@ class LLMMetadataGeneratorService:
 
         fallback_terms: List[str] = []
         used_metadata_fallback = False
-        used_transcript_fallback = False
+        used_transcript_fallback = llm_failed
 
         if len(primary_keywords) < 6 or len(primary_queries) < 6:
             if metadata_terms:
@@ -2702,9 +3236,28 @@ class LLMMetadataGeneratorService:
         elif used_transcript_fallback:
             source = "transcript_fallback"
 
-        filters = {"orientation": "landscape", "min_duration_s": 3.0}
+        try:
+            seg_duration = max(0.0, float(end) - float(start))
+        except Exception:
+            seg_duration = 0.0
+        min_d = 3.0
+        if seg_duration > 0:
+            # target ~90% of the segment length, clamped to [2.5, 5.5]
+            min_d = max(2.5, min(5.5, round(seg_duration * 0.9, 2)))
+        # Enforce portrait orientation and dynamic duration bounds per segment
+        # Also cap overly long clips and reject near-square portrait by min aspect ratio
+        filters = {
+            "orientation": "portrait",
+            "min_duration_s": float(min_d),
+            "max_duration_s": 8.0,
+            # 9:16 ~= 1.78; allow a bit of slack to accept 4:7-ish while rejecting 4:5
+            "min_aspect_ratio": 1.6,
+        }
 
         seg_idx = f"{start:.2f}-{end:.2f}"
+        queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
+        broll_keywords = _sanitize_queries(broll_keywords, max_words=3, max_len=12)
+
         logger.info(
             "[BROLL][LLM] segment=%s queries=%s (source=%s)",
             seg_idx,
@@ -2715,20 +3268,23 @@ class LLMMetadataGeneratorService:
         self.last_metadata = {
             "title": title or "",
             "description": description or "",
-            "queries": queries,
-            "broll_keywords": broll_keywords,
+            "queries": list(queries),
+            "broll_keywords": list(broll_keywords),
             "filters": dict(filters),
             "source": source,
         }
 
+        queries_with_synonyms = _augment_with_synonyms(queries, max_extra_per=1, limit=12)
+
         return {
             "title": title,
             "description": description,
-            "queries": queries,
+            "queries": queries_with_synonyms,
             "broll_keywords": broll_keywords,
             "filters": filters,
             "source": source,
         }
+
 
     def provider_fallback_queries(
         self,
@@ -2859,7 +3415,8 @@ def generate_metadata_as_json(
         else _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
     )
 
-    model_name = (os.getenv("PIPELINE_LLM_MODEL") or "qwen3:8b").strip() or "qwen3:8b"
+    model_default = (os.getenv("PIPELINE_LLM_MODEL") or "qwen2.5:7b").strip() or "qwen2.5:7b"
+    model_name = (os.getenv("PIPELINE_LLM_MODEL_JSON") or model_default).strip() or model_default
 
     original_timeout = None
     if timeout_s is not None:
@@ -2894,6 +3451,7 @@ def generate_metadata_as_json(
 
                 parsed_payload, raw_payload, raw_length = _ollama_generate_json(
                     prompt,
+                    model=model_name,
                     options={
                         "num_predict": bounded_predict,
                         "temperature": bounded_temp,
@@ -2904,7 +3462,7 @@ def generate_metadata_as_json(
             except Exception as exc:  # pragma: no cover - defensive logging
                 error = exc
         else:
-            raw_payload = _ollama_json(prompt)
+            raw_payload = _ollama_json(prompt, model=model_name)
             if isinstance(raw_payload, dict):
                 parsed_payload = raw_payload
             else:
@@ -3041,6 +3599,10 @@ def generate_metadata_as_json(
     broll_keywords = provider_keywords
     queries = provider_queries
 
+    # Final hardening at clip level: enforce anti-generic constraints
+    queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
+    broll_keywords = _sanitize_queries(broll_keywords, max_words=3, max_len=12)
+
     if not hashtags and not hashtags_disabled:
         hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
 
@@ -3079,3 +3641,13 @@ def generate_metadata_as_json(
     _remember_last_metadata(queries, broll_keywords)
 
     return result
+
+
+
+
+
+
+
+
+
+

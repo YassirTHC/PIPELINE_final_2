@@ -10,6 +10,7 @@ except Exception:
 import threading
 import os
 import subprocess
+import sys
 import queue
 import time
 from pathlib import Path
@@ -372,7 +373,19 @@ class VideoConverterGUI:
                 # Traitement avec gestion d'erreurs améliorée
                 try:
                     # Utiliser le Python de l'environnement virtuel
-                    python_path = os.path.join(os.getcwd(), 'venv311', 'Scripts', 'python.exe')
+                    candidates = [
+                        Path('venv311/Scripts/python.exe'),
+                        Path('.venv/Scripts/python.exe'),
+                        Path(sys.executable),
+                    ]
+                    python_path = None
+                    for candidate in candidates:
+                        candidate_path = Path(candidate)
+                        if candidate_path.exists():
+                            python_path = str(candidate_path)
+                            break
+                    if not python_path:
+                        python_path = sys.executable
                     env = os.environ.copy()
                     env.setdefault('PYTHONIOENCODING', 'utf-8')
                     env['ENABLE_PIPELINE_CORE_FETCHER'] = 'true'
@@ -383,8 +396,7 @@ class VideoConverterGUI:
                         # Provider par défaut: pexels,pixabay (modifiable via .env)
                         env.setdefault('AI_BROLL_FETCH_PROVIDER', 'pexels,pixabay')
                     result = subprocess.run([
-                        python_path, 'main.py',
-                        '--cli',
+                        python_path, '-u', 'run_pipeline.py',
                         '--video', dest_path
                     ], capture_output=True, text=True, encoding='utf-8', errors='replace', check=True, env=env)
 

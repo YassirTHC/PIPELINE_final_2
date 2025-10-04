@@ -101,3 +101,5 @@ diff_backup.patch
 _patch.py
 __pycache__/
 diagnostic_broll.json
+.env
+.env.local

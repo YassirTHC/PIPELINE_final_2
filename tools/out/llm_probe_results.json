@@ -1,0 +1,133 @@
+{
+  "generated_at": "2025-10-03T20:49:28.378644+00:00",
+  "endpoint": "http://localhost:11434",
+  "models": [
+    {
+      "model": "gemma3:4b",
+      "endpoint": "http://localhost:11434",
+      "json_strict": {
+        "valid": true,
+        "error": null,
+        "parsed": {
+          "title": "t",
+          "keywords": [
+            "a",
+            "b",
+            "c"
+          ]
+        },
+        "response_text": "{\"title\":\"t\",\"keywords\":[\"a\",\"b\",\"c\"]}",
+        "raw_preview": "{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:07.6913094Z\",\"response\":\"{\\\"\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:07.768011Z\",\"response\":\"title\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:07.8618726Z\",\"response\":\"\\\":\\\"\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:07.9529161Z\",\"response\":\"t\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:08.0406178Z\",\"response\":\"\\\",\\\"\",\"done\":false}\n{\"model\":\"gemma3:...",
+        "errors": [],
+        "status_code": 200,
+        "elapsed_sec": 18.011509599979036
+      },
+      "text": {
+        "short": {
+          "latency_sec": 0.4481449000304565,
+          "length": 3,
+          "empty": false,
+          "non_ascii": false,
+          "raw_preview": "{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:09.1661577Z\",\"response\":\"OK\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:09.2636146Z\",\"response\":\"\\n\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:09.354568Z\",\"response\":\"\",\"done\":true,\"done_reason\":\"stop\",\"context\":[105,2364,107,118904,607,506,3658,16119,1186,236761,106,107,105,4368,107,7676,107],\"total_duration\":446115200,\"load_duration\":154507200,\"prompt_eval_count\":16,\"prompt_eval_duration\":1021155...",
+          "errors": [],
+          "status_code": 200,
+          "response": "OK"
+        },
+        "long": {
+          "latency_sec": 18.99478959996486,
+          "length": 975,
+          "empty": false,
+          "non_ascii": true,
+          "raw_preview": "{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:09.9857511Z\",\"response\":\"Okay\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:10.0644639Z\",\"response\":\",\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:10.1465612Z\",\"response\":\" let\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:10.2235141Z\",\"response\":\"’\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"created_at\":\"2025-10-03T20:49:10.3047765Z\",\"response\":\"s\",\"done\":false}\n{\"model\":\"gemma3:4b\",\"cr...",
+          "errors": [],
+          "status_code": 200,
+          "response": "Okay, let’s talk about making your vertical footage pop on social media! First, position your camera slightly above eye level to naturally maintain subject headroom and create a more engaging perspective.  Look for leading lines in the background to draw the viewer’s eye towards your subject, and introduce subtle movement – a gentle hand gesture or a slight shift in position – to keep things dynamic.  Don’t overcrowd the frame; balance this with generous negative space to give the eye a place to rest. Always double-check your horizon line to ensure a straight shot, and utilize stabilization to minimize jitter, especially when previewing in editing apps. Before recording, do quick framing tests to nail the composition, and remember to plan complementary B-roll to add depth. Finally, strategically place your text overlays within the top and bottom safe zones to maximize readability – and always think about smooth transitions for a polished look on a phone screen!"
+        }
+      }
+    },
+    {
+      "model": "llama3.1:8b",
+      "endpoint": "http://localhost:11434",
+      "json_strict": {
+        "valid": false,
+        "error": "http_404",
+        "parsed": null,
+        "response_text": "",
+        "raw_preview": "{\"error\":\"model 'llama3.1:8b' not found\"}",
+        "errors": [
+          "http_404"
+        ],
+        "status_code": 404,
+        "elapsed_sec": null
+      },
+      "text": {
+        "short": {
+          "latency_sec": null,
+          "length": 0,
+          "empty": true,
+          "non_ascii": false,
+          "raw_preview": "{\"error\":\"model 'llama3.1:8b' not found\"}",
+          "errors": [
+            "http_404"
+          ],
+          "status_code": 404,
+          "response": ""
+        },
+        "long": {
+          "latency_sec": null,
+          "length": 0,
+          "empty": true,
+          "non_ascii": false,
+          "raw_preview": "{\"error\":\"model 'llama3.1:8b' not found\"}",
+          "errors": [
+            "http_404"
+          ],
+          "status_code": 404,
+          "response": ""
+        }
+      }
+    },
+    {
+      "model": "qwen2.5:7b",
+      "endpoint": "http://localhost:11434",
+      "json_strict": {
+        "valid": false,
+        "error": "http_404",
+        "parsed": null,
+        "response_text": "",
+        "raw_preview": "{\"error\":\"model 'qwen2.5:7b' not found\"}",
+        "errors": [
+          "http_404"
+        ],
+        "status_code": 404,
+        "elapsed_sec": null
+      },
+      "text": {
+        "short": {
+          "latency_sec": null,
+          "length": 0,
+          "empty": true,
+          "non_ascii": false,
+          "raw_preview": "{\"error\":\"model 'qwen2.5:7b' not found\"}",
+          "errors": [
+            "http_404"
+          ],
+          "status_code": 404,
+          "response": ""
+        },
+        "long": {
+          "latency_sec": null,
+          "length": 0,
+          "empty": true,
+          "non_ascii": false,
+          "raw_preview": "{\"error\":\"model 'qwen2.5:7b' not found\"}",
+          "errors": [
+            "http_404"
+          ],
+          "status_code": 404,
+          "response": ""
+        }
+      }
+    }
+  ]
+}
