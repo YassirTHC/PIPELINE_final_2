@@ -7,11 +7,27 @@ import logging
 import os
 import threading
 import time
-from dataclasses import dataclass
+import urllib.parse
+import urllib.request
+import urllib.error
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pipeline_core.configuration import FetcherOrchestratorConfig
+
+if os.environ.get('BROLL_FORCE_IPV4', '0') == '1':
+    try:
+        import socket
+        import urllib3.util.connection as urllib3_cn
+
+        def _ipv4_only() -> int:
+            return socket.AF_INET
+
+        urllib3_cn.allowed_gai_family = _ipv4_only
+    except Exception:
+        pass
+
 
 try:  # pragma: no cover - exercised indirectly via tests
     from src.pipeline.fetchers import (  # type: ignore
@@ -25,17 +41,116 @@ except ModuleNotFoundError:  # pragma: no cover - unit tests provide stubs
     def build_search_query(keywords: Sequence[str]) -> str:
         return " ".join(str(kw).strip() for kw in keywords[:3] if kw).strip()
 
-    def pexels_search_videos(*_args, **_kwargs):
-        return []
+    def _safe_request_json(url: str, *, headers: Optional[Dict[str, str]] = None, timeout: float = 10.0) -> Dict[str, Any]:
+        if not url:
+            return {}
+        request_headers: Dict[str, str] = {}
+        if headers:
+            request_headers.update({str(k): str(v) for k, v in headers.items() if k and v})
+        request_headers.setdefault('User-Agent', 'video-pipeline/1.0')
+        try:
+            request = urllib.request.Request(url, headers=request_headers)
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return json.load(response)
+        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, ValueError):
+            return {}
 
-    def pixabay_search_videos(*_args, **_kwargs):
-        return []
+    def pexels_search_videos(api_key: str, query: str, *, per_page: int = 6) -> List[Dict[str, Any]]:
+        api_key = (api_key or "").strip()
+        query = (query or "").strip()
+        if not api_key or not query:
+            return []
+        try:
+            limit = int(per_page)
+        except (TypeError, ValueError):
+            limit = 6
+        limit = max(1, min(limit, 80))
+        params = urllib.parse.urlencode({"query": query, "per_page": limit})
+        data = _safe_request_json(
+            f"https://api.pexels.com/videos/search?{params}",
+            headers={"Authorization": api_key, "Accept": "application/json"},
+        )
+        videos = data.get("videos", []) if isinstance(data, dict) else []
+        return videos if isinstance(videos, list) else []
 
-    def _best_vertical_video_file(payload):
-        return None
+    def pixabay_search_videos(api_key: str, query: str, *, per_page: int = 6) -> List[Dict[str, Any]]:
+        api_key = (api_key or "").strip()
+        query = (query or "").strip()
+        if not api_key or not query:
+            return []
+        try:
+            limit = int(per_page)
+        except (TypeError, ValueError):
+            limit = 6
+        limit = max(3, min(limit, 200))
+        params = urllib.parse.urlencode(
+            {
+                "key": api_key,
+                "q": query,
+                "per_page": limit,
+                "safesearch": "true",
+                "video_type": "all",
+            }
+        )
+        data = _safe_request_json(f"https://pixabay.com/api/videos/?{params}")
+        hits = data.get("hits", []) if isinstance(data, dict) else []
+        return hits if isinstance(hits, list) else []
 
-    def _pixabay_best_video_url(payload):
-        return None
+    def _best_vertical_video_file(payload: Any) -> Optional[Dict[str, Any]]:
+        if not isinstance(payload, dict):
+            return None
+        files = payload.get("video_files") or []
+        if not isinstance(files, list):
+            return None
+        best_candidate: Optional[Dict[str, Any]] = None
+        best_score: Tuple[int, int, int] = (-1, -1, -1)
+        for entry in files:
+            if not isinstance(entry, dict):
+                continue
+            url = entry.get("link") or entry.get("file")
+            if not url:
+                continue
+            try:
+                width = int(entry.get("width", 0) or 0)
+                height = int(entry.get("height", 0) or 0)
+            except (TypeError, ValueError):
+                width = 0
+                height = 0
+            vertical = 1 if height >= width and height > 0 and width > 0 else 0
+            area = width * height
+            score: Tuple[int, int, int] = (vertical, area, height)
+            if score > best_score:
+                best_score = score
+                best_candidate = entry
+        return best_candidate
+
+    def _pixabay_best_video_url(payload: Any) -> Optional[str]:
+        if not isinstance(payload, dict):
+            return None
+        videos_meta = payload.get("videos")
+        if not isinstance(videos_meta, dict):
+            return None
+        best_url: Optional[str] = None
+        best_score: Tuple[int, int, int] = (-1, -1, -1)
+        for meta in videos_meta.values():
+            if not isinstance(meta, dict):
+                continue
+            url = meta.get("url")
+            if not url:
+                continue
+            try:
+                width = int(meta.get("width", 0) or 0)
+                height = int(meta.get("height", 0) or 0)
+            except (TypeError, ValueError):
+                width = 0
+                height = 0
+            vertical = 1 if height >= width and height > 0 and width > 0 else 0
+            area = width * height
+            score: Tuple[int, int, int] = (vertical, area, height)
+            if score > best_score:
+                best_score = score
+                best_url = str(url)
+        return best_url
 
 
 @dataclass(slots=True)
@@ -49,6 +164,17 @@ class RemoteAssetCandidate:
     title: str
     identifier: str
     tags: Sequence[str]
+    _phash: Optional[str] = field(default=None, init=False, repr=False)
+
+
+def crop_viability_9_16(width: Any, height: Any) -> bool:
+    """Return True when a vertical 9:16 crop is at least theoretically possible."""
+    try:
+        w = int(width or 0)
+        h = int(height or 0)
+    except (TypeError, ValueError):
+        return False
+    return w >= 2 and h >= 2
 
 
 class FetcherOrchestrator:
@@ -148,7 +274,9 @@ class FetcherOrchestrator:
                 timeout_s = max(self.config.request_timeout_s, 0.1)
                 deadline = start + timeout_s
                 pending = set(futures)
-                while pending and len(raw_results) < self.config.per_segment_limit:
+                max_results_budget = self.config.per_segment_limit * max(1, len(providers))
+                seen_providers: set[str] = set()
+                while pending:
                     remaining = deadline - time.perf_counter()
                     if remaining <= 0:
                         break
@@ -170,8 +298,13 @@ class FetcherOrchestrator:
                             continue
                         for candidate in candidates:
                             raw_results.append(candidate)
-                            if len(raw_results) >= self.config.per_segment_limit:
-                                break
+                            provider_token = str(getattr(candidate, "provider", "") or "").strip().lower()
+                            if provider_token:
+                                seen_providers.add(provider_token)
+                        if len(raw_results) >= max_results_budget and (len(seen_providers) >= len(providers) or not pending):
+                            break
+                    if len(raw_results) >= max_results_budget and (len(seen_providers) >= len(providers) or not pending):
+                        break
                 for fut in pending:
                     fut.cancel()
         elif self.config.allow_videos:
@@ -203,6 +336,36 @@ class FetcherOrchestrator:
             ".m4v",
             ".avi",
         )
+        # Compute provider counts BEFORE filtering for telemetry
+        provider_counts_before: Dict[str, int] = {}
+        for cand in raw_results:
+            name = str(getattr(cand, "provider", "") or "").strip() or "unknown"
+            provider_counts_before[name] = provider_counts_before.get(name, 0) + 1
+
+        grouped_results: Dict[str, List[RemoteAssetCandidate]] = {}
+        provider_order: List[str] = []
+
+        # Apply per-candidate filters (orientation, duration, etc.) with a relaxed second pass if yield is poor
+        strict_pass: List[RemoteAssetCandidate] = []
+        relaxed_reasons: Dict[str, int] = {}
+
+        def _relax_keep(c: RemoteAssetCandidate, why: Optional[str]) -> bool:
+            # Allow near-portrait AR >= ~1.55 or short duration tolerance
+            if why not in {"filter_orientation", "filter_duration"}:
+                return False
+            try:
+                w = int(getattr(c, 'width', 0) or 0)
+                h = int(getattr(c, 'height', 0) or 0)
+                dur = float(getattr(c, 'duration', 0.0) or 0.0)
+            except Exception:
+                w = h = 0
+                dur = 0.0
+            if why == "filter_orientation":
+                ar = (float(h) / float(w)) if w > 0 else 0.0
+                return ar >= 1.55
+            if why == "filter_duration":
+                return False
+            return False
 
         for candidate in raw_results:
             url = str(getattr(candidate, "url", "") or "").strip()
@@ -223,10 +386,106 @@ class FetcherOrchestrator:
                 continue
             if not is_video and not allow_images_active:
                 continue
-            processed.append(candidate)
 
-            if len(processed) >= self.config.per_segment_limit:
+            # Strict filter evaluation
+            ok, why = self.evaluate_candidate_filters(candidate, filters, duration_hint)
+            if ok:
+                strict_pass.append(candidate)
+            else:
+                if why:
+                    relaxed_reasons[why] = relaxed_reasons.get(why, 0) + 1
+
+        # If too few after strict filters, do a relaxed pass on remaining items
+        target_min = max(1, int(self.config.per_segment_limit // 2))
+        selected: List[RemoteAssetCandidate] = list(strict_pass)
+        if len(selected) < target_min:
+            for candidate in raw_results:
+                if candidate in selected:
+                    continue
+                ok, why = self.evaluate_candidate_filters(candidate, filters, duration_hint)
+                if not ok and _relax_keep(candidate, why):
+                    selected.append(candidate)
+                if len(selected) >= self.config.per_segment_limit:
+                    break
+
+        # Telemetry for filter stats
+        try:
+            self._log_event({
+                'event': 'broll_filter_stats',
+                'raw_total': len(raw_results),
+                'filtered_total': len(selected),
+                'filter_reasons': relaxed_reasons,
+                'provider_counts_before': provider_counts_before,
+                'allow_videos': bool(self.config.allow_videos),
+                'allow_images': bool(self.config.allow_images),
+            })
+        except Exception:
+            pass
+
+        # Group by provider then round-robin from the filtered selection
+        for candidate in selected:
+            provider_name = str(getattr(candidate, "provider", "") or "").strip() or "unknown"
+            if provider_name not in provider_order:
+                provider_order.append(provider_name)
+            grouped_results.setdefault(provider_name, []).append(candidate)
+
+        per_segment_limit = self.config.per_segment_limit
+        active_providers = [name for name in provider_order if grouped_results.get(name)]
+
+        while active_providers and len(processed) < per_segment_limit:
+            next_cycle: List[str] = []
+            for provider_name in active_providers:
+                bucket = grouped_results.get(provider_name)
+                if not bucket:
+                    continue
+                candidate = bucket.pop(0)
+                processed.append(candidate)
+                if bucket:
+                    next_cycle.append(provider_name)
+                if len(processed) >= per_segment_limit:
+                    break
+            if len(processed) >= per_segment_limit:
                 break
+            active_providers = next_cycle
+
+        # Lightweight re-ranking favouring portrait framing and segment-friendly durations
+        segment_length_s: Optional[float] = None
+        if isinstance(duration_hint, (int, float)):
+            try:
+                segment_length_s = float(duration_hint)
+            except (TypeError, ValueError):
+                segment_length_s = None
+
+        def _duration_acceptance_score(seg_len: Optional[float], cand_duration: Optional[float], target_ratio: float = 1.0) -> float:
+            if not seg_len or not cand_duration or cand_duration <= 0:
+                return 0.0
+            diff = abs((cand_duration / float(seg_len)) - target_ratio)
+            return max(0.0, 1.0 - (diff / 0.4))
+
+        scored: List[Tuple[float, float, float, float, RemoteAssetCandidate]] = []
+        for candidate in processed:
+            try:
+                cand_duration = float(getattr(candidate, 'duration', 0.0) or 0.0)
+            except (TypeError, ValueError):
+                cand_duration = 0.0
+            duration_score = _duration_acceptance_score(segment_length_s, cand_duration)
+            try:
+                width = int(getattr(candidate, 'width', 0) or 0)
+                height = int(getattr(candidate, 'height', 0) or 0)
+            except (TypeError, ValueError):
+                width = 0
+                height = 0
+            portrait_bonus = 1.0 if (height and width and height > width) else 0.0
+            try:
+                provider_score = float(getattr(candidate, 'provider_score', 0.0) or 0.0)
+            except (TypeError, ValueError):
+                provider_score = 0.0
+            total_score = (duration_score * 0.7) + (portrait_bonus * 0.2) + (provider_score * 0.1)
+            scored.append((total_score, duration_score, portrait_bonus, provider_score, candidate))
+
+        if scored:
+            scored.sort(key=lambda item: item[0], reverse=True)
+            processed = [entry[4] for entry in scored]
 
         provider_counts: Dict[str, int] = {}
         for provider_conf in providers:
@@ -378,7 +637,9 @@ class FetcherOrchestrator:
     def _fetch_from_pexels(self, query: str, limit: int) -> List[RemoteAssetCandidate]:
         if not query or len(query) < 3:
             return []
-        key = getattr(__import__('config', fromlist=['Config']).Config, 'PEXELS_API_KEY', None)
+        key = os.getenv('PEXELS_API_KEY')
+        if not key:
+            key = getattr(__import__('config', fromlist=['Config']).Config, 'PEXELS_API_KEY', None)
         if not key:
             return []
         start_time = time.perf_counter()
@@ -396,6 +657,7 @@ class FetcherOrchestrator:
             )
             return []
         candidates: List[RemoteAssetCandidate] = []
+        banned = {"watermark", "logo", "overlay", "text", "tiktok", "repost", "subscribe", "text overlay", "text-overlay"}
         for item in videos:
             best = _best_vertical_video_file(item)
             if not best:
@@ -403,6 +665,26 @@ class FetcherOrchestrator:
             url = best.get('link') or best.get('file')
             if not url:
                 continue
+            try:
+                tag_list = [t.get('title','').strip().lower() for t in (item.get('tags') or []) if isinstance(t, dict)]
+            except Exception:
+                tag_list = []
+            if any(tag in banned for tag in tag_list):
+                continue
+            text_sources = [
+                item.get('description'),
+                item.get('alt'),
+                item.get('user', {}).get('name'),
+            ]
+            metadata_blob = " ".join(
+                str(value).strip().lower()
+                for value in text_sources
+                if isinstance(value, str) and value.strip()
+            )
+            if metadata_blob:
+                tokens = {token for token in metadata_blob.replace('-', ' ').replace('_', ' ').split() if token}
+                if tokens.intersection({'watermark', 'subscribe', 'logo'}) or 'text overlay' in metadata_blob or 'text-overlay' in metadata_blob:
+                    continue
             candidates.append(
                 RemoteAssetCandidate(
                     provider='pexels',
@@ -432,7 +714,9 @@ class FetcherOrchestrator:
     def _fetch_from_pixabay(self, query: str, limit: int) -> List[RemoteAssetCandidate]:
         if not query or len(query) < 3:
             return []
-        key = getattr(__import__('config', fromlist=['Config']).Config, 'PIXABAY_API_KEY', None)
+        key = os.getenv('PIXABAY_API_KEY')
+        if not key:
+            key = getattr(__import__('config', fromlist=['Config']).Config, 'PIXABAY_API_KEY', None)
         if not key:
             return []
         start_time = time.perf_counter()
@@ -450,12 +734,29 @@ class FetcherOrchestrator:
             )
             return []
         candidates: List[RemoteAssetCandidate] = []
+        banned = {"watermark", "logo", "overlay", "text", "tiktok", "repost", "subscribe", "text overlay", "text-overlay"}
         for item in videos:
             url = _pixabay_best_video_url(item)
             if not url:
                 continue
             videos_meta = item.get('videos', {}) or {}
             best_meta = videos_meta.get('large') or videos_meta.get('medium') or {}
+            tags_raw = str(item.get('tags','') or '').lower()
+            if any(b in tags_raw for b in banned):
+                continue
+            metadata_blob = " ".join(
+                str(value).strip().lower()
+                for value in (
+                    item.get('user'),
+                    item.get('pageURL'),
+                    item.get('picture_id'),
+                )
+                if isinstance(value, str) and value.strip()
+            )
+            if metadata_blob:
+                tokens = {token for token in metadata_blob.replace('-', ' ').replace('_', ' ').split() if token}
+                if tokens.intersection({'watermark', 'subscribe', 'logo'}) or 'text overlay' in metadata_blob or 'text-overlay' in metadata_blob:
+                    continue
             candidates.append(
                 RemoteAssetCandidate(
                     provider='pixabay',
@@ -509,29 +810,34 @@ class FetcherOrchestrator:
 
         filters = filters or {}
         orientation = filters.get('orientation') if isinstance(filters, dict) else None
-        min_duration = filters.get('min_duration_s') if isinstance(filters, dict) else None
 
-        width = getattr(candidate, 'width', 0) or 0
-        height = getattr(candidate, 'height', 0) or 0
+        try:
+            width = int(getattr(candidate, 'width', 0) or 0)
+            height = int(getattr(candidate, 'height', 0) or 0)
+        except (TypeError, ValueError):
+            width = 0
+            height = 0
+
         if orientation == 'landscape' and width and height and width < height:
             return False, 'filter_orientation'
-        if orientation == 'portrait' and width and height and height < width:
+        if orientation == 'portrait' and width and height and height <= width:
             return False, 'filter_orientation'
 
-        target_min = None
-        if isinstance(min_duration, (int, float)):
-            target_min = float(min_duration)
-        elif duration_hint is not None:
-            try:
-                target_min = max(0.0, float(duration_hint))
-            except Exception:
-                target_min = None
+        duration_value = getattr(candidate, 'duration', None)
+        if duration_value is None:
+            return False, 'filter_duration'
+        try:
+            duration_f = float(duration_value)
+        except (TypeError, ValueError):
+            return False, 'filter_duration'
 
-        duration = getattr(candidate, 'duration', None)
-        if target_min and isinstance(duration, (int, float)) and float(duration) < target_min:
+        if duration_f <= 0.0:
+            return False, 'filter_duration'
+        if duration_f < 0.8 or duration_f > 30.0:
             return False, 'filter_duration'
 
         return True, None
+
 
     def _log_event(self, payload: Dict[str, Any]) -> None:
         _emit_event(payload)
@@ -581,3 +887,19 @@ def _emit_event(payload: Dict[str, Any]) -> None:
                 handle.write(serialized + "\n")
     except Exception:
         logging.getLogger(__name__).debug('[fetcher] failed to emit event', exc_info=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

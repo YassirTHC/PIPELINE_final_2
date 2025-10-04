@@ -178,3 +178,45 @@ Pour toute question ou problème :
 ---
 
 **Développé avec  pour créer du contenu viral de qualité**
+## How to run
+
+1. Probe LLM (Ollama):
+
+```powershell
+python tools/llm_probe.py --models "gemma3:4b,llama3.1:8b,qwen2.5:7b"
+```
+
+2. Bench pipeline (vidéo-only d’abord):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\pipeline_bench.ps1 -Video "clips/121.mp4" -Models "gemma3:4b,llama3.1:8b,qwen2.5:7b" -AllowImages 0
+```
+
+3. Analyse & recommandation:
+
+```powershell
+python tools/analyze_bench.py
+# Ouvre tools/out/summary.md → le modèle recommandé + ENV finaux s’y trouvent
+```
+
+4. (Optionnel) Re-bench avec images autorisées (diagnostic “plein”):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\pipeline_bench.ps1 -Video "clips/121.mp4" -Models "gemma3:4b,llama3.1:8b,qwen2.5:7b" -AllowImages 1
+python tools/analyze_bench.py
+```
+### ENV conseillés (vertical + combo modèles)
+
+# Orientation & seuils
+setx SELECTION_PREFER_LANDSCAPE "0"
+setx SELECTION_MIN_SCORE "0.25"
+
+# LLM routing
+setx PIPELINE_LLM_ENDPOINT "http://localhost:11434"
+setx PIPELINE_LLM_MODEL_JSON "gemma3:4b"
+setx PIPELINE_LLM_MODEL_TEXT "qwen2.5:7b"
+
+# B-roll providers (ex)
+setx BROLL_FETCH_PROVIDER "pexels,pixabay"
+setx BROLL_FETCH_ALLOW_VIDEOS "1"
+setx BROLL_FETCH_ALLOW_IMAGES "0"

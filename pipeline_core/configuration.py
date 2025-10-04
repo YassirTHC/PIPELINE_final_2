@@ -1,4 +1,4 @@
-"""Shared configuration dataclasses for the modular video pipeline.
+﻿"""Shared configuration dataclasses for the modular video pipeline.
 
 These helpers centralise the defaults we want to reuse while we
 progressively refactor the monolithic `VideoProcessor`.
@@ -47,6 +47,28 @@ def _split_csv(raw: Optional[str]) -> list[str]:
         if value:
             items.append(value)
     return items
+
+
+def _env_to_bool(raw: Optional[str], default: bool = False) -> Optional[bool]:
+    """Normalise environment boolean flags."""
+
+    if raw is None:
+        return None
+    text = str(raw).strip().lower()
+    if text in TRUE_SET:
+        return True
+    if text in FALSE_SET:
+        return False
+    return default
+
+
+def _env_default_bool(name: str, default: bool) -> bool:
+    """Return an environment-backed boolean with an explicit default."""
+
+    flag = _env_to_bool(os.getenv(name), default=default)
+    if flag is None:
+        return default
+    return flag
 
 
 def _env_bool(*keys: str, default: Optional[bool] = None) -> Optional[bool]:
@@ -130,6 +152,9 @@ def _default_max_segments_in_flight() -> int:
 
 def _default_llm_queries_per_segment() -> int:
     return _coerce_positive_int(os.getenv("PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT"), 3)
+
+def _default_disable_tfidf_fallback() -> bool:
+    return _env_default_bool("PIPELINE_DISABLE_TFIDF_FALLBACK", False)
 
 
 def _parse_provider_list(raw: Optional[str]) -> Optional[set[str]]:
@@ -416,23 +441,6 @@ def detected_provider_names(
     return list(fallback)
 
 
-def _env_to_bool(value: Optional[str], *, default: Optional[bool] = None) -> Optional[bool]:
-    """Parse boolean-like environment values.
-
-    Returns ``True``/``False`` when the input can be interpreted as such, or
-    ``default`` when the value is empty/unknown.
-    """
-    if value is None:
-        return default
-    text = str(value).strip().lower()
-    if not text:
-        return default
-    if text in TRUE_SET:
-        return True
-    if text in FALSE_SET:
-        return False
-    return default
-
 
 def _selection_config_from_environment() -> "SelectionConfig":
     """Factory reading environment overrides for selection guardrails."""
@@ -531,6 +539,7 @@ class LLMServiceConfig:
     include_bigrams: bool = True
     include_trigrams: bool = True
     cache_ttl_s: float = 15 * 60  # 15 minutes
+    disable_tfidf_fallback: bool = field(default_factory=_default_disable_tfidf_fallback)
 
     def __post_init__(self) -> None:
         self.max_queries_per_segment = _coerce_positive_int(self.max_queries_per_segment, 3)
@@ -559,3 +568,6 @@ class PipelineConfigBundle:
     dedupe: DedupePolicy = field(default_factory=DedupePolicy)
     llm: LLMServiceConfig = field(default_factory=LLMServiceConfig)
     renderer: RendererConfig = field(default_factory=RendererConfig)
+
+
+

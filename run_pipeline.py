@@ -1,6 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Stable wrapper around video_processor with sane environment defaults."""
 from __future__ import annotations
+
+from tools.runtime_stamp import emit_runtime_banner
 
 try:
     from dotenv import load_dotenv
@@ -17,6 +19,10 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
+
+
+
+
 
 
 def _raw_provider_spec() -> str:
@@ -39,6 +45,8 @@ for stream in (sys.stdout, sys.stderr):
             stream.reconfigure(encoding='utf-8')
         except Exception:
             pass
+
+emit_runtime_banner()
 
 from config import Config
 from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
@@ -488,3 +496,5 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+

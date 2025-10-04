@@ -117,6 +117,7 @@ class OptimizedLLM:
         max_tokens: int = 100,
         *,
         timeout: Optional[int] = None,
+        json_mode: Optional[bool] = None,
     ) -> Tuple[bool, str, Optional[str]]:
         """Appel LLM simple avec gestion d'erreur"""
         try:
@@ -135,6 +136,10 @@ class OptimizedLLM:
                 "stream": False,
                 "options": options,
             }
+            if json_mode is True:
+                payload["format"] = "json"
+            elif json_mode is False:
+                payload.pop("format", None)
 
             start_time = time.time()
             response = requests.post(
@@ -148,6 +153,10 @@ class OptimizedLLM:
                 result = response.json()
                 response_text = result.get('response', '').strip()
                 duration = end_time - start_time
+
+                if len(response_text) < 2:
+                    logger.warning("[LLM] empty response payload")
+                    return False, '', 'empty'
 
                 logger.info(f"✅ LLM réussi en {duration:.1f}s - {len(response_text)} caractères")
                 return True, response_text, None
@@ -413,11 +422,15 @@ JSON:"""
         logger.info(f"🎯 Génération B-roll avec prompt minimaliste ({len(prompt)} caractères)")
 
         success, response, error_kind = self._call_llm(prompt, max_tokens=350)
-        if not success and error_kind == "timeout":
-            shorter = trimmed[:600]
-            retry_prompt = prompt.replace(trimmed, shorter)
-            logger.info("⏱️ Retentative LLM B-roll avec transcript raccourci")
-            success, response, error_kind = self._call_llm(retry_prompt, max_tokens=200, timeout=40)
+        if not success and error_kind in {"timeout", "empty"}:
+            if error_kind == "timeout":
+                shorter = trimmed[:600]
+                retry_prompt = prompt.replace(trimmed, shorter)
+                logger.info("⏱️ Retentative LLM B-roll avec transcript raccourci")
+                success, response, error_kind = self._call_llm(retry_prompt, max_tokens=200, timeout=40)
+            else:
+                logger.info("[LLM] Retentative B-roll après réponse vide")
+                success, response, error_kind = self._call_llm(prompt, max_tokens=250)
         if not success:
             return False, {}
         
