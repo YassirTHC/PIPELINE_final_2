@@ -20,37 +20,41 @@ Un pipeline automatisé pour créer du contenu vidéo viral optimisé pour les p
 ##  Installation
 
 1. **Cloner le repository**
-   `ash
+
+   ```bash
    git clone https://github.com/YassirTHC/PIPELINE_final_2.git
    cd PIPELINE_final_2
-   `
+   ```
 
 2. **Créer un environnement virtuel**
-   `ash
+
+   ```bash
    python -m venv venv311
    # Windows
    venv311\Scripts\activate
    # Linux/Mac
    source venv311/bin/activate
-   `
+   ```
 
 3. **Installer les dépendances**
-   `ash
+
+   ```bash
    pip install -r requirements.txt
-   `
+   ```
 
 4. **Configurer les variables d'environnement**
-   `ash
+
+   ```bash
    # Copier le fichier d'exemple
    copy .env.example .env
    # Éditer .env avec vos clés API
-   `
+   ```
 
 ##  Configuration des Clés API
 
-Créez un fichier .env basé sur .env.example :
+Créez un fichier `.env` basé sur `.env.example` :
 
-`env
+```env
 # Clés API B-roll
 PEXELS_API_KEY=your_pexels_api_key_here
 PIXABAY_API_KEY=your_pixabay_api_key_here
@@ -62,7 +66,7 @@ BROLL_FETCH_PROVIDER=pexels
 BROLL_FETCH_ALLOW_VIDEOS=True
 BROLL_FETCH_ALLOW_IMAGES=False
 BROLL_FETCH_MAX_PER_KEYWORD=8
-`
+```
 
 ### Variables d'environnement supplémentaires
 
@@ -75,23 +79,26 @@ BROLL_FETCH_MAX_PER_KEYWORD=8
 ##  Utilisation
 
 ### Interface Graphique (Recommandé)
-`ash
+
+```bash
 python video_converter_gui.py
-`
+```
 
 ### Interface Ligne de Commande
-`ash
+
+```bash
 python video_processor.py --video input/votre_video.mp4 --output output/
-`
+```
 
 ### Script de Lancement Windows
-`ash
+
+```bash
 run_pipeline_updated.bat
-`
+```
 
 ##  Structure du Projet
 
-`
+```
 PIPELINE_final_2/
  pipeline_core/          # Modules principaux
     fetchers.py        # Récupération de médias
@@ -108,7 +115,7 @@ PIPELINE_final_2/
  video_processor.py     # Processeur principal
  video_converter_gui.py # Interface graphique
  main.py               # Point d'entrée alternatif
-`
+```
 
 ##  Fonctionnalités Avancées
 
@@ -132,14 +139,14 @@ PIPELINE_final_2/
 
 ##  Tests
 
-`ash
+```bash
 # Lancer tous les tests
 pytest
 
 # Tests spécifiques
 pytest tests/test_video_processor.py
 pytest tests/test_llm_singleton.py
-`
+```
 
 ##  Monitoring et Logs
 
