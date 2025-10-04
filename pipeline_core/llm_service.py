@@ -2381,7 +2381,53 @@ class LLMMetadataGeneratorService:
         base_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL"), "qwen2.5:7b")
         self.model_default = base_model
         self.model_json = _clean_model(os.getenv("PIPELINE_LLM_MODEL_JSON"), base_model)
-        self.model_text = _clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), base_model)
+        configured_text_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), base_model)
+        self.model_text = configured_text_model
+
+        fallback_note: Optional[str] = None
+        fallback_target: Optional[str] = None
+        ready_path = PROJECT_ROOT / 'tools' / 'out' / 'llm_ready.json'
+        if ready_path.exists():
+            try:
+                ready_payload = json.loads(ready_path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning(
+                    "[LLM] failed to load readiness metadata from %s: %s",
+                    ready_path,
+                    exc,
+                )
+            else:
+                broken_models = {
+                    str(model).strip()
+                    for model in ready_payload.get('broken', [])
+                    if str(model).strip()
+                }
+                text_ready = [
+                    str(model).strip()
+                    for model in ready_payload.get('text_ready', [])
+                    if str(model).strip()
+                ]
+                if configured_text_model in broken_models and text_ready:
+                    fallback_target = text_ready[0]
+                    logger.warning(
+                        "[LLM] text model %s listed as broken in %s; falling back to %s",
+                        configured_text_model,
+                        ready_path,
+                        fallback_target,
+                    )
+                    self.model_text = fallback_target
+                    fallback_note = (
+                        f"configured model {configured_text_model} listed as broken in {ready_path.name}"
+                    )
+                elif configured_text_model in broken_models and not text_ready:
+                    logger.warning(
+                        "[LLM] text model %s listed as broken in %s but no fallback available",
+                        configured_text_model,
+                        ready_path,
+                    )
+                    fallback_note = (
+                        f"configured model {configured_text_model} listed as broken in {ready_path.name}"
+                    )
 
         logger.info(
             "[LLM] using timeout=%ss num_predict=%s temp=%s top_p=%s repeat_penalty=%s",
@@ -2391,6 +2437,16 @@ class LLMMetadataGeneratorService:
             self._llm_top_p,
             self._llm_repeat_penalty,
         )
+
+        if fallback_note:
+            logger.info(
+                "[LLM] text model selected: %s (fallback: %s%s)",
+                self.model_text,
+                fallback_note,
+                f", target={fallback_target}" if fallback_target else "",
+            )
+        else:
+            logger.info("[LLM] text model selected: %s", self.model_text)
 
     def _fallback_queries_from(
         self,

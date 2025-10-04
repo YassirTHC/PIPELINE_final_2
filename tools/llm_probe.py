@@ -252,6 +252,54 @@ def parse_models(value: str) -> List[str]:
     return models
 
 
+def _text_probe_ok(meta: Dict[str, Any]) -> bool:
+    """Determine whether a text probe result is usable."""
+
+    if not meta:
+        return False
+    if meta.get('empty'):
+        return False
+    if meta.get('errors'):
+        return False
+    status_code = meta.get('status_code')
+    if status_code not in (None, 200):
+        return False
+    return True
+
+
+def build_readiness(results: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+    """Build readiness metadata from probe results."""
+
+    text_ready: List[str] = []
+    json_ready: List[str] = []
+    broken: List[str] = []
+
+    for entry in results:
+        model = (entry.get('model') or '').strip()
+        if not model:
+            continue
+
+        json_meta = entry.get('json_strict') or {}
+        if json_meta.get('valid') and model not in json_ready:
+            json_ready.append(model)
+
+        text_meta = entry.get('text') or {}
+        short_ok = _text_probe_ok(text_meta.get('short') or {})
+        long_ok = _text_probe_ok(text_meta.get('long') or {})
+        if short_ok and long_ok:
+            if model not in text_ready:
+                text_ready.append(model)
+        else:
+            if model not in broken:
+                broken.append(model)
+
+    return {
+        'text_ready': text_ready,
+        'json_ready': json_ready,
+        'broken': broken,
+    }
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     """Argument parsing and file emission entry point."""
 
@@ -279,6 +327,13 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     md_path = output_dir / 'llm_probe_results.md'
     md_path.write_text(build_markdown(results), encoding='utf-8')
+
+    readiness_path = output_dir / 'llm_ready.json'
+    readiness_payload = build_readiness(results)
+    readiness_path.write_text(
+        json.dumps(readiness_payload, indent=2, ensure_ascii=False),
+        encoding='utf-8',
+    )
 
     return 0
 
