@@ -588,6 +588,7 @@ from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
 try:
     from pipeline_core.llm_service import (
+        DynamicCompletionError,
         LLMMetadataGeneratorService,
         _CONCRETE_SUBJECTS,
         _concretize_queries,
@@ -598,6 +599,12 @@ try:
     )
 except ImportError:  # pragma: no cover - test environments may stub partial API
     from pipeline_core.llm_service import LLMMetadataGeneratorService  # type: ignore
+
+    class DynamicCompletionError(RuntimeError):  # type: ignore[override]
+        def __init__(self, reason: str, *, payload=None) -> None:
+            self.reason = (reason or "unknown").strip() or "unknown"
+            self.payload = payload
+            super().__init__(reason)
 
     def enforce_fetch_language(terms, language=None):  # type: ignore[override]
         return list(dict.fromkeys(term for term in terms if term))
@@ -4568,6 +4575,8 @@ class VideoProcessor:
             if ENABLE_DYNAMIC_CONTEXT and getattr(self, "_llm_service", None):
                 try:
                     dyn_context = self._llm_service.generate_dynamic_context(transcript_text_full)
+                except DynamicCompletionError as exc:
+                    dyn_context = exc.payload or {}
                 except Exception:
                     dyn_context = {}
 

@@ -440,7 +440,7 @@ from pipeline_core.logging import JsonlLogger, log_broll_decision, log_pipeline_
 
 from pipeline_core.runtime import PipelineResult, Stage
 
-from pipeline_core.llm_service import LLMMetadataGeneratorService
+from pipeline_core.llm_service import DynamicCompletionError, LLMMetadataGeneratorService
 
 # 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
 
@@ -5150,6 +5150,10 @@ class VideoProcessor:
                 try:
 
                     dyn_context = self._llm_service.generate_dynamic_context(transcript_text_full)
+
+                except DynamicCompletionError as exc:
+
+                    dyn_context = exc.payload or {}
 
                 except Exception:
 
