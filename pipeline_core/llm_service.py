@@ -10,6 +10,7 @@ import math
 import os
 import re
 import sys
+import hashlib
 from collections import Counter
 from pathlib import Path
 import unicodedata
@@ -2386,48 +2387,91 @@ class LLMMetadataGeneratorService:
 
         fallback_note: Optional[str] = None
         fallback_target: Optional[str] = None
+        readiness_reason = "configured text model retained (no readiness metadata)"
+        readiness_filename: Optional[str] = None
+        readiness_hash: Optional[str] = None
+
         ready_path = PROJECT_ROOT / 'tools' / 'out' / 'llm_ready.json'
+        readiness_filename = ready_path.name
+
         if ready_path.exists():
             try:
-                ready_payload = json.loads(ready_path.read_text(encoding='utf-8'))
-            except (OSError, json.JSONDecodeError) as exc:
+                ready_bytes = ready_path.read_bytes()
+            except OSError as exc:
                 logger.warning(
                     "[LLM] failed to load readiness metadata from %s: %s",
                     ready_path,
                     exc,
                 )
+                readiness_reason = f"failed to read readiness metadata ({exc})"
             else:
-                broken_models = {
-                    str(model).strip()
-                    for model in ready_payload.get('broken', [])
-                    if str(model).strip()
-                }
-                text_ready = [
-                    str(model).strip()
-                    for model in ready_payload.get('text_ready', [])
-                    if str(model).strip()
-                ]
-                if configured_text_model in broken_models and text_ready:
-                    fallback_target = text_ready[0]
+                readiness_hash = hashlib.sha256(ready_bytes).hexdigest()[:12]
+                try:
+                    ready_text = ready_bytes.decode('utf-8')
+                except UnicodeDecodeError as exc:
                     logger.warning(
-                        "[LLM] text model %s listed as broken in %s; falling back to %s",
-                        configured_text_model,
+                        "[LLM] failed to decode readiness metadata from %s: %s",
                         ready_path,
-                        fallback_target,
+                        exc,
                     )
-                    self.model_text = fallback_target
-                    fallback_note = (
-                        f"configured model {configured_text_model} listed as broken in {ready_path.name}"
-                    )
-                elif configured_text_model in broken_models and not text_ready:
-                    logger.warning(
-                        "[LLM] text model %s listed as broken in %s but no fallback available",
-                        configured_text_model,
-                        ready_path,
-                    )
-                    fallback_note = (
-                        f"configured model {configured_text_model} listed as broken in {ready_path.name}"
-                    )
+                    readiness_reason = f"failed to decode readiness metadata ({exc})"
+                else:
+                    try:
+                        ready_payload = json.loads(ready_text)
+                    except json.JSONDecodeError as exc:
+                        logger.warning(
+                            "[LLM] failed to parse readiness metadata from %s: %s",
+                            ready_path,
+                            exc,
+                        )
+                        readiness_reason = f"failed to parse readiness metadata ({exc})"
+                    else:
+                        broken_models = {
+                            str(model).strip()
+                            for model in ready_payload.get('broken', [])
+                            if str(model).strip()
+                        }
+                        text_ready = [
+                            str(model).strip()
+                            for model in ready_payload.get('text_ready', [])
+                            if str(model).strip()
+                        ]
+                        if configured_text_model in broken_models and text_ready:
+                            fallback_target = text_ready[0]
+                            logger.warning(
+                                "[LLM] text model %s listed as broken in %s; falling back to %s",
+                                configured_text_model,
+                                ready_path,
+                                fallback_target,
+                            )
+                            self.model_text = fallback_target
+                            fallback_note = (
+                                f"configured model {configured_text_model} listed as broken in {ready_path.name}"
+                            )
+                            readiness_reason = (
+                                f"configured model {configured_text_model} listed as broken; "
+                                f"fallback to {fallback_target}"
+                            )
+                        elif configured_text_model in broken_models and not text_ready:
+                            logger.warning(
+                                "[LLM] text model %s listed as broken in %s but no fallback available",
+                                configured_text_model,
+                                ready_path,
+                            )
+                            fallback_note = (
+                                f"configured model {configured_text_model} listed as broken in {ready_path.name}"
+                            )
+                            readiness_reason = (
+                                f"configured model {configured_text_model} listed as broken; no fallback available"
+                            )
+                        elif configured_text_model in text_ready:
+                            readiness_reason = (
+                                f"configured model {configured_text_model} marked ready"
+                            )
+                        else:
+                            readiness_reason = (
+                                f"configured model {configured_text_model} not referenced; retaining configured value"
+                            )
 
         logger.info(
             "[LLM] using timeout=%ss num_predict=%s temp=%s top_p=%s repeat_penalty=%s",
@@ -2447,6 +2491,22 @@ class LLMMetadataGeneratorService:
             )
         else:
             logger.info("[LLM] text model selected: %s", self.model_text)
+
+        readiness_log: Dict[str, Any] = {
+            'chosen_text_model': self.model_text,
+            'chosen_json_model': self.model_json,
+            'readiness_reason': readiness_reason,
+        }
+        if readiness_filename:
+            readiness_log['readiness_filename'] = readiness_filename
+        if readiness_hash:
+            readiness_log['readiness_sha256_12'] = readiness_hash
+        if fallback_note:
+            readiness_log['fallback_note'] = fallback_note
+        if fallback_target:
+            readiness_log['fallback_target'] = fallback_target
+
+        logger.info("[LLM] readiness routing decision: %s", readiness_log)
 
     def _fallback_queries_from(
         self,
