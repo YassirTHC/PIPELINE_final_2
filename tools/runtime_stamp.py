@@ -1,17 +1,76 @@
-﻿"""Runtime diagnostics banner for early import tracing."""
+"""Runtime diagnostics banner for early import tracing."""
 from __future__ import annotations
 
 import hashlib
-import importlib
-import importlib.util
+import json
+import logging
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Iterable, Optional, Sequence
 
 
-def _read_sha256(path: Path) -> str:
+_LOGGER = logging.getLogger("pipeline.startup")
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _safe_resolve(entry: str) -> str:
+    if not entry:
+        return entry
+    try:
+        return str(Path(entry).resolve())
+    except OSError:
+        return entry
+
+
+def _clean_env_value(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+        cleaned = cleaned[1:-1].strip()
+    return cleaned or None
+
+
+def _mask_env_value(key: str, value: Optional[str]) -> Optional[str]:
+    cleaned = _clean_env_value(value)
+    if cleaned is None:
+        return None
+    upper_key = key.upper()
+    sensitive_markers = ("KEY", "TOKEN", "SECRET", "PASSWORD")
+    if any(marker in upper_key for marker in sensitive_markers):
+        tail = cleaned[-4:] if len(cleaned) > 4 else cleaned
+        return f"****{tail}"
+    return cleaned
+
+
+def _git_commit(repo_root: Path) -> Optional[str]:
+    git_dir = repo_root / ".git"
+    head_path = git_dir / "HEAD"
+    if not head_path.exists():
+        return None
+    try:
+        head_contents = head_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if head_contents.startswith("ref:"):
+        ref_name = head_contents.split(":", 1)[1].strip()
+        ref_path = git_dir / ref_name
+        try:
+            commit = ref_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            commit = None
+    else:
+        commit = head_contents
+    if not commit:
+        return None
+    return commit[:12]
+
+
+def _read_sha256(path: Path) -> Optional[str]:
     digest = hashlib.sha256()
     try:
         with path.open('rb') as handle:
@@ -20,102 +79,42 @@ def _read_sha256(path: Path) -> str:
                     break
                 digest.update(chunk)
     except OSError:
-        return '<unreadable>'
+        return None
     return digest.hexdigest()
 
 
-def _format_mtime(path: Path) -> str:
-    try:
-        ts = path.stat().st_mtime
-    except OSError:
-        return '<unknown>'
-    return datetime.fromtimestamp(ts).isoformat()
+def _readiness_metadata(repo_root: Path) -> Dict[str, object]:
+    readiness_path = repo_root / 'tools' / 'out' / 'llm_ready.json'
+    exists = readiness_path.exists()
+    info: Dict[str, object] = {
+        'path': str(readiness_path),
+        'sha256_12': None,
+        'exists': exists,
+    }
+    if exists:
+        digest = _read_sha256(readiness_path)
+        if digest:
+            info['sha256_12'] = digest[:12]
+    return info
 
 
-def _resolve_spec_path(module_name: str) -> Optional[Path]:
-    spec = importlib.util.find_spec(module_name)
-    if spec is None:
-        return None
-    origin = spec.origin
-    if origin is None:
-        locations = spec.submodule_search_locations or []
-        for location in locations:
-            candidate = Path(location) / '__init__.py'
-            if candidate.exists():
-                return candidate.resolve()
-        return None
-    candidate = Path(origin)
-    if candidate.name == '__init__.py' and candidate.exists():
-        return candidate.resolve()
-    if candidate.exists():
-        return candidate.resolve()
-    return None
+def _collect_env(keys: Iterable[str]) -> Dict[str, Optional[str]]:
+    return {key: _mask_env_value(key, os.getenv(key)) for key in keys}
 
 
-def _emit_module_stamp(module_name: str) -> None:
-    module_obj = None
-    try:
-        module_obj = importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - diagnostic logging only
-        print(f"[module {module_name}] import_error={exc.__class__.__name__}: {exc}")
-    path: Optional[Path] = None
-    if module_obj is not None:
-        file_attr = getattr(module_obj, '__file__', None)
-        if file_attr:
-            try:
-                path = Path(file_attr).resolve()
-            except OSError:
-                path = Path(file_attr)
-    if path is None:
-        resolved = _resolve_spec_path(module_name)
-        if resolved is not None:
-            path = resolved
-    if path is None:
-        print(f"[module {module_name}] __file__=<missing> sha256=<n/a> mtime=<n/a>")
-        return
-    sha_value = _read_sha256(path)
-    mtime_value = _format_mtime(path)
-    print(f"[module {module_name}] __file__={path} sha256={sha_value} mtime={mtime_value}")
+def emit_runtime_banner(*, env_keys: Optional[Sequence[str]] = None) -> None:
+    """Log startup metadata for debugging and diagnostics."""
 
+    repo_root = _repo_root()
+    metadata = {
+        'cwd': str(Path.cwd()),
+        'python_executable': sys.executable,
+        'python_version': sys.version.replace(os.linesep, ' '),
+        'sys_path_head': [_safe_resolve(entry) for entry in list(sys.path)[:5]],
+        'git_commit': _git_commit(repo_root),
+        'llm_readiness': _readiness_metadata(repo_root),
+    }
+    if env_keys:
+        metadata['env'] = _collect_env(env_keys)
 
-def emit_runtime_banner() -> None:
-    """Print runtime diagnostics for imports and environment hygiene."""
-
-    cwd = Path.cwd()
-    print('=== RUNTIME BANNER ===')
-    print(f"cwd={cwd}")
-    print(f"sys.executable={sys.executable}")
-    version_line = sys.version.replace(os.linesep, ' ')
-    print(f"sys.version={version_line}")
-
-    top_paths = list(sys.path)[:5]
-    for idx, entry in enumerate(top_paths):
-        print(f"sys.path[{idx}]={entry}")
-
-    for needle in ('video_pipeline', 'pipeline_core'):
-        matches = []
-        for entry in sys.path:
-            if not entry:
-                continue
-            if needle not in entry:
-                continue
-            try:
-                resolved = str(Path(entry).resolve())
-            except OSError:
-                resolved = entry
-            matches.append(resolved)
-        unique = sorted(set(matches))
-        if len(unique) > 1:
-            print(f"ALERT: multiple sys.path entries contain '{needle}':")
-            for item in unique:
-                print(f"  -> {item}")
-
-    modules = (
-        'pipeline_core.configuration',
-        'pipeline_core.llm_service',
-        'video_processor',
-        'utils.optimized_llm',
-    )
-    for module_name in modules:
-        _emit_module_stamp(module_name)
-    print('=== END RUNTIME BANNER ===')
+    _LOGGER.info("startup metadata: %s", json.dumps(metadata, sort_keys=True, ensure_ascii=False))

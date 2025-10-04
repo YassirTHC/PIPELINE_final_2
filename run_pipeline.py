@@ -46,7 +46,22 @@ for stream in (sys.stdout, sys.stderr):
         except Exception:
             pass
 
-emit_runtime_banner()
+
+_SANITIZE_KEYS = (
+    'PEXELS_API_KEY',
+    'PIXABAY_API_KEY',
+    'UNSPLASH_ACCESS_KEY',
+    'GIPHY_API_KEY',
+    'BROLL_FETCH_PROVIDER',
+    'BROLL_FETCH_ENABLE',
+    'BROLL_FETCH_ALLOW_VIDEOS',
+    'BROLL_FETCH_ALLOW_IMAGES',
+    'BROLL_FETCH_MAX_PER_KEYWORD',
+    'ENABLE_PIPELINE_CORE_FETCHER',
+)
+
+
+emit_runtime_banner(env_keys=_SANITIZE_KEYS)
 
 from config import Config
 from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
@@ -80,20 +95,6 @@ def _result_to_exit_code(result: PipelineResult) -> int:
     if final_ok:
         return 0 if not has_errors else 2
     return 1
-
-
-_SANITIZE_KEYS = (
-    'PEXELS_API_KEY',
-    'PIXABAY_API_KEY',
-    'UNSPLASH_ACCESS_KEY',
-    'GIPHY_API_KEY',
-    'BROLL_FETCH_PROVIDER',
-    'BROLL_FETCH_ENABLE',
-    'BROLL_FETCH_ALLOW_VIDEOS',
-    'BROLL_FETCH_ALLOW_IMAGES',
-    'BROLL_FETCH_MAX_PER_KEYWORD',
-    'ENABLE_PIPELINE_CORE_FETCHER',
-)
 
 
 def _clean_env_value(value: Optional[str]) -> Optional[str]:
