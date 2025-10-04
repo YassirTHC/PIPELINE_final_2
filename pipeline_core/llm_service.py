@@ -56,8 +56,9 @@ logger = logging.getLogger(__name__)
 class DynamicCompletionError(RuntimeError):
     """Raised when the dedicated text completion returns no usable payload."""
 
-    def __init__(self, reason: str) -> None:
+    def __init__(self, reason: str, *, payload: Optional[Dict[str, Any]] = None) -> None:
         self.reason = (reason or "unknown").strip() or "unknown"
+        self.payload = payload
         super().__init__(f"dynamic completion failed: {self.reason}")
 
 
@@ -1356,7 +1357,7 @@ def _ollama_generate_text(
     model: str,
     options: Optional[Dict[str, Any]] = None,
     timeout: float = 60.0,
-) -> Tuple[str, str, int]:
+) -> Tuple[str, str, int, int, int]:
     """Generate plain text from Ollama with retries and diagnostics."""
 
     cleaned_prompt = str(prompt or "").strip()
@@ -1439,16 +1440,7 @@ def _ollama_generate_text(
             time.sleep(backoffs[attempt])
 
     stripped_text = raw_text.strip()
-    logger.info(
-        "[LLM] dynamic text completion model=%s json_mode=False prompt_len=%s raw_len=%s chunks=%s reason_if_empty=%s attempts=%s",
-        model_name,
-        len(cleaned_prompt),
-        len(raw_text),
-        chunk_count,
-        reason or "",
-        attempts_used,
-    )
-    return stripped_text, (reason or ""), chunk_count
+    return stripped_text, (reason or ""), chunk_count, len(raw_text), attempts_used
 
 
 _TERM_MIN_LEN = 3
@@ -2578,12 +2570,56 @@ class LLMMetadataGeneratorService:
                         pass
 
     # --- Compatibility layer for plain text completions ---------------------
-    def _complete_text(self, prompt: str, *, max_tokens: int = 800, purpose: str = "generic") -> str:
+    def _complete_text(self, prompt: str, *, max_tokens: int = 800, purpose: str = "generic") -> Any:
         """Attempt to invoke a completion method on the underlying integration.
 
         Tries common method names; falls back to calling the optimized LLM engine
         when available (integration.llm._call_llm). Returns raw text.
         """
+        if purpose == "dynamic":
+            model_candidates = (
+                getattr(self, "model_text", None),
+                getattr(self, "model_default", None),
+                _DEFAULT_OLLAMA_MODEL,
+            )
+            resolved_model: Optional[str] = None
+            for candidate in model_candidates:
+                if isinstance(candidate, str):
+                    cleaned = candidate.strip()
+                    if cleaned:
+                        resolved_model = cleaned
+                        break
+            if not resolved_model:
+                resolved_model = _DEFAULT_OLLAMA_MODEL
+
+            bounded_tokens = min(max_tokens, self._llm_num_predict)
+            options = {
+                "num_predict": bounded_tokens,
+                "temperature": self._llm_temperature,
+                "top_p": self._llm_top_p,
+                "repeat_penalty": self._llm_repeat_penalty,
+                "stop": list(self._llm_stop_tokens),
+            }
+
+            text, reason, chunk_count, raw_len, attempts = _ollama_generate_text(
+                prompt,
+                model=resolved_model,
+                options=options,
+                timeout=float(self._llm_timeout),
+            )
+            logger.info(
+                "[LLM] dynamic text completion model=%s json_mode=False prompt_len=%s raw_len=%s chunks=%s reason_if_empty=%s attempts=%s",
+                resolved_model,
+                len(str(prompt or "")),
+                raw_len,
+                chunk_count,
+                reason or "",
+                attempts,
+            )
+            if not text:
+                raise DynamicCompletionError(reason or "empty_payload")
+            return text, reason, chunk_count
+
         integration = self._get_integration()
 
         target_model = getattr(self, "model_text", None) or getattr(self, "model_default", None)
@@ -2757,6 +2793,8 @@ class LLMMetadataGeneratorService:
             ordered_limits = [max_len or 600]
 
         raw_payload: Dict[str, Any] = {}
+        last_dynamic_error: Optional[DynamicCompletionError] = None
+        last_reason: Optional[str] = None
         for idx, limit in enumerate(ordered_limits, start=1):
             prompt = build_dynamic_prompt(transcript, max_len=limit)
             if limit >= 1400:
@@ -2768,8 +2806,9 @@ class LLMMetadataGeneratorService:
             else:
                 token_budget = 300
             try:
-                raw_text = self._complete_text(prompt, max_tokens=token_budget, purpose="dynamic")
+                completion = self._complete_text(prompt, max_tokens=token_budget, purpose="dynamic")
             except TimeoutError:
+                last_reason = "timeout"
                 logger.warning(
                     '[LLM] dynamic context attempt %s timed out (limit=%s, tokens=%s)',
                     idx,
@@ -2777,20 +2816,57 @@ class LLMMetadataGeneratorService:
                     token_budget,
                 )
                 continue
+            except DynamicCompletionError as exc:
+                last_dynamic_error = exc
+                last_reason = exc.reason
+                logger.warning(
+                    '[LLM] dynamic context attempt %s failed (limit=%s, tokens=%s, fallback_reason=%s)',
+                    idx,
+                    limit,
+                    token_budget,
+                    exc.reason,
+                )
+                continue
             except Exception:
+                last_reason = "integration_error"
                 logger.exception('[LLM] dynamic context attempt %s failed', idx)
                 continue
 
-            if isinstance(raw_text, dict):
-                raw_payload = raw_text
+            parsed_reason = ""
+            if isinstance(completion, tuple):
+                raw_text = completion[0]
+                parsed_reason = completion[1] if len(completion) > 1 and isinstance(completion[1], str) else ""
             else:
-                raw_payload = _safe_parse_json(raw_text)
+                raw_text = completion
 
-            if raw_payload:
+            parsed_payload: Dict[str, Any] = {}
+            if isinstance(raw_text, dict):
+                parsed_payload = raw_text
+            else:
+                parsed_payload = _safe_parse_json(raw_text)
+
+            if parsed_payload:
+                raw_payload = parsed_payload
                 break
-        else:
-            if transcript:
-                logger.warning('[LLM] dynamic context fell back to TF-IDF (no structured payload)')
+
+            if parsed_reason:
+                last_reason = parsed_reason
+            elif isinstance(raw_text, str) and raw_text.strip():
+                last_reason = last_reason or "invalid_json"
+            elif not raw_text:
+                last_reason = last_reason or "empty_payload"
+        if not raw_payload:
+            fallback_reason = last_reason or (last_dynamic_error.reason if last_dynamic_error else "empty_payload")
+            logger.warning(
+                '[LLM] dynamic context fell back to TF-IDF (no structured payload)',
+                extra={'fallback_reason': fallback_reason},
+            )
+            fallback_payload = _normalise_dynamic_payload({}, transcript=transcript_text or '')
+            if last_dynamic_error is not None:
+                last_dynamic_error.payload = fallback_payload
+                raise last_dynamic_error
+            raise DynamicCompletionError(fallback_reason, payload=fallback_payload)
+
         return _normalise_dynamic_payload(raw_payload, transcript=transcript_text or '')
 
 

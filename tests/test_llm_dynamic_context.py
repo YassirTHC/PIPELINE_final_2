@@ -1,8 +1,8 @@
-﻿import json
+import json
 
 import pytest
 
-from pipeline_core.llm_service import LLMMetadataGeneratorService
+from pipeline_core.llm_service import DynamicCompletionError, LLMMetadataGeneratorService
 
 
 class DummyService(LLMMetadataGeneratorService):
@@ -10,7 +10,13 @@ class DummyService(LLMMetadataGeneratorService):
         super().__init__(reuse_shared=False)
         self._payload = payload
 
-    def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:  # type: ignore[override]
+    def _complete_text(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int = 800,
+        purpose: str = "generic",
+    ) -> str:  # type: ignore[override]
         return self._payload
 
 
@@ -51,19 +57,34 @@ def test_dynamic_context_normalisation():
 
 def test_dynamic_context_fallback_keywords():
     class Failing(LLMMetadataGeneratorService):
-        def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:  # type: ignore[override]
+        def _complete_text(
+            self,
+            prompt: str,
+            *,
+            max_tokens: int = 800,
+            purpose: str = "generic",
+        ) -> str:  # type: ignore[override]
             raise RuntimeError("boom")
 
     service = Failing(reuse_shared=False)
     transcript = "We discuss marketing funnels and conversion metrics for data driven teams."
-    result = service.generate_dynamic_context(transcript)
-    assert result["keywords"], "fallback keywords missing"
-    assert all(len(term) >= 3 for term in result["keywords"])
+    with pytest.raises(DynamicCompletionError) as excinfo:
+        service.generate_dynamic_context(transcript)
+    fallback = excinfo.value.payload or {}
+    keywords = fallback.get("keywords", [])
+    assert keywords, "fallback keywords missing"
+    assert all(len(term) >= 3 for term in keywords)
 
 
 def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
     class FallbackOnly(LLMMetadataGeneratorService):
-        def _complete_text(self, prompt: str, *, max_tokens: int = 800) -> str:  # type: ignore[override]
+        def _complete_text(
+            self,
+            prompt: str,
+            *,
+            max_tokens: int = 800,
+            purpose: str = "generic",
+        ) -> str:  # type: ignore[override]
             raise RuntimeError("no llm")
 
     service = FallbackOnly(reuse_shared=False)
@@ -71,13 +92,15 @@ def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
         "Objectif et focus sur la réussite de l'équipe marketing. "
         "Ils écrivent des objectifs clairs dans un cahier."
     )
-    result = service.generate_dynamic_context(transcript)
-    keywords = result["keywords"]
+    with pytest.raises(DynamicCompletionError) as excinfo:
+        service.generate_dynamic_context(transcript)
+    fallback = excinfo.value.payload or {}
+    keywords = fallback.get("keywords", [])
     assert "goal" in keywords
     assert "focus" in keywords
     assert "success" in keywords
     assert all(ord(ch) < 128 for term in keywords for ch in term)
-    queries = result["search_queries"]
+    queries = fallback.get("search_queries", [])
     assert queries, "fallback queries missing"
     assert any(query == "writing goals on notebook" for query in queries)
     assert any(query == "focused typing keyboard" for query in queries)
