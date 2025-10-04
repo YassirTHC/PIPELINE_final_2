@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import hashlib
+import traceback
 from collections import Counter
 from pathlib import Path
 import unicodedata
@@ -52,6 +53,25 @@ else:
 
 
 logger = logging.getLogger(__name__)
+
+
+def _estimate_prompt_tokens(text: str) -> int:
+    """Roughly estimate token usage for logging/diagnostics."""
+
+    cleaned = text.strip()
+    if not cleaned:
+        return 0
+    # Empirical heuristic: roughly 4 characters per token for mixed language text.
+    return max(1, math.ceil(len(cleaned) / 4))
+
+
+def _capture_trimmed_stack(limit: int = 6) -> str:
+    """Return a trimmed stack trace string for diagnostics."""
+
+    frames = traceback.format_stack(limit=limit + 1)
+    if not frames:
+        return ""
+    return " | ".join(frame.strip().replace("\n", " ") for frame in frames[:-1])
 
 
 class DynamicCompletionError(RuntimeError):
@@ -1363,11 +1383,18 @@ def _ollama_generate_text(
 
     cleaned_prompt = str(prompt or "").strip()
     if not cleaned_prompt:
+        logger.debug(
+            "[LLM] dynamic attempt skipped (empty prompt)",
+            extra={"reason": "empty_prompt"},
+        )
         return "", "empty_payload", 0
 
     model_name = _resolve_ollama_model(model)
     endpoint = _resolve_ollama_endpoint(None)
     url = f"{endpoint}/api/generate"
+
+    prompt_len_chars = len(cleaned_prompt)
+    prompt_token_estimate = _estimate_prompt_tokens(cleaned_prompt)
 
     option_payload: Dict[str, Any] = {}
     if options:
@@ -1406,6 +1433,19 @@ def _ollama_generate_text(
         attempts_used = attempt + 1
         chunk_count = 0
         text_parts: List[str] = []
+        logger.debug(
+            "[LLM] dynamic attempt start",
+            extra={
+                "attempt": attempts_used,
+                "model": model_name,
+                "prompt_len_chars": prompt_len_chars,
+                "prompt_token_estimate": prompt_token_estimate,
+                "num_predict": option_payload.get("num_predict"),
+                "temperature": option_payload.get("temperature"),
+                "top_p": option_payload.get("top_p"),
+                "timeout": request_timeout,
+            },
+        )
         try:
             with requests.post(
                 url,
@@ -1428,6 +1468,14 @@ def _ollama_generate_text(
                 raw_text = "".join(text_parts)
                 if raw_text.strip():
                     reason = ""
+                    logger.debug(
+                        "[LLM] dynamic attempt completed",
+                        extra={
+                            "attempt": attempts_used,
+                            "chunk_count": chunk_count,
+                            "raw_length": len(raw_text),
+                        },
+                    )
                     break
                 reason = "empty_payload"
         except requests.Timeout:
@@ -1437,10 +1485,36 @@ def _ollama_generate_text(
         except Exception:
             reason = "stream_err"
 
+        logger.debug(
+            "[LLM] dynamic attempt retry",
+            extra={
+                "attempt": attempts_used,
+                "chunk_count": chunk_count,
+                "reason": reason,
+            },
+        )
         if attempt < len(backoffs):
             time.sleep(backoffs[attempt])
 
     stripped_text = raw_text.strip()
+    if stripped_text:
+        logger.debug(
+            "[LLM] dynamic_ok",
+            extra={
+                "attempts": attempts_used,
+                "response_length": len(stripped_text),
+                "chunk_count": chunk_count,
+            },
+        )
+    else:
+        logger.debug(
+            "[LLM] dynamic_empty",
+            extra={
+                "attempts": attempts_used,
+                "reason": reason or "empty_payload",
+                "chunk_count": chunk_count,
+            },
+        )
     return stripped_text, (reason or ""), chunk_count, len(raw_text), attempts_used
 
 
@@ -2755,6 +2829,9 @@ class LLMMetadataGeneratorService:
                 resolved_model = _DEFAULT_OLLAMA_MODEL
 
             bounded_tokens = min(max_tokens, self._llm_num_predict)
+            prompt_text = str(prompt or "")
+            prompt_len_chars = len(prompt_text)
+            prompt_token_estimate = _estimate_prompt_tokens(prompt_text)
             options = {
                 "num_predict": bounded_tokens,
                 "temperature": self._llm_temperature,
@@ -2762,6 +2839,19 @@ class LLMMetadataGeneratorService:
                 "repeat_penalty": self._llm_repeat_penalty,
                 "stop": list(self._llm_stop_tokens),
             }
+
+            logger.debug(
+                "[LLM] dynamic completion dispatch",
+                extra={
+                    "model": resolved_model,
+                    "temperature": self._llm_temperature,
+                    "top_p": self._llm_top_p,
+                    "num_predict": bounded_tokens,
+                    "prompt_len_chars": prompt_len_chars,
+                    "prompt_token_estimate": prompt_token_estimate,
+                    "json_mode": False,
+                },
+            )
 
             text, reason, chunk_count, raw_len, attempts = _ollama_generate_text(
                 prompt,
@@ -2781,6 +2871,15 @@ class LLMMetadataGeneratorService:
             if not text:
                 raise DynamicCompletionError(reason or "empty_payload")
             return text, reason, chunk_count
+
+        if purpose == "dynamic":
+            logger.warning(
+                "[LLM] dynamic request routed to non-Ollama path",
+                extra={
+                    "max_tokens": max_tokens,
+                    "stack": _capture_trimmed_stack(),
+                },
+            )
 
         integration = self._get_integration()
 
@@ -3027,7 +3126,10 @@ class LLMMetadataGeneratorService:
             logger.warning(
                 '[LLM] dynamic context fell back to TF-IDF (no structured payload, fallback_reason=%s)',
                 fallback_reason,
-                extra={'fallback_reason': fallback_reason},
+                extra={
+                    'fallback_reason': fallback_reason,
+                    'stack': _capture_trimmed_stack(),
+                },
             )
             fallback_payload = _normalise_dynamic_payload(
                 {},
