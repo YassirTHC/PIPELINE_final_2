@@ -1,5 +1,9 @@
 # 🧹 NETTOYAGE COMPLET DU DOSSIER VIDÉO PIPELINE
 
+## ♻️ Mise à jour 2024-08-31
+- Suppression du script `quick_fix.py` (encodage UTF-16 corrompu) désormais inutile après la réécriture de `video_processor.py`.
+- Historique nettoyé pour éviter toute réintroduction de cette version binaire.
+
 ## ✅ FICHIERS DE TEST SUPPRIMÉS
 
 ### **Tests B-roll et Pipeline (50+ fichiers)**
