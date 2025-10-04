@@ -5,6 +5,7 @@ progressively refactor the monolithic `VideoProcessor`.
 """
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,8 +14,16 @@ from typing import Iterable, List, Optional, Sequence
 from config import Config
 
 
+logger = logging.getLogger(__name__)
+
+
 TRUE_SET = {"1", "true", "t", "yes", "y", "on"}
 FALSE_SET = {"0", "false", "f", "no", "n", "off"}
+
+
+_TFIDF_FALLBACK_DISABLED_ENV = "PIPELINE_TFIDF_FALLBACK_DISABLED"
+_TFIDF_FALLBACK_DISABLED_LEGACY_ENV = "PIPELINE_DISABLE_TFIDF_FALLBACK"
+_TFIDF_FALLBACK_LEGACY_WARNING_EMITTED = False
 
 
 def to_bool(v: object, default: bool = False) -> bool:
@@ -69,6 +78,31 @@ def _env_default_bool(name: str, default: bool) -> bool:
     if flag is None:
         return default
     return flag
+
+
+def _warn_tfidf_legacy_env_once() -> None:
+    global _TFIDF_FALLBACK_LEGACY_WARNING_EMITTED
+    if _TFIDF_FALLBACK_LEGACY_WARNING_EMITTED:
+        return
+    logger.warning(
+        "PIPELINE_DISABLE_TFIDF_FALLBACK is deprecated; use PIPELINE_TFIDF_FALLBACK_DISABLED instead.",
+    )
+    _TFIDF_FALLBACK_LEGACY_WARNING_EMITTED = True
+
+
+def tfidf_fallback_disabled_from_env() -> Optional[bool]:
+    """Read the TF-IDF fallback disable flag from the environment."""
+
+    flag = _env_to_bool(os.getenv(_TFIDF_FALLBACK_DISABLED_ENV))
+    if flag is not None:
+        return flag
+
+    legacy_flag = _env_to_bool(os.getenv(_TFIDF_FALLBACK_DISABLED_LEGACY_ENV))
+    if legacy_flag is not None:
+        _warn_tfidf_legacy_env_once()
+        return legacy_flag
+
+    return None
 
 
 def _env_bool(*keys: str, default: Optional[bool] = None) -> Optional[bool]:
@@ -154,7 +188,10 @@ def _default_llm_queries_per_segment() -> int:
     return _coerce_positive_int(os.getenv("PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT"), 3)
 
 def _default_disable_tfidf_fallback() -> bool:
-    return _env_default_bool("PIPELINE_DISABLE_TFIDF_FALLBACK", False)
+    flag = tfidf_fallback_disabled_from_env()
+    if flag is None:
+        return False
+    return flag
 
 
 def _parse_provider_list(raw: Optional[str]) -> Optional[set[str]]:

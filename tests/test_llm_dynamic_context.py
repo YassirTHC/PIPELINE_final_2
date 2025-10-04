@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict
 
 import pytest
@@ -92,13 +93,36 @@ def test_dynamic_context_respects_tfidf_disable(monkeypatch):
         ) -> str:  # type: ignore[override]
             raise RuntimeError("boom")
 
-    monkeypatch.setenv("PIPELINE_DISABLE_TFIDF_FALLBACK", "1")
+    monkeypatch.setenv("PIPELINE_TFIDF_FALLBACK_DISABLED", "1")
     service = Failing(reuse_shared=False)
 
     transcript = "We discuss marketing funnels and conversion metrics for data driven teams."
     with pytest.raises(TfidfFallbackDisabled) as excinfo:
         service.generate_dynamic_context(transcript)
     assert "fallback_reason=integration_error" in str(excinfo.value)
+
+
+def test_legacy_disable_env_emits_deprecation_warning(monkeypatch, caplog):
+    class Failing(LLMMetadataGeneratorService):
+        def _complete_text(
+            self,
+            prompt: str,
+            *,
+            max_tokens: int = 800,
+            purpose: str = "generic",
+        ) -> str:  # type: ignore[override]
+            raise RuntimeError("boom")
+
+    monkeypatch.delenv("PIPELINE_TFIDF_FALLBACK_DISABLED", raising=False)
+    monkeypatch.setenv("PIPELINE_DISABLE_TFIDF_FALLBACK", "1")
+
+    with caplog.at_level(logging.WARNING):
+        service = Failing(reuse_shared=False)
+        transcript = "We discuss marketing funnels and conversion metrics for data driven teams."
+        with pytest.raises(TfidfFallbackDisabled):
+            service.generate_dynamic_context(transcript)
+
+    assert "PIPELINE_DISABLE_TFIDF_FALLBACK is deprecated" in caplog.text
 
 
 def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
@@ -143,7 +167,7 @@ def test_segment_hint_generation_respects_tfidf_disable(monkeypatch):
         ) -> Dict[str, Any] | None:  # type: ignore[override]
             return None
 
-    monkeypatch.setenv("PIPELINE_DISABLE_TFIDF_FALLBACK", "true")
+    monkeypatch.setenv("PIPELINE_TFIDF_FALLBACK_DISABLED", "true")
     service = SegmentFallback(reuse_shared=False)
 
     with pytest.raises(TfidfFallbackDisabled) as excinfo:

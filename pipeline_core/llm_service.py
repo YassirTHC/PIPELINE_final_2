@@ -21,6 +21,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import requests
 
+from pipeline_core.configuration import tfidf_fallback_disabled_from_env
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 UTILS_DIR = PROJECT_ROOT / 'utils'
@@ -2408,7 +2410,7 @@ class LLMMetadataGeneratorService:
                 flag = _extract_disable_flag(getattr(source, "llm"))
             return flag
 
-        disable_flag = _env_to_bool(os.getenv("PIPELINE_DISABLE_TFIDF_FALLBACK"))
+        disable_flag = tfidf_fallback_disabled_from_env()
         if disable_flag is None:
             disable_flag = _extract_disable_flag(config)
         self._disable_tfidf_fallback = bool(disable_flag) if disable_flag is not None else False
