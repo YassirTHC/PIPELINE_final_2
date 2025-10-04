@@ -1,8 +1,13 @@
 import json
+from typing import Any, Dict
 
 import pytest
 
-from pipeline_core.llm_service import DynamicCompletionError, LLMMetadataGeneratorService
+from pipeline_core.llm_service import (
+    DynamicCompletionError,
+    LLMMetadataGeneratorService,
+    TfidfFallbackDisabled,
+)
 
 
 class DummyService(LLMMetadataGeneratorService):
@@ -76,6 +81,26 @@ def test_dynamic_context_fallback_keywords():
     assert all(len(term) >= 3 for term in keywords)
 
 
+def test_dynamic_context_respects_tfidf_disable(monkeypatch):
+    class Failing(LLMMetadataGeneratorService):
+        def _complete_text(
+            self,
+            prompt: str,
+            *,
+            max_tokens: int = 800,
+            purpose: str = "generic",
+        ) -> str:  # type: ignore[override]
+            raise RuntimeError("boom")
+
+    monkeypatch.setenv("PIPELINE_DISABLE_TFIDF_FALLBACK", "1")
+    service = Failing(reuse_shared=False)
+
+    transcript = "We discuss marketing funnels and conversion metrics for data driven teams."
+    with pytest.raises(TfidfFallbackDisabled) as excinfo:
+        service.generate_dynamic_context(transcript)
+    assert "fallback_reason=integration_error" in str(excinfo.value)
+
+
 def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
     class FallbackOnly(LLMMetadataGeneratorService):
         def _complete_text(
@@ -105,6 +130,25 @@ def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
     assert any(query == "writing goals on notebook" for query in queries)
     assert any(query == "focused typing keyboard" for query in queries)
     assert all(ord(ch) < 128 for query in queries for ch in query)
+
+
+def test_segment_hint_generation_respects_tfidf_disable(monkeypatch):
+    class SegmentFallback(LLMMetadataGeneratorService):
+        def _segment_llm_json(
+            self,
+            prompt: str,
+            *,
+            timeout_s: float,
+            num_predict: int,
+        ) -> Dict[str, Any] | None:  # type: ignore[override]
+            return None
+
+    monkeypatch.setenv("PIPELINE_DISABLE_TFIDF_FALLBACK", "true")
+    service = SegmentFallback(reuse_shared=False)
+
+    with pytest.raises(TfidfFallbackDisabled) as excinfo:
+        service.generate_hints_for_segment("Marketing focus drives success", 0.0, 3.0)
+    assert "fallback_reason=segment_generation" in str(excinfo.value)
 
 
 def test_force_english_terms_when_language_en():

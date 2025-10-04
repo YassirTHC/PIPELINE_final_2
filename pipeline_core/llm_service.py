@@ -2170,7 +2170,13 @@ def _tfidf_fallback(transcript: str, *, top_k: int = 12) -> Tuple[List[str], Lis
     return keywords_final, queries_final
 
 
-def _normalise_dynamic_payload(raw: Dict[str, Any], *, transcript: str) -> Dict[str, Any]:
+def _normalise_dynamic_payload(
+    raw: Dict[str, Any],
+    *,
+    transcript: str,
+    disable_tfidf: bool = False,
+    fallback_reason: str = "empty_payload",
+) -> Dict[str, Any]:
     domains: List[Dict[str, Any]] = []
     for entry in raw.get('detected_domains') or []:
         if not isinstance(entry, dict):
@@ -2197,6 +2203,11 @@ def _normalise_dynamic_payload(raw: Dict[str, Any], *, transcript: str) -> Dict[
     briefs = _normalise_briefs(raw.get('segment_briefs') or [])
 
     if not keywords and not search_queries:
+        if disable_tfidf:
+            reason = (fallback_reason or "unknown").strip() or "unknown"
+            raise TfidfFallbackDisabled(
+                f"TF-IDF fallback disabled (fallback_reason={reason})"
+            )
         fallback_kw, fallback_q = _tfidf_fallback(transcript)
         keywords = fallback_kw[:12]
         if not search_queries:
@@ -2291,6 +2302,41 @@ class LLMMetadataGeneratorService:
         self._config = config
         self._integration = None
         self.last_metadata: Dict[str, Any] = {}
+
+        def _coerce_disable_flag(value: Any) -> Optional[bool]:
+            if value is None:
+                return None
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                parsed = _env_to_bool(value)
+                if parsed is not None:
+                    return parsed
+                return None
+            if isinstance(value, (int, float)):
+                return bool(value)
+            return None
+
+        def _extract_disable_flag(source: Any) -> Optional[bool]:
+            if source is None:
+                return None
+            flag = None
+            if isinstance(source, dict):
+                if "disable_tfidf_fallback" in source:
+                    flag = _coerce_disable_flag(source.get("disable_tfidf_fallback"))
+                if flag is None and "llm" in source:
+                    flag = _extract_disable_flag(source.get("llm"))
+                return flag
+            if hasattr(source, "disable_tfidf_fallback"):
+                flag = _coerce_disable_flag(getattr(source, "disable_tfidf_fallback"))
+            if flag is None and hasattr(source, "llm"):
+                flag = _extract_disable_flag(getattr(source, "llm"))
+            return flag
+
+        disable_flag = _env_to_bool(os.getenv("PIPELINE_DISABLE_TFIDF_FALLBACK"))
+        if disable_flag is None:
+            disable_flag = _extract_disable_flag(config)
+        self._disable_tfidf_fallback = bool(disable_flag) if disable_flag is not None else False
 
         timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
         num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
@@ -2857,17 +2903,33 @@ class LLMMetadataGeneratorService:
                 last_reason = last_reason or "empty_payload"
         if not raw_payload:
             fallback_reason = last_reason or (last_dynamic_error.reason if last_dynamic_error else "empty_payload")
+            if self._disable_tfidf_fallback:
+                reason = (fallback_reason or "unknown").strip() or "unknown"
+                raise TfidfFallbackDisabled(
+                    f"TF-IDF fallback disabled (fallback_reason={reason})"
+                )
             logger.warning(
-                '[LLM] dynamic context fell back to TF-IDF (no structured payload)',
+                '[LLM] dynamic context fell back to TF-IDF (no structured payload, fallback_reason=%s)',
+                fallback_reason,
                 extra={'fallback_reason': fallback_reason},
             )
-            fallback_payload = _normalise_dynamic_payload({}, transcript=transcript_text or '')
+            fallback_payload = _normalise_dynamic_payload(
+                {},
+                transcript=transcript_text or '',
+                disable_tfidf=self._disable_tfidf_fallback,
+                fallback_reason=fallback_reason,
+            )
             if last_dynamic_error is not None:
                 last_dynamic_error.payload = fallback_payload
                 raise last_dynamic_error
             raise DynamicCompletionError(fallback_reason, payload=fallback_payload)
 
-        return _normalise_dynamic_payload(raw_payload, transcript=transcript_text or '')
+        return _normalise_dynamic_payload(
+            raw_payload,
+            transcript=transcript_text or '',
+            disable_tfidf=self._disable_tfidf_fallback,
+            fallback_reason=last_reason or "llm_missing_terms",
+        )
 
 
     def generate_metadata(
@@ -3045,6 +3107,8 @@ class LLMMetadataGeneratorService:
     ) -> Dict[str, List[str]]:
         snippet = (segment_text or "").strip()
         language = (target_lang or _target_language_default()).strip().lower() or _target_language_default()
+        if self._disable_tfidf_fallback:
+            raise TfidfFallbackDisabled('TF-IDF fallback disabled (fallback_reason=segment_generation)')
         base_keywords, base_queries = _tfidf_fallback(strip_banned(snippet))
 
         keyword_sources: List[str] = []
@@ -3169,9 +3233,15 @@ class LLMMetadataGeneratorService:
 
         llm_failed = False
         if not llm_payload:
+            fallback_reason = "segment_generation"
+            if self._disable_tfidf_fallback:
+                raise TfidfFallbackDisabled(
+                    f"TF-IDF fallback disabled (fallback_reason={fallback_reason})"
+                )
             logger.warning(
-                "[LLM] Segment hint generation fell back to TF-IDF heuristics",
-                extra={"segment_start": start, "segment_end": end},
+                "[LLM] Segment hint generation fell back to TF-IDF heuristics (fallback_reason=%s)",
+                fallback_reason,
+                extra={"segment_start": start, "segment_end": end, "fallback_reason": fallback_reason},
             )
             llm_payload = self._tfidf_segment_fallback(
                 prompt_snippet,
