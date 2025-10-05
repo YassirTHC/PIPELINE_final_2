@@ -17,6 +17,7 @@ from pathlib import Path
 import unicodedata
 import inspect
 import time
+import urllib.request
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import requests
@@ -1389,6 +1390,38 @@ def _ollama_generate_json(
     return parsed or {}, raw_payload, raw_length
 
 
+def _ollama_generate_sync(endpoint: str, model: str, prompt: str, options: dict) -> str:
+    """
+    Fallback non-streaming pour contourner les réponses vides du stream.
+    Utilise /api/generate avec stream=False et renvoie .strip() du champ 'response'.
+    """
+
+    url = endpoint.rstrip("/") + "/api/generate"
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "keep_alive": os.getenv("PIPELINE_LLM_KEEP_ALIVE", "30m"),
+        "options": {
+            "num_predict": int(options.get("num_predict", 128)),
+            "temperature": float(options.get("temp", 0.3)),
+            "top_p": float(options.get("top_p", 0.9)),
+            "repeat_penalty": float(options.get("repeat_penalty", 1.1)),
+            "mirostat": 0,
+            "num_ctx": int(os.getenv("PIPELINE_LLM_NUM_CTX", "4096")),
+        },
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    timeout = int(options.get("timeout", 120))
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = json.loads(r.read().decode("utf-8", errors="replace"))
+    return (data.get("response") or "").strip()
+
+
 def _ollama_generate_text(
     prompt: str,
     *,
@@ -1439,6 +1472,44 @@ def _ollama_generate_text(
     if option_payload:
         payload["options"] = option_payload
 
+    fallback_options: Dict[str, Any] = {"timeout": timeout}
+    if option_payload:
+        if option_payload.get("num_predict") is not None:
+            fallback_options["num_predict"] = option_payload.get("num_predict")
+        if option_payload.get("temperature") is not None:
+            fallback_options["temp"] = option_payload.get("temperature")
+        if option_payload.get("top_p") is not None:
+            fallback_options["top_p"] = option_payload.get("top_p")
+        if option_payload.get("repeat_penalty") is not None:
+            fallback_options["repeat_penalty"] = option_payload.get("repeat_penalty")
+
+    try:
+        min_chars = int(os.getenv("PIPELINE_LLM_MIN_CHARS", "8"))
+    except (TypeError, ValueError):
+        min_chars = 8
+    min_chars = max(0, min_chars)
+
+    try:
+        max_fallback = int(os.getenv("PIPELINE_LLM_FALLBACK_TRUNC", "3500"))
+    except (TypeError, ValueError):
+        max_fallback = 3500
+    if max_fallback <= 0:
+        short_prompt = cleaned_prompt
+    else:
+        short_prompt = cleaned_prompt[-max_fallback:]
+
+    force_non_stream = _env_to_bool(os.getenv("PIPELINE_LLM_FORCE_NON_STREAM"))
+    if force_non_stream:
+        forced = _ollama_generate_sync(endpoint, model_name, short_prompt, fallback_options)
+        forced_text = forced.strip()
+        if forced_text:
+            logger.info(
+                "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
+                len(forced_text),
+            )
+            return forced_text, "", 0, len(forced_text), 1
+        return "", "empty_payload", 0, 0, 1
+
     backoffs = (0.6, 1.2, 2.4)
     raw_text = ""
     reason = "empty_payload"
@@ -1449,7 +1520,6 @@ def _ollama_generate_text(
     for attempt in range(3):
         attempts_used = attempt + 1
         chunk_count = 0
-        text_parts: List[str] = []
         logger.debug(
             "[LLM] dynamic attempt start",
             extra={
@@ -1457,9 +1527,9 @@ def _ollama_generate_text(
                 "model": model_name,
                 "prompt_len_chars": prompt_len_chars,
                 "prompt_token_estimate": prompt_token_estimate,
-                "num_predict": option_payload.get("num_predict"),
-                "temperature": option_payload.get("temperature"),
-                "top_p": option_payload.get("top_p"),
+                "num_predict": option_payload.get("num_predict") if option_payload else None,
+                "temperature": option_payload.get("temperature") if option_payload else None,
+                "top_p": option_payload.get("top_p") if option_payload else None,
                 "timeout": request_timeout,
             },
         )
@@ -1472,64 +1542,86 @@ def _ollama_generate_text(
                 timeout=(10, request_timeout),
             ) as response:
                 response.raise_for_status()
-                for line in response.iter_lines(decode_unicode=True):
-                    if not line:
+                buffered_chunks: List[str] = []
+                for raw_line in response.iter_lines(decode_unicode=True):
+                    if not raw_line:
                         continue
-                    chunk_count += 1
+                    if not raw_line.startswith("data:"):
+                        continue
+                    payload_str = raw_line[5:].strip()
                     try:
-                        message = json.loads(line)
+                        event = json.loads(payload_str or "{}")
                     except json.JSONDecodeError:
-                        message = {"response": line}
+                        event = {}
+                    if not isinstance(event, dict):
+                        event = {}
 
-                    if isinstance(message, dict):
-                        error_value = message.get("error")
-                        if error_value:
-                            error_text = str(error_value).strip() or "unknown"
-                            reason = f"error:{error_text}"
+                    error_value = event.get("error")
+                    if error_value:
+                        error_text = str(error_value).strip() or "unknown"
+                        reason = f"error:{error_text}"
+                        logger.warning(
+                            "[LLM] dynamic stream reported error",
+                            extra={
+                                "attempt": attempts_used,
+                                "chunk_count": chunk_count,
+                                "reason": reason,
+                                "payload": event,
+                            },
+                        )
+                        stream_error_detected = True
+                        break
+
+                    if event.get("done"):
+                        done_text = str(event.get("done_reason") or "").strip()
+                        if done_text and done_text.lower() not in {"stop", "length"}:
+                            reason = f"done:{done_text}"
                             logger.warning(
-                                "[LLM] dynamic stream reported error",
+                                "[LLM] dynamic stream finished with unexpected reason",
                                 extra={
                                     "attempt": attempts_used,
                                     "chunk_count": chunk_count,
                                     "reason": reason,
-                                    "payload": message,
+                                    "payload": event,
                                 },
                             )
                             stream_error_detected = True
-                            break
+                        break
 
-                        done_reason = message.get("done_reason")
-                        if done_reason:
-                            done_text = str(done_reason).strip()
-                            if done_text and done_text.lower() not in {"stop", "length"}:
-                                reason = f"done:{done_text}"
-                                logger.warning(
-                                    "[LLM] dynamic stream finished with unexpected reason",
-                                    extra={
-                                        "attempt": attempts_used,
-                                        "chunk_count": chunk_count,
-                                        "reason": reason,
-                                        "payload": message,
-                                    },
-                                )
-                                stream_error_detected = True
-                                break
+                    chunk = event.get("response") or ""
+                    if chunk:
+                        buffered_chunks.append(str(chunk))
+                        chunk_count += 1
 
-                    piece = message.get("response") if isinstance(message, dict) else None
-                    if piece:
-                        text_parts.append(str(piece))
+                aggregated_text = "".join(buffered_chunks)
+                raw_text = aggregated_text
 
-                raw_text = "".join(text_parts)
                 if stream_error_detected:
                     break
-                if raw_text.strip():
+
+                text_candidate = (aggregated_text or "").strip()
+                if len(text_candidate) < min_chars:
+                    fallback_text = _ollama_generate_sync(
+                        endpoint,
+                        model_name,
+                        short_prompt,
+                        fallback_options,
+                    )
+                    if fallback_text:
+                        logger.info(
+                            "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
+                            len(fallback_text),
+                        )
+                        return fallback_text, "", chunk_count, len(fallback_text), attempts_used
+
+                if text_candidate:
                     reason = ""
                     logger.debug(
                         "[LLM] dynamic attempt completed",
                         extra={
                             "attempt": attempts_used,
                             "chunk_count": chunk_count,
-                            "raw_length": len(raw_text),
+                            "raw_length": len(aggregated_text),
                         },
                     )
                     break
