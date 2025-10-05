@@ -63,6 +63,47 @@ def test_dynamic_context_normalisation():
         assert "they" not in tokens
 
 
+def test_dynamic_stream_error_propagates_reason(monkeypatch, caplog):
+    error_line = json.dumps({"error": "model not found"})
+
+    class DummyResponse:
+        def __init__(self, lines):
+            self._lines = lines
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def raise_for_status(self):
+            return None
+
+        def iter_lines(self, decode_unicode=True):
+            for line in self._lines:
+                yield line
+
+    def fake_post(*args, **kwargs):
+        return DummyResponse([error_line])
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="pipeline_core.llm_service"):
+        text, reason, chunk_count, raw_len, attempts = llm_module._ollama_generate_text(
+            "hello world",
+            model="demo",
+            timeout=5.0,
+        )
+
+    assert text == ""
+    assert reason == "error:model not found"
+    assert chunk_count == 1
+    assert raw_len == 0
+    assert attempts == 1
+    assert "dynamic stream reported error" in caplog.text
+
+
 def _initialise_with_ready(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

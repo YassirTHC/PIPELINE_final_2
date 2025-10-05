@@ -1464,6 +1464,7 @@ def _ollama_generate_text(
             },
         )
         try:
+            stream_error_detected = False
             with requests.post(
                 url,
                 json=payload,
@@ -1479,10 +1480,48 @@ def _ollama_generate_text(
                         message = json.loads(line)
                     except json.JSONDecodeError:
                         message = {"response": line}
-                    piece = message.get("response")
+
+                    if isinstance(message, dict):
+                        error_value = message.get("error")
+                        if error_value:
+                            error_text = str(error_value).strip() or "unknown"
+                            reason = f"error:{error_text}"
+                            logger.warning(
+                                "[LLM] dynamic stream reported error",
+                                extra={
+                                    "attempt": attempts_used,
+                                    "chunk_count": chunk_count,
+                                    "reason": reason,
+                                    "payload": message,
+                                },
+                            )
+                            stream_error_detected = True
+                            break
+
+                        done_reason = message.get("done_reason")
+                        if done_reason:
+                            done_text = str(done_reason).strip()
+                            if done_text and done_text.lower() not in {"stop", "length"}:
+                                reason = f"done:{done_text}"
+                                logger.warning(
+                                    "[LLM] dynamic stream finished with unexpected reason",
+                                    extra={
+                                        "attempt": attempts_used,
+                                        "chunk_count": chunk_count,
+                                        "reason": reason,
+                                        "payload": message,
+                                    },
+                                )
+                                stream_error_detected = True
+                                break
+
+                    piece = message.get("response") if isinstance(message, dict) else None
                     if piece:
                         text_parts.append(str(piece))
+
                 raw_text = "".join(text_parts)
+                if stream_error_detected:
+                    break
                 if raw_text.strip():
                     reason = ""
                     logger.debug(
@@ -1501,6 +1540,9 @@ def _ollama_generate_text(
             reason = "transport_error"
         except Exception:
             reason = "stream_err"
+
+        if reason and reason.startswith("error:"):
+            break
 
         logger.debug(
             "[LLM] dynamic attempt retry",
