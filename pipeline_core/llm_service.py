@@ -420,11 +420,26 @@ _NEGATIVE_QUERY_TERMS: Set[str] = {
 }
 
 _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
-    (re.compile(r"internal rewards?", flags=re.IGNORECASE), ("journaling at desk", "smiling after workout", "deep breath at window")),
-    (re.compile(r"mindset shift|conceptual mapping", flags=re.IGNORECASE), ("whiteboard planning", "sticky notes wall", "drawing flowchart")),
-    (re.compile(r"time passing|duration", flags=re.IGNORECASE), ("clock close up", "sunset sky", "hourglass closeup")),
-    (re.compile(r"energy", flags=re.IGNORECASE), ("city night traffic", "powerlines closeup", "spark plug closeup")),
-    (re.compile(r"adrenaline|tension|focus", flags=re.IGNORECASE), ("runner tying shoes", "boxing training", "eyes closeup focus")),
+    (
+        re.compile(r"\binternal rewards?\b", flags=re.IGNORECASE),
+        ("journaling at desk", "smiling after workout", "deep breath at window"),
+    ),
+    (
+        re.compile(r"\bmindset shifts?\b|\bconceptual mapping\b", flags=re.IGNORECASE),
+        ("whiteboard planning", "sticky notes wall", "drawing flowchart"),
+    ),
+    (
+        re.compile(r"\btime passing\b|\bduration\b", flags=re.IGNORECASE),
+        ("clock close up", "sunset sky", "hourglass closeup"),
+    ),
+    (
+        re.compile(r"\benergy\b|\benergised\b|\benergized\b", flags=re.IGNORECASE),
+        ("city night traffic", "powerlines closeup", "spark plug closeup"),
+    ),
+    (
+        re.compile(r"\badrenaline\b|\bintensit(?:y|ies)\b|\bfocus\b", flags=re.IGNORECASE),
+        ("runner tying shoes", "boxing training", "eyes closeup focus"),
+    ),
 )
 
 _CONCEPT_FALLBACKS: Tuple[str, ...] = (
