@@ -64,7 +64,7 @@ def test_dynamic_context_normalisation():
 
 
 def test_dynamic_stream_error_propagates_reason(monkeypatch, caplog):
-    error_line = json.dumps({"error": "model not found"})
+    error_line = "data: " + json.dumps({"error": "model not found"})
 
     class DummyResponse:
         def __init__(self, lines):
@@ -98,7 +98,7 @@ def test_dynamic_stream_error_propagates_reason(monkeypatch, caplog):
 
     assert text == ""
     assert reason == "error:model not found"
-    assert chunk_count == 1
+    assert chunk_count == 0
     assert raw_len == 0
     assert attempts == 1
     assert "dynamic stream reported error" in caplog.text
