@@ -1262,13 +1262,13 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
 
     video_reference = f"Video ID: {video_id}\n" if video_id else ""
     return (
-        "Tu es un expert des mÃ©tadonnÃ©es pour vidÃ©os courtes (TikTok, Reels, Shorts).\n"
-        "Retourne STRICTEMENT un objet JSON unique avec les clÃ©s exactes suivantes :\n"
-        "  \"title\": chaÃ®ne accrocheuse en langue source,\n"
-        "  \"description\": texte synthÃ©tique en 1 Ã  2 phrases,\n"
+        "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
+        "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
+        "  \"title\": chaîne accrocheuse en langue source,\n"
+        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
         "  \"hashtags\": tableau de 5 hashtags pertinents sans doublons,\n"
-        "  \"broll_keywords\": tableau de 6 Ã  10 mots-clÃ©s visuels concrets,\n"
-        "  \"queries\": tableau de 4 Ã  8 requÃªtes de recherche prÃªtes pour des banques d'images/vidÃ©os.\n"
+        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels concrets,\n"
+        "  \"queries\": tableau de 4 à 8 requêtes de recherche prêtes pour des banques d’images/vidéos.\n"
         "N'ajoute aucune explication hors JSON.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
@@ -2303,37 +2303,37 @@ def _normalise_dynamic_payload(
 def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
     tx = (transcript_text or "")[:max_len]
     return f"""
-RÃ”LE
-Tu es planificateur B-roll pour vidÃ©os verticales (TikTok/Shorts, 9:16).
+RÔLE
+Tu es planificateur B-roll pour vidéos verticales (TikTok/Shorts, 9:16).
 
 OBJECTIF
-Ã€ partir de la transcription, dÃ©tecte le(s) domaine(s) librement (pas de liste fixe), puis gÃ©nÃ¨re :
-1) des mots-clÃ©s et phrases-clÃ©s visuelles (scÃ¨nes filmables) utiles aux banques vidÃ©os,
-2) des synonymes/variantes/termes proches pour CHAQUE mot-clÃ© (2â€“4 max),
-3) des requÃªtes de recherche (2â€“4 mots, provider-friendly),
+À partir de la transcription, détecte librement le(s) domaine(s) (pas de liste fixe), puis génère :
+1) des mots-clés et phrases-clés visuelles (scènes filmables) utiles aux banques vidéos,
+2) des synonymes/variantes/termes proches pour CHAQUE mot-clé (2–4 max),
+3) des requêtes de recherche (2–4 mots, provider-friendly),
 4) des briefs segmentaires facultatifs.
 
 CONTRAINTES
-- ZÃ©ro domaine prÃ©dÃ©fini. DÃ©duis librement 1â€“3 â€œdetected_domainsâ€ + confidence (0â€“1).
-- Ã‰vite les anti-termes gÃ©nÃ©riques : people, thing, nice, background, start, generic, template, stock.
-- Priorise des requÃªtes concrÃ¨tes et filmables : Â« sujet_action_contexte Â», objets prÃ©cis, lieux identifiables.
-- FenÃªtres visuelles recommandÃ©es : 3â€“6 secondes. Format vertical.
-- Si la langue de la transcription nâ€™est pas lâ€™anglais, produis les requÃªtes en langue dâ€™origine + anglais.
+- Zéro domaine prédéfini. Déduis librement 1–3 "detected_domains" + confidence (0–1).
+- Évite les anti-termes génériques : people, thing, nice, background, start, generic, template, stock.
+- Priorise des requêtes concrètes et filmables : « sujet_action_contexte », objets précis, lieux identifiables.
+- Fenêtres visuelles recommandées : 3–6 secondes. Format vertical.
+- Si la langue de la transcription n’est pas l’anglais, produis les requêtes en langue d’origine + anglais.
 
-RÃ‰PONDS UNIQUEMENT EN JSON:
+RÉPONDS UNIQUEMENT EN JSON:
 {{
   "detected_domains": [{{"name": "...", "confidence": 0.0}}],
-  "language": "fr|en|â€¦",
+  "language": "fr|en|…",
   "keywords": ["..."],
   "synonyms": {{ "keyword": ["variante1","variante2"] }},
   "search_queries": ["..."],
   "segment_briefs": [
     {{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}
   ],
-  "notes": "piÃ¨ges, anti-termes, risques"
+  "notes": "pièges, anti-termes, risques"
 }}
 
-TRANSCRIPT (tronquÃ© Ã  1500â€“2000 caractÃ¨res):
+TRANSCRIPT (tronqué à 1500–2000 caractères):
 {tx}
 """
 
