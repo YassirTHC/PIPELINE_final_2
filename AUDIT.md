@@ -72,3 +72,4 @@ graph TD
 - Config typée centralisée via `video_pipeline.config.settings` avec cache, helpers robustes et log unique `[CONFIG]`.
 - Shim de compatibilité `config.py` émettant un `DeprecationWarning` et exposant les réglages typés.
 - `setup.py` ne dépend plus d'emojis afin de rester exécutable en environnement Windows CP1252.
+- Merge fix : API publique `video_pipeline.config` réduite aux helpers attendus, log `[CONFIG]` forcé en ASCII unique via garde process et import unique dans `run_pipeline.py`.

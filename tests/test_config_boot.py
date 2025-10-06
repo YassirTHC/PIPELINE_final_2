@@ -5,13 +5,15 @@ from pathlib import Path
 import pytest
 
 from video_pipeline.config import (
-    csv_list,
     get_settings,
     load_settings,
     log_effective_settings,
-    reset_settings_cache_for_tests,
     reset_startup_log_for_tests,
     set_settings,
+)
+from video_pipeline.config.settings import (
+    csv_list,
+    reset_settings_cache_for_tests,
 )
 
 
@@ -54,7 +56,6 @@ def _reset_state(monkeypatch):
         "PIPELINE_MAX_SEGMENTS_IN_FLIGHT",
         "PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT",
         "PIPELINE_FAST_TESTS",
-        "PIPELINE_LOG_LEVEL",
     ]
     for key in keys:
         monkeypatch.delenv(key, raising=False)
@@ -84,7 +85,6 @@ def test_config_boot_parses_types(monkeypatch):
     monkeypatch.setenv("BROLL_FETCH_ALLOW_VIDEOS", "1")
     monkeypatch.setenv("BROLL_FETCH_PROVIDER", " pixabay , Pexels ")
     monkeypatch.setenv("BROLL_PEXELS_MAX_PER_KEYWORD", "4")
-    monkeypatch.setenv("PIPELINE_LOG_LEVEL", "DEBUG")
 
     settings = load_settings()
 
@@ -110,7 +110,6 @@ def test_config_boot_parses_types(monkeypatch):
     assert settings.max_segments_in_flight == 2
     assert settings.tfidf_fallback_disabled is True
     assert settings.fast_tests is True
-    assert settings.log.level == "DEBUG"
 
 
 def test_config_boot_log_masks_sensitive_keys(monkeypatch, caplog):

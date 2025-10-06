@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from tools.runtime_stamp import emit_runtime_banner
-from video_pipeline.config import load_settings, log_effective_settings, set_settings
+from video_pipeline.config import (
+    get_settings,
+    load_settings,
+    log_effective_settings,
+    set_settings,
+)
 
 try:
     from dotenv import load_dotenv
@@ -404,6 +409,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()
+        settings = get_settings()
         snapshot = _fetcher_config_snapshot(config)
         resolved_names: list[str] = list(snapshot['resolved_names'])
         active_names: list[str] = list(snapshot['active_names'])
@@ -414,9 +420,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             resolved_display = 'none'
 
-        allow_images = str(bool(snapshot['allow_images'])).lower()
-        allow_videos = str(bool(snapshot['allow_videos'])).lower()
-        per_segment_limit = int(snapshot['per_segment_limit'])
+        allow_images = str(bool(settings.fetch.allow_images)).lower()
+        allow_videos = str(bool(settings.fetch.allow_videos)).lower()
+        per_segment_limit = int(settings.fetch.max_per_keyword)
 
         print(f"providers={_raw_provider_spec()}")
         print(f"resolved_providers={resolved_display}")

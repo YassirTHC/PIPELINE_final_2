@@ -143,11 +143,6 @@ def mask(value: object | None) -> str | None:
 
 
 @dataclass(slots=True)
-class LogSettings:
-    level: str = "INFO"
-
-
-@dataclass(slots=True)
 class LLMSettings:
     model: str = "qwen2.5:7b"
     model_json: str = ""
@@ -256,7 +251,6 @@ class Settings:
     llm: LLMSettings = field(default_factory=LLMSettings)
     broll: BrollSettings = field(default_factory=BrollSettings)
     fetch: FetchSettings = field(default_factory=FetchSettings)
-    log: LogSettings = field(default_factory=LogSettings)
     tfidf_fallback_disabled: bool = False
     llm_max_queries_per_segment: int = 3
     max_segments_in_flight: int = 1
@@ -270,7 +264,6 @@ class Settings:
             "llm": self.llm.to_log_payload(),
             "broll": self.broll.to_log_payload(),
             "fetch": self.fetch.to_log_payload(),
-            "log": {"level": self.log.level},
             "tfidf_fallback_disabled": self.tfidf_fallback_disabled,
             "llm_max_queries_per_segment": self.llm_max_queries_per_segment,
             "max_segments_in_flight": self.max_segments_in_flight,
@@ -510,7 +503,6 @@ def load_settings(env: Mapping[str, object | None] | None = None) -> Settings:
         llm=llm,
         broll=broll,
         fetch=fetch,
-        log=LogSettings(level=_lookup(env_mapping, "PIPELINE_LOG_LEVEL") or "INFO"),
         tfidf_fallback_disabled=tfidf_disabled,
         llm_max_queries_per_segment=to_int(
             env_mapping.get("PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT"),
@@ -543,7 +535,7 @@ def log_effective_settings(settings: Settings, *, logger: logging.Logger | None 
     _STARTUP_LOG_EMITTED = True
 
     payload = settings.to_log_payload()
-    message = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    message = json.dumps(payload, ensure_ascii=True, sort_keys=True)
     (logger or _CONFIG_LOGGER).info("[CONFIG] effective=%s", message)
 
 
