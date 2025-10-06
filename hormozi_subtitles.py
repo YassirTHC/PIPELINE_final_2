@@ -13,15 +13,35 @@ import re
 import requests
 import unicodedata
 import random
-from typing import List, Dict, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from pathlib import Path
 from collections import deque
 import json
 
+try:
+    from video_pipeline.config import SubtitleSettings, get_settings  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    SubtitleSettings = None  # type: ignore
+    get_settings = None  # type: ignore
+
+
+def _resolve_typed_subtitle_settings() -> Optional["SubtitleSettings"]:
+    if get_settings is None or SubtitleSettings is None:  # pragma: no cover - optional dependency
+        return None
+    try:
+        settings = get_settings()
+    except Exception:
+        return None
+    return getattr(settings, "subtitles", None)
+
 class HormoziSubtitles:
     """Générateur de sous-titres style Hormozi avec animations et effets"""
     
-    def __init__(self):
+    def __init__(
+        self,
+        subtitle_settings: Optional["SubtitleSettings"] = None,
+        font_candidates: Optional[Sequence[str]] = None,
+    ):
         # 🎨 Import des NOUVEAUX systèmes intelligents COMPLETS UNIQUEMENT
         try:
             from smart_color_system_complete import SmartColorSystemComplete
@@ -35,7 +55,14 @@ class HormoziSubtitles:
             print("🔧 Vérifiez que smart_color_system_complete.py et contextual_emoji_system_complete.py existent")
             self.SMART_SYSTEMS_AVAILABLE = False
             raise ImportError("Les nouveaux systèmes améliorés sont requis pour fonctionner")
-        
+
+        self.subtitle_settings: Optional["SubtitleSettings"] = (
+            subtitle_settings or _resolve_typed_subtitle_settings()
+        )
+        self._font_primary: Optional[str] = None
+        self._font_candidates: List[str] = []
+        self._last_render_metadata: Dict[str, object] = {}
+
         # 🖼️ NOUVEAU : Système de chargement d'emojis PNG amélioré
         self.emoji_png_cache = {}
         self.emoji_mapping = {
@@ -99,6 +126,13 @@ class HormoziSubtitles:
             'emoji_big_spike_prob': 0.08,       # Proba de big-emoji sur pic d'intensité (rare)
             'use_twemoji_local': True,          # Utiliser pack Twemoji en cache si dispo
         }
+        if self.subtitle_settings is not None:
+            self.config['font_size'] = int(self.subtitle_settings.font_size)
+            self.config['margin_bottom'] = int(self.subtitle_settings.subtitle_safe_margin_px)
+            self.config['keyword_background'] = bool(self.subtitle_settings.keyword_background)
+            self.config['enable_emojis'] = bool(self.subtitle_settings.enable_emojis)
+
+        self._font_candidates = self._build_font_candidates(font_candidates)
         # Presets de marque (brand kits)
         self.brand_presets = {
             'default': {'font_size': 85, 'outline_color': (0,0,0), 'outline_width': 4},
@@ -106,153 +140,100 @@ class HormoziSubtitles:
             'yellow_pop': {'font_size': 90, 'outline_color': (20,20,20), 'outline_width': 5},
         }
         
-        # 🎨 PALETTE HORMOZI 1 AUTHENTIQUE TIKTOK
-        self.category_colors: Dict[str, str] = {
-            # 💰 ARGENT & BUSINESS (signature Hormozi)
-            'money': '#FFD700',        # Jaune or vif (couleur signature)
-            'business': '#FFD700',     # Jaune or
-            'profit': '#00FF00',       # Vert néon intense
-            'success': '#00FF00',      # Vert néon succès
-            'wealth': '#FFD700',       # Jaune or
-            
-            # 🚨 ATTENTION & URGENCE (rouge Hormozi)
-            'attention': '#FF0000',    # Rouge pur
-            'important': '#FF0000',    # Rouge urgent
-            'critical': '#FF0000',     # Rouge critique
-            'stop': '#FF0000',         # Rouge stop
-            'urgent': '#FF0000',       # Rouge urgent
-            
-            # ⚡ ACTION & ÉNERGIE (orange énergique)
-            'action': '#FF4500',       # Orange rouge vif
-            'work': '#FF4500',         # Orange action
-            'power': '#FF4500',        # Orange puissance
-            'energy': '#FF4500',       # Orange énergie
-            'move': '#FF4500',         # Orange mouvement
-            'movement': '#FF8C00',     # Orange foncé
-            
-            # 🏆 Succès & Victoire
-            'success': '#FFD700',      # Jaune/or
-            'victory': '#FFA500',      # Orange
-            'achievement': '#FF8C00',  # Orange foncé
-            'winning': '#FFD700',      # Or
-            
-            # ⏰ Urgence & Temps
-            'urgency': '#00BFFF',      # Bleu clair
-            'time': '#1E90FF',         # Bleu dodger
-            'deadline': '#4169E1',     # Bleu royal
-            'pressure': '#00CED1',     # Cyan
-            
-            # 💼 Business & Professionnel
-            'business': '#1E90FF',     # Bleu business
-            'corporate': '#4682B4',    # Bleu acier
-            'strategy': '#20B2AA',     # Bleu mer
-            'leadership': '#191970',   # Bleu nuit
-            
-            # 🔥 Émotions & Impact
-            'emotions': '#FF1493',     # Rose/violet
-            'passion': '#FF69B4',      # Rose chaud
-            'excitement': '#FF4500',   # Rouge/orange
-            'inspiration': '#FF6347',  # Rouge corail
-            
-            # 🤖 Tech & Innovation
-            'tech': '#00FFFF',         # Cyan/vif
-            'digital': '#00CED1',      # Cyan
-            'innovation': '#20B2AA',   # Bleu mer
-            'future': '#00BFFF',       # Bleu clair
-            
-            # 🧠 Personnel & Développement
-            'personal': '#8A2BE2',     # Violet
-            'mindset': '#9370DB',      # Violet moyen
-            'growth': '#32CD32',       # Vert
-            'learning': '#20B2AA',     # Bleu mer
-            
-            # ✅ Solutions & Résolution
-            'solutions': '#00CED1',    # Cyan
-            'fix': '#32CD32',          # Vert
-            'resolve': '#00FF7F',      # Vert émeraude
-            'improve': '#20B2AA',      # Bleu mer
-            
-            # ⚠️ Problèmes & Défis
-            'problems': '#FFA500',     # Orange
-            'challenges': '#FF6347',   # Rouge corail
-            'obstacles': '#DC143C',    # Rouge cramoisi
-            'difficulties': '#FF4500', # Rouge/orange
-            
-            # ❤️ Santé & Bien-être
-            'health': '#32CD32',       # Vert
-            'wellness': '#00FF7F',     # Vert émeraude
-            'fitness': '#32CD32',      # Vert
-            'mindfulness': '#20B2AA',  # Bleu mer
+        palette = {
+            'finance': '#FFD54F',
+            'business': '#4FC3F7',
+            'sales': '#FF7043',
+            'content': '#BA68C8',
+            'actions': '#FFB74D',
+            'success': '#81C784',
+            'urgency': '#64B5F6',
+            'emotions': '#F06292',
+            'tech': '#26C6DA',
+            'mobile': '#26A69A',
+            'personal': '#9575CD',
+            'solutions': '#4DD0E1',
+            'problems': '#E57373',
+            'health': '#81D4FA',
+            'sports': '#4DB6AC',
+            'education': '#7986CB',
         }
+        aliases = {
+            'money': 'finance',
+            'investment': 'finance',
+            'profit': 'finance',
+            'wealth': 'finance',
+            'revenue': 'finance',
+            'corporate': 'business',
+            'strategy': 'business',
+            'leadership': 'business',
+            'team': 'business',
+            'marketing': 'content',
+            'creative': 'content',
+            'action': 'actions',
+            'energy': 'actions',
+            'power': 'actions',
+            'movement': 'actions',
+            'victory': 'success',
+            'achievement': 'success',
+            'winning': 'success',
+            'time': 'urgency',
+            'deadline': 'urgency',
+            'pressure': 'urgency',
+            'attention': 'urgency',
+            'important': 'urgency',
+            'critical': 'urgency',
+            'stop': 'urgency',
+            'urgent': 'urgency',
+            'passion': 'emotions',
+            'excitement': 'emotions',
+            'inspiration': 'emotions',
+            'digital': 'tech',
+            'innovation': 'tech',
+            'future': 'tech',
+            'mindset': 'personal',
+            'growth': 'personal',
+            'learning': 'personal',
+            'fix': 'solutions',
+            'resolve': 'solutions',
+            'improve': 'solutions',
+            'challenges': 'problems',
+            'obstacles': 'problems',
+            'difficulties': 'problems',
+            'wellness': 'health',
+            'fitness': 'health',
+            'mindfulness': 'health',
+        }
+        self.category_colors: Dict[str, str] = {}
+        for key, value in palette.items():
+            self.category_colors[key] = value
+        for alias, target in aliases.items():
+            self.category_colors[alias] = palette[target]
         
-        # 😊 EMOJIS ENRICHIS PAR CATÉGORIE (plus de variété)
-        self.category_emojis: Dict[str, List[str]] = {
-            # 💰 Finance & Argent
-            'finance': ['💰','💸','💵','🤑','📈','🏦','💳','💎','🪙','📊','📉','💱'],
-            'money': ['💰','💵','💸','🤑','💎','🪙','💳','🏦','📈','📊'],
-            'investment': ['📈','📊','💹','📉','💱','🏦','💎','💰'],
-            'profit': ['📈','💹','💰','💎','🏆','✅'],
-            
-            # 🚀 Actions & Dynamisme
-            'actions': ['⚡','🚀','💥','💪','🔥','⚔️','🏃','💨','🌪️','⚡'],
-            'energy': ['⚡','🔥','💥','💪','🚀','🌪️','💨','⚔️'],
-            'power': ['💪','⚡','🔥','💥','🚀','⚔️','👊','💪'],
-            'movement': ['🏃','💨','🌪️','🚀','⚡','💥','🔥'],
-            
-            # 🏆 Succès & Victoire
-            'success': ['🏆','👑','🎯','✅','💯','💎','🌟','⭐','🎉','🎊','🏅'],
-            'victory': ['🏆','👑','🎯','✅','💯','🏅','🎉','🎊'],
-            'achievement': ['🏆','🎯','✅','💯','🏅','🌟','⭐'],
-            'winning': ['🏆','👑','🎯','✅','💯','🏅','🎉'],
-            
-            # ⏰ Urgence & Temps
-            'urgency': ['🚨','⏳','⚠️','❗','⏰','🕐','⏱️','⏲️','🚨'],
-            'time': ['⏰','🕐','⏱️','⏲️','⏳','🚨','⚠️'],
-            'deadline': ['⏰','⏳','🚨','⚠️','❗','⏱️','⏲️'],
-            'pressure': ['⏰','⏳','🚨','⚠️','❗','⏱️'],
-            
-            # 💼 Business & Professionnel
-            'business': ['💼','📊','📈','🤝','💡','🏢','📋','📝','📄','📁','💼'],
-            'corporate': ['🏢','💼','📊','📈','🤝','💡','📋','📝'],
-            'strategy': ['🧠','💡','📊','📈','🎯','🧭','🗺️','💼'],
-            'leadership': ['👑','💼','🤝','💡','🧠','🎯','💼'],
-            
-            # 🔥 Émotions & Impact
-            'emotions': ['🔥','🤯','😱','🤩','✨','😍','🥰','😤','😤','🔥'],
-            'passion': ['🔥','❤️','💖','💕','😍','🥰','✨','💥'],
-            'excitement': ['🤯','😱','🤩','✨','🔥','💥','🚀','⚡'],
-            'inspiration': ['💡','✨','🌟','⭐','🧠','💭','💡'],
-            
-            # 🤖 Tech & Innovation
-            'tech': ['🤖','💻','⚙️','🔗','💾','📱','🖥️','🔌','💡','🚀'],
-            'digital': ['💻','📱','🖥️','🔌','💾','🔗','⚙️','🤖'],
-            'innovation': ['💡','🚀','✨','🌟','⭐','🧠','💭','💡'],
-            'future': ['🚀','✨','🌟','⭐','🔮','💫','💡'],
-            
-            # 🧠 Personnel & Développement
-            'personal': ['🧠','🧘','❤️','⚡','💪','🧘','🧠','💭','💡'],
-            'mindset': ['🧠','💭','💡','🧘','🧠','💪','⚡'],
-            'growth': ['🌱','📈','📊','💹','🌿','🌳','🌱'],
-            'learning': ['📚','📖','✏️','🎓','🧠','💡','📚'],
-            
-            # ✅ Solutions & Résolution
-            'solutions': ['✅','🧩','🛠️','💡','🔧','🔑','🔓','🔐','✅'],
-            'fix': ['🔧','🛠️','✅','🔑','🔓','🔐','🧩'],
-            'resolve': ['✅','🔧','🛠️','🔑','🔓','🔐','🧩'],
-            'improve': ['📈','📊','💹','✅','🔧','🛠️','💡'],
-            
-            # ⚠️ Problèmes & Défis
-            'problems': ['❌','🛑','⚠️','💣','😓','😰','😨','❌'],
-            'challenges': ['💪','⚔️','🏃','💨','🌪️','💥','🔥'],
-            'obstacles': ['🧱','🪨','⛰️','🏔️','🛑','⚠️','❌'],
-            'difficulties': ['😓','😰','😨','💪','⚔️','🏃'],
-            
-            # ❤️ Santé & Bien-être
-            'health': ['❤️','💊','🏥','🩺','💪','🧘','🧠','❤️'],
-            'wellness': ['🧘','🧠','💪','❤️','💊','🏥','🩺'],
-            'fitness': ['💪','🏃','💨','🌪️','💥','🔥','⚡'],
-            'mindfulness': ['🧘','🧠','💭','💡','🧘','💪','❤️'],
+        base_emojis: Dict[str, List[str]] = {
+            'finance': ['💰', '💸', '📈', '🤑', '🏦', '💳'],
+            'business': ['💼', '📊', '📈', '🤝', '🏢', '📝'],
+            'sales': ['🛒', '🤝', '💳', '📦', '📈', '💸'],
+            'content': ['🎬', '📝', '📹', '🎧', '🎨', '📱'],
+            'actions': ['⚡', '🚀', '🔥', '💪', '🏃', '💥'],
+            'success': ['🏆', '🎯', '🌟', '✅', '🎉', '💯'],
+            'urgency': ['⏰', '⚠️', '🚨', '⏳', '❗', '🕒'],
+            'emotions': ['🔥', '🤯', '😍', '✨', '😁', '🥳'],
+            'tech': ['🤖', '💻', '🧠', '🛰️', '🔌', '📡'],
+            'mobile': ['📱', '📲', '💬', '🕹️', '📟', '📶'],
+            'personal': ['🧠', '💡', '🧘', '📚', '📝', '🎯'],
+            'solutions': ['✅', '🧩', '🔑', '🛠️', '💡', '🔧'],
+            'problems': ['⚠️', '❌', '🛑', '💣', '🤔', '😬'],
+            'health': ['❤️', '💪', '🥗', '🧘', '🏥', '🩺'],
+            'sports': ['🏀', '⚽', '🏃', '💪', '🎽', '🥇'],
+            'education': ['📚', '🎓', '✏️', '🧠', '📖', '📝'],
         }
+        self.category_emojis: Dict[str, List[str]] = {
+            key: list(values) for key, values in base_emojis.items()
+        }
+        for alias, target in aliases.items():
+            if target in base_emojis:
+                self.category_emojis[alias] = list(base_emojis[target])
         
         # Dictionnaire mots-clés -> catégorie (liste élargie de synonymes/variations)
         self.keyword_to_category: Dict[str, str] = {}
@@ -463,8 +444,12 @@ class HormoziSubtitles:
                                 colored_used += 1
                     if t_is_kw:
                         has_keyword = True
+                    display_text = base.upper()
+                    if not display_text:
+                        continue
                     tokens.append({
-                        "text": clean,
+                        "text": display_text,
+                        "normalized": clean,
                         "is_keyword": t_is_kw,
                         "color": t_color
                     })
@@ -577,27 +562,93 @@ class HormoziSubtitles:
                 continue
         return ImageFont.load_default()
 
-    def get_font_path(self) -> str | None:
-        """Trouve une police bold appropriée"""
-        font_paths = [
-            "/System/Library/Fonts/Impact.ttf",  # macOS
-            "C:/Windows/Fonts/impact.ttf",       # Windows
-            "/Windows/Fonts/impact.ttf",         # Windows (alt)
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",  # Linux
+    def _build_font_candidates(self, extra: Optional[Sequence[str]]) -> List[str]:
+        def _push(target: Optional[str | Path]) -> None:
+            if not target:
+                return
+            try:
+                path_obj = Path(str(target)).expanduser()
+            except Exception:
+                return
+            self._font_candidates.append(str(path_obj))
+
+        self._font_candidates = []
+        if extra:
+            for candidate in extra:
+                if candidate:
+                    _push(candidate)
+        if self.subtitle_settings is not None and getattr(self.subtitle_settings, "font_path", None):
+            _push(self.subtitle_settings.font_path)
+
+        base_dir = Path(__file__).resolve().parent
+        asset_fonts = [
+            base_dir / "assets" / "fonts" / "Montserrat-ExtraBold.ttf",
+            base_dir / "assets" / "fonts" / "Montserrat-Bold.ttf",
+        ]
+        for candidate in asset_fonts:
+            _push(candidate)
+
+        fallback_fonts = [
+            "/System/Library/Fonts/Montserrat-ExtraBold.ttf",
+            "/System/Library/Fonts/Montserrat-Bold.ttf",
+            "/Library/Fonts/Montserrat-ExtraBold.ttf",
+            "/Library/Fonts/Montserrat-Bold.ttf",
+            "C:/Windows/Fonts/Montserrat-ExtraBold.ttf",
+            "C:/Windows/Fonts/Montserrat-Bold.ttf",
+            "C:/Windows/Fonts/impact.ttf",
+            "/Windows/Fonts/impact.ttf",
+            "/System/Library/Fonts/Impact.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
             "/usr/share/fonts/TTF/arial.ttf",
         ]
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                return font_path
+        for candidate in fallback_fonts:
+            _push(candidate)
+
+        ordered_unique = list(dict.fromkeys(self._font_candidates))
+        self._font_candidates = ordered_unique
+        return ordered_unique
+
+    def _resolve_font_path(self) -> Optional[str]:
+        if self._font_primary is not None:
+            return self._font_primary
+        for candidate in self._font_candidates:
+            try:
+                if Path(candidate).expanduser().exists():
+                    self._font_primary = str(Path(candidate).expanduser())
+                    return self._font_primary
+            except OSError:
+                continue
+        self._font_primary = None
         return None
 
+    def _invalidate_font_candidate(self, path: str) -> None:
+        self._font_primary = None
+        normalized: List[str] = []
+        for candidate in self._font_candidates:
+            try:
+                if Path(candidate).resolve() == Path(path).resolve():
+                    continue
+            except Exception:
+                if candidate == path:
+                    continue
+            normalized.append(candidate)
+        self._font_candidates = normalized
+
+    def get_font_path(self) -> Optional[str]:
+        return self._resolve_font_path()
+
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont:
-        path = self.get_font_path()
-        try:
-            if path:
+        tried: set[str] = set()
+        while True:
+            path = self._resolve_font_path()
+            if not path or path in tried:
+                break
+            try:
                 return ImageFont.truetype(path, int(size))
-        except Exception:
-            pass
+            except Exception:
+                tried.add(path)
+                self._invalidate_font_candidate(path)
         return ImageFont.load_default()
 
     def _load_emoji_png(self, emoji_char: str, target_h: int) -> Image.Image | None:
@@ -786,23 +837,24 @@ class HormoziSubtitles:
             scores['finance'] += 0.6
         # Accumuler selon tokens
         for t in tokens:
-            w = str(t.get('text') or '').upper()
-            if not w:
+            display = str(t.get('text') or '').strip().upper()
+            norm = t.get('normalized') or self._normalize(display)
+            if not display:
                 continue
             # Mot-clé déclaré → bonus fort pour sa catégorie
-            if t.get('is_keyword') and w in self.keyword_to_category:
-                cat_for_kw = self.keyword_to_category[w]
+            if t.get('is_keyword') and norm in self.keyword_to_category:
+                cat_for_kw = self.keyword_to_category[norm]
                 if cat_for_kw not in scores:
                     cat_for_kw = 'personal' if cat_for_kw in ('health', 'wellness') else 'business'
                 scores[cat_for_kw] = scores.get(cat_for_kw, 0.0) + 2.0
             # Alias
-            if w in self.emoji_alias:
-                alias_cat = self.emoji_alias[w]
+            if norm in self.emoji_alias:
+                alias_cat = self.emoji_alias[norm]
                 if alias_cat not in scores:
                     alias_cat = 'business'
                 scores[alias_cat] = scores.get(alias_cat, 0.0) + 1.2
             # Catégorie FR via règles dédiées
-            cat_data = self._get_category_for_word(w)
+            cat_data = self._get_category_for_word(display)
             if cat_data:
                 # retrouver la clé de couleur inverse → meilleure approximation
                 for key, color in self.category_colors.items():
@@ -816,20 +868,28 @@ class HormoziSubtitles:
         for theme, boost in (self.config.get('emoji_theme_boost') or {}).items():
             if theme in scores:
                 scores[theme] += float(boost or 0.0)
-        # Catégorie gagnante
-        best_cat = max(scores.items(), key=lambda x: x[1])[0]
-        # Protection: si aucun score, fallback business
-        if all(v <= 0.0 for v in scores.values()):
-            best_cat = 'business'
-        # Choix de l'emoji: rotation déterministe selon texte
-        candidates = (self.category_emojis.get(best_cat) or ['✨'])
-        idx = abs(hash(upper_text)) % len(candidates)
-        chosen = candidates[idx]
-        # Éviter répétition immédiate
+        if not scores:
+            return ""
+        best_cat, best_score = max(scores.items(), key=lambda x: x[1])
+        if best_score <= 0.0:
+            return ""
+        candidates = list(self.category_emojis.get(best_cat) or [])
+        if not candidates:
+            return ""
+        seed = abs(hash((upper_text, best_cat)))
+        chosen: Optional[str] = None
+        for offset in range(len(candidates)):
+            candidate = candidates[(seed + offset) % len(candidates)]
+            if candidate not in self._recent_emojis:
+                chosen = candidate
+                break
+        if chosen is None:
+            chosen = candidates[seed % len(candidates)]
         if chosen == self._last_emoji and len(candidates) > 1:
-            chosen = candidates[(idx + 1) % len(candidates)]
+            chosen = candidates[(seed + 1) % len(candidates)]
         self._last_emoji = chosen
-        return chosen
+        self._recent_emojis.append(chosen)
+        return chosen or ""
 
     def create_subtitle_frame(self, frame: np.ndarray, words: List[Dict], 
                               current_time: float) -> np.ndarray:
@@ -859,10 +919,36 @@ class HormoziSubtitles:
                     bbox = draw.textbbox((0, 0), ttext, font=font)
                     tw = bbox[2] - bbox[0]
                     th = bbox[3] - bbox[1]
-                    rgb = self.hex_to_rgb(tok.get("color", "#FFFFFF")) if tok.get("is_keyword") else (255,255,255)
-                    items.append({'type': 'word', 'text': ttext, 'font': font, 'w': tw, 'h': th, 'rgb': rgb, 'prog': prog, 'fs': fsize})
-                    total_w += tw
-                    max_h = max(max_h, th)
+                    color_hex = tok.get("color", "#FFFFFF")
+                    is_keyword = bool(tok.get("is_keyword"))
+                    base_rgb = self.hex_to_rgb(color_hex) if is_keyword else (255, 255, 255)
+                    bg_rgb = None
+                    pad_x = 0
+                    pad_y = 0
+                    text_rgb = base_rgb if is_keyword and not self.config.get('keyword_background', False) else (255, 255, 255)
+                    if is_keyword and self.config.get('keyword_background', False):
+                        bg_rgb = base_rgb
+                        pad_x = max(4, int(fsize * 0.18))
+                        pad_y = max(2, int(fsize * 0.12))
+                    w_total = tw + pad_x * 2
+                    h_total = th + pad_y * 2
+                    items.append({
+                        'type': 'word',
+                        'text': ttext,
+                        'font': font,
+                        'w': w_total,
+                        'h': h_total,
+                        'rgb': text_rgb,
+                        'prog': prog,
+                        'fs': fsize,
+                        'bg_rgb': bg_rgb,
+                        'pad_x': pad_x,
+                        'pad_y': pad_y,
+                        'keyword': is_keyword,
+                        'color_hex': color_hex,
+                    })
+                    total_w += w_total
+                    max_h = max(max_h, h_total)
                     if j < len(tokens) - 1:
                         # Espace basé sur la taille de police actuelle
                         try:
@@ -871,14 +957,28 @@ class HormoziSubtitles:
                             space_w = int(max(1, 0.33 * fsize))
                         items.append({'type': 'space', 'w': space_w, 'h': th, 'fs': fsize})
                         total_w += space_w
-                        max_h = max(max_h, th)
+                        max_h = max(max_h, h_total)
             else:
                 text = (wobj.get('text') or '').strip()
                 bbox = draw.textbbox((0, 0), text, font=font)
                 tw = bbox[2] - bbox[0]
                 th = bbox[3] - bbox[1]
                 rgb = (255, 255, 255)
-                items.append({'type': 'word', 'text': text, 'font': font, 'w': tw, 'h': th, 'rgb': rgb, 'prog': prog, 'fs': fsize})
+                items.append({
+                    'type': 'word',
+                    'text': text,
+                    'font': font,
+                    'w': tw,
+                    'h': th,
+                    'rgb': rgb,
+                    'prog': prog,
+                    'fs': fsize,
+                    'bg_rgb': None,
+                    'pad_x': 0,
+                    'pad_y': 0,
+                    'keyword': False,
+                    'color_hex': '#FFFFFF',
+                })
                 total_w += tw
                 max_h = max(max_h, th)
             # 2) Emojis en fin de groupe
@@ -912,8 +1012,36 @@ class HormoziSubtitles:
                     nfont = self._load_font(new_fs)
                     nb = draw.textbbox((0, 0), it['text'], font=nfont)
                     nw = nb[2] - nb[0]; nh = nb[3] - nb[1]
-                    new_items.append({'type':'word','text':it['text'],'font':nfont,'w':nw,'h':nh,'rgb':it['rgb'],'prog':it.get('prog',1.0),'fs':new_fs})
-                    total_w += nw; max_h = max(max_h, nh)
+                    keyword = bool(it.get('keyword'))
+                    color_hex = it.get('color_hex', '#FFFFFF')
+                    base_rgb = self.hex_to_rgb(color_hex) if keyword else (255, 255, 255)
+                    bg_rgb = None
+                    pad_x = 0
+                    pad_y = 0
+                    text_rgb = base_rgb if keyword and not self.config.get('keyword_background', False) else (255, 255, 255)
+                    if keyword and self.config.get('keyword_background', False):
+                        bg_rgb = base_rgb
+                        pad_x = max(4, int(new_fs * 0.18))
+                        pad_y = max(2, int(new_fs * 0.12))
+                    nw_total = nw + pad_x * 2
+                    nh_total = nh + pad_y * 2
+                    new_items.append({
+                        'type': 'word',
+                        'text': it['text'],
+                        'font': nfont,
+                        'w': nw_total,
+                        'h': nh_total,
+                        'rgb': text_rgb,
+                        'prog': it.get('prog', 1.0),
+                        'fs': new_fs,
+                        'bg_rgb': bg_rgb,
+                        'pad_x': pad_x,
+                        'pad_y': pad_y,
+                        'keyword': keyword,
+                        'color_hex': color_hex,
+                    })
+                    total_w += nw_total
+                    max_h = max(max_h, nh_total)
                 elif it['type'] == 'space':
                     new_fs = max(1, int(it.get('fs', self.config['font_size']) * shrink))
                     nfont = self._load_font(new_fs)
@@ -953,7 +1081,9 @@ class HormoziSubtitles:
             alpha_y = 0.15
             self._y_ema = (1 - alpha_y) * self._y_ema + alpha_y * y_target
         y = int(self._y_ema)
-        outline_w = int(self.config['outline_width'])
+        base_outline = int(self.config.get('outline_width', 4))
+        outline_w = max(base_outline, max(2, int(round(width * 0.002))))
+        shadow_offset = max(1, int(round(width * 0.0015)))
         # Rendu
         for it in items:
             if it['type'] == 'word':
@@ -964,14 +1094,28 @@ class HormoziSubtitles:
                 alpha_prog = prog if prog <= 1.0 else 1.0
                 alpha = int(255 * min(alpha_prog / max(1e-6, self.config['fade_duration']), 1.0))
                 fill = (*rgb, alpha)
+                pad_x = int(it.get('pad_x', 0))
+                pad_y = int(it.get('pad_y', 0))
+                word_w = int(it.get('w', 0))
+                word_h = int(it.get('h', 0))
+                draw_x = x + pad_x
+                draw_y = y + pad_y
+                bg_rgb = it.get('bg_rgb')
+                if self.config.get('keyword_background', False) and bg_rgb:
+                    radius = max(2, int(it.get('fs', self.config['font_size']) * 0.25))
+                    rect = [int(x), int(y), int(x + word_w), int(y + word_h)]
+                    draw.rounded_rectangle(rect, radius=radius, fill=(*bg_rgb, int(alpha * 0.92)))
+                if shadow_offset > 0:
+                    shadow_alpha = max(50, int(alpha * 0.45))
+                    draw.text((draw_x + shadow_offset, draw_y + shadow_offset), word_text, font=font, fill=(0, 0, 0, shadow_alpha))
                 # Contour statique (noir) style Hormozi
                 for dx in range(-outline_w, outline_w + 1):
                     for dy in range(-outline_w, outline_w + 1):
                         if dx != 0 or dy != 0:
-                            ImageDraw.Draw(img).text((x + dx, y + dy), word_text, font=font, fill=self.config['outline_color'])
+                            draw.text((draw_x + dx, draw_y + dy), word_text, font=font, fill=self.config['outline_color'])
                 # Dessin du texte une seule fois (pas de gradient/ombre pour éviter le sur-noircissement)
-                ImageDraw.Draw(img).text((x, y), word_text, font=font, fill=fill)
-                x += it['w']
+                draw.text((draw_x, draw_y), word_text, font=font, fill=fill)
+                x += word_w
             elif it['type'] == 'space':
                 # Avancer la position horizontale pour l'espace calculé
                 x += it['w']
@@ -997,6 +1141,11 @@ class HormoziSubtitles:
                     frame[:, :, c] * (1 - alpha_channel) +
                     bgr[:, :, c] * alpha_channel
                 ).astype(frame.dtype)
+        self._last_render_metadata = {
+            'items': items,
+            'outline_width': outline_w,
+            'margin_bottom': margin_bottom_px,
+        }
         return frame
 
     def add_hormozi_subtitles(self, input_video_path: str, 
@@ -1382,7 +1531,10 @@ def add_hormozi_subtitles(input_video_path: str,
                           output_video_path: str,
                           **kwargs) -> None:
     """Wrapper compatible attendu par video_processor.py."""
-    proc = HormoziSubtitles()
+    subtitle_settings = kwargs.pop('subtitle_settings', None)
+    font_path_override = kwargs.pop('font_path', None)
+    font_candidates = [font_path_override] if font_path_override else None
+    proc = HormoziSubtitles(subtitle_settings=subtitle_settings, font_candidates=font_candidates)
     # Appliquer options simples si fournies
     for key in ['font_size', 'margin_bottom', 'bounce_scale', 'enable_emojis', 'emoji_boost', 'keyword_background', 'emoji_png_only', 'emoji_density_non_keyword', 'emoji_density_keyword', 'emoji_min_gap_groups']:
         if key in kwargs:

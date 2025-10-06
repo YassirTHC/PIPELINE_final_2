@@ -54,6 +54,12 @@ add_hormozi_subtitles(
 
 Tout paramètre présent dans `self.default_config` (tailles, couleurs de fond, vitesse d'animation, activation des émojis, etc.) peut être modifié en argument ou via un dictionnaire dédié.【F:hormozi_subtitles.py†L704-L783】
 
+### Montserrat & options typées
+
+* Les polices **Montserrat ExtraBold/Bold** sont embarquées dans `assets/fonts/` et utilisées en priorité lors du rendu. La résolution choisie est journalisée via `Settings.to_log_payload()` sous la clé `subtitles.font_path` pour garantir la traçabilité du style.【F:video_pipeline/config/settings.py†L217-L255】
+* Le lot 1 expose `SubtitleSettings` (`font_path`, `font_size`, `subtitle_safe_margin_px`, `keyword_background`, `enable_emojis`) accessible via `get_settings().subtitles`. Ces valeurs alimentent `HormoziSubtitles` par défaut et peuvent être surchargées via `PIPELINE_SUB_*` dans l'environnement.【F:video_pipeline/config/settings.py†L137-L202】【F:video_processor_clean.py†L811-L818】
+* Le wrapper `add_hormozi_subtitles` accepte désormais un `subtitle_settings` et un `font_path` explicites. Si vous avez besoin d'un style ponctuel, passez ces arguments ; sinon, le pipeline applique automatiquement la configuration typée lors du burn-in final.【F:hormozi_subtitles.py†L1380-L1408】
+
 ### Couleurs et émojis
 
 * Pour ajuster les palettes : éditez les mappings dans `keyword_colors` ou enrichissez le lexique externe référencé par `_bootstrap_categories()` pour couvrir de nouveaux termes.【F:hormozi_subtitles.py†L120-L214】
