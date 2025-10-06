@@ -1,30 +1,26 @@
-"""Configuration helpers for the video pipeline."""
+"""Public configuration API for the video pipeline."""
+
 from .settings import (
     Settings,
-    BrollSettings,
-    FetchSettings,
     LLMSettings,
-    LogSettings,
-    csv_list,
+    FetchSettings,
+    BrollSettings,
     load_settings,
+    get_settings,
+    set_settings,
     log_effective_settings,
-    mask,
-    to_bool,
-    to_float,
-    to_int,
+    reset_startup_log_for_tests,
 )
 
 __all__ = [
     "Settings",
-    "BrollSettings",
-    "FetchSettings",
     "LLMSettings",
-    "LogSettings",
-    "csv_list",
+    "FetchSettings",
+    "BrollSettings",
     "load_settings",
+    "get_settings",
+    "set_settings",
     "log_effective_settings",
-    "mask",
-    "to_bool",
-    "to_float",
-    "to_int",
+    "reset_startup_log_for_tests",
 ]
+
