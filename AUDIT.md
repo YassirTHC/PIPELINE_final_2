@@ -67,3 +67,8 @@ graph TD
 - API keys lues via `os.getenv` et masquées dans le banner CLI, mais `FetcherOrchestrator` logge les requêtes sans masquage lorsque `_logger` absent (utilise `print`).【F:run_pipeline.py†L50-L155】【F:pipeline_core/fetchers.py†L724-L733】
 - Pas de chiffrement ou nettoyage des fichiers temporaires B-roll (téléchargés dans `temp/` puis supprimés). Vérifier conformité RGPD selon contenus.
 - Aucun mécanisme pour purger les logs JSONL (peuvent contenir transcripts). `JsonlLogger` écrit en clair sans rotation.【F:pipeline_core/logging.py†L34-L118】
+
+## Résolu — Lot 1
+- Config typée centralisée via `video_pipeline.config.settings` avec cache, helpers robustes et log unique `[CONFIG]`.
+- Shim de compatibilité `config.py` émettant un `DeprecationWarning` et exposant les réglages typés.
+- `setup.py` ne dépend plus d'emojis afin de rester exécutable en environnement Windows CP1252.

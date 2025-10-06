@@ -1,5 +1,14 @@
 import os
+import warnings
 from pathlib import Path
+
+from video_pipeline.config import get_settings
+
+warnings.warn(
+    "config.py is deprecated; use video_pipeline.config.load_settings instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # Configuration principale pour compatibilité avec le pipeline
 class Config:
@@ -196,7 +205,7 @@ class BrollConfig:
         # Style viral
         self.emoji_style = "colorful"  # Emojis colorés activés
         self.dynamic_transitions = True  # Transitions fluides
-        
+
         # === NOUVEAU : OPTIMISATIONS EXTRÊMES ===
         
         # Cache et mémoire
@@ -237,3 +246,8 @@ class BrollConfig:
         self.occlude_main_under_broll = kwargs.get('occlude_main_under_broll', True)
 
 
+
+def current_settings():
+    """Return the strongly typed settings (deprecated shim)."""
+
+    return get_settings()
