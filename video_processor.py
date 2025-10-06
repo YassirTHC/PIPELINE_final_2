@@ -23,10 +23,7 @@ from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextI
 from collections import Counter
 from dataclasses import dataclass
 
-from video_pipeline.broll_rules import (
-    BrollClip,
-    enforce_broll_schedule_rules as apply_broll_schedule_rules,
-)
+from video_pipeline.broll_rules import BrollClip, enforce_broll_schedule_rules
 from video_pipeline.config.settings import get_settings
 import types
 import gc
@@ -392,7 +389,7 @@ def _apply_broll_invariants_to_core_entries(
             )
         )
 
-    filtered_clips = apply_broll_schedule_rules(
+    filtered_clips = enforce_broll_schedule_rules(
         [clip for _, clip in clip_records],
         min_start_s=settings.broll.min_start_s,
         min_gap_s=settings.broll.min_gap_s,

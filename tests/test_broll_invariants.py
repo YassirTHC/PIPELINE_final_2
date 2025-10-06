@@ -1,4 +1,3 @@
-import math
 from video_pipeline.broll_rules import BrollClip, enforce_broll_schedule_rules
 
 
