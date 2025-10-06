@@ -74,6 +74,16 @@ flowchart LR
 - **B-roll** :
   - Durée minimale par clip (`min_duration` param) et intervalle (`min_gap`) doivent être respectés ; actuellement seules ces règles sont codées et doivent être enrichies (min start, anti-repeat, min gap configurable).【F:video_processor.py†L423-L447】
   - `FetcherOrchestratorConfig.per_segment_limit` plafonne le nombre de candidats retenus, déterminé par env (`BROLL_FETCH_MAX_PER_KEYWORD`).【F:pipeline_core/configuration.py†L320-L431】
+
+### B-roll invariants
+
+La phase d'ordonnancement applique désormais trois invariants configurables via `BrollSettings` (`video_pipeline.config.settings`).【F:video_pipeline/config/settings.py†L160-L234】 Le module `video_pipeline.broll_rules` filtre les clips fournis par les fetchers afin de :
+
+1. Décaler le premier B-roll après `min_start_s` pour préserver le hook.【F:src/video_pipeline/broll_rules.py†L45-L53】
+2. Garantir un intervalle minimal `min_gap_s` entre insertions successives.【F:src/video_pipeline/broll_rules.py†L55-L60】
+3. Éviter toute réutilisation d'un asset dans la fenêtre `no_repeat_s`, en journalisant les exclusions `[BROLL]` correspondantes.【F:src/video_pipeline/broll_rules.py†L62-L72】
+
+Ces règles s'exécutent sans impacter les phases de sélection fournisseur : seules les propositions incompatibles sont écartées, assurant la cohérence entre config typée et planification finale.【F:video_processor.py†L360-L405】
 - **Chemins** :
   - `JsonlLogger` crée le dossier parent avant écriture, garantissant l'idempotence des runs.【F:pipeline_core/logging.py†L34-L118】
   - `run_pipeline.py` garantit UTF-8 et normalise les variables `ENABLE_PIPELINE_CORE_FETCHER`/providers avant lancement.【F:run_pipeline.py†L40-L200】

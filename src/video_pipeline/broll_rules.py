@@ -1,6 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import Dict, List
+
+
+def _log(message: str) -> None:
+    """Emit scheduling logs via print to match pipeline expectations."""
+
+    print(message)
 
 
 @dataclass(frozen=True)
@@ -48,18 +54,31 @@ def enforce_broll_schedule_rules(
     last_end: float = float("-inf")
     last_by_asset: Dict[str, float] = {}
 
+    min_start_s = float(min_start_s)
+    min_gap_s = float(min_gap_s)
+    no_repeat_s = float(no_repeat_s)
+
     for c in clips:
         # (1) Hook initial
-        if c.start_s < float(min_start_s):
+        if c.start_s < min_start_s:
+            _log(
+                f"[BROLL] skip: too-early (<min_start) start={c.start_s:.2f}s asset={c.asset_id}"
+            )
             continue
 
         # (2) Gap minimal
-        if kept and (c.start_s - last_end) < float(min_gap_s):
+        if kept and (c.start_s - last_end) < min_gap_s:
+            _log(
+                f"[BROLL] skip: too-close (<min_gap) start={c.start_s:.2f}s asset={c.asset_id}"
+            )
             continue
 
         # (3) Anti-repeat sur fenêtre temporelle
         prev_t = last_by_asset.get(c.asset_id)
-        if prev_t is not None and (c.start_s - prev_t) < float(no_repeat_s):
+        if prev_t is not None and (c.start_s - prev_t) < no_repeat_s:
+            _log(
+                f"[BROLL] skip: repeated (<no_repeat) start={c.start_s:.2f}s asset={c.asset_id}"
+            )
             continue
 
         kept.append(c)
