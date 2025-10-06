@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from tools.runtime_stamp import emit_runtime_banner
-from video_pipeline.config import load_settings, log_effective_settings
+from video_pipeline.config import (
+    get_settings,
+    load_settings,
+    log_effective_settings,
+    set_settings,
+)
 
 try:
     from dotenv import load_dotenv
@@ -384,6 +389,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     _sanitize_env_values(_SANITIZE_KEYS)
 
     settings = load_settings()
+    set_settings(settings)
+    settings = get_settings()
     log_effective_settings(settings)
 
     parser = argparse.ArgumentParser(

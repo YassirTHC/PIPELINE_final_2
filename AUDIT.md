@@ -13,6 +13,11 @@
 ## Vue d'ensemble
 Le dépôt orchestre un pipeline complet de génération de clips verticaux : transcription, extraction d'insights via LLM, requêtes B-roll auprès de Pexels/Pixabay, insertion vidéo et rendu final. Le wrapper CLI `run_pipeline.py` prépare l'environnement (UTF-8, clés API, configuration fetcher) avant de déléguer à `video_processor.VideoProcessor` pour gérer les étapes vidéo, audio et B-roll.【F:run_pipeline.py†L1-L200】【F:video_processor.py†L1843-L1999】
 
+## Résolu — Lot 1 merge
+- **Fichiers touchés** : `run_pipeline.py`, `video_pipeline/config/settings.py`, `video_pipeline/config/__init__.py`, `tests/test_config_boot.py`, `config.py`.
+- **Décisions clés** : réintroduction du chargeur de configuration typé avec cache process-wide, log `[CONFIG]` idempotent et masquage des secrets, avertissement de dépréciation pour `config.py` afin d'orienter vers l'API unifiée.
+- **Suites possibles (Lots 2/3)** : brancher ces settings typés sur la sélection B-roll avancée et enrichir les validations/contrôles dans `pipeline_core.configuration` sans modifier le point d'entrée CLI.
+
 ## Carte des modules
 ```mermaid
 graph TD

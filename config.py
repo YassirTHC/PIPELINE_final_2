@@ -1,5 +1,20 @@
 import os
+import warnings
 from pathlib import Path
+
+from video_pipeline.config import get_settings as _typed_get_settings
+
+warnings.warn(
+    "config.py is deprecated; import video_pipeline.config instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+
+def get_settings():
+    """Return the shared typed settings instance."""
+
+    return _typed_get_settings()
 
 # Configuration principale pour compatibilité avec le pipeline
 class Config:
