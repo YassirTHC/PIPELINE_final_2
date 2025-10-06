@@ -25,6 +25,8 @@ def _load_video_processor():
     sys.modules['cv2'] = cv2_module
 
     moviepy_module = ModuleType('moviepy')
+    moviepy_module.__spec__ = machinery.ModuleSpec('moviepy', loader=None, is_package=True)
+    moviepy_module.__path__ = []  # type: ignore[attr-defined]
     editor_module = ModuleType('moviepy.editor')
 
     class _FakeClip:
@@ -49,6 +51,21 @@ def _load_video_processor():
     moviepy_module.editor = editor_module
     sys.modules['moviepy'] = moviepy_module
     sys.modules['moviepy.editor'] = editor_module
+    video_package = ModuleType('moviepy.video')
+    video_package.__spec__ = machinery.ModuleSpec('moviepy.video', loader=None, is_package=True)
+    video_package.__path__ = []  # type: ignore[attr-defined]
+    fx_package = ModuleType('moviepy.video.fx')
+    fx_package.__spec__ = machinery.ModuleSpec('moviepy.video.fx', loader=None, is_package=True)
+    fx_package.__path__ = []  # type: ignore[attr-defined]
+    fx_all_module = ModuleType('moviepy.video.fx.all')
+
+    def _crop_stub(clip, *args, **kwargs):
+        return clip
+
+    fx_all_module.crop = _crop_stub
+    sys.modules['moviepy.video'] = video_package
+    sys.modules['moviepy.video.fx'] = fx_package
+    sys.modules['moviepy.video.fx.all'] = fx_all_module
     moviepy_config = ModuleType('moviepy.config')
     moviepy_config.IMAGEMAGICK_BINARY = None
     sys.modules['moviepy.config'] = moviepy_config
