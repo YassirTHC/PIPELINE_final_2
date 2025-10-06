@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 # ensure project-root is first
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(1, str(PROJECT_ROOT / 'src'))
 sys.path.insert(1, str(PROJECT_ROOT / 'AI-B-roll'))
 sys.path.insert(2, str(PROJECT_ROOT / 'AI-B-roll' / 'src'))
 
@@ -21,6 +22,9 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO
 from collections import Counter
 from dataclasses import dataclass
+
+from video_pipeline.broll_rules import BrollClip, enforce_broll_schedule_rules as _enforce_broll_schedule_rules_v2
+from video_pipeline.config.settings import get_settings
 import types
 import gc
 import re
@@ -344,6 +348,82 @@ class _CoreSegment:
     start: float
     end: float
     text: str
+
+
+def _apply_broll_invariants_to_core_entries(
+    entries: Sequence[CoreTimelineEntry],
+    *,
+    seen_updates: Optional[Sequence[Dict[str, Any]]] = None,
+) -> Tuple[List[CoreTimelineEntry], Optional[List[Dict[str, Any]]]]:
+    """Apply B-roll invariants to the provided core entries and mirror metadata."""
+
+    entries_list = list(entries)
+    updates_list = list(seen_updates) if seen_updates is not None else None
+
+    if updates_list is not None and len(updates_list) < len(entries_list):
+        padding = len(entries_list) - len(updates_list)
+        updates_list.extend({} for _ in range(padding))
+
+    if not entries_list:
+        settings = get_settings()
+        print(
+            f"[BROLL_RULES] kept=0/0 (100.0%) min_start={settings.broll.min_start_s}s "
+            f"gap={settings.broll.min_gap_s}s no_repeat={settings.broll.no_repeat_s}s"
+        )
+        return [], [] if updates_list is not None else None
+
+    settings = get_settings()
+
+    clip_records: List[Tuple[CoreTimelineEntry, BrollClip]] = []
+    for entry in entries_list:
+        asset_identifier = entry.url or str(entry.path)
+        clip_records.append(
+            (
+                entry,
+                BrollClip(
+                    start_s=float(entry.start),
+                    end_s=float(entry.end),
+                    asset_id=str(asset_identifier),
+                    segment_index=int(entry.segment_index),
+                ),
+            )
+        )
+
+    filtered_clips = _enforce_broll_schedule_rules_v2(
+        [clip for _, clip in clip_records],
+        min_start_s=settings.broll.min_start_s,
+        min_gap_s=settings.broll.min_gap_s,
+        no_repeat_s=settings.broll.no_repeat_s,
+    )
+
+    key_counts: Counter[Tuple[float, float, str, int]] = Counter(
+        (clip.start_s, clip.end_s, clip.asset_id, clip.segment_index)
+        for clip in filtered_clips
+    )
+
+    filtered_entries: List[CoreTimelineEntry] = []
+    filtered_updates: Optional[List[Dict[str, Any]]] = [] if updates_list is not None else None
+
+    for idx, (entry, clip) in enumerate(clip_records):
+        key = (clip.start_s, clip.end_s, clip.asset_id, clip.segment_index)
+        if key_counts.get(key, 0):
+            filtered_entries.append(entry)
+            key_counts[key] -= 1
+            if filtered_updates is not None and updates_list is not None and idx < len(updates_list):
+                filtered_updates.append(updates_list[idx])
+
+    total = len(entries_list)
+    kept = len(filtered_entries)
+    ratio = 100.0 if total == 0 else (100.0 * kept / total)
+    print(
+        f"[BROLL_RULES] kept={kept}/{total} ({ratio:.1f}%) "
+        f"min_start={settings.broll.min_start_s}s gap={settings.broll.min_gap_s}s "
+        f"no_repeat={settings.broll.no_repeat_s}s"
+    )
+
+    if filtered_updates is not None:
+        return filtered_entries, filtered_updates
+    return filtered_entries, None
 
 
 def run_with_timeout(fn, timeout_s: float, *args, **kwargs):
@@ -2577,6 +2657,12 @@ class VideoProcessor:
                 )
 
             if timeline_entries:
+                timeline_entries, pending_seen_updates = _apply_broll_invariants_to_core_entries(
+                    timeline_entries,
+                    seen_updates=pending_seen_updates,
+                )
+
+            if timeline_entries:
                 timeline_entries.sort(key=lambda entry: (entry.start, entry.segment_index))
                 self._core_last_timeline = list(timeline_entries)
                 manifest_path: Optional[Path] = None
@@ -3363,6 +3449,9 @@ class VideoProcessor:
                     url=url or None,
                 )
             )
+
+        if timeline_entries:
+            timeline_entries, _ = _apply_broll_invariants_to_core_entries(timeline_entries)
 
         if not timeline_entries:
             return None
