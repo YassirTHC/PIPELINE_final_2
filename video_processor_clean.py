@@ -39,6 +39,7 @@ from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 from tqdm import tqdm  # NEW: console progress
 import re # NEW: for caption/hashtag generation
 from hormozi_subtitles import add_hormozi_subtitles
+from video_pipeline.config import get_settings
 
 
 def _format_srt_timestamp(total_seconds: float) -> str:
@@ -807,10 +808,15 @@ class VideoProcessor:
                 "problème": {"color": "#FF3131", "emoji": "🛑"},
                 "probleme": {"color": "#FF3131", "emoji": "🛑"},
             }
+            subtitle_settings = get_settings().subtitles
             add_hormozi_subtitles(
-                str(with_broll_path), subtitles, str(final_subtitled_path),
+                str(with_broll_path),
+                subtitles,
+                str(final_subtitled_path),
                 brand_kit=getattr(Config, 'BRAND_KIT_ID', 'default'),
-                span_style_map=span_style_map
+                span_style_map=span_style_map,
+                subtitle_settings=subtitle_settings,
+                font_path=subtitle_settings.font_path,
             )
         except Exception as e:
             print(f"  ❌ Erreur ajout sous-titres Hormozi: {e}")

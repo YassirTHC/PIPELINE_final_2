@@ -93,3 +93,10 @@ célèbre sur TikTok, et si la logique d'emojis est cohérente.
 
 Ces ajustements rapprocheraient nettement le rendu du style Hormozi 1 viral et
 rendraient les emojis plus cohérents avec le contenu des sous-titres.
+
+## 4. Résolu / Mises à jour
+
+* **Police Montserrat prioritaire** – les fichiers `Montserrat-ExtraBold.ttf` et `Montserrat-Bold.ttf` sont embarqués et chargés avant les polices système. Le chemin effectif est résolu dans la config typée (`SubtitleSettings.font_path`) et consigné dans le log startup.【F:MANIFEST.in†L1-L1】【F:video_pipeline/config/settings.py†L162-L202】
+* **Config typée appliquée au burn-in** – `video_processor_clean` transmet désormais `get_settings().subtitles` au wrapper `add_hormozi_subtitles`, garantissant que marge, taille, fonds de mots-clés et émojis suivent la configuration centralisée.【F:video_processor_clean.py†L811-L818】
+* **Palette stabilisée + fonds rectangulaires** – `self.category_colors` couvre explicitement `finance`, `sales`, `content`, `mobile`, `sports` et synonymes. Lors du rendu, un fond arrondi est peint derrière chaque mot-clé lorsque `keyword_background` est actif.【F:hormozi_subtitles.py†L147-L182】【F:hormozi_subtitles.py†L870-L924】
+* **Mapping emoji cohérent** – `category_emojis` fournit une liste pour chaque catégorie, les alias héritent de la même base et le moteur anti-repeat sélectionne un symbole différent sur les appels successifs ou retourne `""` si aucune catégorie n'est pertinente.【F:hormozi_subtitles.py†L184-L210】【F:hormozi_subtitles.py†L770-L828】

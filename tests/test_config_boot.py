@@ -1,6 +1,8 @@
 import json
 import logging
 from pathlib import Path
+import json
+import logging
 
 import pytest
 
@@ -56,6 +58,12 @@ def _reset_config(monkeypatch):
         "PEXELS_API_KEY",
         "PIXABAY_API_KEY",
         "UNSPLASH_ACCESS_KEY",
+        "PIPELINE_SUB_FONT_PATH",
+        "PIPELINE_SUBTITLE_FONT_PATH",
+        "PIPELINE_SUB_FONT_SIZE",
+        "PIPELINE_SUB_SAFE_MARGIN_PX",
+        "PIPELINE_SUB_KEYWORD_BACKGROUND",
+        "PIPELINE_SUB_ENABLE_EMOJIS",
     ]
     for key in keys:
         monkeypatch.delenv(key, raising=False)
@@ -63,7 +71,7 @@ def _reset_config(monkeypatch):
     yield
 
 
-def test_config_boot_parses_types_and_clamps(monkeypatch):
+def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     monkeypatch.setenv("PIPELINE_LLM_TIMEOUT_S", "42.5")
     monkeypatch.setenv("PIPELINE_LLM_FALLBACK_TIMEOUT_S", "-3")  # clamp to 0
     monkeypatch.setenv("PIPELINE_LLM_FORCE_NON_STREAM", "yes")
@@ -94,6 +102,11 @@ def test_config_boot_parses_types_and_clamps(monkeypatch):
     monkeypatch.setenv("PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT", "0")
     monkeypatch.setenv("PIPELINE_FAST_TESTS", "true")
     monkeypatch.setenv("PIPELINE_MAX_SEGMENTS_IN_FLIGHT", "-2")
+    monkeypatch.setenv("PIPELINE_SUB_FONT_PATH", str(tmp_path / "missing.ttf"))
+    monkeypatch.setenv("PIPELINE_SUB_FONT_SIZE", "100")
+    monkeypatch.setenv("PIPELINE_SUB_SAFE_MARGIN_PX", "120")
+    monkeypatch.setenv("PIPELINE_SUB_KEYWORD_BACKGROUND", "0")
+    monkeypatch.setenv("PIPELINE_SUB_ENABLE_EMOJIS", "false")
 
     settings = load_settings()
 
@@ -129,6 +142,12 @@ def test_config_boot_parses_types_and_clamps(monkeypatch):
     assert settings.llm_max_queries_per_segment == 1
     assert settings.fast_tests is True
     assert settings.max_segments_in_flight == 1
+    assert settings.subtitles.font_size == 100
+    assert settings.subtitles.subtitle_safe_margin_px == 120
+    assert settings.subtitles.keyword_background is False
+    assert settings.subtitles.enable_emojis is False
+    assert settings.subtitles.font_path is not None
+    assert settings.subtitles.font_path.endswith("Montserrat-ExtraBold.ttf")
 
 
 def test_config_boot_aliases_and_paths(monkeypatch, tmp_path):
@@ -181,6 +200,9 @@ def test_config_boot_log_masks_secrets_and_is_idempotent(monkeypatch):
     assert api_keys["PEXELS_API_KEY"] == "****cret"
     assert api_keys["PIXABAY_API_KEY"] == "****cret"
     assert api_keys["UNSPLASH_ACCESS_KEY"] == "****ab"
+    subtitles = payload["subtitles"]
+    assert subtitles["font_size"] == settings.subtitles.font_size
+    assert subtitles["font_path"] == settings.subtitles.font_path
 
 
 def test_config_boot_effective_models_use_defaults(monkeypatch):

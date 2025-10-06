@@ -164,6 +164,15 @@ class BrollSettings:
 
 
 @dataclass(slots=True)
+class SubtitleSettings:
+    font_path: Optional[str]
+    font_size: int = 78
+    subtitle_safe_margin_px: int = 180
+    keyword_background: bool = True
+    enable_emojis: bool = True
+
+
+@dataclass(slots=True)
 class Settings:
     clips_dir: Path
     output_dir: Path
@@ -175,6 +184,7 @@ class Settings:
     llm: LLMSettings
     fetch: FetchSettings
     broll: BrollSettings
+    subtitles: SubtitleSettings
 
     def to_log_payload(self) -> Dict[str, object]:
         payload: Dict[str, object] = {
@@ -218,6 +228,13 @@ class Settings:
                 "min_start_s": self.broll.min_start_s,
                 "min_gap_s": self.broll.min_gap_s,
                 "no_repeat_s": self.broll.no_repeat_s,
+            },
+            "subtitles": {
+                "font_path": self.subtitles.font_path,
+                "font_size": self.subtitles.font_size,
+                "subtitle_safe_margin_px": self.subtitles.subtitle_safe_margin_px,
+                "keyword_background": self.subtitles.keyword_background,
+                "enable_emojis": self.subtitles.enable_emojis,
             },
             "flags": {
                 "tfidf_fallback_disabled": self.tfidf_fallback_disabled,
@@ -418,6 +435,78 @@ def _broll_settings(env: Optional[Mapping[str, str]]) -> BrollSettings:
     )
 
 
+def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
+    repo_root = Path(__file__).resolve().parents[2]
+    override = _env(env, "PIPELINE_SUB_FONT_PATH")
+    if not override:
+        override = _env(env, "PIPELINE_SUBTITLE_FONT_PATH")
+
+    candidate_paths = []
+    if override:
+        candidate_paths.append(Path(str(override)).expanduser())
+
+    assets_dir = repo_root / "assets" / "fonts"
+    candidate_paths.extend(
+        [
+            assets_dir / "Montserrat-ExtraBold.ttf",
+            assets_dir / "Montserrat-Bold.ttf",
+        ]
+    )
+    candidate_paths.extend(
+        [
+            Path("/System/Library/Fonts/Montserrat-ExtraBold.ttf"),
+            Path("/System/Library/Fonts/Montserrat-Bold.ttf"),
+            Path("/Library/Fonts/Montserrat-ExtraBold.ttf"),
+            Path("/Library/Fonts/Montserrat-Bold.ttf"),
+            Path("C:/Windows/Fonts/Montserrat-ExtraBold.ttf"),
+            Path("C:/Windows/Fonts/Montserrat-Bold.ttf"),
+            Path("C:/Windows/Fonts/impact.ttf"),
+            Path("/Windows/Fonts/impact.ttf"),
+            Path("/System/Library/Fonts/Impact.ttf"),
+            Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        ]
+    )
+
+    resolved_font: Optional[str] = None
+    for candidate in candidate_paths:
+        try:
+            if candidate and candidate.exists():
+                resolved_font = str(candidate.resolve())
+                break
+        except OSError:
+            continue
+
+    font_size = _coerce_int(
+        _env(env, "PIPELINE_SUB_FONT_SIZE"),
+        78,
+        minimum=12,
+    )
+    safe_margin = _coerce_int(
+        _env(env, "PIPELINE_SUB_SAFE_MARGIN_PX"),
+        180,
+        minimum=0,
+    )
+    keyword_background = _resolve_bool_env(
+        env,
+        "PIPELINE_SUB_KEYWORD_BACKGROUND",
+        default=True,
+    )
+    enable_emojis = _resolve_bool_env(
+        env,
+        "PIPELINE_SUB_ENABLE_EMOJIS",
+        default=True,
+    )
+
+    return SubtitleSettings(
+        font_path=resolved_font,
+        font_size=font_size,
+        subtitle_safe_margin_px=safe_margin,
+        keyword_background=keyword_background,
+        enable_emojis=enable_emojis,
+    )
+
+
 def _fetch_settings(env: Optional[Mapping[str, str]]) -> FetchSettings:
     providers = _split_csv(
         _env(env, "BROLL_FETCH_PROVIDER")
@@ -476,6 +565,7 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
     llm = _llm_settings(env)
     fetch = _fetch_settings(env)
     broll = _broll_settings(env)
+    subtitles = _subtitle_settings(env)
 
     tfidf_disabled = _tfidf_disabled(env)
     llm_queries = _coerce_int(
@@ -501,6 +591,7 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         llm=llm,
         fetch=fetch,
         broll=broll,
+        subtitles=subtitles,
     )
 
 
