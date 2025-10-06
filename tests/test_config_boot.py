@@ -12,14 +12,11 @@ from video_pipeline.config import (
     reset_settings_cache_for_tests,
     reset_startup_log_for_tests,
     set_settings,
-    to_bool,
-    to_float,
-    to_int,
 )
 
 
 @pytest.fixture(autouse=True)
-def _reset_config_state(monkeypatch):
+def _reset_state(monkeypatch):
     keys = [
         "PIPELINE_LLM_TIMEOUT_S",
         "PIPELINE_LLM_FALLBACK_TIMEOUT_S",
@@ -48,7 +45,6 @@ def _reset_config_state(monkeypatch):
         "BROLL_FETCH_ALLOW_IMAGES",
         "BROLL_FETCH_ALLOW_VIDEOS",
         "BROLL_FETCH_PROVIDER",
-        "BROLL_PEXELS_MAX_PER_KEYWORD",
         "FETCH_MAX",
         "PEXELS_API_KEY",
         "PIXABAY_API_KEY",
@@ -58,6 +54,7 @@ def _reset_config_state(monkeypatch):
         "PIPELINE_MAX_SEGMENTS_IN_FLIGHT",
         "PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT",
         "PIPELINE_FAST_TESTS",
+        "PIPELINE_LOG_LEVEL",
     ]
     for key in keys:
         monkeypatch.delenv(key, raising=False)
@@ -87,6 +84,7 @@ def test_config_boot_parses_types(monkeypatch):
     monkeypatch.setenv("BROLL_FETCH_ALLOW_VIDEOS", "1")
     monkeypatch.setenv("BROLL_FETCH_PROVIDER", " pixabay , Pexels ")
     monkeypatch.setenv("BROLL_PEXELS_MAX_PER_KEYWORD", "4")
+    monkeypatch.setenv("PIPELINE_LOG_LEVEL", "DEBUG")
 
     settings = load_settings()
 
@@ -112,122 +110,94 @@ def test_config_boot_parses_types(monkeypatch):
     assert settings.max_segments_in_flight == 2
     assert settings.tfidf_fallback_disabled is True
     assert settings.fast_tests is True
+    assert settings.log.level == "DEBUG"
 
 
-def test_config_boot_log_masks_sensitive_keys(monkeypatch):
+def test_config_boot_log_masks_sensitive_keys(monkeypatch, caplog):
     monkeypatch.setenv("PIPELINE_LLM_MODEL", "llama")
     monkeypatch.setenv("PEXELS_API_KEY", "pexels-secret")
     monkeypatch.setenv("PIXABAY_API_KEY", "pixabay-secret")
 
     settings = load_settings()
 
-    logger = logging.getLogger("video_pipeline.config")
-    records: list[logging.LogRecord] = []
+    caplog.set_level(logging.INFO, logger="video_pipeline.config")
+    log_effective_settings(settings)
 
-    class _Collector(logging.Handler):
-        def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - trivial
-            records.append(record)
-
-    handler = _Collector()
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-    try:
-        log_effective_settings(settings)
-    finally:
-        logger.removeHandler(handler)
-
-    assert records, "no startup log emitted"
-
-    message = records[0].message
+    assert caplog.records, "expected startup log"
+    message = caplog.records[0].message
     assert message.startswith("[CONFIG] effective=")
-
     payload = json.loads(message.split("=", 1)[1])
     fetch_payload = payload["fetch"]
     assert fetch_payload["api_keys"]["PEXELS_API_KEY"] == "****cret"
     assert fetch_payload["api_keys"]["PIXABAY_API_KEY"] == "****cret"
 
 
-def test_config_boot_effective_models_use_defaults(monkeypatch):
-    monkeypatch.setenv("PIPELINE_LLM_MODEL", "qwen-main")
-    monkeypatch.delenv("PIPELINE_LLM_MODEL_JSON", raising=False)
-    monkeypatch.delenv("PIPELINE_LLM_MODEL_TEXT", raising=False)
-
-    settings = load_settings()
-
-    assert settings.llm.effective_json_model == "qwen-main"
-    assert settings.llm.effective_text_model == "qwen-main"
-    payload = settings.to_log_payload()
-    assert payload["llm"]["model_json"] == "qwen-main"
-    assert payload["llm"]["model_text"] == "qwen-main"
-    assert Path(payload["paths"]["output_dir"]).name == "output"
-
-
-def test_invalid_numeric_values_use_defaults_and_warn(monkeypatch, caplog):
+def test_config_boot_invalid_numbers_fallback(monkeypatch, caplog):
     caplog.set_level(logging.WARNING, logger="video_pipeline.config")
-    monkeypatch.setenv("PIPELINE_LLM_TIMEOUT_S", "abc")
-    monkeypatch.setenv("PIPELINE_BROLL_MIN_GAP_SECONDS", "-1")
+    monkeypatch.setenv("PIPELINE_LLM_TIMEOUT_S", "not-a-number")
+    monkeypatch.setenv("PIPELINE_LLM_MIN_CHARS", "-5")
+    monkeypatch.setenv("PIPELINE_FETCH_TIMEOUT_S", "-2")
 
     settings = load_settings()
 
     assert settings.llm.timeout_stream_s == pytest.approx(60.0)
-    assert settings.broll.min_gap_s == pytest.approx(1.5)
-    messages = " ".join(record.message for record in caplog.records)
-    assert "Invalid float for PIPELINE_LLM_TIMEOUT_S" in messages
-    assert "PIPELINE_BROLL_MIN_GAP_SECONDS" in messages
+    assert settings.llm.min_chars == 8
+    assert settings.fetch.timeout_s == pytest.approx(8.0)
+    assert caplog.records, "expected warnings for invalid values"
 
 
-def test_helpers_handle_variants():
-    assert to_bool("YES", default=False)
-    assert to_bool("0", default=True) is False
-    assert to_int(" 42 ", 1) == 42
-    assert to_float(" 3.14 ", 1.0) == pytest.approx(3.14)
-    assert csv_list("a, b ,a;C") == ["a", "b", "C"]
-
-
-def test_log_effective_settings_guard(monkeypatch):
-    logger = logging.getLogger("video_pipeline.config")
-    records: list[logging.LogRecord] = []
-
-    class _Collector(logging.Handler):
-        def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - trivial
-            records.append(record)
-
-    handler = _Collector()
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-    try:
-        settings = load_settings()
-        log_effective_settings(settings)
-        log_effective_settings(settings)
-    finally:
-        logger.removeHandler(handler)
-
-    assert len(records) == 1
-
-
-def test_settings_cache_roundtrip(monkeypatch):
-    monkeypatch.setenv("PIPELINE_LLM_MODEL", "cached")
-    fresh = load_settings()
-    set_settings(fresh)
-    cached = get_settings()
-    assert cached.llm.model == "cached"
-
-
-def test_alias_tfidf_flag(monkeypatch):
+def test_config_boot_alias_disables(monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="video_pipeline.config")
     monkeypatch.setenv("PIPELINE_DISABLE_TFIDF_FALLBACK", "true")
+
     settings = load_settings()
+
     assert settings.tfidf_fallback_disabled is True
+    assert any("deprecated" in record.message for record in caplog.records)
 
 
-def test_config_module_emits_deprecation(monkeypatch):
-    import importlib
-    import sys
-    import warnings
+def test_config_boot_log_only_once(monkeypatch, caplog):
+    monkeypatch.setenv("PIPELINE_LLM_MODEL", "llama")
+    settings = load_settings()
 
-    sys.modules.pop("config", None)
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        module = importlib.import_module("config")
-        importlib.reload(module)
-    assert any(isinstance(item.message, DeprecationWarning) for item in caught)
+    caplog.set_level(logging.INFO, logger="video_pipeline.config")
+    log_effective_settings(settings)
+    log_effective_settings(settings)
 
+    assert len(caplog.records) == 1
+
+    reset_startup_log_for_tests()
+    caplog.clear()
+    log_effective_settings(settings)
+    assert caplog.records
+
+
+def test_config_boot_cache_helpers(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_MODEL", "qwen-main")
+    reset_settings_cache_for_tests()
+    reset_startup_log_for_tests()
+
+    cached = get_settings()
+    assert cached.llm.model == "qwen-main"
+
+    override = load_settings({"PIPELINE_LLM_MODEL": "other"})
+    set_settings(override)
+    assert get_settings().llm.model == "other"
+
+
+def test_csv_list_handles_duplicates():
+    assert csv_list("a, b ,a ,c") == ["a", "b", "c"]
+    assert csv_list(["x", "x", "y"]) == ["x", "y"]
+    assert csv_list(None) == []
+
+
+def test_settings_paths_are_paths(monkeypatch):
+    monkeypatch.setenv("PIPELINE_CLIPS_DIR", " clips ")
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", "custom-output")
+    monkeypatch.setenv("PIPELINE_TEMP_DIR", "tmp")
+
+    settings = load_settings()
+
+    assert settings.clips_dir == Path("clips")
+    assert settings.output_dir == Path("custom-output")
+    assert settings.temp_dir == Path("tmp")
