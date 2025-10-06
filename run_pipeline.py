@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from tools.runtime_stamp import emit_runtime_banner
+from video_pipeline.config import load_settings, log_effective_settings
 
 try:
     from dotenv import load_dotenv
@@ -381,6 +382,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     load_dotenv(repo_root / '.env', override=False)
     load_dotenv(repo_root / '.env.local', override=True)
     _sanitize_env_values(_SANITIZE_KEYS)
+
+    settings = load_settings()
+    log_effective_settings(settings)
 
     parser = argparse.ArgumentParser(
         description="Launch the video pipeline with stable environment defaults."
