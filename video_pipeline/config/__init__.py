@@ -9,6 +9,7 @@ from .settings import (
     load_settings,
     get_settings,
     set_settings,
+    apply_llm_overrides,
     log_effective_settings,
     reset_startup_log_for_tests,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "load_settings",
     "get_settings",
     "set_settings",
+    "apply_llm_overrides",
     "log_effective_settings",
     "reset_startup_log_for_tests",
 ]

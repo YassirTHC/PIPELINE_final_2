@@ -73,7 +73,7 @@ except ModuleNotFoundError:  # pragma: no cover - unit tests provide stubs
         videos = data.get("videos", []) if isinstance(data, dict) else []
         return videos if isinstance(videos, list) else []
 
-    def pixabay_search_videos(api_key: str, query: str, *, per_page: int = 6) -> List[Dict[str, Any]]:
+    def pixabay_search_videos(api_key: str, query: str, *, per_page: int = 50) -> List[Dict[str, Any]]:
         api_key = (api_key or "").strip()
         query = (query or "").strip()
         if not api_key or not query:
@@ -81,7 +81,7 @@ except ModuleNotFoundError:  # pragma: no cover - unit tests provide stubs
         try:
             limit = int(per_page)
         except (TypeError, ValueError):
-            limit = 6
+            limit = 50
         limit = max(3, min(limit, 200))
         params = urllib.parse.urlencode(
             {
@@ -165,6 +165,28 @@ class RemoteAssetCandidate:
     identifier: str
     tags: Sequence[str]
     _phash: Optional[str] = field(default=None, init=False, repr=False)
+
+
+def _normalize_query_text(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    collapsed = " ".join(value.split())
+    return collapsed.strip()
+
+
+def _normalize_query_list(values: Sequence[object]) -> List[str]:
+    normalized: List[str] = []
+    seen: set[str] = set()
+    for value in values:
+        cleaned = _normalize_query_text(value)
+        if not cleaned:
+            continue
+        key = cleaned.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(cleaned)
+    return normalized
 
 
 def crop_viability_9_16(width: Any, height: Any) -> bool:
@@ -552,7 +574,8 @@ class FetcherOrchestrator:
         filters: Optional[dict],
         segment_timeout: Optional[float],
     ) -> List[RemoteAssetCandidate]:
-        if not query or len(query.strip()) < 3:
+        normalized_query = _normalize_query_text(query)
+        if len(normalized_query) < 3:
             return []
         name = str(getattr(provider_conf, 'name', '') or '').strip().lower()
         if not self.config.allow_videos and name in {'pexels', 'pixabay'}:
@@ -566,9 +589,9 @@ class FetcherOrchestrator:
 
         def _dispatch() -> List[RemoteAssetCandidate]:
             if name == 'pexels':
-                return self._fetch_from_pexels(query, limit)
+                return self._fetch_from_pexels(normalized_query, limit)
             if name == 'pixabay':
-                return self._fetch_from_pixabay(query, limit)
+                return self._fetch_from_pixabay(normalized_query, limit)
             return []
 
         for attempt in range(attempts):
@@ -580,7 +603,7 @@ class FetcherOrchestrator:
                     self._log_event({
                         'event': 'fetch_timeout',
                         'provider': name,
-                        'query': query,
+                        'query': normalized_query,
                         'timeout_s': timeout,
                         'attempt': attempt + 1,
                     })
@@ -590,7 +613,7 @@ class FetcherOrchestrator:
                         self._log_event({
                             'event': 'fetch_error',
                             'provider': name,
-                            'query': query,
+                            'query': normalized_query,
                             'error': str(exc),
                         })
                         return []
@@ -606,7 +629,7 @@ class FetcherOrchestrator:
         fallback_candidates: List[RemoteAssetCandidate] = []
         attempted_queries: List[str] = []
         for query in queries[:3]:
-            clean_query = (query or "").strip()
+            clean_query = _normalize_query_text(query)
             if not clean_query:
                 continue
             attempted_queries.append(clean_query)
@@ -721,8 +744,14 @@ class FetcherOrchestrator:
             return []
         start_time = time.perf_counter()
         try:
-            print(f"[FETCH] provider=pixabay query='{query}' per_page={limit * 2}")
-            videos = pixabay_search_videos(key, query, per_page=limit * 2)
+            limit_value = int(limit)
+        except (TypeError, ValueError):
+            limit_value = self.config.per_segment_limit if hasattr(self, "config") else 25
+        limit_value = max(1, limit_value)
+        per_page = min(200, max(50, limit_value * 2))
+        try:
+            print(f"[FETCH] provider=pixabay query='{query}' per_page={per_page}")
+            videos = pixabay_search_videos(key, query, per_page=per_page)
         except Exception as exc:
             self._log_event(
                 {
@@ -786,18 +815,22 @@ class FetcherOrchestrator:
     # Utilities
     # ------------------------------------------------------------------
     def _build_queries(self, keywords: Sequence[str]) -> List[str]:
-        normalized = [kw.strip() for kw in keywords if isinstance(kw, str) and kw.strip()]
-        if not normalized:
+        cleaned_keywords = [
+            _normalize_query_text(kw)
+            for kw in keywords
+            if isinstance(kw, str)
+        ]
+        cleaned_keywords = [kw for kw in cleaned_keywords if kw]
+        deduped_keywords = _normalize_query_list(cleaned_keywords)
+        if not deduped_keywords:
             return []
-        primary = build_search_query(normalized)
-        queries = [primary] if primary else []
-        # Add up to 3 secondary queries to diversify results
-        for kw in normalized:
-            if kw not in queries:
-                queries.append(kw)
-            if len(queries) >= 4:
-                break
-        return queries
+        primary = build_search_query(deduped_keywords)
+        candidates: List[object] = []
+        if primary:
+            candidates.append(primary)
+        candidates.extend(deduped_keywords)
+        queries = _normalize_query_list(candidates)
+        return queries[:4]
 
     def evaluate_candidate_filters(
         self,

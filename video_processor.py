@@ -24,7 +24,12 @@ from collections import Counter
 from dataclasses import dataclass
 
 from video_pipeline.broll_rules import BrollClip, enforce_broll_schedule_rules as _enforce_broll_schedule_rules_v2
-from video_pipeline.config.settings import get_settings
+from video_pipeline.config import (
+    apply_llm_overrides,
+    get_settings,
+    log_effective_settings,
+    set_settings,
+)
 import types
 import gc
 import re
@@ -6684,7 +6689,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument('--video', required=True, help='Chemin du clip source (mp4, mov, etc.)')
     parser.add_argument('--verbose', action='store_true', help='Affiche des informations supplementaires pendant le run.')
     parser.add_argument('--no-report', action='store_true', help='Disable selection report JSON sidecar')
+    parser.add_argument('--llm-provider', help='Override LLM provider (ollama, lmstudio, openai, etc.).')
+    parser.add_argument('--llm-model-text', help='Override the dedicated text generation model.')
+    parser.add_argument('--llm-model-json', help='Override the JSON metadata model used for planning.')
     args = parser.parse_args(list(argv) if argv is not None else None)
+
+    settings = get_settings()
+    settings = apply_llm_overrides(
+        settings,
+        provider=args.llm_provider,
+        model_text=args.llm_model_text,
+        model_json=args.llm_model_json,
+    )
+    set_settings(settings)
+
+    if args.llm_provider:
+        os.environ['PIPELINE_LLM_PROVIDER'] = settings.llm.provider
+    if args.llm_model_text:
+        os.environ['PIPELINE_LLM_MODEL_TEXT'] = settings.llm.model_text
+    if args.llm_model_json:
+        os.environ['PIPELINE_LLM_MODEL_JSON'] = settings.llm.model_json
+
+    log_effective_settings(settings)
 
     print(f"[CLI] cwd={os.getcwd()}")
     print(f"[CLI] video={args.video}")

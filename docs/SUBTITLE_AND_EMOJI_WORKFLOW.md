@@ -57,6 +57,7 @@ Tout paramètre présent dans `self.default_config` (tailles, couleurs de fond, 
 ### Montserrat & options typées
 
 * Les polices **Montserrat ExtraBold/Bold** sont embarquées dans `assets/fonts/` et utilisées en priorité lors du rendu. La résolution choisie est journalisée via `Settings.to_log_payload()` sous la clé `subtitles.font_path` pour garantir la traçabilité du style.【F:video_pipeline/config/settings.py†L217-L255】
+* Les paramètres de contour et d'ombre (`stroke_px=6`, `shadow_opacity=0.35`, `shadow_offset=3`) sont fournis par défaut via `SubtitleSettings` ; ils peuvent être surchargés par variables d'environnement si besoin ponctuel, ce qui fixe le rendu Montserrat "viral" sans retoucher le code.【F:video_pipeline/config/settings.py†L560-L598】【F:hormozi_subtitles.py†L930-L1038】
 * Le lot 1 expose `SubtitleSettings` (`font_path`, `font_size`, `subtitle_safe_margin_px`, `keyword_background`, `enable_emojis`) accessible via `get_settings().subtitles`. Ces valeurs alimentent `HormoziSubtitles` par défaut et peuvent être surchargées via `PIPELINE_SUB_*` dans l'environnement.【F:video_pipeline/config/settings.py†L137-L202】【F:video_processor_clean.py†L811-L818】
 * Le wrapper `add_hormozi_subtitles` accepte désormais un `subtitle_settings` et un `font_path` explicites. Si vous avez besoin d'un style ponctuel, passez ces arguments ; sinon, le pipeline applique automatiquement la configuration typée lors du burn-in final.【F:hormozi_subtitles.py†L1380-L1408】
 
@@ -64,6 +65,7 @@ Tout paramètre présent dans `self.default_config` (tailles, couleurs de fond, 
 
 * Pour ajuster les palettes : éditez les mappings dans `keyword_colors` ou enrichissez le lexique externe référencé par `_bootstrap_categories()` pour couvrir de nouveaux termes.【F:hormozi_subtitles.py†L120-L214】
 * Pour changer les émojis utilisés : modifiez les listes dans `category_emojis` ou fournissez vos propres PNG dans `assets/emojis/` (ou autres chemins reconnus).【F:hormozi_subtitles.py†L216-L349】
+* La densité et la répartition sont gouvernées par `SubtitleSettings.emoji_target_per_10`, `emoji_min_gap_groups` et `emoji_max_per_segment`, ce qui maintient ~5 émojis pour 10 groupes tout en imposant un écart minimal. Un fallback neutre (`emoji_no_context_fallback`) peut être fixé pour conserver un pictogramme discret lorsque le contexte est insuffisant.【F:video_pipeline/config/settings.py†L560-L598】【F:hormozi_subtitles.py†L866-L955】
 
 ### Animation et rendu
 
@@ -75,5 +77,10 @@ Tout paramètre présent dans `self.default_config` (tailles, couleurs de fond, 
 1. Whisper → segments synchronisés.
 2. `HormoziSubtitles` → coloration intelligente, animation bounce, insertion d'émojis.
 3. Configurations faciles à surcharger pour ajuster tailles, couleurs, animations et assets graphiques.
+
+## 6. Pilotage multi-provider du LLM
+
+* `LLMSettings` conserve désormais le champ `provider` (ollama, lmstudio, openai, etc.) en plus des modèles texte/JSON ; les overrides CLI `--llm-provider`, `--llm-model-text` et `--llm-model-json` appliquent une nouvelle config en mémoire et mettent à jour l'environnement avant le lancement du pipeline.【F:video_pipeline/config/settings.py†L84-L227】【F:run_pipeline.py†L365-L419】【F:video_processor.py†L6678-L6705】
+* Le log `[CONFIG]` n'est émis qu'une seule fois à l'initialisation. Si un provider tombe en échec, la stratégie `pipeline_core.llm_service` conserve les paramètres de timeout (`timeout_fallback_s`, `num_predict`) pour relancer automatiquement la génération via le modèle fallback JSON/texte configuré.【F:video_pipeline/config/settings.py†L660-L705】【F:pipeline_core/llm_service.py†L4250-L4314】
 
 En modifiant ces points, vous contrôlez entièrement l'aspect et la dynamique des sous-titres, ainsi que la présence d'émojis.
