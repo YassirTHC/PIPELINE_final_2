@@ -87,3 +87,21 @@ Différences majeures : ajout d'une consigne de langue (`PIPELINE_LLM_TARGET_LAN
 2. **Min chars guard** – Test existant `test_llm_service_fallback` force `PIPELINE_LLM_MIN_CHARS=9999`; compléter pour vérifier la présence de l'événement `llm_fallback_reason`.【F:tests/test_llm_service_fallback.py†L80-L120】
 3. **Query normalization** – Ajouter un test dans `tests/test_segment_queries.py` pour s'assurer que des termes quasi identiques (`"dopamine release"`, `"dopamine-release"`) ne génèrent qu'une requête unique en s'appuyant sur `_normalize_queries`.【F:video_processor.py†L452-L499】【F:tests/test_segment_queries.py†L60-L120】
 4. **Fallback retries** – Simuler trois échecs streaming et vérifier que le service n'effectue pas plus de `settings.llm_max_attempts` appels avant fallback.
+
+### Matrice des modes segmentaires
+
+| Mode `llm_path` | Condition d'activation | Source | Notes |
+| --- | --- | --- | --- |
+| `segment_stream` | Streaming SSE actif et sain (`PIPELINE_LLM_FORCE_NON_STREAM=0`, aucun `stream_err`). | `_ollama_generate_text` | Bascule automatiquement vers `segment_blocking` après la première erreur SSE ou timeout.【F:pipeline_core/llm_service.py†L1425-L1704】 |
+| `segment_blocking` | Forcé par `PIPELINE_LLM_FORCE_NON_STREAM=1` ou après une erreur de flux. | `_ollama_generate_sync` | Mémo interne : toutes les complétions suivantes restent bloquantes jusqu'à la fin du run.【F:pipeline_core/llm_service.py†L1425-L1704】 |
+| `metadata_first` | `PIPELINE_DISABLE_DYNAMIC_SEGMENT_LLM=1` | Cache métadonnées global | Pas d'appel LLM segmentaire ; sélection 1–3 requêtes via similarité TF-IDF.【F:pipeline_core/llm_service.py†L3469-L3803】 |
+
+Chaque appel `generate_hints_for_segment` journalise désormais la décision via `logger.info(..., extra={"llm_path": ..., "llm_path_reason": ...})` pour faciliter le suivi des bascules.【F:pipeline_core/llm_service.py†L3518-L3803】
+
+### Exemple PowerShell
+
+```powershell
+$env:PIPELINE_DISABLE_DYNAMIC_SEGMENT_LLM = '1'
+$env:PIPELINE_LLM_FORCE_NON_STREAM = '1'
+python run_pipeline.py --video .\demo.mp4
+```

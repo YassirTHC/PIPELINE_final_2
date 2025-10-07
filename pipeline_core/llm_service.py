@@ -18,11 +18,21 @@ import unicodedata
 import inspect
 import time
 import urllib.request
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING
+
+import difflib
 
 import requests
 
 from pipeline_core.configuration import tfidf_fallback_disabled_from_env
+
+try:  # Optional import – settings layer may not be available in unit stubs
+    from video_pipeline.config import get_settings
+except Exception:  # pragma: no cover - optional dependency
+    get_settings = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - import for typing only
+    from video_pipeline.config import Settings  # noqa: F401
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -103,6 +113,12 @@ _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</j
 _LAST_METADATA_KEYWORDS: Dict[str, Any] = {"values": [], "updated_at": 0.0}
 _LAST_METADATA_QUERIES: Dict[str, Any] = {"values": [], "updated_at": 0.0}
 
+_STREAM_BLOCKED: bool = False
+_STREAM_BLOCK_REASON: Optional[str] = None
+_LAST_SEGMENT_PATH: str = "segment_stream"
+_LAST_SEGMENT_REASON: Optional[str] = None
+_METADATA_DISABLE_ENV = "PIPELINE_DISABLE_DYNAMIC_SEGMENT_LLM"
+
 _DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
 _DEFAULT_OLLAMA_MODEL = "mistral:7b-instruct"
 _DEFAULT_OLLAMA_KEEP_ALIVE = "5m"
@@ -128,6 +144,42 @@ def _hashtags_disabled() -> bool:
     if flag is None:
         return False
     return flag
+
+
+def _should_block_streaming() -> Tuple[bool, Optional[str]]:
+    forced = _env_to_bool(os.getenv("PIPELINE_LLM_FORCE_NON_STREAM"))
+    if forced:
+        return True, "flag_disable"
+    if _STREAM_BLOCKED:
+        return True, _STREAM_BLOCK_REASON or "stream_err"
+    return False, None
+
+
+def _note_stream_failure(reason: str) -> None:
+    global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
+    cleaned = (reason or "stream_err").strip() or "stream_err"
+    if not _STREAM_BLOCKED:
+        _STREAM_BLOCKED = True
+        _STREAM_BLOCK_REASON = cleaned
+    elif not _STREAM_BLOCK_REASON:
+        _STREAM_BLOCK_REASON = cleaned
+
+
+def _record_llm_path(mode: str, reason: Optional[str] = None) -> None:
+    global _LAST_SEGMENT_PATH, _LAST_SEGMENT_REASON
+    _LAST_SEGMENT_PATH = mode
+    _LAST_SEGMENT_REASON = reason
+
+
+def _current_llm_path() -> Tuple[str, Optional[str]]:
+    return _LAST_SEGMENT_PATH, _LAST_SEGMENT_REASON
+
+
+def _reset_stream_state_for_tests() -> None:
+    _record_llm_path("segment_stream", None)
+    global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
+    _STREAM_BLOCKED = False
+    _STREAM_BLOCK_REASON = None
 
 
 def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
@@ -1498,10 +1550,11 @@ def _ollama_generate_text(
     else:
         short_prompt = cleaned_prompt[-max_fallback:]
 
-    force_non_stream = _env_to_bool(os.getenv("PIPELINE_LLM_FORCE_NON_STREAM"))
-    if force_non_stream:
+    force_block, block_reason = _should_block_streaming()
+    if force_block:
         forced = _ollama_generate_sync(endpoint, model_name, short_prompt, fallback_options)
         forced_text = forced.strip()
+        _record_llm_path("segment_blocking", block_reason)
         if forced_text:
             logger.info(
                 "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
@@ -1535,6 +1588,7 @@ def _ollama_generate_text(
         )
         try:
             stream_error_detected = False
+            _record_llm_path("segment_stream", None)
             with requests.post(
                 url,
                 json=payload,
@@ -1570,6 +1624,7 @@ def _ollama_generate_text(
                             },
                         )
                         stream_error_detected = True
+                        _note_stream_failure("stream_err")
                         break
 
                     if event.get("done"):
@@ -1586,6 +1641,7 @@ def _ollama_generate_text(
                                 },
                             )
                             stream_error_detected = True
+                            _note_stream_failure("stream_err")
                         break
 
                     chunk = event.get("response") or ""
@@ -1608,6 +1664,8 @@ def _ollama_generate_text(
                         fallback_options,
                     )
                     if fallback_text:
+                        _note_stream_failure("stream_err")
+                        _record_llm_path("segment_blocking", "stream_err")
                         logger.info(
                             "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
                             len(fallback_text),
@@ -1624,14 +1682,18 @@ def _ollama_generate_text(
                             "raw_length": len(aggregated_text),
                         },
                     )
+                    _record_llm_path("segment_stream", None)
                     break
                 reason = "empty_payload"
         except requests.Timeout:
             reason = "timeout"
+            _note_stream_failure("timeout")
         except requests.RequestException:
             reason = "transport_error"
+            _note_stream_failure("stream_err")
         except Exception:
             reason = "stream_err"
+            _note_stream_failure("stream_err")
 
         if reason and reason.startswith("error:"):
             break
@@ -1649,6 +1711,7 @@ def _ollama_generate_text(
 
     stripped_text = raw_text.strip()
     if stripped_text:
+        _record_llm_path("segment_stream", None)
         logger.debug(
             "[LLM] dynamic_ok",
             extra={
@@ -1657,16 +1720,29 @@ def _ollama_generate_text(
                 "chunk_count": chunk_count,
             },
         )
-    else:
-        logger.debug(
-            "[LLM] dynamic_empty",
-            extra={
-                "attempts": attempts_used,
-                "reason": reason or "empty_payload",
-                "chunk_count": chunk_count,
-            },
+        return stripped_text, (reason or ""), chunk_count, len(raw_text), attempts_used
+
+    logger.debug(
+        "[LLM] dynamic_empty",
+        extra={
+            "attempts": attempts_used,
+            "reason": reason or "empty_payload",
+            "chunk_count": chunk_count,
+        },
+    )
+
+    fallback_text = _ollama_generate_sync(endpoint, model_name, short_prompt, fallback_options)
+    fallback_reason = reason if reason in {"timeout", "stream_err"} else ("stream_err" if reason else None)
+    if fallback_reason:
+        _note_stream_failure(fallback_reason)
+    _record_llm_path("segment_blocking", fallback_reason)
+    if fallback_text:
+        logger.info(
+            "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
+            len(fallback_text),
         )
-    return stripped_text, (reason or ""), chunk_count, len(raw_text), attempts_used
+        return fallback_text, (reason or ""), chunk_count, len(fallback_text), attempts_used
+    return "", reason or "empty_payload", chunk_count, 0, attempts_used
 
 
 _TERM_MIN_LEN = 3
@@ -2047,6 +2123,28 @@ def _tokenise(text: str) -> List[str]:
     return tokens
 
 
+def _levenshtein_ratio(a: str, b: str) -> float:
+    if a == b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    return difflib.SequenceMatcher(None, a, b).ratio()
+
+
+def _fuzzy_dedupe(terms: Iterable[str], *, threshold: float = 0.85) -> List[str]:
+    seen: List[str] = []
+    deduped: List[str] = []
+    for raw in terms or []:
+        candidate = " ".join(str(raw or "").split()).lower()
+        if not candidate:
+            continue
+        if any(_levenshtein_ratio(candidate, prev) >= threshold for prev in seen):
+            continue
+        seen.append(candidate)
+        deduped.append(candidate)
+    return deduped
+
+
 def _normalise_terms(values: Iterable[str], *, limit: Optional[int] = None) -> List[str]:
     seen: set[str] = set()
     normalised: List[str] = []
@@ -2095,6 +2193,56 @@ def _normalise_scene_queries(values: Iterable[str], *, limit: Optional[int] = No
         if limit is not None and len(queries) >= limit:
             break
     return queries
+
+
+def _rank_queries_by_tfidf(
+    segment_text: str,
+    candidates: Sequence[str],
+    *,
+    limit: int,
+) -> List[str]:
+    if not candidates:
+        return []
+
+    tokens = _tokenise(segment_text)
+    if not tokens:
+        tokens = _tokenise(_strip_diacritics(segment_text))
+    if not tokens:
+        return list(candidates)[:limit]
+
+    segment_counts = Counter(tokens)
+    segment_length = max(1, len(tokens))
+    prepared: List[Tuple[str, List[str]]] = [(term, _tokenise(term)) for term in candidates]
+
+    df = Counter()
+    for _, term_tokens in prepared:
+        if term_tokens:
+            df.update(set(term_tokens))
+
+    document_count = max(1, len(prepared))
+    scored: List[Tuple[float, str]] = []
+    for term, term_tokens in prepared:
+        if not term_tokens:
+            scored.append((0.0, term))
+            continue
+        score = 0.0
+        for token in term_tokens:
+            tf = segment_counts.get(token, 0) / segment_length
+            if tf <= 0:
+                continue
+            idf = math.log((document_count + 1) / (df[token] + 1)) + 1.0
+            score += tf * idf
+        scored.append((score, term))
+
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    ranked: List[str] = [term for score, term in scored if score > 0][:limit]
+    if len(ranked) < limit:
+        for _, term in scored:
+            if term not in ranked:
+                ranked.append(term)
+            if len(ranked) >= limit:
+                break
+    return ranked[:limit]
 
 
 _SPACY_MODEL: Optional[Any] = None
@@ -2528,6 +2676,42 @@ class LLMMetadataGeneratorService:
         self._config = config
         self._integration = None
         self.last_metadata: Dict[str, Any] = {}
+        self._metadata_cache_queries: List[str] = []
+        self._metadata_cache_keywords: List[str] = []
+
+        settings_obj: Any = None
+        if callable(get_settings):  # type: ignore[arg-type]
+            try:
+                settings_obj = get_settings()
+            except Exception:
+                settings_obj = None
+
+        def _coerce_positive(value: Any) -> Optional[int]:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError):
+                return None
+            return parsed if parsed > 0 else None
+
+        max_queries_default = 3
+        if config is not None:
+            candidate = getattr(config, "llm", None)
+            if candidate is not None:
+                coerced = _coerce_positive(getattr(candidate, "max_queries_per_segment", None))
+                if coerced is not None:
+                    max_queries_default = coerced
+            fallback_attr = getattr(config, "llm_max_queries_per_segment", None)
+            coerced = _coerce_positive(fallback_attr)
+            if coerced is not None:
+                max_queries_default = coerced
+        if settings_obj is not None:
+            coerced = _coerce_positive(getattr(settings_obj, "llm_max_queries_per_segment", None))
+            if coerced is not None:
+                max_queries_default = coerced
+
+        self._max_queries_per_segment = max(1, min(max_queries_default, 3))
+        disable_dynamic_flag = _env_to_bool(os.getenv(_METADATA_DISABLE_ENV))
+        self._metadata_first_enabled = bool(disable_dynamic_flag)
 
         def _coerce_disable_flag(value: Any) -> Optional[bool]:
             if value is None:
@@ -2593,8 +2777,20 @@ class LLMMetadataGeneratorService:
                 parsed = min(maximum, parsed)
             return max(minimum, parsed)
 
-        self._llm_timeout = _parse_int(timeout_env, default=35, minimum=5)
-        self._llm_num_predict = _parse_int(num_predict_env, default=256, minimum=1)
+        timeout_default = 35
+        settings_timeout = getattr(getattr(settings_obj, "llm", None), "timeout_fallback_s", None)
+        if isinstance(settings_timeout, (int, float)):
+            timeout_default = max(5, int(settings_timeout))
+
+        self._llm_timeout = _parse_int(timeout_env, default=timeout_default, minimum=5)
+
+        settings_num_predict = getattr(getattr(settings_obj, "llm", None), "num_predict", None)
+        configured_predict = None
+        if isinstance(settings_num_predict, (int, float)):
+            configured_predict = max(1, int(settings_num_predict))
+        default_num_predict = configured_predict if configured_predict is not None else 96
+        parsed_predict = _parse_int(num_predict_env, default=default_num_predict, minimum=1)
+        self._llm_num_predict = max(1, min(parsed_predict, 96))
         self._llm_temperature = _parse_float(temperature_env, default=0.3, minimum=0.0)
         self._llm_top_p = _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0)
         self._llm_repeat_penalty = _parse_float(repeat_penalty_env, default=1.1, minimum=0.0)
@@ -3360,6 +3556,8 @@ class LLMMetadataGeneratorService:
             "queries": stored_queries,
             "broll_keywords": stored_keywords,
         }
+        self._metadata_cache_queries = list(stored_queries)
+        self._metadata_cache_keywords = list(stored_keywords)
 
         logger.info('[LLM] Metadata generated', extra={'hashtags': len(hashtags), 'broll_keywords': len(broll_keywords)})
         return LLMMetadata(
@@ -3515,6 +3713,96 @@ class LLMMetadataGeneratorService:
 
         return {"broll_keywords": keywords, "queries": queries}
 
+    def _metadata_first_hints(
+        self,
+        snippet: str,
+        *,
+        start: float,
+        end: float,
+        target_lang: str,
+        seed_queries: Sequence[str],
+        seed_keywords: Sequence[str],
+    ) -> Dict[str, Any]:
+        limit = max(1, min(self._max_queries_per_segment, 3))
+        combined_queries: List[str] = list(seed_queries or [])
+        if not combined_queries:
+            combined_queries = list(self._metadata_cache_queries or self.last_metadata.get("queries") or [])
+        combined_keywords: List[str] = list(seed_keywords or [])
+        if not combined_keywords:
+            combined_keywords = list(self._metadata_cache_keywords or self.last_metadata.get("broll_keywords") or [])
+
+        candidate_terms = _normalise_search_terms(combined_queries + combined_keywords, target_lang=target_lang)
+        candidate_terms = _sanitize_queries(_concretize_queries(candidate_terms), max_len=12)
+        deduped_terms = _fuzzy_dedupe(candidate_terms)
+
+        ranked_queries = _rank_queries_by_tfidf(snippet, deduped_terms, limit=limit)
+        if not ranked_queries and deduped_terms:
+            ranked_queries = list(deduped_terms)[:limit]
+
+        if not ranked_queries:
+            fallback_candidates = self._fallback_queries_from(
+                snippet,
+                metadata_queries=combined_queries,
+                metadata_keywords=combined_keywords,
+                language=target_lang,
+            )
+            ranked_queries = (fallback_candidates or [])[:limit]
+
+        ranked_queries = _sanitize_queries(_concretize_queries(ranked_queries), max_len=12)
+        if not ranked_queries:
+            ranked_queries = _sanitize_queries(
+                _concretize_queries(self._fallback_queries_from(snippet, language=target_lang)),
+                max_len=12,
+            )[:limit]
+
+        keywords = _sanitize_queries(_concretize_queries(combined_keywords), max_words=3, max_len=12)
+        if not keywords:
+            keywords = _sanitize_queries(_concretize_queries(self._metadata_cache_keywords or []), max_words=3, max_len=12)
+        if not keywords:
+            keywords = _sanitize_queries(
+                _normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, target_lang=target_lang),
+                max_words=3,
+                max_len=12,
+            )
+
+        try:
+            seg_duration = max(0.0, float(end) - float(start))
+        except Exception:
+            seg_duration = 0.0
+        min_d = 3.0
+        if seg_duration > 0:
+            min_d = max(2.5, min(5.5, round(seg_duration * 0.9, 2)))
+
+        filters = {
+            "orientation": "portrait",
+            "min_duration_s": float(min_d),
+            "max_duration_s": 8.0,
+            "min_aspect_ratio": 1.6,
+        }
+
+        source = "metadata_first"
+        _record_llm_path(source, "flag_disable")
+
+        self.last_metadata = {
+            "title": "",
+            "description": "",
+            "queries": list(ranked_queries),
+            "broll_keywords": list(keywords),
+            "filters": dict(filters),
+            "source": source,
+        }
+        self._metadata_cache_queries = list(ranked_queries)
+        self._metadata_cache_keywords = list(keywords)
+
+        return {
+            "title": "",
+            "description": "",
+            "queries": list(ranked_queries),
+            "broll_keywords": list(keywords),
+            "filters": filters,
+            "source": source,
+        }
+
     def generate_hints_for_segment(self, text: str, start: float, end: float) -> Dict:
         """Produce visual search hints for a transcript segment."""
 
@@ -3534,6 +3822,25 @@ class LLMMetadataGeneratorService:
 
         seed_queries = seed_queries[:24]
         seed_keywords = seed_keywords[:24]
+
+        if self._metadata_first_enabled:
+            result = self._metadata_first_hints(
+                snippet,
+                start=start,
+                end=end,
+                target_lang=target_lang,
+                seed_queries=seed_queries,
+                seed_keywords=seed_keywords,
+            )
+            logger.info(
+                "[LLM] segment path resolved",
+                extra={"llm_path": "metadata_first", "llm_path_reason": "flag_disable"},
+            )
+            return result
+
+        force_block, block_reason = _should_block_streaming()
+        llm_path_mode = "segment_blocking" if force_block else "segment_stream"
+        llm_path_reason = block_reason
 
         if not snippet:
             fallback_queries_full = self._fallback_queries_from(
@@ -3619,6 +3926,8 @@ class LLMMetadataGeneratorService:
                 seed_keywords=seed_keywords,
             )
             llm_failed = True
+            llm_path_mode = "segment_blocking"
+            llm_path_reason = "stream_err"
 
         payload: Dict[str, Any] = dict(llm_payload or {})
 
@@ -3790,6 +4099,14 @@ class LLMMetadataGeneratorService:
         }
 
         queries_with_synonyms = _augment_with_synonyms(queries, max_extra_per=1, limit=12)
+
+        if not llm_failed and llm_path_mode == "segment_stream":
+            llm_path_reason = llm_path_reason or None
+        _record_llm_path(llm_path_mode, llm_path_reason)
+        extra_payload = {"llm_path": llm_path_mode}
+        if llm_path_reason:
+            extra_payload["llm_path_reason"] = llm_path_reason
+        logger.info("[LLM] segment path resolved", extra=extra_payload)
 
         return {
             "title": title,
