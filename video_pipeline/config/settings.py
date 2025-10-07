@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Mapping, Optional
@@ -115,6 +115,7 @@ class LLMSettings:
     model: str
     model_json: str
     model_text: str
+    provider: str
     endpoint: str
     base_url: str
     keep_alive: str
@@ -207,6 +208,7 @@ class Settings:
                 "model": self.llm.model,
                 "model_json": self.llm.effective_json_model,
                 "model_text": self.llm.effective_text_model,
+                "provider": self.llm.provider,
                 "endpoint": self.llm.endpoint,
                 "keep_alive": self.llm.keep_alive,
                 "timeout_stream_s": self.llm.timeout_stream_s,
@@ -319,6 +321,7 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
     model = _clean_text(_env(env, "PIPELINE_LLM_MODEL", "qwen2.5:7b") or "qwen2.5:7b")
     model_json = _clean_text(_env(env, "PIPELINE_LLM_MODEL_JSON", "") or "")
     model_text = _clean_text(_env(env, "PIPELINE_LLM_MODEL_TEXT", "") or "")
+    provider = _clean_text(_env(env, "PIPELINE_LLM_PROVIDER", "ollama") or "ollama")
     endpoint = _clean_text(
         _env(env, "PIPELINE_LLM_ENDPOINT")
         or _env(env, "PIPELINE_LLM_BASE_URL")
@@ -412,6 +415,7 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
         model=model,
         model_json=model_json,
         model_text=model_text,
+        provider=provider,
         endpoint=endpoint,
         base_url=endpoint,
         keep_alive=keep_alive,
@@ -681,6 +685,32 @@ def set_settings(settings: Settings) -> None:
     global _SETTINGS_CACHE
     with _CACHE_LOCK:
         _SETTINGS_CACHE = settings
+
+
+def apply_llm_overrides(
+    settings: Settings,
+    *,
+    provider: Optional[str] = None,
+    model_text: Optional[str] = None,
+    model_json: Optional[str] = None,
+) -> Settings:
+    updates: Dict[str, str] = {}
+    if provider is not None:
+        cleaned = provider.strip()
+        if cleaned:
+            updates["provider"] = cleaned
+    if model_text is not None:
+        cleaned = model_text.strip()
+        if cleaned:
+            updates["model_text"] = cleaned
+    if model_json is not None:
+        cleaned = model_json.strip()
+        if cleaned:
+            updates["model_json"] = cleaned
+    if not updates:
+        return settings
+    new_llm = replace(settings.llm, **updates)
+    return replace(settings, llm=new_llm)
 
 
 def get_settings() -> Settings:

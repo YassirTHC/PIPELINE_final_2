@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from tools.runtime_stamp import emit_runtime_banner
 from video_pipeline.config import (
+    apply_llm_overrides,
     get_settings,
     load_settings,
     log_effective_settings,
@@ -388,22 +389,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     load_dotenv(repo_root / '.env.local', override=True)
     _sanitize_env_values(_SANITIZE_KEYS)
 
-    settings = load_settings()
-    set_settings(settings)
-    settings = get_settings()
-    log_effective_settings(settings)
-
-    if settings.llm.force_non_stream:
-        os.environ["PIPELINE_LLM_FORCE_NON_STREAM"] = "1"
-    else:
-        os.environ.setdefault("PIPELINE_LLM_FORCE_NON_STREAM", "0")
-
-    timeout_value = max(5, int(settings.llm.timeout_fallback_s)) if settings.llm.timeout_fallback_s else 35
-    os.environ.setdefault("PIPELINE_LLM_TIMEOUT_S", str(timeout_value))
-
-    num_predict_value = max(1, int(settings.llm.num_predict)) if settings.llm.num_predict else 96
-    os.environ.setdefault("PIPELINE_LLM_NUM_PREDICT", str(min(96, num_predict_value)))
-
     parser = argparse.ArgumentParser(
         description="Launch the video pipeline with stable environment defaults."
     )
@@ -417,7 +402,49 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--legacy", action="store_true", help="Disable the modern pipeline_core orchestrator.")
     parser.add_argument("--verbose", action="store_true", help="Print verbose logs in the console.")
     parser.add_argument("--no-emoji", action="store_true", help="Disable emoji in console output.")
+    parser.add_argument(
+        "--llm-provider",
+        help="Override the LLM provider for this run (ex: ollama, lmstudio).",
+    )
+    parser.add_argument(
+        "--llm-model-text",
+        help="Override the text completion LLM model identifier.",
+    )
+    parser.add_argument(
+        "--llm-model-json",
+        help="Override the JSON metadata LLM model identifier.",
+    )
     args, passthrough = parser.parse_known_args(argv)
+
+    settings = load_settings()
+    settings = apply_llm_overrides(
+        settings,
+        provider=args.llm_provider,
+        model_text=args.llm_model_text,
+        model_json=args.llm_model_json,
+    )
+    set_settings(settings)
+    settings = get_settings()
+
+    if args.llm_provider:
+        os.environ["PIPELINE_LLM_PROVIDER"] = settings.llm.provider
+    if args.llm_model_text:
+        os.environ["PIPELINE_LLM_MODEL_TEXT"] = settings.llm.model_text
+    if args.llm_model_json:
+        os.environ["PIPELINE_LLM_MODEL_JSON"] = settings.llm.model_json
+
+    log_effective_settings(settings)
+
+    if settings.llm.force_non_stream:
+        os.environ["PIPELINE_LLM_FORCE_NON_STREAM"] = "1"
+    else:
+        os.environ.setdefault("PIPELINE_LLM_FORCE_NON_STREAM", "0")
+
+    timeout_value = max(5, int(settings.llm.timeout_fallback_s)) if settings.llm.timeout_fallback_s else 35
+    os.environ.setdefault("PIPELINE_LLM_TIMEOUT_S", str(timeout_value))
+
+    num_predict_value = max(1, int(settings.llm.num_predict)) if settings.llm.num_predict else 96
+    os.environ.setdefault("PIPELINE_LLM_NUM_PREDICT", str(min(96, num_predict_value)))
 
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()

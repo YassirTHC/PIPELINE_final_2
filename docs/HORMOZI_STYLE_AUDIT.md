@@ -30,6 +30,7 @@ célèbre sur TikTok, et si la logique d'emojis est cohérente.
 * **Police Montserrat ExtraBold forcée** – la résolution de police préfère les
   fichiers Montserrat embarqués ; le chemin retenu est journalisé via `Settings` et
   un log `[Subtitles]` est émis à la première utilisation.【F:video_pipeline/config/settings.py†L170-L229】【F:hormozi_subtitles.py†L251-L308】
+* **Contour et ombre standardisés** – `SubtitleSettings` fixe `stroke_px=6`, `shadow_opacity=0.35` et `shadow_offset=3` pour stabiliser le rendu ; des overrides d'environnement permettent de les modifier sans toucher au code si un preset différent est requis.【F:video_pipeline/config/settings.py†L560-L598】【F:hormozi_subtitles.py†L930-L1038】
 * **Auto-layout stabilisé** – la largeur est rescannée pour rester sous 92 % de la
   vidéo et l'animation conserve un Y lissé pour éviter les sauts, même avec le
   rebond.【F:hormozi_subtitles.py†L820-L912】
@@ -66,6 +67,7 @@ célèbre sur TikTok, et si la logique d'emojis est cohérente.
 * **Placement attaché au mot** – les emojis se superposent désormais dans l'angle
   supérieur droit du groupe coloré, plutôt qu'en suffixe flottant, ce qui renforce la
   lecture verticale sans casser le centrage.【F:hormozi_subtitles.py†L930-L1038】
+* **Fallback neutre optionnel** – `SubtitleSettings.emoji_no_context_fallback` autorise un pictogramme de repli (ex. ⭐) lorsque la sélection automatique ne trouve rien, tout en conservant la densité cible via `emoji_target_per_10`, `emoji_min_gap_groups` et `emoji_max_per_segment`.【F:video_pipeline/config/settings.py†L560-L598】【F:hormozi_subtitles.py†L866-L955】
 
 > **Conclusion** : la narration emoji gagne en cohérence (pas de 💼 hors sujet), en
 > rythme et en densité, tout en restant maîtrisée grâce au seuil cible paramétrable.
@@ -94,3 +96,4 @@ rendraient les emojis plus cohérents avec le contenu des sous-titres.
 * **Config typée appliquée au burn-in** – `video_processor_clean` transmet désormais `get_settings().subtitles` au wrapper `add_hormozi_subtitles`, garantissant que marge, taille, fonds de mots-clés et émojis suivent la configuration centralisée.【F:video_processor_clean.py†L811-L818】
 * **Palette stabilisée + remplissage texte** – `self.category_colors` couvre explicitement `finance`, `sales`, `content`, `mobile`, `sports` et synonymes, avec application directe sur la lettre et stroke configurable.【F:hormozi_subtitles.py†L166-L254】【F:tests/test_subtitles_montserrat_fill.py†L9-L37】
 * **Mapping emoji cohérent** – `category_emojis` fournit une liste pour chaque catégorie, les alias héritent de la même base et la planification applique l'anti-repeat fenêtre de 4 groupes ou retourne `""` en l'absence de contexte.【F:hormozi_subtitles.py†L866-L950】【F:tests/test_emojis_density_and_mapping.py†L18-L53】
+* **Multi-provider LLM** – `LLMSettings` expose désormais le champ `provider` et les overrides CLI (`--llm-provider`, `--llm-model-text`, `--llm-model-json`) mettent à jour la configuration typée ainsi que les variables d'environnement avant l'exécution, tout en ne loguant `[CONFIG]` qu'une seule fois par process.【F:video_pipeline/config/settings.py†L84-L227】【F:run_pipeline.py†L365-L419】【F:video_processor.py†L6678-L6705】
