@@ -473,14 +473,25 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
             assets_dir / "Montserrat-Bold.ttf",
         ]
     )
+
+    windir = os.getenv("WINDIR")
+    windows_fonts: List[Path] = []
+    if windir:
+        base_fonts = Path(windir) / "Fonts"
+        windows_fonts.extend(
+            [
+                base_fonts / "Montserrat-ExtraBold.ttf",
+                base_fonts / "Montserrat-Bold.ttf",
+            ]
+        )
+
     candidate_paths.extend(
         [
             Path("/System/Library/Fonts/Montserrat-ExtraBold.ttf"),
             Path("/System/Library/Fonts/Montserrat-Bold.ttf"),
             Path("/Library/Fonts/Montserrat-ExtraBold.ttf"),
             Path("/Library/Fonts/Montserrat-Bold.ttf"),
-            Path("C:/Windows/Fonts/Montserrat-ExtraBold.ttf"),
-            Path("C:/Windows/Fonts/Montserrat-Bold.ttf"),
+            *windows_fonts,
         ]
     )
 
