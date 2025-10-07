@@ -1,20 +1,20 @@
-import subprocess
+﻿import subprocess
 import sys
 import os
 
-def install_requirements():
-    """Installe les dépendances Python"""
-    print("📦 Installation des dépendances Python...")
+def print("[setup] skipping requirements install"):
+    """Installe les dÃ©pendances Python"""
+    print("ðŸ“¦ Installation des dÃ©pendances Python...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 def install_ffmpeg():
     """Guide pour installer FFmpeg"""
     print("""
-    🎬 Installation FFmpeg requise:
+    ðŸŽ¬ Installation FFmpeg requise:
     
     Windows:
-    1. Téléchargez FFmpeg depuis https://ffmpeg.org/download.html
-    2. Ajoutez le dossier bin à votre PATH
+    1. TÃ©lÃ©chargez FFmpeg depuis https://ffmpeg.org/download.html
+    2. Ajoutez le dossier bin Ã  votre PATH
 
     macOS:
     brew install ffmpeg
@@ -24,18 +24,20 @@ def install_ffmpeg():
     """)
 
 def setup_directories():
-    """Crée la structure de dossiers"""
+    """CrÃ©e la structure de dossiers"""
     folders = ["clips", "output", "temp", "scripts"]
     for folder in folders:
         os.makedirs(folder, exist_ok=True)
-        print(f"📁 Dossier créé: {folder}/")
+        print(f"ðŸ“ Dossier crÃ©Ã©: {folder}/")
 
 def main():
-    print("🚀 Configuration du pipeline de clips viraux")
-    install_requirements()
+    print("ðŸš€ Configuration du pipeline de clips viraux")
+    print("[setup] skipping requirements install")
     setup_directories()
     install_ffmpeg()
-    print("✅ Setup terminé!")
+    print("âœ… Setup terminÃ©!")
 
 if __name__ == "__main__":
     main()
+
+
