@@ -42,7 +42,9 @@ def test_emoji_spacing_and_density():
     for group in groups:
         if not group.get("emojis"):
             continue
-        emoji = group["emojis"][0]
+        entry = group["emojis"][0]
+        emoji = entry if isinstance(entry, str) else entry.get("char")
+        assert emoji
         assert emoji not in recent[-window:]
         recent.append(emoji)
 

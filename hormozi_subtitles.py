@@ -13,7 +13,7 @@ import re
 import requests
 import unicodedata
 import logging
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 from pathlib import Path
 from collections import deque
 import json
@@ -128,6 +128,7 @@ class HormoziSubtitles:
             'emoji_no_context_fallback': "",
             'hero_emoji_enable': True,
             'hero_emoji_max_per_segment': 1,
+            'hero_emoji_scale': 1.6,
             'emoji_history_window': 4,
             'use_twemoji_local': True,
         }
@@ -160,12 +161,19 @@ class HormoziSubtitles:
         }
         
         palette = {
-            'finance': '#FFD447',  # jaune
-            'sales': '#FF5B5B',    # rouge
-            'content': '#FF5DA2',  # magenta
-            'growth': '#34C759',   # vert
-            'energy': '#1DD3B0',   # turquoise
-            'focus': '#2563EB',    # bleu
+            'finance': '#FFD447',   # jaune
+            'sales': '#FF5B5B',     # rouge
+            'content': '#FF5DA2',   # magenta
+            'growth': '#34C759',    # vert
+            'energy': '#FF8A00',    # orange vibrant
+            'focus': '#2563EB',     # bleu profond
+            'time': '#0EA5E9',      # bleu clair
+            'success': '#22C55E',   # vert succès
+            'alert': '#F97316',     # orange alerte
+            'mobile': '#6366F1',    # violet techno
+            'sports': '#10B981',    # vert dynamique
+            'health': '#2DD4BF',    # vert bien-être
+            'education': '#A855F7', # violet éducation
         }
         aliases = {
             'money': 'finance',
@@ -173,77 +181,138 @@ class HormoziSubtitles:
             'profit': 'finance',
             'wealth': 'finance',
             'revenue': 'finance',
+            'argent': 'finance',
+            'vente': 'sales',
+            'ventes': 'sales',
+            'offer': 'sales',
+            'offre': 'sales',
+            'offres': 'sales',
+            'deal': 'sales',
             'business': 'sales',
             'corporate': 'sales',
-            'strategy': 'focus',
-            'leadership': 'growth',
-            'team': 'growth',
             'marketing': 'content',
             'creative': 'content',
             'content': 'content',
-            'actions': 'energy',
-            'action': 'energy',
+            'viral': 'content',
+            'virale': 'content',
+            'growth': 'growth',
+            'success': 'success',
+            'victory': 'success',
+            'achievement': 'success',
+            'winning': 'success',
+            'results': 'success',
+            'win': 'success',
+            'reward': 'success',
+            'recompense': 'success',
+            'trophy': 'success',
             'energy': 'energy',
+            'energie': 'energy',
             'power': 'energy',
             'movement': 'energy',
-            'success': 'growth',
-            'victory': 'growth',
-            'achievement': 'growth',
-            'winning': 'growth',
-            'results': 'growth',
-            'win': 'growth',
-            'growth': 'growth',
-            'urgency': 'focus',
-            'time': 'focus',
-            'deadline': 'focus',
-            'pressure': 'focus',
-            'attention': 'focus',
-            'important': 'focus',
-            'critical': 'focus',
-            'stop': 'focus',
-            'urgent': 'focus',
-            'focus': 'focus',
+            'action': 'energy',
+            'actions': 'energy',
             'passion': 'energy',
             'excitement': 'energy',
             'inspiration': 'energy',
             'emotions': 'energy',
-            'digital': 'focus',
-            'innovation': 'focus',
-            'future': 'growth',
-            'tech': 'focus',
-            'mobile': 'focus',
-            'mindset': 'growth',
-            'learning': 'growth',
-            'personal': 'growth',
+            'focus': 'focus',
+            'strategy': 'focus',
             'solutions': 'focus',
             'fix': 'focus',
             'resolve': 'focus',
             'improve': 'focus',
-            'problems': 'sales',
-            'challenges': 'sales',
-            'obstacles': 'sales',
-            'difficulties': 'sales',
-            'health': 'growth',
-            'wellness': 'growth',
-            'fitness': 'energy',
-            'sports': 'energy',
-            'education': 'content',
-            'time-management': 'focus',
+            'digital': 'focus',
+            'innovation': 'focus',
+            'tech': 'focus',
+            'mindset': 'growth',
+            'learning': 'growth',
+            'personal': 'growth',
+            'attention': 'alert',
+            'important': 'alert',
+            'critical': 'alert',
+            'stop': 'alert',
+            'urgent': 'alert',
+            'urgency': 'alert',
+            'alert': 'alert',
+            'alerte': 'alert',
+            'warning': 'alert',
+            'danger': 'alert',
+            'risk': 'alert',
+            'risque': 'alert',
+            'security': 'alert',
+            'securite': 'alert',
+            'panic': 'alert',
+            'time': 'time',
+            'temps': 'time',
+            'deadline': 'time',
+            'clock': 'time',
+            'minute': 'time',
+            'minutes': 'time',
+            'second': 'time',
+            'seconds': 'time',
+            'hour': 'time',
+            'hours': 'time',
+            'schedule': 'time',
+            'planning': 'time',
+            'calendar': 'time',
+            'jour': 'time',
+            'day': 'time',
+            'today': 'time',
+            'tomorrow': 'time',
+            'mobile': 'mobile',
+            'telephone': 'mobile',
+            'phone': 'mobile',
+            'phones': 'mobile',
+            'appel': 'mobile',
+            'call': 'mobile',
+            'smartphone': 'mobile',
+            'app': 'mobile',
+            'sports': 'sports',
+            'sport': 'sports',
+            'foot': 'sports',
+            'football': 'sports',
+            'soccer': 'sports',
+            'basket': 'sports',
+            'fitness': 'sports',
+            'future': 'growth',
+            'team': 'growth',
+            'leadership': 'growth',
+            'health': 'health',
+            'sante': 'health',
+            'wellness': 'health',
+            'education': 'education',
+            'school': 'education',
+            'course': 'education',
+            'lesson': 'education',
+            'study': 'education',
+            'time-management': 'time',
         }
+        aliases.update({
+            'phonecall': 'mobile',
+            'telephonecall': 'mobile',
+            'offerup': 'sales',
+        })
         self._default_category_color = palette['focus']
         self.category_colors: Dict[str, str] = {}
         for key, value in palette.items():
             self.category_colors[key] = value
         for alias, target in aliases.items():
             self.category_colors[alias] = palette[target]
-        
+
         base_emojis: Dict[str, List[str]] = {
-            'finance': ['💰', '💸', '📈', '🤑', '🏦', '💳'],
-            'sales': ['🛒', '🤝', '🏷️', '💳', '📈', '📞'],
-            'content': ['🎬', '📝', '📹', '🎧', '🎨', '📱'],
-            'growth': ['📈', '🌱', '🚀', '🎯', '🏆', '💡'],
-            'energy': ['⚡', '🔥', '💥', '💪', '🚀', '🌪️'],
-            'focus': ['🎯', '🧠', '⌛', '🕒', '🔍', '📘'],
+            'finance': ['💰', '💸', '📈', '🪙', '🏦', '💹'],
+            'sales': ['🛒', '🤝', '🏷️', '📞', '💼', '🗣️'],
+            'content': ['🎬', '📝', '📹', '🎧', '🎥', '📣'],
+            'growth': ['📈', '🌱', '🚀', '🎯', '📊', '🏆'],
+            'energy': ['⚡', '🔥', '💥', '💪', '🚀', '⚔️'],
+            'focus': ['🎯', '🧠', '🔍', '🛡️', '📘', '🧭'],
+            'time': ['⏳', '⏰', '🕒', '📆', '⌛', '⏱️'],
+            'success': ['🏆', '🥇', '🎖️', '💎', '🎉', '📣'],
+            'alert': ['🚨', '⚠️', '🔔', '🛑', '🚧', '❗'],
+            'mobile': ['📱', '📲', '☎️', '📞', '🛰️', '💬'],
+            'sports': ['⚽', '🏀', '🏈', '🏋️', '🏃‍♂️', '🥅'],
+            'health': ['🧘', '🥦', '💊', '🩺', '🏥', '💤'],
+            'education': ['🎓', '📚', '🧠', '✍️', '📝', '🏫'],
         }
         self.category_emojis: Dict[str, List[str]] = {
             key: list(values) for key, values in base_emojis.items()
@@ -264,33 +333,106 @@ class HormoziSubtitles:
         # Alias supplémentaires (FR/EN) pour améliorer la couverture sémantique → catégorie
         self.emoji_alias: Dict[str, str] = {
             # Finance
-            'ARGENT':'finance','EURO':'finance','EUROS':'finance','REVENU':'finance','REVENUS':'finance','BENEFICE':'finance','BENEFICES':'finance','VENTE':'finance','VENTES':'finance','ACHAT':'finance','ACHETER':'finance','PRICE':'finance','PRICING':'finance','CASH':'finance','MONEY':'finance','PROFIT':'finance','REVENUE':'finance','WEALTH':'finance','BUDGET':'finance','INVEST':'finance','INVESTIR':'finance','ROI':'finance','LTV':'finance','AOV':'finance','BITCOIN':'finance','CRYPTO':'finance','ETHEREUM':'finance',
-            # Growth / Success / Results
-            'SUCCES':'growth','SUCCESS':'growth','WIN':'growth','VICTOIRE':'growth','RESULTAT':'growth','RESULTATS':'growth','GROWTH':'growth','GROW':'growth','SCALE':'growth','EXPAND':'growth','PERF':'growth','PERFORMANCE':'growth','RECORD':'growth','TOP':'growth','BEST':'growth','RESULTS':'growth','WINNING':'growth','MILLION':'finance','MILLIONS':'finance',
-            # Energy / Actions / Urgency / Time
-            'FAST':'focus','QUICK':'focus','RAPIDE':'focus','IMMEDIAT':'focus','NOW':'focus','TODAY':'focus','MAINTENANT':'focus','VITE':'focus','HURRY':'focus','DEADLINE':'focus','URGENT':'focus','ACTION':'energy','ACT':'energy','BUILD':'energy','CREATE':'energy','LAUNCH':'energy','START':'energy','IMPLEMENT':'energy','EXECUTE':'energy','OPTIMIZE':'energy','IMPROVE':'energy','ENERGY':'energy','POWER':'energy','MOTION':'energy','TIME':'focus','SPEED':'focus',
-            # Business/Team/Client / Sales
-            'BUSINESS':'sales','ENTREPRISE':'sales','SOCIETE':'sales','COMPANY':'sales','TEAM':'growth','CLIENT':'sales','CUSTOMER':'sales','BRAND':'sales','MARKETING':'content','CONTENT':'content','STRATEGY':'focus','SYSTEM':'focus','PROCESS':'focus','SALES':'sales','VENTES':'sales','DEAL':'sales','CLOSE':'sales','NEGOCIER':'sales','NEGOCIATE':'sales','PIPELINE':'sales',
-            # Emotions / Energy vibes
-            'WOW':'energy','INCROYABLE':'energy','AMAZING':'energy','INCREDIBLE':'energy','FIRE':'energy','🔥':'energy','CRAZY':'energy','INSANE':'energy','MOTIVATION':'energy','PASSION':'energy','LOVE':'energy','❤️':'energy','HYPE':'energy',
+            'ARGENT': 'finance', 'EURO': 'finance', 'EUROS': 'finance', 'REVENU': 'finance', 'REVENUS': 'finance',
+            'BENEFICE': 'finance', 'BENEFICES': 'finance', 'BUDGET': 'finance', 'CASH': 'finance', 'MONEY': 'finance',
+            'PROFIT': 'finance', 'REVENUE': 'finance', 'WEALTH': 'finance', 'INVEST': 'finance', 'INVESTIR': 'finance',
+            'INVESTISSEMENT': 'finance', 'INVESTMENT': 'finance', 'ROI': 'finance', 'LTV': 'finance', 'AOV': 'finance',
+            'BITCOIN': 'finance', 'CRYPTO': 'finance', 'ETHEREUM': 'finance', 'CAPITAL': 'finance', 'CAPITAUX': 'finance',
+            'BANK': 'finance', 'BANQUE': 'finance', 'MILLION': 'finance', 'MILLIONS': 'finance', 'DOLLAR': 'finance',
+            'DOLLARS': 'finance', 'PAYMENT': 'finance', 'PAIEMENT': 'finance',
+            # Sales / Deals
+            'VENTE': 'sales', 'VENTES': 'sales', 'ACHAT': 'sales', 'ACHATS': 'sales', 'ACHETER': 'sales', 'SELL': 'sales',
+            'SALE': 'sales', 'SALES': 'sales', 'DEAL': 'sales', 'DEALS': 'sales', 'CLOSE': 'sales', 'NEGOCIER': 'sales',
+            'NEGOCIATE': 'sales', 'PIPELINE': 'sales', 'CLIENT': 'sales', 'CLIENTS': 'sales', 'CUSTOMER': 'sales',
+            'CUSTOMERS': 'sales', 'LEAD': 'sales', 'LEADS': 'sales', 'PROSPECT': 'sales', 'PROSPECTS': 'sales',
+            'OFFRE': 'sales', 'OFFRES': 'sales', 'OFFER': 'sales', 'OFFERS': 'sales', 'VENDEUR': 'sales',
+            'BUSINESS': 'sales', 'ENTREPRISE': 'sales', 'ENTREPRISES': 'sales', 'SOCIETE': 'sales', 'SOCIETES': 'sales',
+            'COMPANY': 'sales', 'COMPANIES': 'sales', 'BRAND': 'sales', 'BRANDS': 'sales', 'COMMERCE': 'sales',
+            # Content / Marketing
+            'MARKETING': 'content', 'CONTENT': 'content', 'VIDEO': 'content', 'VIDEOS': 'content', 'SCRIPT': 'content',
+            'SCRIPTS': 'content', 'CAPTION': 'content', 'CAPTIONS': 'content', 'SUBTITLE': 'content', 'SUBTITLES': 'content',
+            'HOOK': 'content', 'RETENTION': 'content', 'REEL': 'content', 'REELS': 'content', 'SHORT': 'content',
+            'SHORTS': 'content', 'PODCAST': 'content', 'PODCASTS': 'content', 'BLOG': 'content', 'BLOGS': 'content',
+            'THUMB': 'content', 'THUMBNAIL': 'content', 'TITLE': 'content', 'TITRE': 'content', 'VIRAL': 'content',
+            'VIRALE': 'content', 'VIRALITE': 'content', 'TREND': 'content', 'TRENDING': 'content', 'COPY': 'content',
+            'COPYWRITING': 'content', 'CREATOR': 'content', 'CREATEUR': 'content', 'STORY': 'content', 'STORIES': 'content',
+            # Growth / Success / Mindset
+            'SUCCES': 'success', 'SUCCESS': 'success', 'WIN': 'success', 'WINNING': 'success', 'VICTOIRE': 'success',
+            'RESULTAT': 'success', 'RESULTATS': 'success', 'RESULTS': 'success', 'RECORD': 'success', 'TOP': 'success',
+            'BEST': 'success', 'REWARD': 'success', 'REWARDS': 'success', 'RECOMPENSE': 'success', 'RECOMPENSES': 'success',
+            'TROPHY': 'success', 'TROPHIES': 'success', 'TROPHEE': 'success', 'TROPHEES': 'success', 'AWARD': 'success',
+            'AWARDS': 'success', 'BONUS': 'success', 'PRIZE': 'success',
+            'ACHIEVE': 'growth', 'ACHIEVEMENT': 'growth', 'GROW': 'growth', 'GROWTH': 'growth', 'GROWING': 'growth',
+            'SCALE': 'growth', 'SCALING': 'growth', 'EXPAND': 'growth', 'EXPANSION': 'growth', 'PERF': 'growth',
+            'PERFORMANCE': 'growth', 'TEAM': 'growth', 'LEADER': 'growth', 'LEADERSHIP': 'growth', 'MINDSET': 'growth',
+            'DISCIPLINE': 'growth', 'HABITS': 'growth', 'HABIT': 'growth', 'GOAL': 'growth', 'GOALS': 'growth',
+            'OBJECTIF': 'growth', 'OBJECTIFS': 'growth', 'MENTOR': 'growth', 'COACH': 'growth', 'COACHING': 'growth',
+            'MENTORING': 'growth', 'LEARN': 'growth', 'LEARNING': 'growth',
+            'EDUCATION': 'education', 'SCHOOL': 'education', 'UNIVERSITY': 'education', 'COURSE': 'education',
+            'COURSES': 'education', 'COURS': 'education', 'LESSON': 'education', 'LESSONS': 'education',
+            'STUDY': 'education', 'STUDIES': 'education', 'FORMATION': 'education', 'ACADEMY': 'education',
+            'MASTERCLASS': 'education', 'TUTORIAL': 'education', 'TUTORIEL': 'education',
+            # Energy / Emotions / Action
+            'FAST': 'time', 'QUICK': 'time', 'RAPIDE': 'time', 'IMMEDIAT': 'time', 'IMMEDIATE': 'time', 'NOW': 'time',
+            'TODAY': 'time', 'MAINTENANT': 'time', 'VITE': 'time', 'HURRY': 'time', 'DEADLINE': 'time', 'SPEED': 'time',
+            'TIME': 'time', 'TEMPS': 'time', 'MINUTE': 'time', 'MINUTES': 'time', 'SECOND': 'time', 'SECONDS': 'time',
+            'SECONDE': 'time', 'SECONDES': 'time', 'HOUR': 'time', 'HOURS': 'time', 'HEURE': 'time', 'HEURES': 'time',
+            'JOUR': 'time', 'DAY': 'time', 'WEEK': 'time', 'SEMAINE': 'time', 'MONTH': 'time', 'MOIS': 'time',
+            'YEAR': 'time', 'ANNEE': 'time', 'ANNEES': 'time', 'TOMORROW': 'time', 'SCHEDULE': 'time', 'PLANNING': 'time',
+            'CALENDAR': 'time', 'CALENDRIER': 'time', 'AGENDA': 'time', 'CLOCK': 'time', 'ALARM': 'time', 'TIMER': 'time',
+            'ACTION': 'energy', 'ACTIONS': 'energy', 'ACT': 'energy', 'BUILD': 'energy', 'CREATE': 'energy',
+            'LAUNCH': 'energy', 'START': 'energy', 'IMPLEMENT': 'energy', 'EXECUTE': 'energy', 'OPTIMIZE': 'energy',
+            'IMPROVE': 'energy', 'ENERGY': 'energy', 'ENERGIE': 'energy', 'POWER': 'energy', 'MOTION': 'energy',
+            'BOOST': 'energy', 'MOVE': 'energy', 'WOW': 'energy', 'INCROYABLE': 'energy',
+            'AMAZING': 'energy', 'INCREDIBLE': 'energy', 'FIRE': 'energy', 'CRAZY': 'energy', 'INSANE': 'energy',
+            'MOTIVATION': 'energy', 'PASSION': 'energy', 'LOVE': 'energy', 'AMOUR': 'energy', 'HYPE': 'energy',
+            'BURN': 'energy', '🔥': 'energy', '❤️': 'energy',
+            # Alert / Emergency
+            'URGENT': 'alert', 'URGENCE': 'alert', 'URGENCY': 'alert', 'ALERT': 'alert', 'ALERTE': 'alert', 'WARNING': 'alert',
+            'DANGER': 'alert', 'RISQUE': 'alert', 'RISK': 'alert', 'SECURITY': 'alert', 'SECURITE': 'alert', 'PANIC': 'alert',
+            'EMERGENCY': 'alert', 'ALARM': 'alert', 'ATTENTION': 'alert', 'STOP': 'alert', 'CRITICAL': 'alert',
+            'IMPORTANT': 'alert', 'ISSUE': 'alert', 'ISSUES': 'alert', 'PROBLEM': 'alert', 'PROBLEME': 'alert',
+            'ERREUR': 'alert', 'FAIL': 'alert', 'BUG': 'alert', 'CRISIS': 'alert',
             # Tech / Focus
-            'AI':'focus','IA':'focus','AUTOMATION':'focus','ALGORITHME':'focus','ALGORITHM':'focus','CODE':'focus','SOFTWARE':'focus','APP':'focus','DIGITAL':'focus','API':'focus','CLOUD':'focus','DATA':'focus','TECH':'focus','MOBILE':'focus',
-            # Problems/Solutions
-            'PROBLEME':'sales','PROBLEM':'sales','ISSUE':'sales','ERREUR':'sales','FAIL':'sales','BUG':'sales','SOLUTION':'focus','SOLUTIONS':'focus','FIX':'focus','PATCH':'focus','HOWTO':'focus','SECRET':'focus','TIP':'focus','TRICK':'focus',
-            # Personal/Health/Growth
-            'BRAIN':'growth','MENTAL':'growth','NEUROSCIENCE':'growth','DOPAMINE':'growth','ANXIETY':'growth','STRESS':'growth','TRAUMA':'growth','MINDSET':'growth','DISCIPLINE':'growth','HABITS':'growth','GOALS':'growth','FOCUS':'focus','PRODUCTIVITY':'focus','EXERCISE':'energy','MOVEMENT':'energy','HEALTH':'growth','WELLNESS':'growth'
+            'AI': 'focus', 'IA': 'focus', 'AUTOMATION': 'focus', 'ALGORITHME': 'focus', 'ALGORITHM': 'focus', 'CODE': 'focus',
+            'SOFTWARE': 'focus', 'DIGITAL': 'focus', 'API': 'focus', 'CLOUD': 'focus', 'DATA': 'focus', 'TECH': 'focus',
+            'SYSTEM': 'focus', 'SYSTEME': 'focus', 'SYSTEMES': 'focus', 'PROCESS': 'focus', 'PROCESSUS': 'focus',
+            'STRATEGY': 'focus', 'STRATEGIE': 'focus', 'PLAN': 'focus', 'MODEL': 'focus', 'MODELE': 'focus',
+            'METHOD': 'focus', 'METHODE': 'focus', 'FRAMEWORK': 'focus', 'CHECKLIST': 'focus',
+            # Mobile / App
+            'MOBILE': 'mobile', 'APP': 'mobile', 'APPS': 'mobile', 'APPLICATION': 'mobile', 'APPLICATIONS': 'mobile',
+            'PHONE': 'mobile', 'PHONES': 'mobile', 'SMARTPHONE': 'mobile', 'SMARTPHONES': 'mobile', 'TELEPHONE': 'mobile',
+            'TELEPHONES': 'mobile', 'TEL': 'mobile', 'CALL': 'mobile', 'CALLS': 'mobile', 'CALLER': 'mobile',
+            'APPEL': 'mobile', 'APPELS': 'mobile', 'NUMERO': 'mobile', 'HOTLINE': 'mobile', 'SMS': 'mobile',
+            'WHATSAPP': 'mobile', 'MESSAGE': 'mobile', 'MESSAGES': 'mobile', 'TEXT': 'mobile', 'TEXTING': 'mobile',
+            # Sports / Fitness
+            'SPORT': 'sports', 'SPORTS': 'sports', 'FOOT': 'sports', 'FOOTBALL': 'sports', 'SOCCER': 'sports',
+            'BASKET': 'sports', 'BASKETBALL': 'sports', 'GYM': 'sports', 'FITNESS': 'sports', 'RUN': 'sports',
+            'RUNNING': 'sports', 'MARATHON': 'sports', 'SWIM': 'sports', 'SWIMMING': 'sports', 'CYCLE': 'sports',
+            'CYCLING': 'sports', 'VELO': 'sports', 'TRAINING': 'sports', 'WORKOUT': 'sports',
+            # Personal / Health / Mind
+            'BRAIN': 'growth', 'MENTAL': 'growth', 'NEUROSCIENCE': 'growth', 'DOPAMINE': 'growth', 'ANXIETY': 'growth',
+            'STRESS': 'growth', 'TRAUMA': 'growth', 'MINDSET': 'growth', 'DISCIPLINE': 'growth', 'HABITS': 'growth',
+            'FOCUS': 'focus', 'PRODUCTIVITY': 'focus', 'EXERCISE': 'sports', 'MOVEMENT': 'energy', 'HEALTH': 'health',
+            'SANTE': 'health', 'WELLNESS': 'health', 'WELLBEING': 'health', 'NUTRITION': 'health', 'DIET': 'health',
+            'SLEEP': 'health', 'REST': 'health', 'RECOVERY': 'health', 'MEDITATION': 'health', 'MEDITATE': 'health',
+            'SUPPLEMENTS': 'health', 'METABOLISM': 'health', 'CALORIES': 'health', 'PROTEIN': 'health', 'FASTING': 'health'
         }
 
         self._hero_triggers: Dict[str, Sequence[str]] = {
             '🔥': ('OFFER', 'OFFRE', 'DEAL'),
-            '⚡': ('ENERGY', 'ENERGIE', 'POWER'),
+            '⚡': ('ENERGY', 'ENERGIE', 'POWER', 'SPEED', 'RAPIDE'),
             '💰': ('PROFIT', 'PROFITS', 'MONEY', 'ARGENT', 'CASH', 'REVENU', 'REVENUE'),
+            '🧠': ('BRAIN', 'GENIUS', 'MENTAL', 'MINDSET', 'FOCUS'),
         }
         
         # Mémoire pour éviter la répétition immédiate d'un même emoji
         self._last_emoji: str = ""
         history_window = max(1, int(self.config.get('emoji_history_window', 4)))
         self._recent_emojis = deque(maxlen=history_window)
+        self._category_last_emoji: Dict[str, str] = {}
+        self._emoji_usage_total_groups = 0
+        self._emoji_usage_total_emojis = 0
         self._global_group_index = 0
         self._last_emoji_global_index = -999
         # Mémoire pour lisser la position verticale des sous-titres
@@ -836,68 +978,85 @@ class HormoziSubtitles:
     def _bootstrap_categories(self) -> None:
         """Initialise les catégories et assigne un grand nombre de mots-clés."""
         cat = {}
-        # Business
-        cat['business'] = [
-            'BUSINESS','COMPANY','STARTUP','STRATEGY','SYSTEM','FRAMEWORK','METHOD','PROCESS','MODEL',
-            'MARKETING','ADVERTISING','BRANDING','CONTENT','COPYWRITING','FUNNEL','CHECKOUT','CONVERSION',
-            'CUSTOMER','CLIENT','TEAM','LEADERSHIP','MANAGEMENT','COACHING','MENTOR','INFLUENCE',
-            'ECOMMERCE','SHOPIFY','DROPSHIP','PORTFOLIO','KPI','METRICS','ANALYTICS','RETENTION','UPSELL','CROSSSELL'
+        # Sales / Business
+        cat['sales'] = [
+            'SALES','SALE','SELL','VENTE','VENTES','DEAL','DEALS','CLOSE','PIPELINE','NEGOCIER','NEGOTIATE','NEGOCIATION',
+            'PITCH','CLIENT','CLIENTS','CUSTOMER','CUSTOMERS','LEAD','LEADS','PROSPECT','PROSPECTS','OFFRE','OFFRES','OFFER','OFFERS',
+            'UPSELL','UPSELLS','CROSSSELL','CROSS-SELL','FUNNEL','FUNNELS','CONVERSION','CONVERSIONS','CHECKOUT','PANIER','CART',
+            'STORE','SHOP','SHOPIFY','ECOMMERCE','COMMERCE','B2B','B2C','SELLER','SELLERS','BUYER','BUYERS','VENDRE','ACHETER'
         ]
-        # Marketing / Sales (plus précis)
-        cat['sales'] = ['SALES','SELL','CLOSE','DEAL','NEGOCIATE','NEGOCIER','PRICING','PRICE','QUOTE','PANIER','CART','CONVERSION','LEAD','PIPELINE']
-        cat['content'] = ['VIDEO','TITRE','THUMB','THUMBNAIL','HOOK','RETENTION','SCRIPTS','SCRIPT','EDIT','CUT','SUBTITLE','SUBTITLES','CAPTION']
-        # Emotions (fortes)
-        cat['emotions'] = [
-            'FIRE','INSANE','CRAZY','AMAZING','INCREDIBLE','UNBELIEVABLE','MINDBLOWING','EXPLOSIVE',
-            'WOW','PASSION','ENERGY','VIBES','HYPE'
+        # Content / Marketing
+        cat['content'] = [
+            'VIDEO','VIDEOS','SCRIPT','SCRIPTS','SUBTITLE','SUBTITLES','CAPTION','CAPTIONS','HOOK','RETENTION','REEL','REELS',
+            'SHORT','SHORTS','PODCAST','PODCASTS','BLOG','BLOGS','THUMB','THUMBNAIL','TITLE','TITRE','VIRAL','VIRALE','TREND',
+            'TRENDING','COPY','COPYWRITING','EDITOR','EDIT','EDITS','EDITING','CUT','CLIP','STORY','STORIES','CREATOR','CREATEUR',
+            'SOCIAL','MEDIA','CONTENT','THUMBNAILS'
         ]
-        # Actions
-        cat['actions'] = [
-            'BUILD','CREATE','LAUNCH','START','IMPLEMENT','EXECUTE','LEARN','APPLY','GROW','SCALE','EXPAND',
-            'MOVE','ACT','DO','MAKE','SHIP','OPTIMIZE','IMPROVE','TEST','ITERATE'
+        # Energy / Action
+        cat['energy'] = [
+            'ACTION','ACTIONS','ACT','BUILD','CREATE','LAUNCH','START','IMPLEMENT','EXECUTE','OPTIMIZE','IMPROVE','BOOST',
+            'POWER','ENERGY','ENERGIE','MOTION','MOVE','WOW','INCROYABLE','AMAZING','INCREDIBLE','FIRE','CRAZY','INSANE',
+            'MOTIVATION','PASSION','LOVE','AMOUR','HYPE','BURN','SPARK','DRIVE','INTENSE','EXPLOSIVE','PUNCH','ADRENALINE'
         ]
-        # Urgency
-        cat['urgency'] = [
-            'IMPORTANT','CRITICAL','URGENT','MUST','NEED','REQUIRED','ESSENTIAL','CRUCIAL','VITAL','NOW','IMMEDIATE','FAST','QUICK'
+        # Alert / Urgency
+        cat['alert'] = [
+            'ALERT','ALERTE','WARNING','URGENT','URGENCE','URGENCY','DANGER','DANGERS','RISQUE','RISKS','RISK','ATTENTION',
+            'PANIC','PANICS','EMERGENCY','SECURITY','SECURITE','CRITICAL','IMPORTANT','CRISIS','ISSUE','ISSUES','PROBLEM',
+            'PROBLEMS','PROBLEME','ERROR','ERRORS','ERREUR','FAIL','FAILURE','FAILURES','BUG','BUGS','BREAKDOWN','STOP'
         ]
-        # Succès
+        # Success / Achievement
         cat['success'] = [
-            'SUCCESS','WIN','WINNER','VICTORY','CHAMPION','BEST','PERFECT','CRUSHING','DOMINATING','ACHIEVE','RESULTS'
+            'SUCCESS','SUCCES','WIN','WINNING','WINNER','VICTOIRE','RESULTAT','RESULTATS','RESULTS','RECORD','TOP','BEST',
+            'ACHIEVE','ACHIEVEMENT','REWARD','REWARDS','RECOMPENSE','RECOMPENSES','TROPHY','TROPHIES','TROPHEE','TROPHEES',
+            'AWARD','AWARDS','BONUS','PRIZE','CHAMPION','VICTORY','SOMMET','LEADER','LEADERSHIP'
         ]
-        # Problems
-        cat['problems'] = [
-            'PROBLEM','PROBLEMS','ISSUE','ISSUES','PAIN','BLOCKER','OBSTACLE','FAIL','FAILING','FAILURE','MISTAKE','ERROR'
-        ]
-        # Solutions
-        cat['solutions'] = [
-            'SOLUTION','SOLUTIONS','FIX','PATCH','ANSWER','HOWTO','SECRET','TIP','TRICK','METHOD','SYSTEMATIC'
-        ]
-        # Finance
+        # Finance / Money
         cat['finance'] = [
-            'MONEY','CASH','DOLLARS','PROFIT','REVENUE','INCOME','WEALTH','RICH','MILLION','MILLIONS',
-            'BILLION','BILLIONS','BANK','PAY','ROI','LTV','AOV','PRICING','PRICE'
+            'MONEY','CASH','DOLLAR','DOLLARS','PROFIT','PROFITS','REVENUE','INCOME','WEALTH','RICH','MILLION','MILLIONS',
+            'BILLION','BILLIONS','BANK','PAY','PAYMENT','PAIEMENT','ROI','LTV','AOV','PRICING','PRICE','INVEST','INVESTIR',
+            'INVESTMENT','INVESTISSEMENT','CAPITAL','CAPITAUX','CRYPTO','BITCOIN','ETHEREUM','BUDGET'
         ]
-        # Tech
-        cat['tech'] = [
-            'AI','CHATGPT','OPENAI','MACHINE','LEARNING','AUTOMATION','ALGORITHM','DATA','DIGITAL','SOFTWARE',
-            'CODING','PROGRAMMING','PYTHON','JAVASCRIPT','API','DATABASE','CLOUD','DEVOPS','LLM'
+        # Focus / Strategy / Tech
+        cat['focus'] = [
+            'FOCUS','STRATEGY','STRATEGIE','PLAN','PLANS','PLANNING','SYSTEM','SYSTEME','SYSTEMES','PROCESS','PROCESSUS',
+            'MODEL','MODELE','MODELES','METHOD','METHODE','METHODS','METHODOLOGIE','FRAMEWORK','FRAMEWORKS','CHECKLIST',
+            'CHECKLISTS','GUIDE','GUIDES','BLUEPRINT','PLAYBOOK','TACTIC','TACTICS','DATA','DIGITAL','ANALYSIS','ANALYSE',
+            'ANALYTICS','AUTOMATION','ALGORITHM','ALGORITHME','SOFTWARE','CODE','TECH','API','CLOUD','STRUCTURE','FORMULA'
         ]
-        cat['mobile'] = ['APP','APPLICATION','MOBILE','PHONE','SMARTPHONE','ANDROID','IOS']
-        # Personnel / Santé / Fitness / Neuro
-        cat['personal'] = [
-            'NEUROSCIENCE','DOPAMINE','SEROTONIN','PSYCHOLOGY','MINDSET','MENTAL','BRAIN','NEURAL','ANXIETY','STRESS',
-            'PANIC','DEPRESSION','TRAUMA','PTSD','BURNOUT','MOVEMENT','EXERCISE','MOBILITY','STRENGTH','CARDIO','FLEXIBILITY',
-            'RECOVERY','PERFORMANCE','NUTRITION','PROTEIN','CARBS','FASTING','METABOLISM','CALORIES','SUPPLEMENTS',
-            'MOTIVATION','DISCIPLINE','HABITS','GOALS','FOCUS','PRODUCTIVITY','MINDFULNESS','MEDITATION'
+        # Growth / Mindset / Learning
+        cat['growth'] = [
+            'GROW','GROWS','GROWTH','GROWING','SCALE','SCALING','EXPAND','EXPANSION','TEAM','TEAMWORK','MENTOR','MENTORING',
+            'COACH','COACHING','DISCIPLINE','HABIT','HABITS','HABITUDE','GOAL','GOALS','OBJECTIF','OBJECTIFS','MINDSET',
+            'NEUROSCIENCE','BRAIN','MENTAL','PRODUCTIVITY','DEVELOPMENT','EVOLUTION','IMPROVEMENT','LEARN','LEARNING','LEARNER'
         ]
-        # Santé
-        cat['health'] = ['HEALTH','SANTE','DIET','NUTRITION','SLEEP','SOMMEIL','REST','RECOVERY','STRESS','ANXIETY','THERAPY','THERAPIE']
-        # Sport
-        cat['sports'] = ['SPORT','GYM','FITNESS','RUN','RUNNING','MARATHON','SWIM','SWIMMING','CYCLE','CYCLING','FOOTBALL','SOCCER','BASKET','TENNIS']
-        # Education
-        cat['education'] = ['LEARN','LEARNING','EDUCATION','SCHOOL','UNIVERSITY','COURSE','COURS','LESSON','STUDY','STUDIES','MENTOR','COACH']
-        # Temps / Planning
-        cat['time'] = ['TIME','TEMPS','DEADLINE','SCHEDULE','PLANNING','CALENDAR','WEEK','MONTH','YEAR','TODAY','TOMORROW']
+        # Mobile / App
+        cat['mobile'] = [
+            'MOBILE','PHONE','PHONES','SMARTPHONE','SMARTPHONES','APP','APPS','APPLICATION','APPLICATIONS','TELEPHONE',
+            'TELEPHONES','TEL','CALL','CALLS','CALLER','APPEL','APPELS','NUMERO','WHATSAPP','SMS','MESSAGE','MESSAGES',
+            'TEXT','TEXTING','HOTLINE'
+        ]
+        # Sports / Fitness
+        cat['sports'] = [
+            'SPORT','SPORTS','FOOT','FOOTBALL','SOCCER','BASKET','BASKETBALL','GYM','FITNESS','RUN','RUNNING','MARATHON',
+            'SWIM','SWIMMING','CYCLE','CYCLING','VELO','TRAINING','WORKOUT','MUSCLE','MUSCLES','CARDIO','ATHLETE','ATHLETIC'
+        ]
+        # Education / Learning
+        cat['education'] = [
+            'LEARN','LEARNING','EDUCATION','SCHOOL','UNIVERSITY','COURSE','COURSES','COURS','LESSON','LESSONS','STUDY',
+            'STUDIES','FORMATION','TUTORIAL','TUTORIEL','ACADEMY','MASTERCLASS'
+        ]
+        # Health / Wellness
+        cat['health'] = [
+            'HEALTH','SANTE','DIET','NUTRITION','SLEEP','SOMMEIL','REST','RECOVERY','STRESS','ANXIETY','THERAPY','THERAPIE',
+            'MEDITATION','MEDITATE','WELLNESS','WELLBEING','SUPPLEMENTS','METABOLISM','CALORIES','PROTEIN','FASTING'
+        ]
+        # Time / Speed / Scheduling
+        cat['time'] = [
+            'TIME','TEMPS','FAST','QUICK','RAPIDE','RAPIDEMENT','IMMEDIAT','IMMEDIATE','IMMEDIATEMENT','NOW','TODAY',
+            'MAINTENANT','VITE','HURRY','DEADLINE','SPEED','SECOND','SECONDS','SECONDE','SECONDES','MINUTE','MINUTES',
+            'HOUR','HOURS','HEURE','HEURES','DAY','JOUR','WEEK','SEMAINE','MONTH','MOIS','YEAR','ANNEE','ANNEES',
+            'CALENDAR','CALENDRIER','SCHEDULE','AGENDA','CLOCK','ALARM','TIMER','STOPWATCH'
+        ]
         # Enregistrer
         for category, words in cat.items():
             for w in words:
@@ -950,12 +1109,19 @@ class HormoziSubtitles:
     def _choose_emoji_for_tokens(self, tokens: List[Dict], group_text: str) -> str:
         """Choisit un emoji contextuel à partir des catégories déjà évaluées."""
         candidates: List[str] = []
+        categories: List[str] = []
         for token in tokens:
             category = token.get('category')
             if category and category in self.category_emojis:
+                categories.append(self._normalize(category))
                 candidates.extend(self.category_emojis[category])
         unique_candidates = [c for c in dict.fromkeys(candidates) if c]
-        emoji = self._select_from_candidates(unique_candidates, group_text, avoid=self._recent_emojis)
+        avoid: Set[str] = set(self._recent_emojis)
+        for cat in categories:
+            last = self._category_last_emoji.get(cat)
+            if last:
+                avoid.add(last)
+        emoji = self._select_from_candidates(unique_candidates, group_text, avoid=avoid)
         if not emoji:
             fallback = str(self.config.get('emoji_no_context_fallback') or "")
             return fallback
@@ -979,11 +1145,24 @@ class HormoziSubtitles:
         return pool[seed % len(pool)]
 
     def _select_group_emoji(self, group: Dict) -> str:
-        emoji = self._select_from_candidates(
-            group.get('candidate_emojis') or [],
-            group.get('text', ""),
-            avoid=self._recent_emojis,
-        )
+        candidates = group.get('candidate_emojis') or []
+        if not candidates:
+            return ""
+        group_text = group.get('text', "")
+        categories = [
+            self._normalize(cat)
+            for cat in (group.get('categories') or [])
+            if cat
+        ]
+        avoid: Set[str] = set(self._recent_emojis)
+        for cat in categories:
+            last = self._category_last_emoji.get(cat)
+            if last:
+                avoid.add(last)
+        emoji = self._select_from_candidates(candidates, group_text, avoid=avoid)
+        if emoji:
+            return emoji
+        emoji = self._select_from_candidates(candidates, group_text, avoid=self._recent_emojis)
         if emoji:
             return emoji
         fallback = str(self.config.get('emoji_no_context_fallback') or "")
@@ -1002,12 +1181,21 @@ class HormoziSubtitles:
     def _plan_emojis_for_segment(self, groups: List[Dict]) -> None:
         if not groups or not self.config.get('enable_emojis', False):
             return
-        target = max(0, int(round(len(groups) * float(self.config.get('emoji_target_per_10', 0)) / 10.0)))
-        target = min(target, int(self.config.get('emoji_max_per_segment', target)))
+        per_group_target = max(0.0, float(self.config.get('emoji_target_per_10', 0)) / 10.0)
+        segment_target = int(round(len(groups) * per_group_target))
+        global_target_after = int(round((self._emoji_usage_total_groups + len(groups)) * per_group_target))
+        remaining_global_quota = max(0, global_target_after - self._emoji_usage_total_emojis)
+        segment_cap = max(0, int(self.config.get('emoji_max_per_segment', len(groups))))
+        max_quota = min(len(groups), segment_cap, remaining_global_quota)
+        if segment_target > 0:
+            target = min(max_quota, segment_target)
+        else:
+            target = min(max_quota, 1) if remaining_global_quota > 0 else 0
         if target <= 0:
             return
         min_gap = max(0, int(self.config.get('emoji_min_gap_groups', 0)))
         hero_remaining = int(self.config.get('hero_emoji_max_per_segment', 0)) if self.config.get('hero_emoji_enable', True) else 0
+        hero_scale = float(self.config.get('hero_emoji_scale', 1.6) or 1.0)
         placements = 0
         for idx, group in enumerate(groups):
             group['emojis'] = []
@@ -1016,6 +1204,11 @@ class HormoziSubtitles:
                 continue
             if global_index - self._last_emoji_global_index < min_gap:
                 continue
+            categories = [
+                self._normalize(cat)
+                for cat in (group.get('categories') or [])
+                if cat
+            ]
             hero_emoji = ""
             if hero_remaining > 0:
                 hero_emoji = self._select_hero_emoji(group.get('hero_candidates') or [])
@@ -1026,11 +1219,27 @@ class HormoziSubtitles:
                 emoji = self._select_group_emoji(group)
             if not emoji:
                 continue
-            group['emojis'] = [emoji]
+            if hero_emoji:
+                group['emojis'] = [{
+                    'char': emoji,
+                    'hero': True,
+                    'scale': max(hero_scale, 1.0),
+                }]
+            else:
+                group['emojis'] = [{
+                    'char': emoji,
+                    'hero': False,
+                    'scale': 1.0,
+                }]
             placements += 1
             self._last_emoji_global_index = global_index
             self._recent_emojis.append(emoji)
+            for cat in categories:
+                if cat:
+                    self._category_last_emoji[cat] = emoji
         self._global_group_index += len(groups)
+        self._emoji_usage_total_groups += len(groups)
+        self._emoji_usage_total_emojis += placements
 
     def create_subtitle_frame(self, frame: np.ndarray, words: List[Dict], 
                               current_time: float) -> np.ndarray:
@@ -1306,10 +1515,18 @@ class HormoziSubtitles:
             if start_x is None or end_x is None:
                 continue
             target_base_fs = max(int(meta.get('font_size') or self.config['font_size']), 1)
-            target_h = max(1, int(target_base_fs * self.config.get('emoji_scale_ratio', 0.9) * self.config.get('emoji_boost', 1.0)))
-            for idx, emoji_char in enumerate(emojis):
+            base_scale = float(self.config.get('emoji_scale_ratio', 0.9) * self.config.get('emoji_boost', 1.0))
+            for idx, emoji_data in enumerate(emojis):
+                if isinstance(emoji_data, dict):
+                    emoji_char = emoji_data.get('char', '')
+                    extra_scale = float(emoji_data.get('scale', 1.0) or 1.0)
+                else:
+                    emoji_char = emoji_data
+                    extra_scale = 1.0
                 if not emoji_char:
                     continue
+                target_scale = max(0.1, base_scale * extra_scale)
+                target_h = max(1, int(target_base_fs * target_scale))
                 emoji_img = self._load_emoji_png(emoji_char, target_h)
                 if emoji_img is None and not self.config.get('emoji_png_only', False):
                     efont = self._load_emoji_font(target_h)
