@@ -1,0 +1,785 @@
+{
+  "video_stem": "reframed",
+  "effective_domain": null,
+  "domain_confidence": null,
+  "domain_source": "none",
+  "selector_keywords": [
+    "city showing night traffic"
+  ],
+  "fetch_keywords": [
+    "city showing night traffic"
+  ],
+  "segments": [
+    {
+      "segment": 0,
+      "t0": 0.0,
+      "t1": 6.1,
+      "queries": [
+        "desk journaling",
+        "desk typing"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6406028/6406028-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6177737/6177737-hd_1080_1920_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6931246/6931246-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6781972/6781972-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/4065630/4065630-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/4065921/4065921-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/12908927/12908927-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7576801/7576801-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6406028/6406028-hd_1080_1920_25fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 1,
+      "t0": 7.06,
+      "t1": 11.88,
+      "queries": [
+        "desk typing"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6406028/6406028-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6177737/6177737-hd_1080_1920_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6931246/6931246-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6781972/6781972-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/4065630/4065630-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/4065921/4065921-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/12908927/12908927-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7576801/7576801-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6406028/6406028-hd_1080_1920_25fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 2,
+      "t0": 11.88,
+      "t1": 18.14,
+      "queries": [
+        "human showing potential",
+        "desk typing"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/8170425/8170425-uhd_2160_3840_25fps.mp4",
+          "score": 0.49,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/5982439/5982439-hd_1080_1920_30fps.mp4",
+          "score": 0.49,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7817209/7817209-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7347744/7347744-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/5292675/5292675-hd_720_1280_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/8170425/8170425-uhd_2160_3840_25fps.mp4",
+          "score": 0.49
+        }
+      ]
+    },
+    {
+      "segment": 3,
+      "t0": 18.14,
+      "t1": 24.26,
+      "queries": [
+        "desk journaling",
+        "desk typing"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/19798269/19798269-uhd_2160_3840_24fps.mp4",
+          "score": 0.49,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7394177/7394177-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6177737/6177737-hd_1080_1920_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/9570512/9570512-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/8531108/8531108-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/19798269/19798269-uhd_2160_3840_24fps.mp4",
+          "score": 0.49
+        }
+      ]
+    },
+    {
+      "segment": 4,
+      "t0": 24.28,
+      "t1": 28.32,
+      "queries": [
+        "desk journaling at",
+        "runner tying shoes"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876570/7876570-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7877153/7877153-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/8456210/8456210-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6548031/6548031-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876919/7876919-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7883997/7883997-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7884012/7884012-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876570/7876570-uhd_2160_4096_25fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 5,
+      "t0": 28.32,
+      "t1": 35.12,
+      "queries": [
+        "city showing traffic movement",
+        "office morning workers"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6773634/6773634-uhd_2160_3840_30fps.mp4",
+          "score": 0.49,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/30212089/12952593_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/20443580/20443580-uhd_2160_3840_60fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/34166484/14484815_2160_3840_60fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/34089142/14458309_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7251768/7251768-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/31891725/13584093_1080_1920_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/12909001/12909001-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6773634/6773634-uhd_2160_3840_30fps.mp4",
+          "score": 0.49
+        }
+      ]
+    },
+    {
+      "segment": 6,
+      "t0": 35.46,
+      "t1": 39.56,
+      "queries": [
+        "desk typing"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6406028/6406028-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6177737/6177737-hd_1080_1920_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6931246/6931246-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6781972/6781972-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/4065630/4065630-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/4065921/4065921-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/12908927/12908927-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7576801/7576801-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6406028/6406028-hd_1080_1920_25fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 7,
+      "t0": 39.76,
+      "t1": 44.56,
+      "queries": [
+        "city showing lights flicker"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6414089/6414089-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/16743471/16743471-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/9441990/9441990-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6955185/6955185-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6414089/6414089-uhd_2160_3840_24fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 8,
+      "t0": 44.56,
+      "t1": 47.72,
+      "queries": [
+        "runner tying shoes"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876570/7876570-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7877153/7877153-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/8456210/8456210-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6548031/6548031-uhd_2160_3840_24fps.mp4",
+          "score": 0.44,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876919/7876919-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7883997/7883997-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7884012/7884012-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6548031/6548031-uhd_2160_3840_24fps.mp4",
+          "score": 0.44
+        }
+      ]
+    },
+    {
+      "segment": 9,
+      "t0": 47.72,
+      "t1": 52.56,
+      "queries": [
+        "city showing night traffic"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/16743471/16743471-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/16762623/16762623-uhd_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/34182855/14490326_2160_3840_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/32220524/13741881_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/3226454/3226454-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/3320517/3320517-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/16743471/16743471-uhd_2160_3840_30fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 10,
+      "t0": 52.72,
+      "t1": 58.26,
+      "queries": [
+        "runner tying shoes"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876570/7876570-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7877153/7877153-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/8456210/8456210-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6548031/6548031-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876919/7876919-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7883997/7883997-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7884012/7884012-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7876570/7876570-uhd_2160_4096_25fps.mp4",
+          "score": 0.42
+        }
+      ]
+    },
+    {
+      "segment": 11,
+      "t0": 59.08,
+      "t1": 61.62,
+      "queries": [
+        "desk journaling at",
+        "runner tying shoes"
+      ],
+      "candidates": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7657364/7657364-hd_1080_1920_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": null,
+          "selected": true
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6037432/6037432-uhd_2160_4096_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/6201892/6201892-uhd_2160_4096_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/12908963/12908963-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7316372/7316372-uhd_2160_3840_25fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7977555/7977555-hd_1080_1920_30fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        },
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7597168/7597168-uhd_2160_3840_24fps.mp4",
+          "score": 0.42,
+          "reject_reason": "outscored",
+          "selected": false
+        }
+      ],
+      "selected": [
+        {
+          "provider": "pexels",
+          "url": "https://videos.pexels.com/video-files/7657364/7657364-hd_1080_1920_25fps.mp4",
+          "score": 0.42
+        }
+      ]
+    }
+  ],
+  "selection_rate": 1.0
+}

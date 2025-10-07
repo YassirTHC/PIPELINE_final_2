@@ -1,0 +1,1311 @@
+﻿
+  hormozi_subtitles.py:1:"""
+> hormozi_subtitles.py:2:Système de sous-titres style "Hormozi 1" - ENRICHI avec couleurs 
+intelligentes et emojis contextuels
+  hormozi_subtitles.py:3:Corrections: taille adaptée, synchronisation audio, mots-clés colorés, 
+positionnement exact
+> hormozi_subtitles.py:4:Intégration: SmartColorSystem + ContextualEmojiSystem
+  hormozi_subtitles.py:5:"""
+  hormozi_subtitles.py:6:
+  hormozi_subtitles.py:7:import cv2
+  hormozi_subtitles.py:8:import numpy as np
+> hormozi_subtitles.py:9:from PIL import Image, ImageDraw, ImageFont
+  hormozi_subtitles.py:10:import moviepy.editor as mp
+  hormozi_subtitles.py:11:import os
+  hormozi_subtitles.py:12:import re
+  hormozi_subtitles.py:16:from typing import Dict, List, Optional, Sequence, Tuple
+  hormozi_subtitles.py:17:from pathlib import Path
+  hormozi_subtitles.py:18:from collections import deque
+> hormozi_subtitles.py:19:import json
+  hormozi_subtitles.py:20:
+  hormozi_subtitles.py:21:try:
+> hormozi_subtitles.py:22:    from video_pipeline.config import SubtitleSettings, get_settings  # 
+type: ignore
+  hormozi_subtitles.py:23:except Exception:  # pragma: no cover - optional dependency
+> hormozi_subtitles.py:24:    SubtitleSettings = None  # type: ignore
+  hormozi_subtitles.py:25:    get_settings = None  # type: ignore
+  hormozi_subtitles.py:26:
+  hormozi_subtitles.py:27:
+  hormozi_subtitles.py:28:logger = logging.getLogger(__name__)
+  hormozi_subtitles.py:29:
+  hormozi_subtitles.py:30:
+> hormozi_subtitles.py:31:def _resolve_typed_subtitle_settings() -> Optional["SubtitleSettings"]:
+> hormozi_subtitles.py:32:    if get_settings is None or SubtitleSettings is None:  # pragma: no cover 
+- optional dependency
+  hormozi_subtitles.py:33:        return None
+  hormozi_subtitles.py:34:    try:
+  hormozi_subtitles.py:35:        settings = get_settings()
+  hormozi_subtitles.py:36:    except Exception:
+  hormozi_subtitles.py:37:        return None
+> hormozi_subtitles.py:38:    return getattr(settings, "subtitles", None)
+  hormozi_subtitles.py:39:
+> hormozi_subtitles.py:40:class HormoziSubtitles:
+  hormozi_subtitles.py:41:    """Générateur de sous-titres style Hormozi avec animations et effets"""
+  hormozi_subtitles.py:42:    
+  hormozi_subtitles.py:43:    def __init__(
+  hormozi_subtitles.py:44:        self,
+> hormozi_subtitles.py:45:        subtitle_settings: Optional["SubtitleSettings"] = None,
+> hormozi_subtitles.py:46:        font_candidates: Optional[Sequence[str]] = None,
+  hormozi_subtitles.py:47:    ):
+  hormozi_subtitles.py:48:        # 🎨 Import des NOUVEAUX systèmes intelligents COMPLETS UNIQUEMENT
+  hormozi_subtitles.py:49:        try:
+  hormozi_subtitles.py:50:            from smart_color_system_complete import SmartColorSystemComplete
+> hormozi_subtitles.py:51:            from contextual_emoji_system_complete import 
+ContextualEmojiSystemComplete
+  hormozi_subtitles.py:52:            self.smart_colors = SmartColorSystemComplete()
+> hormozi_subtitles.py:53:            self.contextual_emojis = ContextualEmojiSystemComplete()
+  hormozi_subtitles.py:54:            self.SMART_SYSTEMS_AVAILABLE = True
+  hormozi_subtitles.py:55:            print("🚀 NOUVEAUX SYSTÈMES INTELLIGENTS COMPLETS ACTIVÉS AVEC 
+SUCCÈS !")
+  hormozi_subtitles.py:56:        except ImportError as e:
+  hormozi_subtitles.py:57:            print(f"❌ ERREUR CRITIQUE: Nouveaux systèmes non disponibles: 
+{e}")
+> hormozi_subtitles.py:58:            print("🔧 Vérifiez que smart_color_system_complete.py et 
+contextual_emoji_system_complete.py existent")
+  hormozi_subtitles.py:59:            self.SMART_SYSTEMS_AVAILABLE = False
+  hormozi_subtitles.py:60:            raise ImportError("Les nouveaux systèmes améliorés sont requis 
+pour fonctionner")
+  hormozi_subtitles.py:61:
+> hormozi_subtitles.py:62:        self.subtitle_settings: Optional["SubtitleSettings"] = (
+> hormozi_subtitles.py:63:            subtitle_settings or _resolve_typed_subtitle_settings()
+  hormozi_subtitles.py:64:        )
+> hormozi_subtitles.py:65:        self._font_primary: Optional[str] = None
+> hormozi_subtitles.py:66:        self._font_candidates: List[str] = []
+> hormozi_subtitles.py:67:        self._font_logged = False
+  hormozi_subtitles.py:68:        self._last_render_metadata: Dict[str, object] = {}
+  hormozi_subtitles.py:69:
+> hormozi_subtitles.py:70:        # 🖼️ NOUVEAU : Système de chargement d'emojis PNG amélioré
+> hormozi_subtitles.py:71:        self.emoji_png_cache = {}
+> hormozi_subtitles.py:72:        self.emoji_mapping = {
+  hormozi_subtitles.py:73:            # 🚨 Services d'urgence
+  hormozi_subtitles.py:74:            '🚨': '1f6a8.png',      # Emergency
+  hormozi_subtitles.py:75:            '🚒': '1f692.png',      # Fire truck
+  hormozi_subtitles.py:103:        
+  hormozi_subtitles.py:104:        # Configuration du style Hormozi – version Montserrat virale
+  hormozi_subtitles.py:105:        self.config = {
+> hormozi_subtitles.py:106:            'font_size': 85,
+> hormozi_subtitles.py:107:            'font_color': (255, 255, 255),
+  hormozi_subtitles.py:108:            'stroke_color': (0, 0, 0),
+  hormozi_subtitles.py:109:            'stroke_px': 6,
+  hormozi_subtitles.py:110:            'position': 'bottom',
+  hormozi_subtitles.py:115:            'fade_duration': 0.1,
+  hormozi_subtitles.py:116:            'shadow_opacity': 0.35,
+  hormozi_subtitles.py:117:            'shadow_offset': 3,
+> hormozi_subtitles.py:118:            'emoji_scale_ratio': 0.9,
+> hormozi_subtitles.py:119:            'emoji_gap_px': 8,
+> hormozi_subtitles.py:120:            'enable_emojis': True,
+> hormozi_subtitles.py:121:            'emoji_png_only': True,
+> hormozi_subtitles.py:122:            'emoji_boost': 1.0,
+> hormozi_subtitles.py:123:            'keyword_background': False,
+> hormozi_subtitles.py:124:            'emoji_prefetch_common': True,
+> hormozi_subtitles.py:125:            'emoji_target_per_10': 5,
+> hormozi_subtitles.py:126:            'emoji_min_gap_groups': 2,
+> hormozi_subtitles.py:127:            'emoji_max_per_segment': 3,
+> hormozi_subtitles.py:128:            'emoji_no_context_fallback': "",
+> hormozi_subtitles.py:129:            'hero_emoji_enable': True,
+> hormozi_subtitles.py:130:            'hero_emoji_max_per_segment': 1,
+> hormozi_subtitles.py:131:            'emoji_history_window': 4,
+> hormozi_subtitles.py:132:            'use_twemoji_local': True,
+  hormozi_subtitles.py:133:        }
+> hormozi_subtitles.py:134:        if self.subtitle_settings is not None:
+> hormozi_subtitles.py:135:            self.config['font_size'] = int(self.subtitle_settings.font_size)
+> hormozi_subtitles.py:136:            self.config['margin_bottom'] = 
+int(self.subtitle_settings.subtitle_safe_margin_px)
+> hormozi_subtitles.py:137:            self.config['keyword_background'] = 
+bool(self.subtitle_settings.keyword_background)
+> hormozi_subtitles.py:138:            self.config['enable_emojis'] = 
+bool(self.subtitle_settings.enable_emojis)
+> hormozi_subtitles.py:139:            self.config['stroke_px'] = max(0, 
+int(self.subtitle_settings.stroke_px))
+> hormozi_subtitles.py:140:            self.config['shadow_opacity'] = float(max(0.0, 
+self.subtitle_settings.shadow_opacity))
+> hormozi_subtitles.py:141:            self.config['shadow_offset'] = max(0, 
+int(self.subtitle_settings.shadow_offset))
+> hormozi_subtitles.py:142:            self.config['emoji_target_per_10'] = max(0, 
+int(self.subtitle_settings.emoji_target_per_10))
+> hormozi_subtitles.py:143:            self.config['emoji_min_gap_groups'] = max(0, 
+int(self.subtitle_settings.emoji_min_gap_groups))
+> hormozi_subtitles.py:144:            self.config['emoji_max_per_segment'] = max(0, 
+int(self.subtitle_settings.emoji_max_per_segment))
+> hormozi_subtitles.py:145:            self.config['emoji_no_context_fallback'] = 
+str(self.subtitle_settings.emoji_no_context_fallback or "")
+> hormozi_subtitles.py:146:            self.config['hero_emoji_enable'] = 
+bool(self.subtitle_settings.hero_emoji_enable)
+> hormozi_subtitles.py:147:            self.config['hero_emoji_max_per_segment'] = max(0, 
+int(self.subtitle_settings.hero_emoji_max_per_segment))
+> hormozi_subtitles.py:148:            if getattr(self.subtitle_settings, 'font', None):
+> hormozi_subtitles.py:149:                preferred_font = str(self.subtitle_settings.font)
+> hormozi_subtitles.py:150:                if preferred_font:
+> hormozi_subtitles.py:151:                    self.config['preferred_font_name'] = preferred_font
+  hormozi_subtitles.py:152:
+> hormozi_subtitles.py:153:        self._font_candidates = self._build_font_candidates(font_candidates)
+  hormozi_subtitles.py:154:        self._log_startup_state()
+  hormozi_subtitles.py:155:        # Presets de marque (brand kits)
+  hormozi_subtitles.py:156:        self.brand_presets = {
+> hormozi_subtitles.py:157:            'default': {'font_size': 85, 'outline_color': (0,0,0), 
+'outline_width': 4},
+> hormozi_subtitles.py:158:            'clean_white': {'font_size': 80, 'outline_color': (0,0,0), 
+'outline_width': 3},
+> hormozi_subtitles.py:159:            'yellow_pop': {'font_size': 90, 'outline_color': (20,20,20), 
+'outline_width': 5},
+  hormozi_subtitles.py:160:        }
+  hormozi_subtitles.py:161:        
+  hormozi_subtitles.py:162:        palette = {
+  hormozi_subtitles.py:237:        for alias, target in aliases.items():
+  hormozi_subtitles.py:238:            self.category_colors[alias] = palette[target]
+  hormozi_subtitles.py:239:        
+> hormozi_subtitles.py:240:        base_emojis: Dict[str, List[str]] = {
+  hormozi_subtitles.py:241:            'finance': ['💰', '💸', '📈', '🤑', '🏦', '💳'],
+  hormozi_subtitles.py:242:            'sales': ['🛒', '🤝', '🏷️', '💳', '📈', '📞'],
+  hormozi_subtitles.py:243:            'content': ['🎬', '📝', '📹', '🎧', '🎨', '📱'],
+  hormozi_subtitles.py:245:            'energy': ['⚡', '🔥', '💥', '💪', '🚀', '🌪️'],
+  hormozi_subtitles.py:246:            'focus': ['🎯', '🧠', '⌛', '🕒', '🔍', '📘'],
+  hormozi_subtitles.py:247:        }
+> hormozi_subtitles.py:248:        self.category_emojis: Dict[str, List[str]] = {
+> hormozi_subtitles.py:249:            key: list(values) for key, values in base_emojis.items()
+  hormozi_subtitles.py:250:        }
+  hormozi_subtitles.py:251:        for alias, target in aliases.items():
+> hormozi_subtitles.py:252:            if target in base_emojis:
+> hormozi_subtitles.py:253:                self.category_emojis[alias] = list(base_emojis[target])
+  hormozi_subtitles.py:254:        
+  hormozi_subtitles.py:255:        # Dictionnaire mots-clés -> catégorie (liste élargie de 
+synonymes/variations)
+> hormozi_subtitles.py:256:        self.keyword_to_category: Dict[str, str] = {}
+  hormozi_subtitles.py:257:        self._bootstrap_categories()
+  hormozi_subtitles.py:258:        # Charger un lexique externe optionnel pour enrichir 
+alias/catégories/émoticônes
+  hormozi_subtitles.py:259:        try:
+> hormozi_subtitles.py:260:            
+self._load_external_emoji_lexicon(Path('config/emoji_lexicon.json'))
+  hormozi_subtitles.py:261:        except Exception:
+  hormozi_subtitles.py:262:            pass
+  hormozi_subtitles.py:263:        
+  hormozi_subtitles.py:264:        # Alias supplémentaires (FR/EN) pour améliorer la couverture 
+sémantique → catégorie
+> hormozi_subtitles.py:265:        self.emoji_alias: Dict[str, str] = {
+  hormozi_subtitles.py:266:            # Finance
+  hormozi_subtitles.py:267:            'ARGENT':'finance','EURO':'finance','EUROS':'finance','REVENU':'
+finance','REVENUS':'finance','BENEFICE':'finance','BENEFICES':'finance','VENTE':'finance','VENTES':'fin
+ance','ACHAT':'finance','ACHETER':'finance','PRICE':'finance','PRICING':'finance','CASH':'finance','MON
+EY':'finance','PROFIT':'finance','REVENUE':'finance','WEALTH':'finance','BUDGET':'finance','INVEST':'fi
+nance','INVESTIR':'finance','ROI':'finance','LTV':'finance','AOV':'finance','BITCOIN':'finance','CRYPTO
+':'finance','ETHEREUM':'finance',
+  hormozi_subtitles.py:268:            # Growth / Success / Results
+  hormozi_subtitles.py:287:            '💰': ('PROFIT', 'PROFITS', 'MONEY', 'ARGENT', 'CASH', 
+'REVENU', 'REVENUE'),
+  hormozi_subtitles.py:288:        }
+  hormozi_subtitles.py:289:        
+> hormozi_subtitles.py:290:        # Mémoire pour éviter la répétition immédiate d'un même emoji
+> hormozi_subtitles.py:291:        self._last_emoji: str = ""
+> hormozi_subtitles.py:292:        history_window = max(1, int(self.config.get('emoji_history_window', 
+4)))
+> hormozi_subtitles.py:293:        self._recent_emojis = deque(maxlen=history_window)
+  hormozi_subtitles.py:294:        self._global_group_index = 0
+> hormozi_subtitles.py:295:        self._last_emoji_global_index = -999
+  hormozi_subtitles.py:296:        # Mémoire pour lisser la position verticale des sous-titres
+  hormozi_subtitles.py:297:        self._y_ema: float | None = None
+  hormozi_subtitles.py:298:        self._line_h_ema: float | None = None
+  hormozi_subtitles.py:308:            self._face_cascade = None
+  hormozi_subtitles.py:309:        
+  hormozi_subtitles.py:310:        # Mappings finaux
+> hormozi_subtitles.py:311:        self.keyword_colors: Dict[str, str] = {}
+> hormozi_subtitles.py:312:        self.emoji_mapping: Dict[str, str] = {}
+> hormozi_subtitles.py:313:        for kw, cat in self.keyword_to_category.items():
+> hormozi_subtitles.py:314:            self.keyword_colors[kw] = self._category_color(cat)
+> hormozi_subtitles.py:315:            if cat in self.category_emojis and self.category_emojis[cat]:
+> hormozi_subtitles.py:316:                self.emoji_mapping[kw] = self.category_emojis[cat][0]
+  hormozi_subtitles.py:317:        
+> hormozi_subtitles.py:318:        # Préchargement d'emojis fréquents (PNG) pour éviter latences
+> hormozi_subtitles.py:319:        if self.config.get('emoji_prefetch_common', False) and 
+self.config.get('enable_emojis', False):
+  hormozi_subtitles.py:320:            common = ['🔥','💸','🚀','💼','📈','🏆','⏳','⚡','✅','💯']
+  hormozi_subtitles.py:321:            for ch in common:
+  hormozi_subtitles.py:322:                try:
+> hormozi_subtitles.py:323:                    self._load_emoji_png(ch, 64)
+  hormozi_subtitles.py:324:                except Exception:
+  hormozi_subtitles.py:325:                    pass
+  hormozi_subtitles.py:326:
+  hormozi_subtitles.py:339:        return self._default_category_color
+  hormozi_subtitles.py:340:
+  hormozi_subtitles.py:341:    def _get_category_for_word(self, word: str):
+> hormozi_subtitles.py:342:        """Retourne la config de catégorie (couleur/emoji) si le mot 
+appartient à une catégorie FR/EN."""
+  hormozi_subtitles.py:343:        word_norm = self._normalize(word)
+  hormozi_subtitles.py:344:        # Définition FR « Hormozi 1 »
+> hormozi_subtitles.py:345:        self.keyword_categories = getattr(self, 'keyword_categories', None) 
+or {
+  hormozi_subtitles.py:346:            "MONEY": {
+  hormozi_subtitles.py:347:                "words": 
+["ARGENT","EUROS","DOLLARS","REVENU","CHER","COUT","INVESTIR","BENEFICE","VENDRE","ACHETER"],
+  hormozi_subtitles.py:348:                "color": self.category_colors['finance'],
+> hormozi_subtitles.py:349:                "emoji": '💰'
+  hormozi_subtitles.py:350:            },
+  hormozi_subtitles.py:351:            "ACTION": {
+  hormozi_subtitles.py:352:                "words": 
+["CREER","DETRUIRE","MULTIPLIER","AUGMENTER","ECRASER","TRANSFORMER","POUSSER"],
+  hormozi_subtitles.py:353:                "color": self.category_colors['actions'],
+> hormozi_subtitles.py:354:                "emoji": '⚡'
+  hormozi_subtitles.py:355:            },
+  hormozi_subtitles.py:356:            "RESULT": {
+  hormozi_subtitles.py:357:                "words": 
+["SUCCES","RESULTAT","GAGNER","VICTOIRE","SOMMET","LEADER","NUMERO","TOP"],
+  hormozi_subtitles.py:358:                "color": self.category_colors['success'],
+> hormozi_subtitles.py:359:                "emoji": '🏆'
+  hormozi_subtitles.py:360:            },
+  hormozi_subtitles.py:361:            "TIME": {
+  hormozi_subtitles.py:362:                "words": 
+["HEURE","TEMPS","JOUR","MINUTE","RAPIDE","VITE","IMMEDIAT","AUJOURDHUI"],
+  hormozi_subtitles.py:363:                "color": self.category_colors['urgency'],
+> hormozi_subtitles.py:364:                "emoji": '⏳'
+  hormozi_subtitles.py:365:            },
+  hormozi_subtitles.py:366:            "EMOTION": {
+  hormozi_subtitles.py:367:                "words": 
+["PEUR","MOTIVATION","CROYANCE","PASSION","DETERMINATION","ENERGIE","AMOUR"],
+  hormozi_subtitles.py:368:                "color": self.category_colors['emotions'],
+> hormozi_subtitles.py:369:                "emoji": '❤️'
+  hormozi_subtitles.py:370:            }
+  hormozi_subtitles.py:371:        }
+> hormozi_subtitles.py:372:        for cat, data in self.keyword_categories.items():
+  hormozi_subtitles.py:373:            for w in data.get("words", []):
+  hormozi_subtitles.py:374:                if word_norm == self._normalize(w):
+  hormozi_subtitles.py:375:                    return data
+  hormozi_subtitles.py:391:            duration = max(0.01, seg_end - seg_start)
+  hormozi_subtitles.py:392:            raw_words = segment.get("words", [])
+  hormozi_subtitles.py:393:            if not raw_words:
+> hormozi_subtitles.py:394:                # Fallback SRT: découper le texte en tokens alphanumériques 
+et répartir le temps
+  hormozi_subtitles.py:395:                tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+", seg_text)
+  hormozi_subtitles.py:396:                if not tokens:
+  hormozi_subtitles.py:397:                    continue
+  hormozi_subtitles.py:430:                end_time = float(chunk[-1].get("end", seg_end))
+  hormozi_subtitles.py:431:                tokens = []
+  hormozi_subtitles.py:432:                group_categories: List[str] = []
+> hormozi_subtitles.py:433:                candidate_emojis: List[str] = []
+  hormozi_subtitles.py:434:                hero_candidates: List[str] = []
+> hormozi_subtitles.py:435:                has_keyword = False
+  hormozi_subtitles.py:436:                colored_quota = 3
+  hormozi_subtitles.py:437:                colored_used = 0
+  hormozi_subtitles.py:438:                linking_words = {
+  hormozi_subtitles.py:447:                    base = (str(w.get("word") or w.get("text") or 
+"").strip())
+  hormozi_subtitles.py:448:                    clean = self._normalize(base)
+  hormozi_subtitles.py:449:                    color_hex = "#FFFFFF"
+> hormozi_subtitles.py:450:                    is_keyword = False
+  hormozi_subtitles.py:451:                    category: Optional[str] = None
+  hormozi_subtitles.py:452:                    if display_base := base.strip():
+  hormozi_subtitles.py:453:                        display_text = display_base.upper()
+  hormozi_subtitles.py:456:                    if not display_text:
+  hormozi_subtitles.py:457:                        continue
+  hormozi_subtitles.py:458:                    if (colored_used < colored_quota and clean.lower() not 
+in linking_words):
+> hormozi_subtitles.py:459:                        category = self.keyword_to_category.get(clean)
+> hormozi_subtitles.py:460:                        if not category and clean in self.emoji_alias:
+> hormozi_subtitles.py:461:                            category = self.emoji_alias[clean]
+  hormozi_subtitles.py:462:                        if not category:
+  hormozi_subtitles.py:463:                            cat_data = self._get_category_for_word(base)
+  hormozi_subtitles.py:464:                            category = 
+self._category_from_color(cat_data.get("color") if cat_data else None)
+  hormozi_subtitles.py:465:                        if category:
+  hormozi_subtitles.py:466:                            color_hex = self._category_color(category)
+> hormozi_subtitles.py:467:                            is_keyword = True
+> hormozi_subtitles.py:468:                            has_keyword = True
+  hormozi_subtitles.py:469:                            colored_used += 1
+  hormozi_subtitles.py:470:                            if category not in group_categories:
+  hormozi_subtitles.py:471:                                group_categories.append(category)
+> hormozi_subtitles.py:472:                            if category in self.category_emojis:
+> hormozi_subtitles.py:473:                                
+candidate_emojis.extend(self.category_emojis[category])
+  hormozi_subtitles.py:474:                    display_text = base.upper()
+  hormozi_subtitles.py:475:                    tokens.append({
+  hormozi_subtitles.py:476:                        "text": display_text,
+  hormozi_subtitles.py:477:                        "normalized": clean,
+> hormozi_subtitles.py:478:                        "is_keyword": is_keyword,
+  hormozi_subtitles.py:479:                        "color": color_hex,
+  hormozi_subtitles.py:480:                        "category": category,
+  hormozi_subtitles.py:481:                    })
+  hormozi_subtitles.py:482:                    if clean:
+  hormozi_subtitles.py:483:                        token_norms.append(clean)
+> hormozi_subtitles.py:484:                candidate_emojis = list(dict.fromkeys(candidate_emojis))
+  hormozi_subtitles.py:485:                token_norm_set = set(token_norms)
+> hormozi_subtitles.py:486:                for emoji_char, triggers in self._hero_triggers.items():
+  hormozi_subtitles.py:487:                    for trigger in triggers:
+  hormozi_subtitles.py:488:                        if self._normalize(trigger) in token_norm_set:
+> hormozi_subtitles.py:489:                            hero_candidates.append(emoji_char)
+  hormozi_subtitles.py:490:                            break
+  hormozi_subtitles.py:491:                chunk_text = " ".join(t["text"] for t in tokens)
+  hormozi_subtitles.py:492:                segment_groups.append({
+  hormozi_subtitles.py:494:                    "original": chunk_text,
+  hormozi_subtitles.py:495:                    "start": start_time,
+  hormozi_subtitles.py:496:                    "end": end_time,
+> hormozi_subtitles.py:497:                    "is_keyword": any(t["is_keyword"] for t in tokens),
+  hormozi_subtitles.py:498:                    "color": self._default_category_color,
+> hormozi_subtitles.py:499:                    "emoji": "",
+  hormozi_subtitles.py:500:                    "tokens": tokens,
+> hormozi_subtitles.py:501:                    "emojis": [],
+  hormozi_subtitles.py:502:                    "categories": group_categories,
+> hormozi_subtitles.py:503:                    "candidate_emojis": candidate_emojis,
+  hormozi_subtitles.py:504:                    "hero_candidates": list(dict.fromkeys(hero_candidates)),
+> hormozi_subtitles.py:505:                    "has_keyword": has_keyword,
+  hormozi_subtitles.py:506:                })
+  hormozi_subtitles.py:507:            if segment_groups:
+> hormozi_subtitles.py:508:                self._plan_emojis_for_segment(segment_groups)
+  hormozi_subtitles.py:509:                words.extend(segment_groups)
+  hormozi_subtitles.py:510:        return words
+  hormozi_subtitles.py:511:
+> hormozi_subtitles.py:512:    def export_tokens_json(self, groups: List[Dict], out_path: str) -> None:
+  hormozi_subtitles.py:513:        try:
+  hormozi_subtitles.py:514:            data = []
+  hormozi_subtitles.py:515:            for g in groups:
+  hormozi_subtitles.py:518:                    'start': float(g.get('start',0.0)),
+  hormozi_subtitles.py:519:                    'end': float(g.get('end',0.0)),
+  hormozi_subtitles.py:520:                    'tokens': g.get('tokens',[]),
+> hormozi_subtitles.py:521:                    'emojis': g.get('emojis',[]),
+  hormozi_subtitles.py:522:                })
+  hormozi_subtitles.py:523:            with open(out_path, 'w', encoding='utf-8') as f:
+> hormozi_subtitles.py:524:                json.dump(data, f, ensure_ascii=False, indent=2)
+  hormozi_subtitles.py:525:        except Exception:
+  hormozi_subtitles.py:526:            pass
+  hormozi_subtitles.py:527:
+  hormozi_subtitles.py:539:                return key
+  hormozi_subtitles.py:540:        return None
+  hormozi_subtitles.py:541:
+> hormozi_subtitles.py:542:    def _load_emoji_font(self, size: int) -> ImageFont.FreeTypeFont:
+> hormozi_subtitles.py:543:        """Charge une police emoji système (Segoe UI Emoji/Noto) pour 
+fallback texte."""
+  hormozi_subtitles.py:544:        candidates = [
+> hormozi_subtitles.py:545:            "C:/Windows/Fonts/seguiemj.ttf",
+> hormozi_subtitles.py:546:            "C:/Windows/Fonts/seguiui.ttf",
+> hormozi_subtitles.py:547:            "/System/Library/Fonts/Apple Color Emoji.ttc",
+> hormozi_subtitles.py:548:            "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+  hormozi_subtitles.py:549:        ]
+  hormozi_subtitles.py:550:        for p in candidates:
+  hormozi_subtitles.py:551:            try:
+  hormozi_subtitles.py:552:                if os.path.exists(p):
+> hormozi_subtitles.py:553:                    return ImageFont.truetype(p, size)
+  hormozi_subtitles.py:554:            except Exception:
+  hormozi_subtitles.py:555:                continue
+> hormozi_subtitles.py:556:        return ImageFont.load_default()
+  hormozi_subtitles.py:557:
+> hormozi_subtitles.py:558:    def _build_font_candidates(self, extra: Optional[Sequence[str]]) -> 
+List[str]:
+  hormozi_subtitles.py:559:        def _push(target: Optional[str | Path]) -> None:
+  hormozi_subtitles.py:560:            if not target:
+  hormozi_subtitles.py:561:                return
+  hormozi_subtitles.py:563:                path_obj = Path(str(target)).expanduser()
+  hormozi_subtitles.py:564:            except Exception:
+  hormozi_subtitles.py:565:                return
+> hormozi_subtitles.py:566:            self._font_candidates.append(str(path_obj))
+  hormozi_subtitles.py:567:
+> hormozi_subtitles.py:568:        self._font_candidates = []
+  hormozi_subtitles.py:569:        if extra:
+  hormozi_subtitles.py:570:            for candidate in extra:
+  hormozi_subtitles.py:571:                if candidate:
+  hormozi_subtitles.py:572:                    _push(candidate)
+> hormozi_subtitles.py:573:        if self.subtitle_settings is not None and 
+getattr(self.subtitle_settings, "font_path", None):
+> hormozi_subtitles.py:574:            _push(self.subtitle_settings.font_path)
+  hormozi_subtitles.py:575:
+  hormozi_subtitles.py:576:        base_dir = Path(__file__).resolve().parent
+> hormozi_subtitles.py:577:        asset_fonts = [
+> hormozi_subtitles.py:578:            base_dir / "assets" / "fonts" / "Montserrat-ExtraBold.ttf",
+> hormozi_subtitles.py:579:            base_dir / "assets" / "fonts" / "Montserrat-Bold.ttf",
+  hormozi_subtitles.py:580:        ]
+> hormozi_subtitles.py:581:        for candidate in asset_fonts:
+  hormozi_subtitles.py:582:            _push(candidate)
+  hormozi_subtitles.py:583:
+> hormozi_subtitles.py:584:        montserrat_system_fonts = [
+> hormozi_subtitles.py:585:            "/System/Library/Fonts/Montserrat-ExtraBold.ttf",
+> hormozi_subtitles.py:586:            "/System/Library/Fonts/Montserrat-Bold.ttf",
+> hormozi_subtitles.py:587:            "/Library/Fonts/Montserrat-ExtraBold.ttf",
+> hormozi_subtitles.py:588:            "/Library/Fonts/Montserrat-Bold.ttf",
+> hormozi_subtitles.py:589:            "C:/Windows/Fonts/Montserrat-ExtraBold.ttf",
+> hormozi_subtitles.py:590:            "C:/Windows/Fonts/Montserrat-Bold.ttf",
+  hormozi_subtitles.py:591:        ]
+> hormozi_subtitles.py:592:        for candidate in montserrat_system_fonts:
+  hormozi_subtitles.py:593:            _push(candidate)
+  hormozi_subtitles.py:594:
+> hormozi_subtitles.py:595:        ordered_unique = list(dict.fromkeys(self._font_candidates))
+> hormozi_subtitles.py:596:        preferred_name = str(self.config.get('preferred_font_name', '') or 
+'').lower()
+  hormozi_subtitles.py:597:        if preferred_name:
+  hormozi_subtitles.py:598:            ordered_unique.sort(
+  hormozi_subtitles.py:599:                key=lambda path: (0 if preferred_name in 
+Path(path).name.lower() else 1, Path(path).name.lower())
+  hormozi_subtitles.py:600:            )
+> hormozi_subtitles.py:601:        packaged_fallback = base_dir / "assets" / "fonts" / 
+"Montserrat-Bold.ttf"
+  hormozi_subtitles.py:602:        montserrat_candidates = [
+  hormozi_subtitles.py:603:            path for path in ordered_unique
+  hormozi_subtitles.py:604:            if "montserrat" in Path(path).name.lower()
+  hormozi_subtitles.py:608:            if Path(path).expanduser().exists()
+  hormozi_subtitles.py:609:        ]
+  hormozi_subtitles.py:610:        if not existing_montserrat:
+> hormozi_subtitles.py:611:            if packaged_fallback.exists():
+  hormozi_subtitles.py:612:                logger.warning(
+> hormozi_subtitles.py:613:                    "[Subtitles] No system Montserrat font detected; 
+falling back to packaged Montserrat-Bold"
+  hormozi_subtitles.py:614:                )
+> hormozi_subtitles.py:615:                packaged_str = str(packaged_fallback)
+  hormozi_subtitles.py:616:                normalized_packaged = os.path.normcase(packaged_str)
+  hormozi_subtitles.py:617:                filtered: List[str] = []
+  hormozi_subtitles.py:618:                for candidate in ordered_unique:
+  hormozi_subtitles.py:622:                ordered_unique = [packaged_str] + filtered
+  hormozi_subtitles.py:623:            else:
+  hormozi_subtitles.py:624:                logger.warning(
+> hormozi_subtitles.py:625:                    "[Subtitles] Montserrat fonts missing from system and 
+assets; MoviePy will use default font"
+  hormozi_subtitles.py:626:                )
+> hormozi_subtitles.py:627:        self._font_candidates = ordered_unique
+  hormozi_subtitles.py:628:        return ordered_unique
+  hormozi_subtitles.py:629:
+> hormozi_subtitles.py:630:    def _resolve_font_path(self) -> Optional[str]:
+> hormozi_subtitles.py:631:        if self._font_primary is not None:
+> hormozi_subtitles.py:632:            return self._font_primary
+> hormozi_subtitles.py:633:        for candidate in self._font_candidates:
+  hormozi_subtitles.py:634:            try:
+  hormozi_subtitles.py:635:                if Path(candidate).expanduser().exists():
+> hormozi_subtitles.py:636:                    self._font_primary = str(Path(candidate).expanduser())
+> hormozi_subtitles.py:637:                    if not self._font_logged:
+> hormozi_subtitles.py:638:                        logger.info("[Subtitles] Using font: %s", 
+self._font_primary)
+> hormozi_subtitles.py:639:                        self._font_logged = True
+> hormozi_subtitles.py:640:                    return self._font_primary
+  hormozi_subtitles.py:641:            except OSError:
+  hormozi_subtitles.py:642:                continue
+> hormozi_subtitles.py:643:        self._font_primary = None
+  hormozi_subtitles.py:644:        return None
+  hormozi_subtitles.py:645:
+> hormozi_subtitles.py:646:    def _invalidate_font_candidate(self, path: str) -> None:
+> hormozi_subtitles.py:647:        self._font_primary = None
+> hormozi_subtitles.py:648:        self._font_logged = False
+  hormozi_subtitles.py:649:        normalized: List[str] = []
+> hormozi_subtitles.py:650:        for candidate in self._font_candidates:
+  hormozi_subtitles.py:651:            try:
+  hormozi_subtitles.py:652:                if Path(candidate).resolve() == Path(path).resolve():
+  hormozi_subtitles.py:653:                    continue
+  hormozi_subtitles.py:655:                if candidate == path:
+  hormozi_subtitles.py:656:                    continue
+  hormozi_subtitles.py:657:            normalized.append(candidate)
+> hormozi_subtitles.py:658:        self._font_candidates = normalized
+  hormozi_subtitles.py:659:
+> hormozi_subtitles.py:660:    def get_font_path(self) -> Optional[str]:
+> hormozi_subtitles.py:661:        return self._resolve_font_path()
+  hormozi_subtitles.py:662:
+  hormozi_subtitles.py:663:    def _log_startup_state(self) -> None:
+  hormozi_subtitles.py:664:        try:
+> hormozi_subtitles.py:665:            resolved_font = self._resolve_font_path()
+> hormozi_subtitles.py:666:            fonts_for_log: List[str] = []
+> hormozi_subtitles.py:667:            for candidate in self._font_candidates:
+  hormozi_subtitles.py:668:                try:
+  hormozi_subtitles.py:669:                    path_obj = Path(candidate).expanduser()
+  hormozi_subtitles.py:670:                    if path_obj.exists():
+> hormozi_subtitles.py:671:                        fonts_for_log.append(str(path_obj))
+  hormozi_subtitles.py:672:                except OSError:
+  hormozi_subtitles.py:673:                    continue
+> hormozi_subtitles.py:674:            if resolved_font and resolved_font not in fonts_for_log:
+> hormozi_subtitles.py:675:                fonts_for_log.insert(0, resolved_font)
+> hormozi_subtitles.py:676:            if fonts_for_log:
+> hormozi_subtitles.py:677:                logger.info("[Subtitles] Fonts resolved: %s", ", 
+".join(fonts_for_log))
+  hormozi_subtitles.py:678:            else:
+> hormozi_subtitles.py:679:                logger.warning("[Subtitles] No Montserrat font resolved; 
+relying on Pillow default")
+  hormozi_subtitles.py:680:            logger.info(
+> hormozi_subtitles.py:681:                "[Subtitles] Keyword background=%s stroke_px=%s 
+shadow_opacity=%.2f shadow_offset=%s",
+> hormozi_subtitles.py:682:                bool(self.config.get('keyword_background')),
+  hormozi_subtitles.py:683:                self.config.get('stroke_px'),
+  hormozi_subtitles.py:684:                float(self.config.get('shadow_opacity', 0.0)),
+  hormozi_subtitles.py:685:                self.config.get('shadow_offset'),
+  hormozi_subtitles.py:686:            )
+  hormozi_subtitles.py:687:            logger.info(
+> hormozi_subtitles.py:688:                "[Subtitles] Emoji density target=%s gap=%s max=%s",
+> hormozi_subtitles.py:689:                self.config.get('emoji_target_per_10'),
+> hormozi_subtitles.py:690:                self.config.get('emoji_min_gap_groups'),
+> hormozi_subtitles.py:691:                self.config.get('emoji_max_per_segment'),
+  hormozi_subtitles.py:692:            )
+  hormozi_subtitles.py:693:        except Exception:
+> hormozi_subtitles.py:694:            logger.debug("[Subtitles] Unable to log startup state", 
+exc_info=True)
+  hormozi_subtitles.py:695:
+> hormozi_subtitles.py:696:    def _load_font(self, size: int) -> ImageFont.FreeTypeFont:
+  hormozi_subtitles.py:697:        tried: set[str] = set()
+  hormozi_subtitles.py:698:        while True:
+> hormozi_subtitles.py:699:            path = self._resolve_font_path()
+  hormozi_subtitles.py:700:            if not path or path in tried:
+  hormozi_subtitles.py:701:                break
+  hormozi_subtitles.py:702:            try:
+> hormozi_subtitles.py:703:                return ImageFont.truetype(path, int(size))
+  hormozi_subtitles.py:704:            except Exception:
+  hormozi_subtitles.py:705:                tried.add(path)
+> hormozi_subtitles.py:706:                self._invalidate_font_candidate(path)
+> hormozi_subtitles.py:707:        return ImageFont.load_default()
+  hormozi_subtitles.py:708:
+> hormozi_subtitles.py:709:    def _load_emoji_png(self, emoji_char: str, target_h: int) -> 
+Image.Image | None:
+> hormozi_subtitles.py:710:        """Charge un emoji PNG depuis emoji_assets/<codepoint>.png; 
+télécharge via Twemoji si manquant et PNG-only."""
+  hormozi_subtitles.py:711:        try:
+> hormozi_subtitles.py:712:            if not emoji_char:
+  hormozi_subtitles.py:713:                return None
+> hormozi_subtitles.py:714:            assets_dir = Path("emoji_assets"); 
+assets_dir.mkdir(parents=True, exist_ok=True)
+  hormozi_subtitles.py:715:            # Support simple et séquences: joindre les codepoints par '-'
+> hormozi_subtitles.py:716:            codepoints = "-".join([f"{ord(ch):x}" for ch in emoji_char])
+  hormozi_subtitles.py:717:            img_path = assets_dir / f"{codepoints}.png"
+> hormozi_subtitles.py:718:            if not img_path.exists() and self.config.get('emoji_png_only', 
+False) and self.config.get('use_twemoji_local', True):
+> hormozi_subtitles.py:719:                # Tentative de téléchargement Twemoji
+  hormozi_subtitles.py:720:                urls = [
+> hormozi_subtitles.py:721:                    
+f"https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/{codepoints}.png",
+> hormozi_subtitles.py:722:                    
+f"https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/{codepoints}.png",
+  hormozi_subtitles.py:723:                ]
+  hormozi_subtitles.py:724:                for url in urls:
+  hormozi_subtitles.py:725:                    try:
+> hormozi_subtitles.py:726:                        r = requests.get(url, timeout=10)
+  hormozi_subtitles.py:727:                        r.raise_for_status()
+  hormozi_subtitles.py:728:                        with open(img_path, 'wb') as f:
+  hormozi_subtitles.py:729:                            f.write(r.content)
+  hormozi_subtitles.py:765:        cat = {}
+  hormozi_subtitles.py:766:        # Business
+  hormozi_subtitles.py:767:        cat['business'] = [
+> hormozi_subtitles.py:768:            
+'BUSINESS','COMPANY','STARTUP','STRATEGY','SYSTEM','FRAMEWORK','METHOD','PROCESS','MODEL',
+  hormozi_subtitles.py:769:            
+'MARKETING','ADVERTISING','BRANDING','CONTENT','COPYWRITING','FUNNEL','CHECKOUT','CONVERSION',
+  hormozi_subtitles.py:770:            
+'CUSTOMER','CLIENT','TEAM','LEADERSHIP','MANAGEMENT','COACHING','MENTOR','INFLUENCE',
+  hormozi_subtitles.py:771:            'ECOMMERCE','SHOPIFY','DROPSHIP','PORTFOLIO','KPI','METRICS','AN
+ALYTICS','RETENTION','UPSELL','CROSSSELL'
+  hormozi_subtitles.py:772:        ]
+  hormozi_subtitles.py:773:        # Marketing / Sales (plus précis)
+  hormozi_subtitles.py:774:        cat['sales'] = ['SALES','SELL','CLOSE','DEAL','NEGOCIATE','NEGOCIER'
+,'PRICING','PRICE','QUOTE','PANIER','CART','CONVERSION','LEAD','PIPELINE']
+> hormozi_subtitles.py:775:        cat['content'] = ['VIDEO','TITRE','THUMB','THUMBNAIL','HOOK','RETENT
+ION','SCRIPTS','SCRIPT','EDIT','CUT','SUBTITLE','SUBTITLES','CAPTION']
+  hormozi_subtitles.py:776:        # Emotions (fortes)
+  hormozi_subtitles.py:777:        cat['emotions'] = [
+  hormozi_subtitles.py:778:            
+'FIRE','INSANE','CRAZY','AMAZING','INCREDIBLE','UNBELIEVABLE','MINDBLOWING','EXPLOSIVE',
+  hormozi_subtitles.py:828:        # Enregistrer
+  hormozi_subtitles.py:829:        for category, words in cat.items():
+  hormozi_subtitles.py:830:            for w in words:
+> hormozi_subtitles.py:831:                self.keyword_to_category[w] = category
+  hormozi_subtitles.py:832:
+> hormozi_subtitles.py:833:    def _load_external_emoji_lexicon(self, path: Path) -> None:
+> hormozi_subtitles.py:834:        """Charge un lexique externe JSON et fusionne: catégories, alias, 
+emojis, mots-clés.
+  hormozi_subtitles.py:835:        Format attendu (tous facultatifs):
+  hormozi_subtitles.py:836:        {
+> hormozi_subtitles.py:837:          "category_emojis": {"category": ["🔥","..."]},
+> hormozi_subtitles.py:838:          "emoji_alias": {"WORD":"category"},
+> hormozi_subtitles.py:839:          "keyword_to_category": {"WORD":"category"},
+  hormozi_subtitles.py:840:          "categories": {"category": ["WORD1","WORD2"]}
+  hormozi_subtitles.py:841:        }
+  hormozi_subtitles.py:842:        """
+  hormozi_subtitles.py:843:        try:
+  hormozi_subtitles.py:844:            if not path.exists():
+  hormozi_subtitles.py:845:                return
+> hormozi_subtitles.py:846:            data = json.loads(path.read_text(encoding='utf-8'))
+  hormozi_subtitles.py:847:            if isinstance(data, dict):
+> hormozi_subtitles.py:848:                # Emojis par catégorie
+> hormozi_subtitles.py:849:                ce = data.get('category_emojis') or {}
+  hormozi_subtitles.py:850:                if isinstance(ce, dict):
+  hormozi_subtitles.py:851:                    for k,v in ce.items():
+  hormozi_subtitles.py:852:                        if isinstance(v, list) and v:
+> hormozi_subtitles.py:853:                            self.category_emojis[k] = 
+list(dict.fromkeys((self.category_emojis.get(k, []) + v)))
+  hormozi_subtitles.py:854:                # Alias mots -> catégorie
+> hormozi_subtitles.py:855:                ea = data.get('emoji_alias') or {}
+  hormozi_subtitles.py:856:                if isinstance(ea, dict):
+  hormozi_subtitles.py:857:                    for k, v in ea.items():
+  hormozi_subtitles.py:858:                        if isinstance(k, str) and isinstance(v, str):
+> hormozi_subtitles.py:859:                            self.emoji_alias[self._normalize(k)] = v
+  hormozi_subtitles.py:860:                # Mots-clés -> catégorie
+> hormozi_subtitles.py:861:                km = data.get('keyword_to_category') or {}
+  hormozi_subtitles.py:862:                if isinstance(km, dict):
+  hormozi_subtitles.py:863:                    for k, v in km.items():
+  hormozi_subtitles.py:864:                        if isinstance(k, str) and isinstance(v, str):
+> hormozi_subtitles.py:865:                            self.keyword_to_category[self._normalize(k)] = v
+  hormozi_subtitles.py:866:                # Catégories supplémentaires
+  hormozi_subtitles.py:867:                cat = data.get('categories') or {}
+  hormozi_subtitles.py:868:                if isinstance(cat, dict):
+  hormozi_subtitles.py:870:                        if isinstance(words, list):
+  hormozi_subtitles.py:871:                            for w in words:
+  hormozi_subtitles.py:872:                                if isinstance(w, str):
+> hormozi_subtitles.py:873:                                    
+self.keyword_to_category[self._normalize(w)] = cat_name
+  hormozi_subtitles.py:874:        except Exception:
+  hormozi_subtitles.py:875:            pass
+  hormozi_subtitles.py:876:
+> hormozi_subtitles.py:877:    def _choose_emoji_for_tokens(self, tokens: List[Dict], group_text: str) 
+-> str:
+> hormozi_subtitles.py:878:        """Choisit un emoji contextuel à partir des catégories déjà 
+évaluées."""
+  hormozi_subtitles.py:879:        candidates: List[str] = []
+  hormozi_subtitles.py:880:        for token in tokens:
+  hormozi_subtitles.py:881:            category = token.get('category')
+> hormozi_subtitles.py:882:            if category and category in self.category_emojis:
+> hormozi_subtitles.py:883:                candidates.extend(self.category_emojis[category])
+  hormozi_subtitles.py:884:        unique_candidates = [c for c in dict.fromkeys(candidates) if c]
+> hormozi_subtitles.py:885:        emoji = self._select_from_candidates(unique_candidates, group_text, 
+avoid=self._recent_emojis)
+> hormozi_subtitles.py:886:        if not emoji:
+> hormozi_subtitles.py:887:            fallback = str(self.config.get('emoji_no_context_fallback') or 
+"")
+> hormozi_subtitles.py:888:            return fallback
+> hormozi_subtitles.py:889:        return emoji
+  hormozi_subtitles.py:890:
+  hormozi_subtitles.py:891:    def _select_from_candidates(
+  hormozi_subtitles.py:892:        self,
+  hormozi_subtitles.py:905:        seed = abs(hash((group_text or "", tuple(pool))))
+  hormozi_subtitles.py:906:        return pool[seed % len(pool)]
+  hormozi_subtitles.py:907:
+> hormozi_subtitles.py:908:    def _select_group_emoji(self, group: Dict) -> str:
+> hormozi_subtitles.py:909:        emoji = self._select_from_candidates(
+> hormozi_subtitles.py:910:            group.get('candidate_emojis') or [],
+  hormozi_subtitles.py:911:            group.get('text', ""),
+> hormozi_subtitles.py:912:            avoid=self._recent_emojis,
+  hormozi_subtitles.py:913:        )
+> hormozi_subtitles.py:914:        if emoji:
+> hormozi_subtitles.py:915:            return emoji
+> hormozi_subtitles.py:916:        fallback = str(self.config.get('emoji_no_context_fallback') or "")
+> hormozi_subtitles.py:917:        if fallback and fallback not in self._recent_emojis:
+> hormozi_subtitles.py:918:            return fallback
+  hormozi_subtitles.py:919:        return ""
+  hormozi_subtitles.py:920:
+> hormozi_subtitles.py:921:    def _select_hero_emoji(self, candidates: Sequence[str]) -> str:
+  hormozi_subtitles.py:922:        if not candidates:
+  hormozi_subtitles.py:923:            return ""
+  hormozi_subtitles.py:924:        for candidate in candidates:
+> hormozi_subtitles.py:925:            if candidate and candidate not in self._recent_emojis:
+  hormozi_subtitles.py:926:                return candidate
+  hormozi_subtitles.py:927:        return candidates[0] if candidates and candidates[0] not in {""} 
+else ""
+  hormozi_subtitles.py:928:
+> hormozi_subtitles.py:929:    def _plan_emojis_for_segment(self, groups: List[Dict]) -> None:
+> hormozi_subtitles.py:930:        if not groups or not self.config.get('enable_emojis', False):
+  hormozi_subtitles.py:931:            return
+> hormozi_subtitles.py:932:        target = max(0, int(round(len(groups) * 
+float(self.config.get('emoji_target_per_10', 0)) / 10.0)))
+> hormozi_subtitles.py:933:        target = min(target, int(self.config.get('emoji_max_per_segment', 
+target)))
+  hormozi_subtitles.py:934:        if target <= 0:
+  hormozi_subtitles.py:935:            return
+> hormozi_subtitles.py:936:        min_gap = max(0, int(self.config.get('emoji_min_gap_groups', 0)))
+> hormozi_subtitles.py:937:        hero_remaining = int(self.config.get('hero_emoji_max_per_segment', 
+0)) if self.config.get('hero_emoji_enable', True) else 0
+  hormozi_subtitles.py:938:        placements = 0
+  hormozi_subtitles.py:939:        for idx, group in enumerate(groups):
+> hormozi_subtitles.py:940:            group['emojis'] = []
+  hormozi_subtitles.py:941:            global_index = self._global_group_index + idx
+  hormozi_subtitles.py:942:            if placements >= target:
+  hormozi_subtitles.py:943:                continue
+> hormozi_subtitles.py:944:            if global_index - self._last_emoji_global_index < min_gap:
+  hormozi_subtitles.py:945:                continue
+> hormozi_subtitles.py:946:            hero_emoji = ""
+  hormozi_subtitles.py:947:            if hero_remaining > 0:
+> hormozi_subtitles.py:948:                hero_emoji = 
+self._select_hero_emoji(group.get('hero_candidates') or [])
+> hormozi_subtitles.py:949:            if hero_emoji:
+> hormozi_subtitles.py:950:                emoji = hero_emoji
+  hormozi_subtitles.py:951:                hero_remaining -= 1
+  hormozi_subtitles.py:952:            else:
+> hormozi_subtitles.py:953:                emoji = self._select_group_emoji(group)
+> hormozi_subtitles.py:954:            if not emoji:
+  hormozi_subtitles.py:955:                continue
+> hormozi_subtitles.py:956:            group['emojis'] = [emoji]
+  hormozi_subtitles.py:957:            placements += 1
+> hormozi_subtitles.py:958:            self._last_emoji_global_index = global_index
+> hormozi_subtitles.py:959:            self._recent_emojis.append(emoji)
+  hormozi_subtitles.py:960:        self._global_group_index += len(groups)
+  hormozi_subtitles.py:961:
+> hormozi_subtitles.py:962:    def create_subtitle_frame(self, frame: np.ndarray, words: List[Dict], 
+  hormozi_subtitles.py:963:                              current_time: float) -> np.ndarray:
+> hormozi_subtitles.py:964:        """Crée une frame avec sous-titres overlay (coloration du mot-clé; 
+emojis en fin de groupe)."""
+  hormozi_subtitles.py:965:        height, width = frame.shape[:2]
+  hormozi_subtitles.py:966:        if words and isinstance(words, list) and isinstance(words[0], dict) 
+and ("animation_progress" in words[0]):
+  hormozi_subtitles.py:967:            active_words = words
+  hormozi_subtitles.py:978:        for wobj in active_words:
+  hormozi_subtitles.py:979:            prog = float(wobj.get('animation_progress', 1.0))
+  hormozi_subtitles.py:980:            scale = 1.0 + (self.config['bounce_scale'] - 1.0) * (1.0 - 
+min(prog,1.0))
+> hormozi_subtitles.py:981:            fsize = max(1, int(self.config['font_size'] * scale))
+> hormozi_subtitles.py:982:            font = self._load_font(fsize)
+  hormozi_subtitles.py:983:            group_idx = len(group_meta)
+  hormozi_subtitles.py:984:            group_meta.append({
+> hormozi_subtitles.py:985:                'emojis': list(wobj.get('emojis') or []),
+> hormozi_subtitles.py:986:                'font_size': fsize,
+  hormozi_subtitles.py:987:                'max_height': 0,
+  hormozi_subtitles.py:988:            })
+  hormozi_subtitles.py:989:            tokens = wobj.get("tokens") if isinstance(wobj, dict) else None
+  hormozi_subtitles.py:991:            if tokens:
+  hormozi_subtitles.py:992:                for j, tok in enumerate(tokens):
+  hormozi_subtitles.py:993:                    ttext = (tok.get("text") or "").strip()
+> hormozi_subtitles.py:994:                    bbox = draw.textbbox((0, 0), ttext, font=font)
+  hormozi_subtitles.py:995:                    tw = bbox[2] - bbox[0]
+  hormozi_subtitles.py:996:                    th = bbox[3] - bbox[1]
+  hormozi_subtitles.py:997:                    color_hex = tok.get("color", "#FFFFFF")
+> hormozi_subtitles.py:998:                    is_keyword = bool(tok.get("is_keyword"))
+> hormozi_subtitles.py:999:                    base_rgb = self.hex_to_rgb(color_hex) if is_keyword 
+else (255, 255, 255)
+  hormozi_subtitles.py:1000:                    bg_rgb = None
+  hormozi_subtitles.py:1001:                    pad_x = 0
+  hormozi_subtitles.py:1002:                    pad_y = 0
+> hormozi_subtitles.py:1003:                    text_rgb = base_rgb if is_keyword and not 
+self.config.get('keyword_background', False) else (255, 255, 255)
+> hormozi_subtitles.py:1004:                    if is_keyword and 
+self.config.get('keyword_background', False):
+  hormozi_subtitles.py:1005:                        bg_rgb = base_rgb
+  hormozi_subtitles.py:1006:                        pad_x = max(4, int(fsize * 0.18))
+  hormozi_subtitles.py:1007:                        pad_y = max(2, int(fsize * 0.12))
+  hormozi_subtitles.py:1010:                    items.append({
+  hormozi_subtitles.py:1011:                        'type': 'word',
+  hormozi_subtitles.py:1012:                        'text': ttext,
+> hormozi_subtitles.py:1013:                        'font': font,
+  hormozi_subtitles.py:1014:                        'w': w_total,
+  hormozi_subtitles.py:1015:                        'h': h_total,
+  hormozi_subtitles.py:1016:                        'rgb': text_rgb,
+  hormozi_subtitles.py:1019:                        'bg_rgb': bg_rgb,
+  hormozi_subtitles.py:1020:                        'pad_x': pad_x,
+  hormozi_subtitles.py:1021:                        'pad_y': pad_y,
+> hormozi_subtitles.py:1022:                        'keyword': is_keyword,
+  hormozi_subtitles.py:1023:                        'color_hex': color_hex,
+  hormozi_subtitles.py:1024:                        'group_index': group_idx,
+  hormozi_subtitles.py:1025:                    })
+  hormozi_subtitles.py:1026:                    total_w += w_total
+  hormozi_subtitles.py:1027:                    max_h = max(max_h, h_total)
+  hormozi_subtitles.py:1028:                    group_meta[group_idx]['max_height'] = 
+max(group_meta[group_idx]['max_height'], h_total)
+> hormozi_subtitles.py:1029:                    group_meta[group_idx]['font_size'] = 
+max(group_meta[group_idx]['font_size'], fsize)
+  hormozi_subtitles.py:1030:                    if j < len(tokens) - 1:
+  hormozi_subtitles.py:1031:                        # Espace basé sur la taille de police actuelle
+  hormozi_subtitles.py:1032:                        try:
+> hormozi_subtitles.py:1033:                            space_w = int(max(1, draw.textlength(" ", 
+font=font)))
+  hormozi_subtitles.py:1034:                        except Exception:
+  hormozi_subtitles.py:1035:                            space_w = int(max(1, 0.33 * fsize))
+  hormozi_subtitles.py:1036:                        items.append({'type': 'space', 'w': space_w, 'h': 
+th, 'fs': fsize, 'group_index': group_idx})
+  hormozi_subtitles.py:1039:                        group_meta[group_idx]['max_height'] = 
+max(group_meta[group_idx]['max_height'], h_total)
+  hormozi_subtitles.py:1040:            else:
+  hormozi_subtitles.py:1041:                text = (wobj.get('text') or '').strip()
+> hormozi_subtitles.py:1042:                bbox = draw.textbbox((0, 0), text, font=font)
+  hormozi_subtitles.py:1043:                tw = bbox[2] - bbox[0]
+  hormozi_subtitles.py:1044:                th = bbox[3] - bbox[1]
+  hormozi_subtitles.py:1045:                rgb = (255, 255, 255)
+  hormozi_subtitles.py:1046:                items.append({
+  hormozi_subtitles.py:1047:                    'type': 'word',
+  hormozi_subtitles.py:1048:                    'text': text,
+> hormozi_subtitles.py:1049:                    'font': font,
+  hormozi_subtitles.py:1050:                    'w': tw,
+  hormozi_subtitles.py:1051:                    'h': th,
+  hormozi_subtitles.py:1052:                    'rgb': rgb,
+  hormozi_subtitles.py:1055:                    'bg_rgb': None,
+  hormozi_subtitles.py:1056:                    'pad_x': 0,
+  hormozi_subtitles.py:1057:                    'pad_y': 0,
+> hormozi_subtitles.py:1058:                    'keyword': False,
+  hormozi_subtitles.py:1059:                    'color_hex': '#FFFFFF',
+  hormozi_subtitles.py:1060:                    'group_index': group_idx,
+  hormozi_subtitles.py:1061:                })
+  hormozi_subtitles.py:1070:            max_h = 0
+  hormozi_subtitles.py:1071:            for it in items:
+  hormozi_subtitles.py:1072:                if it['type'] == 'word':
+> hormozi_subtitles.py:1073:                    new_fs = max(1, int(it.get('fs', 
+self.config['font_size']) * shrink))
+> hormozi_subtitles.py:1074:                    nfont = self._load_font(new_fs)
+> hormozi_subtitles.py:1075:                    nb = draw.textbbox((0, 0), it['text'], font=nfont)
+  hormozi_subtitles.py:1076:                    nw = nb[2] - nb[0]; nh = nb[3] - nb[1]
+> hormozi_subtitles.py:1077:                    keyword = bool(it.get('keyword'))
+  hormozi_subtitles.py:1078:                    color_hex = it.get('color_hex', '#FFFFFF')
+> hormozi_subtitles.py:1079:                    base_rgb = self.hex_to_rgb(color_hex) if keyword else 
+(255, 255, 255)
+  hormozi_subtitles.py:1080:                    bg_rgb = None
+  hormozi_subtitles.py:1081:                    pad_x = 0
+  hormozi_subtitles.py:1082:                    pad_y = 0
+> hormozi_subtitles.py:1083:                    text_rgb = base_rgb if keyword and not 
+self.config.get('keyword_background', False) else (255, 255, 255)
+> hormozi_subtitles.py:1084:                    if keyword and self.config.get('keyword_background', 
+False):
+  hormozi_subtitles.py:1085:                        bg_rgb = base_rgb
+  hormozi_subtitles.py:1086:                        pad_x = max(4, int(new_fs * 0.18))
+  hormozi_subtitles.py:1087:                        pad_y = max(2, int(new_fs * 0.12))
+  hormozi_subtitles.py:1090:                    new_items.append({
+  hormozi_subtitles.py:1091:                        'type': 'word',
+  hormozi_subtitles.py:1092:                        'text': it['text'],
+> hormozi_subtitles.py:1093:                        'font': nfont,
+  hormozi_subtitles.py:1094:                        'w': nw_total,
+  hormozi_subtitles.py:1095:                        'h': nh_total,
+  hormozi_subtitles.py:1096:                        'rgb': text_rgb,
+  hormozi_subtitles.py:1099:                        'bg_rgb': bg_rgb,
+  hormozi_subtitles.py:1100:                        'pad_x': pad_x,
+  hormozi_subtitles.py:1101:                        'pad_y': pad_y,
+> hormozi_subtitles.py:1102:                        'keyword': keyword,
+  hormozi_subtitles.py:1103:                        'color_hex': color_hex,
+  hormozi_subtitles.py:1104:                        'group_index': it.get('group_index'),
+  hormozi_subtitles.py:1105:                    })
+  hormozi_subtitles.py:1106:                    total_w += nw_total
+  hormozi_subtitles.py:1107:                    max_h = max(max_h, nh_total)
+  hormozi_subtitles.py:1108:                elif it['type'] == 'space':
+> hormozi_subtitles.py:1109:                    new_fs = max(1, int(it.get('fs', 
+self.config['font_size']) * shrink))
+> hormozi_subtitles.py:1110:                    nfont = self._load_font(new_fs)
+  hormozi_subtitles.py:1111:                    try:
+> hormozi_subtitles.py:1112:                        nw = int(max(1, draw.textlength(" ", font=nfont)))
+  hormozi_subtitles.py:1113:                    except Exception:
+  hormozi_subtitles.py:1114:                        nw = int(max(1, 0.33 * new_fs))
+  hormozi_subtitles.py:1115:                    
+new_items.append({'type':'space','w':nw,'h':it['h'],'fs':new_fs,'group_index': it.get('group_index')})
+  hormozi_subtitles.py:1116:                    total_w += nw; max_h = max(max_h, it['h'])
+> hormozi_subtitles.py:1117:                elif it['type'] == 'emoji':
+  hormozi_subtitles.py:1118:                    em = it['img']
+  hormozi_subtitles.py:1119:                    nw = max(1, int(em.size[0] * shrink)); nh = max(1, 
+int(em.size[1] * shrink))
+  hormozi_subtitles.py:1120:                    em_resized = em.resize((nw, nh), 
+Image.Resampling.LANCZOS)
+> hormozi_subtitles.py:1121:                    
+new_items.append({'type':'emoji','img':em_resized,'w':nw + 
+self.config['emoji_gap_px'],'h':nh,'fs':int(it.get('fs', self.config['font_size']) * 
+shrink),'group_index': it.get('group_index')})
+> hormozi_subtitles.py:1122:                    total_w += (nw + self.config['emoji_gap_px']); max_h = 
+max(max_h, nh)
+  hormozi_subtitles.py:1123:                else:
+  hormozi_subtitles.py:1124:                    new_items.append(it)
+  hormozi_subtitles.py:1125:                    total_w += it.get('w', 0); max_h = max(max_h, 
+it.get('h', 0))
+  hormozi_subtitles.py:1132:                continue
+  hormozi_subtitles.py:1133:            if it['type'] in {'word', 'space'}:
+  hormozi_subtitles.py:1134:                group_meta[group_idx]['max_height'] = 
+max(group_meta[group_idx].get('max_height', 0), it.get('h', 0))
+> hormozi_subtitles.py:1135:                group_meta[group_idx]['font_size'] = 
+max(group_meta[group_idx].get('font_size', 0), it.get('fs', 0))
+  hormozi_subtitles.py:1136:        # Position
+  hormozi_subtitles.py:1137:        x = (width - total_w) // 2
+  hormozi_subtitles.py:1138:        # Marge adaptative: au moins un pourcentage de la hauteur
+  hormozi_subtitles.py:1165:        for it in items:
+  hormozi_subtitles.py:1166:            if it['type'] == 'word':
+  hormozi_subtitles.py:1167:                word_text = it['text']
+> hormozi_subtitles.py:1168:                font = it['font']
+  hormozi_subtitles.py:1169:                rgb = it['rgb']
+  hormozi_subtitles.py:1170:                prog = float(it.get('prog', 1.0))
+  hormozi_subtitles.py:1171:                alpha_prog = prog if prog <= 1.0 else 1.0
+  hormozi_subtitles.py:1188:                    pos['max_h'] = max(pos['max_h'], word_h)
+  hormozi_subtitles.py:1189:                    if pos['baseline_y'] is None or draw_y < 
+pos['baseline_y']:
+  hormozi_subtitles.py:1190:                        pos['baseline_y'] = draw_y
+> hormozi_subtitles.py:1191:                if self.config.get('keyword_background', False) and bg_rgb:
+> hormozi_subtitles.py:1192:                    radius = max(2, int(it.get('fs', 
+self.config['font_size']) * 0.25))
+  hormozi_subtitles.py:1193:                    rect = [int(x), int(y), int(x + word_w), int(y + 
+word_h)]
+  hormozi_subtitles.py:1194:                    draw.rounded_rectangle(rect, radius=radius, 
+fill=(*bg_rgb, int(alpha * 0.92)))
+  hormozi_subtitles.py:1195:                if shadow_offset_px > 0 and shadow_opacity > 0:
+  hormozi_subtitles.py:1196:                    shadow_alpha = max(0, min(255, int(alpha * 
+shadow_opacity)))
+  hormozi_subtitles.py:1197:                    if shadow_alpha > 0:
+> hormozi_subtitles.py:1198:                        draw.text((draw_x + shadow_offset_px, draw_y + 
+shadow_offset_px), word_text, font=font, fill=(0, 0, 0, shadow_alpha))
+  hormozi_subtitles.py:1199:                if stroke_px > 0:
+  hormozi_subtitles.py:1200:                    stroke_fill = (*stroke_color, alpha)
+  hormozi_subtitles.py:1201:                    for dx in range(-stroke_px, stroke_px + 1):
+  hormozi_subtitles.py:1204:                                continue
+  hormozi_subtitles.py:1205:                            if dx * dx + dy * dy > stroke_px * stroke_px:
+  hormozi_subtitles.py:1206:                                continue
+> hormozi_subtitles.py:1207:                            draw.text((draw_x + dx, draw_y + dy), 
+word_text, font=font, fill=stroke_fill)
+  hormozi_subtitles.py:1208:                # Dessin du texte une seule fois (pas de gradient/ombre 
+pour éviter le sur-noircissement)
+> hormozi_subtitles.py:1209:                draw.text((draw_x, draw_y), word_text, font=font, 
+fill=fill)
+  hormozi_subtitles.py:1210:                x += word_w
+  hormozi_subtitles.py:1211:            elif it['type'] == 'space':
+  hormozi_subtitles.py:1212:                # Avancer la position horizontale pour l'espace calculé
+  hormozi_subtitles.py:1221:                x += it['w']
+  hormozi_subtitles.py:1222:
+  hormozi_subtitles.py:1223:        for group_idx, meta in enumerate(group_meta):
+> hormozi_subtitles.py:1224:            emojis = meta.get('emojis') or []
+> hormozi_subtitles.py:1225:            if not emojis:
+  hormozi_subtitles.py:1226:                continue
+  hormozi_subtitles.py:1227:            pos = group_positions.get(group_idx)
+  hormozi_subtitles.py:1228:            if not pos:
+  hormozi_subtitles.py:1232:            baseline_y = pos.get('baseline_y', y)
+  hormozi_subtitles.py:1233:            if start_x is None or end_x is None:
+  hormozi_subtitles.py:1234:                continue
+> hormozi_subtitles.py:1235:            target_base_fs = max(int(meta.get('font_size') or 
+self.config['font_size']), 1)
+> hormozi_subtitles.py:1236:            target_h = max(1, int(target_base_fs * 
+self.config.get('emoji_scale_ratio', 0.9) * self.config.get('emoji_boost', 1.0)))
+> hormozi_subtitles.py:1237:            for idx, emoji_char in enumerate(emojis):
+> hormozi_subtitles.py:1238:                if not emoji_char:
+  hormozi_subtitles.py:1239:                    continue
+> hormozi_subtitles.py:1240:                emoji_img = self._load_emoji_png(emoji_char, target_h)
+> hormozi_subtitles.py:1241:                if emoji_img is None and not 
+self.config.get('emoji_png_only', False):
+> hormozi_subtitles.py:1242:                    efont = self._load_emoji_font(target_h)
+  hormozi_subtitles.py:1243:                    temp = Image.new('RGBA', (target_h * 2, target_h * 2), 
+(0, 0, 0, 0))
+  hormozi_subtitles.py:1244:                    temp_draw = ImageDraw.Draw(temp)
+> hormozi_subtitles.py:1245:                    temp_draw.text((0, 0), emoji_char, font=efont, 
+fill=(255, 255, 255, 255))
+  hormozi_subtitles.py:1246:                    bbox = temp.getbbox()
+  hormozi_subtitles.py:1247:                    if bbox:
+> hormozi_subtitles.py:1248:                        emoji_img = temp.crop(bbox)
+> hormozi_subtitles.py:1249:                if emoji_img is None:
+  hormozi_subtitles.py:1250:                    continue
+> hormozi_subtitles.py:1251:                ew, eh = emoji_img.size
+  hormozi_subtitles.py:1252:                offset_x = int(end_x - ew * (0.6 - 0.15 * idx))
+  hormozi_subtitles.py:1253:                offset_x = min(max(0, offset_x), width - ew)
+  hormozi_subtitles.py:1254:                offset_y = int(max(0, (baseline_y or y) - eh * 0.45))
+> hormozi_subtitles.py:1255:                img.alpha_composite(emoji_img, (offset_x, offset_y))
+  hormozi_subtitles.py:1256:
+  hormozi_subtitles.py:1257:        text_array = np.array(img)
+  hormozi_subtitles.py:1258:        if text_array.shape[2] == 4:
+  hormozi_subtitles.py:1271:        }
+  hormozi_subtitles.py:1272:        return frame
+  hormozi_subtitles.py:1273:
+> hormozi_subtitles.py:1274:    def add_hormozi_subtitles(self, input_video_path: str, 
+  hormozi_subtitles.py:1275:                               transcription_data: List[Dict], 
+  hormozi_subtitles.py:1276:                               output_video_path: str) -> None:
+  hormozi_subtitles.py:1277:        """
+> hormozi_subtitles.py:1278:        Ajoute des sous-titres style Hormozi 1 (groupes 2–3 mots, 
+multi-couleurs sur une ligne, emojis PNG en surimpression)
+  hormozi_subtitles.py:1279:        """
+  hormozi_subtitles.py:1280:        print("🔥 Génération sous-titres style Hormozi 1...")
+  hormozi_subtitles.py:1281:        # Groupes plus dynamiques (2–3 mots)
+  hormozi_subtitles.py:1282:        groups = 
+self.parse_transcription_to_word_groups(transcription_data, group_size=2)
+  hormozi_subtitles.py:1283:        try:
+> hormozi_subtitles.py:1284:            self._enrich_keywords_from_transcript(groups)
+  hormozi_subtitles.py:1285:        except Exception:
+  hormozi_subtitles.py:1286:            pass
+  hormozi_subtitles.py:1287:        print(f"📝 {len(groups)} groupes de mots extraits")
+  hormozi_subtitles.py:1288:        video = mp.VideoFileClip(input_video_path)
+> hormozi_subtitles.py:1289:        def apply_subtitles(get_frame, t):
+  hormozi_subtitles.py:1290:            frame = get_frame(t)
+  hormozi_subtitles.py:1291:            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+  hormozi_subtitles.py:1292:            active = []
+  hormozi_subtitles.py:1303:                    w_active = dict(w)
+  hormozi_subtitles.py:1304:                    w_active["animation_progress"] = float(anim_prog)
+  hormozi_subtitles.py:1305:                    active.append(w_active)
+> hormozi_subtitles.py:1306:            # Rendu texte + overlay éventuel d'emoji PNG pour mots clés 
+boostés
+> hormozi_subtitles.py:1307:            out_bgr = self.create_subtitle_frame(frame_bgr, active, t)
+  hormozi_subtitles.py:1308:            try:
+> hormozi_subtitles.py:1309:                # Si une palette avec 'emoji' a été fournie, overlay à 
+droite du texte
+  hormozi_subtitles.py:1310:                if isinstance(getattr(self, 'span_style_map', None), dict):
+  hormozi_subtitles.py:1311:                    for w in active[:2]:
+  hormozi_subtitles.py:1312:                        word = str(w.get('text','')).strip().lower()
+  hormozi_subtitles.py:1313:                        style = self.span_style_map.get(word)
+> hormozi_subtitles.py:1314:                        if isinstance(style, dict) and 'emoji' in style:
+> hormozi_subtitles.py:1315:                            # On attend un fichier PNG local correspondant 
+au nom de l'emoji (ex: rocket.png)
+> hormozi_subtitles.py:1316:                            emo = style.get('emoji') or ''
+  hormozi_subtitles.py:1317:                            name = None
+  hormozi_subtitles.py:1318:                            if isinstance(emo, str):
+  hormozi_subtitles.py:1319:                                # Mapping étendu pour tous les émojis du 
+span_style_map
+  hormozi_subtitles.py:1320:                                m = {
+  hormozi_subtitles.py:1321:                                    # Business & Croissance
+> hormozi_subtitles.py:1322:                                    '📈': 'emoji_chart.png', '🌱': 
+'emoji_growth.png',
+> hormozi_subtitles.py:1323:                                    '🔑': 'emoji_key.png', '🌟': 
+'emoji_star.png',
+> hormozi_subtitles.py:1324:                                    '⚡': 'emoji_lightning.png', '💡': 
+'emoji_bulb.png',
+> hormozi_subtitles.py:1325:                                    '🧭': 'emoji_compass.png', '🗺️': 
+'emoji_map.png',
+  hormozi_subtitles.py:1326:                                    # Argent & Finance
+> hormozi_subtitles.py:1327:                                    '💰': 'emoji_money.png', '📊': 
+'emoji_chart.png',
+> hormozi_subtitles.py:1328:                                    '🏦': 'emoji_bank.png', '📉': 
+'emoji_down.png',
+> hormozi_subtitles.py:1329:                                    '❌': 'emoji_cross.png', '🧾': 
+'emoji_receipt.png',
+> hormozi_subtitles.py:1330:                                    '🪙': 'emoji_coin.png',
+  hormozi_subtitles.py:1331:                                    # Relation & Client
+> hormozi_subtitles.py:1332:                                    '🤝': 'emoji_handshake.png', 
+'🫱🏼‍🫲🏽': 'emoji_handshake.png',
+> hormozi_subtitles.py:1333:                                    '🌍': 'emoji_earth.png', '👥': 
+'emoji_group.png',
+> hormozi_subtitles.py:1334:                                    '🔒': 'emoji_lock.png', '🛒': 
+'emoji_cart.png',
+> hormozi_subtitles.py:1335:                                    '📦': 'emoji_package.png', '📋': 
+'emoji_contract.png',
+  hormozi_subtitles.py:1336:                                    # Motivation & Succès
+> hormozi_subtitles.py:1337:                                    '🔥': 'emoji_fire.png', '⚡': 
+'emoji_lightning.png',
+> hormozi_subtitles.py:1338:                                    '🏆': 'emoji_trophy.png', '🎯': 
+'emoji_target.png',
+> hormozi_subtitles.py:1339:                                    '⏳': 'emoji_hourglass.png', '🥋': 
+'emoji_karate.png',
+> hormozi_subtitles.py:1340:                                    '🚀': 'emoji_rocket.png', '🌐': 
+'emoji_globe.png',
+> hormozi_subtitles.py:1341:                                    '💥': 'emoji_explosion.png',
+  hormozi_subtitles.py:1342:                                    # Risque & Erreurs
+> hormozi_subtitles.py:1343:                                    '⚠️': 'emoji_warning.png', '🛑': 
+'emoji_stop.png',
+> hormozi_subtitles.py:1344:                                    '🧱': 'emoji_wall.png', '⛔': 
+'emoji_blocked.png',
+> hormozi_subtitles.py:1345:                                    '🔧': 'emoji_tools.png', '🪄': 
+'emoji_magic.png',
+> hormozi_subtitles.py:1346:                                    '📚': 'emoji_book.png', '': 
+'emoji_brain.png'
+  hormozi_subtitles.py:1347:                                }
+  hormozi_subtitles.py:1348:                                name = m.get(emo)
+  hormozi_subtitles.py:1349:                            if name:
+  hormozi_subtitles.py:1350:                                # Chercher dans plusieurs dossiers 
+possibles
+  hormozi_subtitles.py:1351:                                png_paths = [
+> hormozi_subtitles.py:1352:                                    Path('assets/emojis')/name,
+> hormozi_subtitles.py:1353:                                    Path('AI-B-roll/assets/emojis')/name,
+> hormozi_subtitles.py:1354:                                    Path('emojis')/name
+  hormozi_subtitles.py:1355:                                ]
+  hormozi_subtitles.py:1356:                                png = None
+  hormozi_subtitles.py:1357:                                for p in png_paths:
+  hormozi_subtitles.py:1361:                                if png:
+  hormozi_subtitles.py:1362:                                    # Position approx: coin inférieur 
+droit sécurisé
+  hormozi_subtitles.py:1363:                                    h,w_ = out_bgr.shape[:2]
+> hormozi_subtitles.py:1364:                                    out_bgr = 
+self.overlay_big_emoji(out_bgr, str(png), max(32, w_ - 380), max(64, h - 520), scale=1.6)
+  hormozi_subtitles.py:1365:                                else:
+> hormozi_subtitles.py:1366:                                    # Fallback: afficher l'emoji unicode 
+en petit si PNG manquant
+  hormozi_subtitles.py:1367:                                    try:
+> hormozi_subtitles.py:1368:                                        from PIL import ImageFont, 
+ImageDraw
+> hormozi_subtitles.py:1369:                                        emoji_font = 
+ImageFont.truetype("arial.ttf", 48)
+> hormozi_subtitles.py:1370:                                        emoji_img = Image.new('RGBA', (64, 
+64), (0,0,0,0))
+> hormozi_subtitles.py:1371:                                        draw = ImageDraw.Draw(emoji_img)
+> hormozi_subtitles.py:1372:                                        draw.text((8, 8), emo, 
+font=emoji_font, fill=(255,255,255,255))
+  hormozi_subtitles.py:1373:                                        # Convertir et overlay
+> hormozi_subtitles.py:1374:                                        emoji_arr = np.array(emoji_img)
+  hormozi_subtitles.py:1375:                                        # Position plus discrète
+  hormozi_subtitles.py:1376:                                        h,w_ = out_bgr.shape[:2]
+  hormozi_subtitles.py:1377:                                        x_pos = max(32, w_ - 120)
+  hormozi_subtitles.py:1380:                                        for c in range(3):
+  hormozi_subtitles.py:1381:                                            out_bgr[y_pos:y_pos+64, 
+x_pos:x_pos+64, c] = (
+  hormozi_subtitles.py:1382:                                                out_bgr[y_pos:y_pos+64, 
+x_pos:x_pos+64, c] * 0.3 +
+> hormozi_subtitles.py:1383:                                                emoji_arr[:,:,c] * 0.7
+  hormozi_subtitles.py:1384:                                            ).astype(out_bgr.dtype)
+  hormozi_subtitles.py:1385:                                    except Exception:
+> hormozi_subtitles.py:1386:                                        pass  # Fallback silencieux si 
+émoji unicode échoue
+  hormozi_subtitles.py:1387:            except Exception:
+  hormozi_subtitles.py:1388:                pass
+  hormozi_subtitles.py:1389:            return cv2.cvtColor(out_bgr, cv2.COLOR_BGR2RGB)
+  hormozi_subtitles.py:1390:        # 🚨 CORRECTION BUG: Utiliser apply_to=None pour éviter les 
+problèmes de dimensions
+> hormozi_subtitles.py:1391:        final_video = video.fl(apply_subtitles, apply_to=None)
+  hormozi_subtitles.py:1392:        print("💾 Export vidéo finale...")
+  hormozi_subtitles.py:1393:        
+  hormozi_subtitles.py:1394:        # 🚨 CORRECTION BUG: S'assurer que les dimensions finales sont 
+paires pour H.264
+  hormozi_subtitles.py:1409:                final_video = final_video.resize((final_width, 
+final_height))
+  hormozi_subtitles.py:1410:        except Exception as e:
+  hormozi_subtitles.py:1411:            print(f"    ⚠️ Erreur correction dimensions: {e}")
+> hormozi_subtitles.py:1412:            # Fallback: redimensionner à la taille cible standard
+  hormozi_subtitles.py:1413:            try:
+  hormozi_subtitles.py:1414:                final_video = final_video.resize((720, 1280))
+> hormozi_subtitles.py:1415:                print("    🔧 Fallback: redimensionnement à 720x1280")
+  hormozi_subtitles.py:1416:            except Exception:
+  hormozi_subtitles.py:1417:                pass
+  hormozi_subtitles.py:1418:        
+  hormozi_subtitles.py:1426:        )
+  hormozi_subtitles.py:1427:        video.close(); final_video.close()
+  hormozi_subtitles.py:1428:        print(f"✅ Sous-titres Hormozi ajoutés : {output_video_path}") 
+> hormozi_subtitles.py:1429:        # Export tokens JSON à côté
+  hormozi_subtitles.py:1430:        try:
+> hormozi_subtitles.py:1431:            self.export_tokens_json(groups, 
+str(Path(output_video_path).with_suffix('.tokens.json')))
+  hormozi_subtitles.py:1432:        except Exception:
+  hormozi_subtitles.py:1433:            pass
+  hormozi_subtitles.py:1434:
+  hormozi_subtitles.py:1456:                        r,g,b = [int(c*2,16) for c in h]
+  hormozi_subtitles.py:1457:                    else:
+  hormozi_subtitles.py:1458:                        r = int(h[0:2],16); g=int(h[2:4],16); 
+b=int(h[4:6],16)
+> hormozi_subtitles.py:1459:                    self.keyword_colors[kw.lower()] = (r,g,b)
+  hormozi_subtitles.py:1460:        except Exception:
+  hormozi_subtitles.py:1461:            pass
+  hormozi_subtitles.py:1462:    
+> hormozi_subtitles.py:1463:    def get_smart_color_for_keyword(self, keyword: str, text: str = "", 
+intensity: float = 1.0) -> str:
+  hormozi_subtitles.py:1464:        """Obtient une couleur intelligente pour un mot-clé (nouveau 
+système)"""
+  hormozi_subtitles.py:1465:        if self.SMART_SYSTEMS_AVAILABLE:
+  hormozi_subtitles.py:1466:            try:
+> hormozi_subtitles.py:1467:                result = self.smart_colors.get_color_for_keyword(keyword, 
+text, intensity)
+  hormozi_subtitles.py:1468:                return result
+  hormozi_subtitles.py:1469:            except Exception as e:
+  hormozi_subtitles.py:1470:                print(f"🔍 DEBUG SMART: Erreur: {e}")
+  hormozi_subtitles.py:1471:                pass
+  hormozi_subtitles.py:1472:        
+> hormozi_subtitles.py:1473:        # Fallback : système classique
+> hormozi_subtitles.py:1474:        if keyword.lower() in self.keyword_colors:
+> hormozi_subtitles.py:1475:            r, g, b = self.keyword_colors[keyword.lower()]
+  hormozi_subtitles.py:1476:            return f"#{r:02x}{g:02x}{b:02x}"
+  hormozi_subtitles.py:1477:        
+> hormozi_subtitles.py:1478:        # Fallback : couleur par défaut
+  hormozi_subtitles.py:1479:        return self._default_category_color
+  hormozi_subtitles.py:1480:    
+> hormozi_subtitles.py:1481:    def get_contextual_emoji_for_keyword(self, keyword: str, text: str = 
+"", sentiment: str = "neutral", intensity: float = 1.0) -> str:
+  hormozi_subtitles.py:1482:        """MAPPING AUTHENTIQUE HORMOZI 1 POUR TIKTOK VIRAL"""
+> hormozi_subtitles.py:1483:        keyword_lower = keyword.lower().strip()
+  hormozi_subtitles.py:1484:        
+  hormozi_subtitles.py:1485:        # 🔥 MAPPING HORMOZI 1 AUTHENTIQUE BASÉ SUR TIKTOK
+> hormozi_subtitles.py:1486:        hormozi_emoji_map = {
+  hormozi_subtitles.py:1487:            # 💰 ARGENT & BUSINESS (couleur signature Hormozi)
+  hormozi_subtitles.py:1488:            'money': '💰', 'cash': '💸', 'profit': '💰', 'revenue': '💰', 
+'wealth': '💰',
+  hormozi_subtitles.py:1489:            'business': '💼', 'sales': '💰', 'income': '💰', 'rich': '💰', 
+'expensive': '💸',
+  hormozi_subtitles.py:1554:        }
+  hormozi_subtitles.py:1555:        
+  hormozi_subtitles.py:1556:        # Recherche directe dans le mapping Hormozi
+> hormozi_subtitles.py:1557:        if keyword_lower in hormozi_emoji_map:
+> hormozi_subtitles.py:1558:            return hormozi_emoji_map[keyword_lower]
+  hormozi_subtitles.py:1559:        
+> hormozi_subtitles.py:1560:        # Mots de liaison = PAS d'emoji (style Hormozi authentique)
+  hormozi_subtitles.py:1561:        linking_words = {
+  hormozi_subtitles.py:1562:            'the', 'and', 'or', 'but', 'if', 'then', 'when', 'where', 
+'how', 'why',
+  hormozi_subtitles.py:1563:            'what', 'who', 'which', 'that', 'this', 'these', 'those', 
+'with', 'without',
+  hormozi_subtitles.py:1564:            'from', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'about', 
+'into', 'through'
+  hormozi_subtitles.py:1565:        }
+> hormozi_subtitles.py:1566:        if keyword_lower in linking_words:
+  hormozi_subtitles.py:1567:            return ""
+  hormozi_subtitles.py:1568:        
+> hormozi_subtitles.py:1569:        # Fallback intelligent par contexte
+  hormozi_subtitles.py:1570:        if 'money' in text.lower() or 'business' in text.lower():
+  hormozi_subtitles.py:1571:            return '💰'
+  hormozi_subtitles.py:1572:        elif 'success' in text.lower() or 'win' in text.lower():
+  hormozi_subtitles.py:1576:        elif 'learn' in text.lower() or 'education' in text.lower():
+  hormozi_subtitles.py:1577:            return '🧠'
+  hormozi_subtitles.py:1578:        
+> hormozi_subtitles.py:1579:        # Pas d'emoji pour les mots non pertinents (style Hormozi)
+  hormozi_subtitles.py:1580:        return ""
+  hormozi_subtitles.py:1581:    
+> hormozi_subtitles.py:1582:    def load_emoji_png_improved(self, emoji_char: str, size: int = 64) -> 
+Path | None:
+> hormozi_subtitles.py:1583:        """NOUVEAU : Chargement amélioré des emojis PNG avec fallback 
+robuste"""
+  hormozi_subtitles.py:1584:        try:
+  hormozi_subtitles.py:1585:            # Vérifier le cache d'abord
+> hormozi_subtitles.py:1586:            if emoji_char in self.emoji_png_cache:
+> hormozi_subtitles.py:1587:                return self.emoji_png_cache[emoji_char]
+  hormozi_subtitles.py:1588:            
+  hormozi_subtitles.py:1589:            # Essayer le mapping direct
+> hormozi_subtitles.py:1590:            filename = self.emoji_mapping.get(emoji_char)
+  hormozi_subtitles.py:1591:            if not filename:
+> hormozi_subtitles.py:1592:                # Fallback : générer le nom de fichier à partir du code 
+Unicode
+> hormozi_subtitles.py:1593:                filename = f"{ord(emoji_char):x}.png"
+  hormozi_subtitles.py:1594:            
+  hormozi_subtitles.py:1595:            # Construire le chemin
+> hormozi_subtitles.py:1596:            emoji_path = Path("emoji_assets") / filename
+  hormozi_subtitles.py:1597:            
+  hormozi_subtitles.py:1598:            # Vérifier l'existence
+> hormozi_subtitles.py:1599:            if emoji_path.exists():
+  hormozi_subtitles.py:1600:                # Mettre en cache
+> hormozi_subtitles.py:1601:                self.emoji_png_cache[emoji_char] = emoji_path
+> hormozi_subtitles.py:1602:                print(f"✅ Emoji PNG chargé: {emoji_char} → {filename}")
+> hormozi_subtitles.py:1603:                return emoji_path
+  hormozi_subtitles.py:1604:            else:
+> hormozi_subtitles.py:1605:                print(f"⚠️ Emoji PNG manquant: {emoji_char} → {filename}")
+  hormozi_subtitles.py:1606:                return None
+  hormozi_subtitles.py:1607:                
+  hormozi_subtitles.py:1608:        except Exception as e:
+> hormozi_subtitles.py:1609:            print(f"❌ Erreur chargement emoji PNG: {e}")
+  hormozi_subtitles.py:1610:            return None
+  hormozi_subtitles.py:1611:    
+> hormozi_subtitles.py:1612:    def get_emoji_display_improved(self, emoji_char: str, 
+fallback_to_text: bool = True) -> str:
+> hormozi_subtitles.py:1613:        """NOUVEAU : Obtient l'affichage optimal d'un emoji avec 
+fallback"""
+  hormozi_subtitles.py:1614:        # Essayer PNG d'abord
+> hormozi_subtitles.py:1615:        png_path = self.load_emoji_png_improved(emoji_char)
+  hormozi_subtitles.py:1616:        if png_path:
+  hormozi_subtitles.py:1617:            return f"PNG:{png_path}"
+  hormozi_subtitles.py:1618:        
+> hormozi_subtitles.py:1619:        # Fallback vers police système
+> hormozi_subtitles.py:1620:        if fallback_to_text:
+> hormozi_subtitles.py:1621:            return emoji_char
+  hormozi_subtitles.py:1622:        
+> hormozi_subtitles.py:1623:        # Fallback vers emoji générique
+  hormozi_subtitles.py:1624:        return "✨"
+  hormozi_subtitles.py:1625:
+> hormozi_subtitles.py:1626:    def overlay_big_emoji(self, frame_bgr: np.ndarray, emoji_png_path: 
+str, x: int, y: int, scale: float = 1.0) -> np.ndarray:
+> hormozi_subtitles.py:1627:        """Superpose un gros emoji PNG sur le frame pour simuler un 
+big-emoji.
+  hormozi_subtitles.py:1628:        """
+  hormozi_subtitles.py:1629:        try:
+> hormozi_subtitles.py:1630:            if not os.path.exists(emoji_png_path):
+  hormozi_subtitles.py:1631:                return frame_bgr
+> hormozi_subtitles.py:1632:            em = Image.open(emoji_png_path).convert('RGBA')
+  hormozi_subtitles.py:1633:            if scale != 1.0:
+  hormozi_subtitles.py:1634:                em = em.resize((int(em.size[0]*scale), 
+int(em.size[1]*scale)), Image.LANCZOS)
+  hormozi_subtitles.py:1635:            h,w = frame_bgr.shape[:2]
+  hormozi_subtitles.py:1646:            return frame_bgr
+  hormozi_subtitles.py:1647:
+  hormozi_subtitles.py:1648:# Compat pour import externe
+> hormozi_subtitles.py:1649:HormoziSubtitleProcessor = HormoziSubtitles
+  hormozi_subtitles.py:1650:
+  hormozi_subtitles.py:1651:
+> hormozi_subtitles.py:1652:def add_hormozi_subtitles(input_video_path: str,
+  hormozi_subtitles.py:1653:                          transcription_data: List[Dict],
+  hormozi_subtitles.py:1654:                          output_video_path: str,
+  hormozi_subtitles.py:1655:                          **kwargs) -> None:
+  hormozi_subtitles.py:1656:    """Wrapper compatible attendu par video_processor.py."""
+> hormozi_subtitles.py:1657:    subtitle_settings = kwargs.pop('subtitle_settings', None)
+> hormozi_subtitles.py:1658:    font_path_override = kwargs.pop('font_path', None)
+> hormozi_subtitles.py:1659:    font_candidates = [font_path_override] if font_path_override else None
+> hormozi_subtitles.py:1660:    proc = HormoziSubtitles(subtitle_settings=subtitle_settings, 
+font_candidates=font_candidates)
+  hormozi_subtitles.py:1661:    # Appliquer options simples si fournies
+> hormozi_subtitles.py:1662:    for key in ['font_size', 'margin_bottom', 'bounce_scale', 
+'enable_emojis', 'emoji_boost', 'keyword_background', 'emoji_png_only', 'emoji_density_non_keyword', 
+'emoji_density_keyword', 'emoji_min_gap_groups']:
+  hormozi_subtitles.py:1663:        if key in kwargs:
+  hormozi_subtitles.py:1664:            proc.config[key] = kwargs[key]
+  hormozi_subtitles.py:1665:    # Brand kit si fourni
+  hormozi_subtitles.py:1666:    if 'brand_kit' in kwargs:
+  hormozi_subtitles.py:1667:        proc.apply_brand_kit(kwargs['brand_kit'])
+  hormozi_subtitles.py:1668:    # Mises à jour mapping
+> hormozi_subtitles.py:1669:    if 'keyword_colors' in kwargs and isinstance(kwargs['keyword_colors'], 
+dict):
+> hormozi_subtitles.py:1670:        proc.keyword_colors.update(kwargs['keyword_colors'])
+  hormozi_subtitles.py:1671:    # Palette riche multi-couleurs
+  hormozi_subtitles.py:1672:    if 'span_style_map' in kwargs and isinstance(kwargs['span_style_map'], 
+dict):
+  hormozi_subtitles.py:1673:        proc.apply_span_style_map(kwargs['span_style_map'])
+> hormozi_subtitles.py:1674:        # stocker pour overlay emoji
+  hormozi_subtitles.py:1675:        proc.span_style_map = kwargs['span_style_map']
+> hormozi_subtitles.py:1676:    if 'emoji_mapping' in kwargs and isinstance(kwargs['emoji_mapping'], 
+dict):
+> hormozi_subtitles.py:1677:        proc.emoji_mapping.update(kwargs['emoji_mapping'])
+  hormozi_subtitles.py:1678:    # Exécuter
+> hormozi_subtitles.py:1679:    proc.add_hormozi_subtitles(input_video_path, transcription_data, 
+output_video_path) 
+
+

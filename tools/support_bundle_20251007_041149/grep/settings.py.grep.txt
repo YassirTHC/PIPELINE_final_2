@@ -1,0 +1,523 @@
+﻿
+  video_pipeline\config\settings.py:1:"""Strongly typed configuration loader for the video pipeline."""
+  video_pipeline\config\settings.py:2:from __future__ import annotations
+  video_pipeline\config\settings.py:3:
+> video_pipeline\config\settings.py:4:import json
+  video_pipeline\config\settings.py:5:import logging
+  video_pipeline\config\settings.py:6:import os
+  video_pipeline\config\settings.py:7:from dataclasses import dataclass
+  video_pipeline\config\settings.py:112:
+  video_pipeline\config\settings.py:113:@dataclass(slots=True)
+  video_pipeline\config\settings.py:114:class LLMSettings:
+> video_pipeline\config\settings.py:115:    model: str
+> video_pipeline\config\settings.py:116:    model_json: str
+> video_pipeline\config\settings.py:117:    model_text: str
+> video_pipeline\config\settings.py:118:    endpoint: str
+  video_pipeline\config\settings.py:119:    base_url: str
+  video_pipeline\config\settings.py:120:    keep_alive: str
+> video_pipeline\config\settings.py:121:    timeout_stream_s: float
+> video_pipeline\config\settings.py:122:    timeout_fallback_s: float
+  video_pipeline\config\settings.py:123:    min_chars: int
+  video_pipeline\config\settings.py:124:    max_attempts: int
+  video_pipeline\config\settings.py:125:    num_predict: int
+  video_pipeline\config\settings.py:127:    top_p: float
+  video_pipeline\config\settings.py:128:    repeat_penalty: float
+  video_pipeline\config\settings.py:129:    num_ctx: int
+> video_pipeline\config\settings.py:130:    fallback_trunc: int
+> video_pipeline\config\settings.py:131:    force_non_stream: bool
+> video_pipeline\config\settings.py:132:    keywords_first: bool
+  video_pipeline\config\settings.py:133:    disable_hashtags: bool
+  video_pipeline\config\settings.py:134:    target_lang: str
+> video_pipeline\config\settings.py:135:    json_prompt: Optional[str]
+> video_pipeline\config\settings.py:136:    json_mode: bool
+> video_pipeline\config\settings.py:137:    json_transcript_limit: Optional[int]
+  video_pipeline\config\settings.py:138:
+  video_pipeline\config\settings.py:139:    @property
+> video_pipeline\config\settings.py:140:    def effective_json_model(self) -> str:
+> video_pipeline\config\settings.py:141:        return self.model_json or self.model
+  video_pipeline\config\settings.py:142:
+  video_pipeline\config\settings.py:143:    @property
+> video_pipeline\config\settings.py:144:    def effective_text_model(self) -> str:
+> video_pipeline\config\settings.py:145:        return self.model_text or self.model
+  video_pipeline\config\settings.py:146:
+  video_pipeline\config\settings.py:147:
+  video_pipeline\config\settings.py:148:@dataclass(slots=True)
+  video_pipeline\config\settings.py:149:class FetchSettings:
+> video_pipeline\config\settings.py:150:    timeout_s: float
+> video_pipeline\config\settings.py:151:    max_per_keyword: int
+  video_pipeline\config\settings.py:152:    allow_images: bool
+  video_pipeline\config\settings.py:153:    allow_videos: bool
+> video_pipeline\config\settings.py:154:    providers: List[str]
+  video_pipeline\config\settings.py:155:    provider_limits: Dict[str, int]
+  video_pipeline\config\settings.py:156:    api_keys: Dict[str, Optional[str]]
+  video_pipeline\config\settings.py:157:
+  video_pipeline\config\settings.py:158:
+  video_pipeline\config\settings.py:159:@dataclass(slots=True)
+> video_pipeline\config\settings.py:160:class BrollSettings:
+> video_pipeline\config\settings.py:161:    min_start_s: float = 2.0
+> video_pipeline\config\settings.py:162:    min_gap_s: float = 1.5
+> video_pipeline\config\settings.py:163:    no_repeat_s: float = 6.0
+  video_pipeline\config\settings.py:164:
+  video_pipeline\config\settings.py:165:
+  video_pipeline\config\settings.py:166:@dataclass(slots=True)
+> video_pipeline\config\settings.py:167:class SubtitleSettings:
+> video_pipeline\config\settings.py:168:    font_path: Optional[str]
+> video_pipeline\config\settings.py:169:    font: Optional[str] = None
+> video_pipeline\config\settings.py:170:    font_size: int = 78
+> video_pipeline\config\settings.py:171:    subtitle_safe_margin_px: int = 180
+> video_pipeline\config\settings.py:172:    keyword_background: bool = False
+  video_pipeline\config\settings.py:173:    stroke_px: int = 6
+  video_pipeline\config\settings.py:174:    shadow_opacity: float = 0.35
+  video_pipeline\config\settings.py:175:    shadow_offset: int = 3
+> video_pipeline\config\settings.py:176:    enable_emojis: bool = True
+> video_pipeline\config\settings.py:177:    emoji_target_per_10: int = 5
+> video_pipeline\config\settings.py:178:    emoji_min_gap_groups: int = 2
+> video_pipeline\config\settings.py:179:    emoji_max_per_segment: int = 3
+> video_pipeline\config\settings.py:180:    emoji_no_context_fallback: str = ""
+> video_pipeline\config\settings.py:181:    hero_emoji_enable: bool = True
+> video_pipeline\config\settings.py:182:    hero_emoji_max_per_segment: int = 1
+  video_pipeline\config\settings.py:183:
+  video_pipeline\config\settings.py:184:
+  video_pipeline\config\settings.py:185:@dataclass(slots=True)
+  video_pipeline\config\settings.py:187:    clips_dir: Path
+  video_pipeline\config\settings.py:188:    output_dir: Path
+  video_pipeline\config\settings.py:189:    temp_dir: Path
+> video_pipeline\config\settings.py:190:    tfidf_fallback_disabled: bool
+  video_pipeline\config\settings.py:191:    llm_max_queries_per_segment: int
+  video_pipeline\config\settings.py:192:    fast_tests: bool
+  video_pipeline\config\settings.py:193:    max_segments_in_flight: int
+  video_pipeline\config\settings.py:194:    llm: LLMSettings
+  video_pipeline\config\settings.py:195:    fetch: FetchSettings
+> video_pipeline\config\settings.py:196:    broll: BrollSettings
+> video_pipeline\config\settings.py:197:    subtitles: SubtitleSettings
+  video_pipeline\config\settings.py:198:
+  video_pipeline\config\settings.py:199:    def to_log_payload(self) -> Dict[str, object]:
+  video_pipeline\config\settings.py:200:        payload: Dict[str, object] = {
+  video_pipeline\config\settings.py:204:                "temp_dir": str(self.temp_dir),
+  video_pipeline\config\settings.py:205:            },
+  video_pipeline\config\settings.py:206:            "llm": {
+> video_pipeline\config\settings.py:207:                "model": self.llm.model,
+> video_pipeline\config\settings.py:208:                "model_json": self.llm.effective_json_model,
+> video_pipeline\config\settings.py:209:                "model_text": self.llm.effective_text_model,
+> video_pipeline\config\settings.py:210:                "endpoint": self.llm.endpoint,
+  video_pipeline\config\settings.py:211:                "keep_alive": self.llm.keep_alive,
+> video_pipeline\config\settings.py:212:                "timeout_stream_s": self.llm.timeout_stream_s,
+> video_pipeline\config\settings.py:213:                "timeout_fallback_s": 
+self.llm.timeout_fallback_s,
+  video_pipeline\config\settings.py:214:                "min_chars": self.llm.min_chars,
+  video_pipeline\config\settings.py:215:                "max_attempts": self.llm.max_attempts,
+  video_pipeline\config\settings.py:216:                "num_predict": self.llm.num_predict,
+  video_pipeline\config\settings.py:218:                "top_p": self.llm.top_p,
+  video_pipeline\config\settings.py:219:                "repeat_penalty": self.llm.repeat_penalty,
+  video_pipeline\config\settings.py:220:                "num_ctx": self.llm.num_ctx,
+> video_pipeline\config\settings.py:221:                "fallback_trunc": self.llm.fallback_trunc,
+> video_pipeline\config\settings.py:222:                "force_non_stream": self.llm.force_non_stream,
+> video_pipeline\config\settings.py:223:                "keywords_first": self.llm.keywords_first,
+  video_pipeline\config\settings.py:224:                "disable_hashtags": self.llm.disable_hashtags,
+  video_pipeline\config\settings.py:225:                "target_lang": self.llm.target_lang,
+> video_pipeline\config\settings.py:226:                "json_mode": self.llm.json_mode,
+> video_pipeline\config\settings.py:227:                "json_transcript_limit": 
+self.llm.json_transcript_limit,
+  video_pipeline\config\settings.py:228:            },
+  video_pipeline\config\settings.py:229:            "fetch": {
+> video_pipeline\config\settings.py:230:                "timeout_s": self.fetch.timeout_s,
+> video_pipeline\config\settings.py:231:                "max_per_keyword": self.fetch.max_per_keyword,
+  video_pipeline\config\settings.py:232:                "allow_images": self.fetch.allow_images,
+  video_pipeline\config\settings.py:233:                "allow_videos": self.fetch.allow_videos,
+> video_pipeline\config\settings.py:234:                "providers": list(self.fetch.providers),
+  video_pipeline\config\settings.py:235:                "provider_limits": 
+dict(self.fetch.provider_limits),
+  video_pipeline\config\settings.py:236:            },
+> video_pipeline\config\settings.py:237:            "broll": {
+> video_pipeline\config\settings.py:238:                "min_start_s": self.broll.min_start_s,
+> video_pipeline\config\settings.py:239:                "min_gap_s": self.broll.min_gap_s,
+> video_pipeline\config\settings.py:240:                "no_repeat_s": self.broll.no_repeat_s,
+  video_pipeline\config\settings.py:241:            },
+> video_pipeline\config\settings.py:242:            "subtitles": {
+> video_pipeline\config\settings.py:243:                "font_path": self.subtitles.font_path,
+> video_pipeline\config\settings.py:244:                "font": self.subtitles.font,
+> video_pipeline\config\settings.py:245:                "font_size": self.subtitles.font_size,
+> video_pipeline\config\settings.py:246:                "subtitle_safe_margin_px": 
+self.subtitles.subtitle_safe_margin_px,
+> video_pipeline\config\settings.py:247:                "keyword_background": 
+self.subtitles.keyword_background,
+> video_pipeline\config\settings.py:248:                "enable_emojis": self.subtitles.enable_emojis,
+> video_pipeline\config\settings.py:249:                "stroke_px": self.subtitles.stroke_px,
+> video_pipeline\config\settings.py:250:                "shadow_opacity": 
+self.subtitles.shadow_opacity,
+> video_pipeline\config\settings.py:251:                "shadow_offset": self.subtitles.shadow_offset,
+> video_pipeline\config\settings.py:252:                "emoji_target_per_10": 
+self.subtitles.emoji_target_per_10,
+> video_pipeline\config\settings.py:253:                "emoji_min_gap_groups": 
+self.subtitles.emoji_min_gap_groups,
+> video_pipeline\config\settings.py:254:                "emoji_max_per_segment": 
+self.subtitles.emoji_max_per_segment,
+> video_pipeline\config\settings.py:255:                "emoji_no_context_fallback": 
+self.subtitles.emoji_no_context_fallback,
+> video_pipeline\config\settings.py:256:                "hero_emoji_enable": 
+self.subtitles.hero_emoji_enable,
+> video_pipeline\config\settings.py:257:                "hero_emoji_max_per_segment": 
+self.subtitles.hero_emoji_max_per_segment,
+  video_pipeline\config\settings.py:258:            },
+  video_pipeline\config\settings.py:259:            "flags": {
+> video_pipeline\config\settings.py:260:                "tfidf_fallback_disabled": 
+self.tfidf_fallback_disabled,
+  video_pipeline\config\settings.py:261:                "llm_max_queries_per_segment": 
+self.llm_max_queries_per_segment,
+  video_pipeline\config\settings.py:262:                "fast_tests": self.fast_tests,
+  video_pipeline\config\settings.py:263:                "max_segments_in_flight": 
+self.max_segments_in_flight,
+  video_pipeline\config\settings.py:308:def _tfidf_disabled(source: Optional[Mapping[str, str]]) -> 
+bool:
+  video_pipeline\config\settings.py:309:    flag = _resolve_bool_env(
+  video_pipeline\config\settings.py:310:        source,
+> video_pipeline\config\settings.py:311:        "PIPELINE_TFIDF_FALLBACK_DISABLED",
+> video_pipeline\config\settings.py:312:        "PIPELINE_DISABLE_TFIDF_FALLBACK",
+  video_pipeline\config\settings.py:313:        default=False,
+  video_pipeline\config\settings.py:314:    )
+  video_pipeline\config\settings.py:315:    return bool(flag)
+  video_pipeline\config\settings.py:316:
+  video_pipeline\config\settings.py:317:
+  video_pipeline\config\settings.py:318:def _llm_settings(env: Optional[Mapping[str, str]]) -> 
+LLMSettings:
+> video_pipeline\config\settings.py:319:    model = _clean_text(_env(env, "PIPELINE_LLM_MODEL", 
+"qwen2.5:7b") or "qwen2.5:7b")
+> video_pipeline\config\settings.py:320:    model_json = _clean_text(_env(env, 
+"PIPELINE_LLM_MODEL_JSON", "") or "")
+> video_pipeline\config\settings.py:321:    model_text = _clean_text(_env(env, 
+"PIPELINE_LLM_MODEL_TEXT", "") or "")
+> video_pipeline\config\settings.py:322:    endpoint = _clean_text(
+> video_pipeline\config\settings.py:323:        _env(env, "PIPELINE_LLM_ENDPOINT")
+  video_pipeline\config\settings.py:324:        or _env(env, "PIPELINE_LLM_BASE_URL")
+  video_pipeline\config\settings.py:325:        or "http://localhost:11434"
+  video_pipeline\config\settings.py:326:    )
+  video_pipeline\config\settings.py:327:    keep_alive = _clean_text(_env(env, 
+"PIPELINE_LLM_KEEP_ALIVE", "30m") or "30m")
+> video_pipeline\config\settings.py:328:    timeout_stream_s = _coerce_float(
+> video_pipeline\config\settings.py:329:        _env(env, "PIPELINE_LLM_TIMEOUT_S", "60"),
+  video_pipeline\config\settings.py:330:        60.0,
+  video_pipeline\config\settings.py:331:        minimum=0.0,
+  video_pipeline\config\settings.py:332:    )
+> video_pipeline\config\settings.py:333:    timeout_fallback_s = _coerce_float(
+> video_pipeline\config\settings.py:334:        _env(env, "PIPELINE_LLM_FALLBACK_TIMEOUT_S", "45"),
+  video_pipeline\config\settings.py:335:        45.0,
+  video_pipeline\config\settings.py:336:        minimum=0.0,
+  video_pipeline\config\settings.py:337:    )
+  video_pipeline\config\settings.py:370:        4096,
+  video_pipeline\config\settings.py:371:        minimum=1,
+  video_pipeline\config\settings.py:372:    )
+> video_pipeline\config\settings.py:373:    fallback_trunc = _coerce_int(
+> video_pipeline\config\settings.py:374:        _env(env, "PIPELINE_LLM_FALLBACK_TRUNC", "3500"),
+  video_pipeline\config\settings.py:375:        3500,
+  video_pipeline\config\settings.py:376:        minimum=0,
+  video_pipeline\config\settings.py:377:    )
+> video_pipeline\config\settings.py:378:    force_non_stream = _resolve_bool_env(
+  video_pipeline\config\settings.py:379:        env,
+> video_pipeline\config\settings.py:380:        "PIPELINE_LLM_FORCE_NON_STREAM",
+  video_pipeline\config\settings.py:381:        default=False,
+  video_pipeline\config\settings.py:382:    )
+> video_pipeline\config\settings.py:383:    keywords_first = _resolve_bool_env(
+  video_pipeline\config\settings.py:384:        env,
+> video_pipeline\config\settings.py:385:        "PIPELINE_LLM_KEYWORDS_FIRST",
+  video_pipeline\config\settings.py:386:        default=True,
+  video_pipeline\config\settings.py:387:    )
+  video_pipeline\config\settings.py:388:    disable_hashtags = _resolve_bool_env(
+  video_pipeline\config\settings.py:391:        default=False,
+  video_pipeline\config\settings.py:392:    )
+  video_pipeline\config\settings.py:393:    target_lang = _clean_text(_env(env, 
+"PIPELINE_LLM_TARGET_LANG", "en") or "en")
+> video_pipeline\config\settings.py:394:    json_prompt = _clean_text(_env(env, 
+"PIPELINE_LLM_JSON_PROMPT") or "") or None
+> video_pipeline\config\settings.py:395:    json_mode = _resolve_bool_env(
+  video_pipeline\config\settings.py:396:        env,
+> video_pipeline\config\settings.py:397:        "PIPELINE_LLM_JSON_MODE",
+  video_pipeline\config\settings.py:398:        default=False,
+  video_pipeline\config\settings.py:399:    )
+> video_pipeline\config\settings.py:400:    json_transcript_limit_raw = _env(env, 
+"PIPELINE_LLM_JSON_TRANSCRIPT_LIMIT")
+> video_pipeline\config\settings.py:401:    json_transcript_limit: Optional[int]
+> video_pipeline\config\settings.py:402:    if json_transcript_limit_raw:
+> video_pipeline\config\settings.py:403:        json_transcript_limit = _coerce_int(
+> video_pipeline\config\settings.py:404:            json_transcript_limit_raw,
+  video_pipeline\config\settings.py:405:            0,
+  video_pipeline\config\settings.py:406:            minimum=0,
+  video_pipeline\config\settings.py:407:        )
+  video_pipeline\config\settings.py:408:    else:
+> video_pipeline\config\settings.py:409:        json_transcript_limit = None
+  video_pipeline\config\settings.py:410:
+  video_pipeline\config\settings.py:411:    return LLMSettings(
+> video_pipeline\config\settings.py:412:        model=model,
+> video_pipeline\config\settings.py:413:        model_json=model_json,
+> video_pipeline\config\settings.py:414:        model_text=model_text,
+> video_pipeline\config\settings.py:415:        endpoint=endpoint,
+> video_pipeline\config\settings.py:416:        base_url=endpoint,
+  video_pipeline\config\settings.py:417:        keep_alive=keep_alive,
+> video_pipeline\config\settings.py:418:        timeout_stream_s=timeout_stream_s,
+> video_pipeline\config\settings.py:419:        timeout_fallback_s=timeout_fallback_s,
+  video_pipeline\config\settings.py:420:        min_chars=min_chars,
+  video_pipeline\config\settings.py:421:        max_attempts=max_attempts,
+  video_pipeline\config\settings.py:422:        num_predict=num_predict,
+  video_pipeline\config\settings.py:424:        top_p=top_p,
+  video_pipeline\config\settings.py:425:        repeat_penalty=repeat_penalty,
+  video_pipeline\config\settings.py:426:        num_ctx=num_ctx,
+> video_pipeline\config\settings.py:427:        fallback_trunc=fallback_trunc,
+> video_pipeline\config\settings.py:428:        force_non_stream=force_non_stream,
+> video_pipeline\config\settings.py:429:        keywords_first=keywords_first,
+  video_pipeline\config\settings.py:430:        disable_hashtags=disable_hashtags,
+  video_pipeline\config\settings.py:431:        target_lang=target_lang,
+> video_pipeline\config\settings.py:432:        json_prompt=json_prompt,
+> video_pipeline\config\settings.py:433:        json_mode=json_mode,
+> video_pipeline\config\settings.py:434:        json_transcript_limit=json_transcript_limit,
+  video_pipeline\config\settings.py:435:    )
+  video_pipeline\config\settings.py:436:
+  video_pipeline\config\settings.py:437:
+> video_pipeline\config\settings.py:438:def _broll_settings(env: Optional[Mapping[str, str]]) -> 
+BrollSettings:
+> video_pipeline\config\settings.py:439:    return BrollSettings(
+> video_pipeline\config\settings.py:440:        min_start_s=_coerce_float(
+> video_pipeline\config\settings.py:441:            _env(env, "PIPELINE_BROLL_MIN_START_SECONDS", 
+"2.0"),
+  video_pipeline\config\settings.py:442:            2.0,
+  video_pipeline\config\settings.py:443:            minimum=0.0,
+  video_pipeline\config\settings.py:444:        ),
+> video_pipeline\config\settings.py:445:        min_gap_s=_coerce_float(
+> video_pipeline\config\settings.py:446:            _env(env, "PIPELINE_BROLL_MIN_GAP_SECONDS", "1.5"),
+  video_pipeline\config\settings.py:447:            1.5,
+  video_pipeline\config\settings.py:448:            minimum=0.0,
+  video_pipeline\config\settings.py:449:        ),
+> video_pipeline\config\settings.py:450:        no_repeat_s=_coerce_float(
+> video_pipeline\config\settings.py:451:            _env(env, "PIPELINE_BROLL_NO_REPEAT_SECONDS", 
+"6.0"),
+  video_pipeline\config\settings.py:452:            6.0,
+  video_pipeline\config\settings.py:453:            minimum=0.0,
+  video_pipeline\config\settings.py:454:        ),
+  video_pipeline\config\settings.py:455:    )
+  video_pipeline\config\settings.py:456:
+  video_pipeline\config\settings.py:457:
+> video_pipeline\config\settings.py:458:def _subtitle_settings(env: Optional[Mapping[str, str]]) -> 
+SubtitleSettings:
+  video_pipeline\config\settings.py:459:    repo_root = Path(__file__).resolve().parents[2]
+  video_pipeline\config\settings.py:460:
+> video_pipeline\config\settings.py:461:    override = _env(env, "PIPELINE_SUB_FONT_PATH")
+  video_pipeline\config\settings.py:462:    if not override:
+> video_pipeline\config\settings.py:463:        override = _env(env, "PIPELINE_SUBTITLE_FONT_PATH")
+  video_pipeline\config\settings.py:464:
+  video_pipeline\config\settings.py:465:    candidate_paths = []
+  video_pipeline\config\settings.py:466:    if override:
+  video_pipeline\config\settings.py:467:        
+candidate_paths.append(Path(str(override)).expanduser())
+  video_pipeline\config\settings.py:468:
+> video_pipeline\config\settings.py:469:    assets_dir = repo_root / "assets" / "fonts"
+  video_pipeline\config\settings.py:470:    candidate_paths.extend(
+  video_pipeline\config\settings.py:471:        [
+  video_pipeline\config\settings.py:472:            assets_dir / "Montserrat-ExtraBold.ttf",
+  video_pipeline\config\settings.py:475:    )
+  video_pipeline\config\settings.py:476:    candidate_paths.extend(
+  video_pipeline\config\settings.py:477:        [
+> video_pipeline\config\settings.py:478:            
+Path("/System/Library/Fonts/Montserrat-ExtraBold.ttf"),
+> video_pipeline\config\settings.py:479:            Path("/System/Library/Fonts/Montserrat-Bold.ttf"),
+> video_pipeline\config\settings.py:480:            Path("/Library/Fonts/Montserrat-ExtraBold.ttf"),
+> video_pipeline\config\settings.py:481:            Path("/Library/Fonts/Montserrat-Bold.ttf"),
+> video_pipeline\config\settings.py:482:            Path("C:/Windows/Fonts/Montserrat-ExtraBold.ttf"),
+> video_pipeline\config\settings.py:483:            Path("C:/Windows/Fonts/Montserrat-Bold.ttf"),
+  video_pipeline\config\settings.py:484:        ]
+  video_pipeline\config\settings.py:485:    )
+  video_pipeline\config\settings.py:486:
+> video_pipeline\config\settings.py:487:    resolved_font: Optional[str] = None
+  video_pipeline\config\settings.py:488:    for candidate in candidate_paths:
+  video_pipeline\config\settings.py:489:        try:
+  video_pipeline\config\settings.py:490:            if candidate and candidate.exists():
+> video_pipeline\config\settings.py:491:                resolved_font = str(candidate.resolve())
+  video_pipeline\config\settings.py:492:                break
+  video_pipeline\config\settings.py:493:        except OSError:
+  video_pipeline\config\settings.py:494:            continue
+  video_pipeline\config\settings.py:500:                return value
+  video_pipeline\config\settings.py:501:        return None
+  video_pipeline\config\settings.py:502:
+> video_pipeline\config\settings.py:503:    font_name = _env_preferred("PIPELINE_SUBTITLE_FONT", 
+"PIPELINE_SUB_FONT")
+  video_pipeline\config\settings.py:504:
+> video_pipeline\config\settings.py:505:    font_size = _coerce_int(
+> video_pipeline\config\settings.py:506:        _env_preferred("PIPELINE_SUBTITLE_FONT_SIZE", 
+"PIPELINE_SUB_FONT_SIZE"),
+  video_pipeline\config\settings.py:507:        78,
+  video_pipeline\config\settings.py:508:        minimum=12,
+  video_pipeline\config\settings.py:509:    )
+  video_pipeline\config\settings.py:510:    safe_margin = _coerce_int(
+> video_pipeline\config\settings.py:511:        _env_preferred("PIPELINE_SUBTITLE_SAFE_MARGIN_PX", 
+"PIPELINE_SUB_SAFE_MARGIN_PX"),
+  video_pipeline\config\settings.py:512:        180,
+  video_pipeline\config\settings.py:513:        minimum=0,
+  video_pipeline\config\settings.py:514:    )
+> video_pipeline\config\settings.py:515:    keyword_background = _resolve_bool_env(
+  video_pipeline\config\settings.py:516:        env,
+> video_pipeline\config\settings.py:517:        "PIPELINE_SUBTITLE_KEYWORD_BACKGROUND",
+> video_pipeline\config\settings.py:518:        "PIPELINE_SUB_KEYWORD_BACKGROUND",
+  video_pipeline\config\settings.py:519:        default=False,
+  video_pipeline\config\settings.py:520:    )
+> video_pipeline\config\settings.py:521:    enable_emojis = _resolve_bool_env(
+  video_pipeline\config\settings.py:522:        env,
+> video_pipeline\config\settings.py:523:        "PIPELINE_SUBTITLE_ENABLE_EMOJIS",
+> video_pipeline\config\settings.py:524:        "PIPELINE_SUB_ENABLE_EMOJIS",
+  video_pipeline\config\settings.py:525:        default=True,
+  video_pipeline\config\settings.py:526:    )
+  video_pipeline\config\settings.py:527:    stroke_px = _coerce_int(
+> video_pipeline\config\settings.py:528:        _env_preferred("PIPELINE_SUBTITLE_STROKE_PX", 
+"PIPELINE_SUB_STROKE_PX"),
+  video_pipeline\config\settings.py:529:        6,
+  video_pipeline\config\settings.py:530:        minimum=0,
+  video_pipeline\config\settings.py:531:    )
+  video_pipeline\config\settings.py:532:    shadow_opacity = _coerce_float(
+> video_pipeline\config\settings.py:533:        _env_preferred("PIPELINE_SUBTITLE_SHADOW_OPACITY", 
+"PIPELINE_SUB_SHADOW_OPACITY"),
+  video_pipeline\config\settings.py:534:        0.35,
+  video_pipeline\config\settings.py:535:        minimum=0.0,
+  video_pipeline\config\settings.py:536:    )
+  video_pipeline\config\settings.py:537:    shadow_offset = _coerce_int(
+> video_pipeline\config\settings.py:538:        _env_preferred("PIPELINE_SUBTITLE_SHADOW_OFFSET", 
+"PIPELINE_SUB_SHADOW_OFFSET"),
+  video_pipeline\config\settings.py:539:        3,
+  video_pipeline\config\settings.py:540:        minimum=0,
+  video_pipeline\config\settings.py:541:    )
+> video_pipeline\config\settings.py:542:    emoji_target = _coerce_int(
+> video_pipeline\config\settings.py:543:        
+_env_preferred("PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10", "PIPELINE_SUB_EMOJI_TARGET_PER_10"),
+  video_pipeline\config\settings.py:544:        5,
+  video_pipeline\config\settings.py:545:        minimum=0,
+  video_pipeline\config\settings.py:546:    )
+> video_pipeline\config\settings.py:547:    emoji_min_gap = _coerce_int(
+> video_pipeline\config\settings.py:548:        
+_env_preferred("PIPELINE_SUBTITLE_EMOJI_MIN_GAP_GROUPS", "PIPELINE_SUB_EMOJI_MIN_GAP_GROUPS"),
+  video_pipeline\config\settings.py:549:        2,
+  video_pipeline\config\settings.py:550:        minimum=0,
+  video_pipeline\config\settings.py:551:    )
+> video_pipeline\config\settings.py:552:    emoji_max_segment = _coerce_int(
+> video_pipeline\config\settings.py:553:        
+_env_preferred("PIPELINE_SUBTITLE_EMOJI_MAX_PER_SEGMENT", "PIPELINE_SUB_EMOJI_MAX_PER_SEGMENT"),
+  video_pipeline\config\settings.py:554:        3,
+  video_pipeline\config\settings.py:555:        minimum=0,
+  video_pipeline\config\settings.py:556:    )
+> video_pipeline\config\settings.py:557:    emoji_fallback = _env_preferred(
+> video_pipeline\config\settings.py:558:        "PIPELINE_SUBTITLE_EMOJI_NO_CONTEXT_FALLBACK",
+> video_pipeline\config\settings.py:559:        "PIPELINE_SUB_EMOJI_NO_CONTEXT_FALLBACK",
+  video_pipeline\config\settings.py:560:    ) or ""
+  video_pipeline\config\settings.py:561:    hero_enable = _resolve_bool_env(
+  video_pipeline\config\settings.py:562:        env,
+> video_pipeline\config\settings.py:563:        "PIPELINE_SUBTITLE_HERO_EMOJI_ENABLE",
+> video_pipeline\config\settings.py:564:        "PIPELINE_SUB_HERO_EMOJI_ENABLE",
+  video_pipeline\config\settings.py:565:        default=True,
+  video_pipeline\config\settings.py:566:    )
+  video_pipeline\config\settings.py:567:    hero_max = _coerce_int(
+> video_pipeline\config\settings.py:568:        
+_env_preferred("PIPELINE_SUBTITLE_HERO_EMOJI_MAX_PER_SEGMENT", 
+"PIPELINE_SUB_HERO_EMOJI_MAX_PER_SEGMENT"),
+  video_pipeline\config\settings.py:569:        1,
+  video_pipeline\config\settings.py:570:        minimum=0,
+  video_pipeline\config\settings.py:571:    )
+  video_pipeline\config\settings.py:572:
+> video_pipeline\config\settings.py:573:    return SubtitleSettings(
+> video_pipeline\config\settings.py:574:        font_path=resolved_font,
+> video_pipeline\config\settings.py:575:        font=font_name,
+> video_pipeline\config\settings.py:576:        font_size=font_size,
+> video_pipeline\config\settings.py:577:        subtitle_safe_margin_px=safe_margin,
+> video_pipeline\config\settings.py:578:        keyword_background=keyword_background,
+  video_pipeline\config\settings.py:579:        stroke_px=stroke_px,
+  video_pipeline\config\settings.py:580:        shadow_opacity=shadow_opacity,
+  video_pipeline\config\settings.py:581:        shadow_offset=shadow_offset,
+> video_pipeline\config\settings.py:582:        enable_emojis=enable_emojis,
+> video_pipeline\config\settings.py:583:        emoji_target_per_10=emoji_target,
+> video_pipeline\config\settings.py:584:        emoji_min_gap_groups=emoji_min_gap,
+> video_pipeline\config\settings.py:585:        emoji_max_per_segment=emoji_max_segment,
+> video_pipeline\config\settings.py:586:        emoji_no_context_fallback=emoji_fallback,
+> video_pipeline\config\settings.py:587:        hero_emoji_enable=hero_enable,
+> video_pipeline\config\settings.py:588:        hero_emoji_max_per_segment=hero_max,
+  video_pipeline\config\settings.py:589:    )
+  video_pipeline\config\settings.py:590:
+  video_pipeline\config\settings.py:591:
+  video_pipeline\config\settings.py:592:def _fetch_settings(env: Optional[Mapping[str, str]]) -> 
+FetchSettings:
+> video_pipeline\config\settings.py:593:    providers = _split_csv(
+> video_pipeline\config\settings.py:594:        _env(env, "BROLL_FETCH_PROVIDER")
+> video_pipeline\config\settings.py:595:        or _env(env, "AI_BROLL_FETCH_PROVIDER")
+  video_pipeline\config\settings.py:596:    )
+> video_pipeline\config\settings.py:597:    if not providers:
+> video_pipeline\config\settings.py:598:        providers = ["pixabay"]
+  video_pipeline\config\settings.py:599:
+  video_pipeline\config\settings.py:600:    provider_limits: Dict[str, int] = {}
+> video_pipeline\config\settings.py:601:    for provider in providers:
+> video_pipeline\config\settings.py:602:        key = f"BROLL_{provider.upper()}_MAX_PER_KEYWORD"
+  video_pipeline\config\settings.py:603:        limit = _resolve_optional_int(env, key, minimum=1)
+  video_pipeline\config\settings.py:604:        if limit is not None:
+  video_pipeline\config\settings.py:605:            provider_limits[provider] = limit
+  video_pipeline\config\settings.py:606:
+> video_pipeline\config\settings.py:607:    timeout_s = _coerce_float(
+> video_pipeline\config\settings.py:608:        _env(env, "PIPELINE_FETCH_TIMEOUT_S", "8"),
+  video_pipeline\config\settings.py:609:        8.0,
+  video_pipeline\config\settings.py:610:        minimum=0.0,
+  video_pipeline\config\settings.py:611:    )
+  video_pipeline\config\settings.py:614:        8,
+  video_pipeline\config\settings.py:615:        minimum=1,
+  video_pipeline\config\settings.py:616:    )
+> video_pipeline\config\settings.py:617:    max_per_keyword = _coerce_int(
+> video_pipeline\config\settings.py:618:        _env(env, "BROLL_FETCH_MAX_PER_KEYWORD"),
+  video_pipeline\config\settings.py:619:        default_max,
+  video_pipeline\config\settings.py:620:        minimum=1,
+  video_pipeline\config\settings.py:621:    )
+> video_pipeline\config\settings.py:622:    allow_images = _resolve_bool_env(env, 
+"BROLL_FETCH_ALLOW_IMAGES", default=True)
+> video_pipeline\config\settings.py:623:    allow_videos = _resolve_bool_env(env, 
+"BROLL_FETCH_ALLOW_VIDEOS", default=True)
+  video_pipeline\config\settings.py:624:
+  video_pipeline\config\settings.py:625:    api_keys: Dict[str, Optional[str]] = {
+  video_pipeline\config\settings.py:626:        "PEXELS_API_KEY": _env(env, "PEXELS_API_KEY"),
+  video_pipeline\config\settings.py:629:    }
+  video_pipeline\config\settings.py:630:
+  video_pipeline\config\settings.py:631:    return FetchSettings(
+> video_pipeline\config\settings.py:632:        timeout_s=timeout_s,
+> video_pipeline\config\settings.py:633:        max_per_keyword=max_per_keyword,
+  video_pipeline\config\settings.py:634:        allow_images=allow_images,
+  video_pipeline\config\settings.py:635:        allow_videos=allow_videos,
+> video_pipeline\config\settings.py:636:        providers=providers,
+  video_pipeline\config\settings.py:637:        provider_limits=provider_limits,
+  video_pipeline\config\settings.py:638:        api_keys=api_keys,
+  video_pipeline\config\settings.py:639:    )
+  video_pipeline\config\settings.py:646:
+  video_pipeline\config\settings.py:647:    llm = _llm_settings(env)
+  video_pipeline\config\settings.py:648:    fetch = _fetch_settings(env)
+> video_pipeline\config\settings.py:649:    broll = _broll_settings(env)
+> video_pipeline\config\settings.py:650:    subtitles = _subtitle_settings(env)
+  video_pipeline\config\settings.py:651:
+  video_pipeline\config\settings.py:652:    tfidf_disabled = _tfidf_disabled(env)
+  video_pipeline\config\settings.py:653:    llm_queries = _coerce_int(
+  video_pipeline\config\settings.py:666:        clips_dir=clips_dir,
+  video_pipeline\config\settings.py:667:        output_dir=output_dir,
+  video_pipeline\config\settings.py:668:        temp_dir=temp_dir,
+> video_pipeline\config\settings.py:669:        tfidf_fallback_disabled=tfidf_disabled,
+  video_pipeline\config\settings.py:670:        llm_max_queries_per_segment=llm_queries,
+  video_pipeline\config\settings.py:671:        fast_tests=fast_tests,
+  video_pipeline\config\settings.py:672:        max_segments_in_flight=max_segments_in_flight,
+  video_pipeline\config\settings.py:673:        llm=llm,
+  video_pipeline\config\settings.py:674:        fetch=fetch,
+> video_pipeline\config\settings.py:675:        broll=broll,
+> video_pipeline\config\settings.py:676:        subtitles=subtitles,
+  video_pipeline\config\settings.py:677:    )
+  video_pipeline\config\settings.py:678:
+  video_pipeline\config\settings.py:679:
+  video_pipeline\config\settings.py:699:        _STARTUP_LOG_EMITTED = True
+  video_pipeline\config\settings.py:700:    logger = logger or 
+logging.getLogger("video_pipeline.config")
+  video_pipeline\config\settings.py:701:    if not logger.handlers:
+> video_pipeline\config\settings.py:702:        handler = logging.StreamHandler()
+  video_pipeline\config\settings.py:703:        handler.setFormatter(logging.Formatter("%(message)s"))
+  video_pipeline\config\settings.py:704:        logger.addHandler(handler)
+  video_pipeline\config\settings.py:705:        logger.setLevel(logging.INFO)
+  video_pipeline\config\settings.py:706:        logger.propagate = False
+  video_pipeline\config\settings.py:707:    payload = settings.to_log_payload()
+> video_pipeline\config\settings.py:708:    message = f"[CONFIG] effective={json.dumps(payload, 
+sort_keys=True, ensure_ascii=True)}"
+  video_pipeline\config\settings.py:709:    logger.info(message)
+  video_pipeline\config\settings.py:710:
+  video_pipeline\config\settings.py:711:
+
+

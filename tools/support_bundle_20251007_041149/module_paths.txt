@@ -1,0 +1,10 @@
+﻿video_pipeline.config.settings => C:\Users\Administrator\Desktop\video_pipeline - Copy\video_pipeline\config\settings.py
+pipeline_core.llm_service => C:\Users\Administrator\Desktop\video_pipeline - Copy\pipeline_core\llm_service.py
+hormozi_subtitles => C:\Users\Administrator\Desktop\video_pipeline - Copy\hormozi_subtitles.py
+video_processor => C:\Users\Administrator\Desktop\video_pipeline - Copy\video_processor.py
+ΓÜá∩╕Å Mediapipe non disponible - Utilisation du fallback OpenCV (fonctionnalit├⌐s r├⌐duites)
+Γ£à S├⌐lecteur B-roll g├⌐n├⌐rique disponible - Scoring mixte activ├⌐
+Γ£à ImageMagick configur├⌐: C:\Program Files\ImageMagick-7.1.2-Q16-HDRI\magick.exe
+video_processor_clean => C:\Users\Administrator\Desktop\video_pipeline - Copy\video_processor_clean.py
+video_pipeline.broll_rules => C:\Users\Administrator\Desktop\video_pipeline - Copy\src\video_pipeline\broll_rules.py
+run_pipeline => C:\Users\Administrator\Desktop\video_pipeline - Copy\run_pipeline.py

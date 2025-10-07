@@ -1,0 +1,2512 @@
+﻿
+  pipeline_core\llm_service.py:4:from dataclasses import dataclass
+  pipeline_core\llm_service.py:5:from threading import Lock
+  pipeline_core\llm_service.py:6:import importlib.util
+> pipeline_core\llm_service.py:7:import json
+  pipeline_core\llm_service.py:8:import logging
+  pipeline_core\llm_service.py:9:import math
+  pipeline_core\llm_service.py:10:import os
+  pipeline_core\llm_service.py:24:
+  pipeline_core\llm_service.py:25:import requests
+  pipeline_core\llm_service.py:26:
+> pipeline_core\llm_service.py:27:from pipeline_core.configuration import 
+tfidf_fallback_disabled_from_env
+  pipeline_core\llm_service.py:28:
+  pipeline_core\llm_service.py:29:try:  # Optional import – settings layer may not be available in 
+unit stubs
+  pipeline_core\llm_service.py:30:    from video_pipeline.config import get_settings
+  pipeline_core\llm_service.py:96:        super().__init__(f"dynamic completion failed: {self.reason}")
+  pipeline_core\llm_service.py:97:
+  pipeline_core\llm_service.py:98:
+> pipeline_core\llm_service.py:99:class TfidfFallbackDisabled(RuntimeError):
+> pipeline_core\llm_service.py:100:    """Raised when TF-IDF fallback is disabled for the current 
+run."""
+  pipeline_core\llm_service.py:101:
+  pipeline_core\llm_service.py:102:    def __init__(self, message: str) -> None:
+  pipeline_core\llm_service.py:103:        super().__init__(message)
+  pipeline_core\llm_service.py:108:_SHARED: LLMMetadataGeneratorService | None = None
+  pipeline_core\llm_service.py:109:
+  pipeline_core\llm_service.py:110:
+> pipeline_core\llm_service.py:111:_DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", 
+"END_OF_CONTEXT", "</json>")
+  pipeline_core\llm_service.py:112:
+> pipeline_core\llm_service.py:113:_LAST_METADATA_KEYWORDS: Dict[str, Any] = {"values": [], 
+"updated_at": 0.0}
+  pipeline_core\llm_service.py:114:_LAST_METADATA_QUERIES: Dict[str, Any] = {"values": [], 
+"updated_at": 0.0}
+  pipeline_core\llm_service.py:115:
+> pipeline_core\llm_service.py:116:_STREAM_BLOCKED: bool = False
+> pipeline_core\llm_service.py:117:_STREAM_BLOCK_REASON: Optional[str] = None
+> pipeline_core\llm_service.py:118:_LAST_SEGMENT_PATH: str = "segment_stream"
+  pipeline_core\llm_service.py:119:_LAST_SEGMENT_REASON: Optional[str] = None
+  pipeline_core\llm_service.py:120:_METADATA_DISABLE_ENV = "PIPELINE_DISABLE_DYNAMIC_SEGMENT_LLM"
+  pipeline_core\llm_service.py:121:
+> pipeline_core\llm_service.py:122:_DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
+> pipeline_core\llm_service.py:123:_DEFAULT_OLLAMA_MODEL = "mistral:7b-instruct"
+  pipeline_core\llm_service.py:124:_DEFAULT_OLLAMA_KEEP_ALIVE = "5m"
+  pipeline_core\llm_service.py:125:
+  pipeline_core\llm_service.py:126:
+> pipeline_core\llm_service.py:127:def _keywords_first_enabled() -> bool:
+> pipeline_core\llm_service.py:128:    flag = _env_to_bool(os.getenv("PIPELINE_LLM_KEYWORDS_FIRST"))
+  pipeline_core\llm_service.py:129:    if flag is None:
+  pipeline_core\llm_service.py:130:        return True
+  pipeline_core\llm_service.py:131:    return flag
+  pipeline_core\llm_service.py:146:    return flag
+  pipeline_core\llm_service.py:147:
+  pipeline_core\llm_service.py:148:
+> pipeline_core\llm_service.py:149:def _should_block_streaming() -> Tuple[bool, Optional[str]]:
+> pipeline_core\llm_service.py:150:    forced = 
+_env_to_bool(os.getenv("PIPELINE_LLM_FORCE_NON_STREAM"))
+  pipeline_core\llm_service.py:151:    if forced:
+  pipeline_core\llm_service.py:152:        return True, "flag_disable"
+> pipeline_core\llm_service.py:153:    if _STREAM_BLOCKED:
+> pipeline_core\llm_service.py:154:        return True, _STREAM_BLOCK_REASON or "stream_err"
+  pipeline_core\llm_service.py:155:    return False, None
+  pipeline_core\llm_service.py:156:
+  pipeline_core\llm_service.py:157:
+> pipeline_core\llm_service.py:158:def _note_stream_failure(reason: str) -> None:
+> pipeline_core\llm_service.py:159:    global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
+> pipeline_core\llm_service.py:160:    cleaned = (reason or "stream_err").strip() or "stream_err"
+> pipeline_core\llm_service.py:161:    if not _STREAM_BLOCKED:
+> pipeline_core\llm_service.py:162:        _STREAM_BLOCKED = True
+> pipeline_core\llm_service.py:163:        _STREAM_BLOCK_REASON = cleaned
+> pipeline_core\llm_service.py:164:    elif not _STREAM_BLOCK_REASON:
+> pipeline_core\llm_service.py:165:        _STREAM_BLOCK_REASON = cleaned
+  pipeline_core\llm_service.py:166:
+  pipeline_core\llm_service.py:167:
+  pipeline_core\llm_service.py:168:def _record_llm_path(mode: str, reason: Optional[str] = None) -> 
+None:
+  pipeline_core\llm_service.py:175:    return _LAST_SEGMENT_PATH, _LAST_SEGMENT_REASON
+  pipeline_core\llm_service.py:176:
+  pipeline_core\llm_service.py:177:
+> pipeline_core\llm_service.py:178:def _reset_stream_state_for_tests() -> None:
+> pipeline_core\llm_service.py:179:    _record_llm_path("segment_stream", None)
+> pipeline_core\llm_service.py:180:    global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
+> pipeline_core\llm_service.py:181:    _STREAM_BLOCKED = False
+> pipeline_core\llm_service.py:182:    _STREAM_BLOCK_REASON = None
+  pipeline_core\llm_service.py:183:
+  pipeline_core\llm_service.py:184:
+  pipeline_core\llm_service.py:185:def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
+  pipeline_core\llm_service.py:186:    if not value:
+  pipeline_core\llm_service.py:187:        return _DEFAULT_STOP_TOKENS
+  pipeline_core\llm_service.py:188:    try:
+> pipeline_core\llm_service.py:189:        parsed = json.loads(value)
+  pipeline_core\llm_service.py:190:        if isinstance(parsed, (list, tuple)):
+  pipeline_core\llm_service.py:191:            tokens = [str(token).strip() for token in parsed if 
+str(token).strip()]
+  pipeline_core\llm_service.py:192:            if tokens:
+  pipeline_core\llm_service.py:193:                return tokens
+> pipeline_core\llm_service.py:194:    except (TypeError, ValueError, json.JSONDecodeError):
+  pipeline_core\llm_service.py:195:        pass
+  pipeline_core\llm_service.py:196:    tokens = [token.strip() for token in value.split("|") if 
+token.strip()]
+  pipeline_core\llm_service.py:197:    return tokens or _DEFAULT_STOP_TOKENS
+  pipeline_core\llm_service.py:198:
+  pipeline_core\llm_service.py:199:
+> pipeline_core\llm_service.py:200:def _ollama_json(prompt: str, *, model: Optional[str] = None, 
+endpoint: Optional[str] = None) -> Dict[str, Any]:
+> pipeline_core\llm_service.py:201:    """Send a prompt to Ollama and try to extract the largest JSON 
+object."""
+  pipeline_core\llm_service.py:202:
+  pipeline_core\llm_service.py:203:    prompt = (prompt or "").strip()
+  pipeline_core\llm_service.py:204:    if not prompt:
+  pipeline_core\llm_service.py:205:        return {}
+  pipeline_core\llm_service.py:206:
+> pipeline_core\llm_service.py:207:    model_name = (model or os.getenv("PIPELINE_LLM_MODEL") or 
+"qwen2.5:7b").strip() or "qwen2.5:7b"
+  pipeline_core\llm_service.py:208:    base_url = (
+> pipeline_core\llm_service.py:209:        endpoint
+> pipeline_core\llm_service.py:210:        or os.getenv("PIPELINE_LLM_ENDPOINT")
+  pipeline_core\llm_service.py:211:        or os.getenv("PIPELINE_LLM_BASE_URL")
+  pipeline_core\llm_service.py:212:        or os.getenv("OLLAMA_HOST")
+  pipeline_core\llm_service.py:213:        or "http://localhost:11434"
+  pipeline_core\llm_service.py:229:            parsed = default
+  pipeline_core\llm_service.py:230:        return max(minimum, parsed)
+  pipeline_core\llm_service.py:231:
+> pipeline_core\llm_service.py:232:    timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+> pipeline_core\llm_service.py:233:    timeout = _parse_float(timeout_env, default=60.0, minimum=1.0)
+  pipeline_core\llm_service.py:234:    num_predict = _parse_int(os.getenv("PIPELINE_LLM_NUM_PREDICT"), 
+default=256, minimum=1)
+  pipeline_core\llm_service.py:235:    temperature = _parse_float(os.getenv("PIPELINE_LLM_TEMP"), 
+default=0.3, minimum=0.0)
+  pipeline_core\llm_service.py:236:    top_p = _parse_float(os.getenv("PIPELINE_LLM_TOP_P"), 
+default=0.9, minimum=0.0)
+  pipeline_core\llm_service.py:237:
+  pipeline_core\llm_service.py:238:    payload: Dict[str, Any] = {
+> pipeline_core\llm_service.py:239:        "model": model_name,
+  pipeline_core\llm_service.py:240:        "prompt": prompt,
+> pipeline_core\llm_service.py:241:        "format": "json",
+> pipeline_core\llm_service.py:242:        "stream": False,
+  pipeline_core\llm_service.py:243:        "options": {
+  pipeline_core\llm_service.py:244:            "num_predict": num_predict,
+  pipeline_core\llm_service.py:245:            "temperature": temperature,
+  pipeline_core\llm_service.py:250:    started = time.perf_counter()
+  pipeline_core\llm_service.py:251:
+  pipeline_core\llm_service.py:252:    try:
+> pipeline_core\llm_service.py:253:        response = requests.post(url, json=payload, timeout=timeout)
+  pipeline_core\llm_service.py:254:        response.raise_for_status()
+> pipeline_core\llm_service.py:255:    except requests.Timeout:
+  pipeline_core\llm_service.py:256:        logger.warning(
+  pipeline_core\llm_service.py:257:            "[LLM] Ollama request timed out",
+> pipeline_core\llm_service.py:258:            extra={"model": model_name, "duration_s": 
+round(time.perf_counter() - started, 3)},
+  pipeline_core\llm_service.py:259:        )
+  pipeline_core\llm_service.py:260:        return {}
+  pipeline_core\llm_service.py:261:    except requests.RequestException as exc:
+  pipeline_core\llm_service.py:262:        logger.warning(
+  pipeline_core\llm_service.py:263:            "[LLM] Ollama request failed",
+> pipeline_core\llm_service.py:264:            extra={"model": model_name, "error": str(exc)},
+  pipeline_core\llm_service.py:265:        )
+  pipeline_core\llm_service.py:266:        return {}
+  pipeline_core\llm_service.py:267:
+  pipeline_core\llm_service.py:268:    response_text = response.text or ""
+  pipeline_core\llm_service.py:269:    try:
+> pipeline_core\llm_service.py:270:        payload_json = response.json()
+  pipeline_core\llm_service.py:271:    except ValueError:
+> pipeline_core\llm_service.py:272:        payload_json = None
+  pipeline_core\llm_service.py:273:
+  pipeline_core\llm_service.py:274:    candidates: List[str] = []
+> pipeline_core\llm_service.py:275:    if isinstance(payload_json, dict):
+  pipeline_core\llm_service.py:276:        # Common Ollama schema: {"response": "..."}
+  pipeline_core\llm_service.py:277:        for key in ("response", "content", "data", "message", 
+"result", "metadata"):
+> pipeline_core\llm_service.py:278:            value = payload_json.get(key)
+  pipeline_core\llm_service.py:279:            if isinstance(value, dict):
+  pipeline_core\llm_service.py:280:                return value
+  pipeline_core\llm_service.py:281:            if isinstance(value, str) and value.strip():
+  pipeline_core\llm_service.py:282:                candidates.append(value)
+  pipeline_core\llm_service.py:283:        if not candidates:
+  pipeline_core\llm_service.py:284:            try:
+> pipeline_core\llm_service.py:285:                serialised = json.dumps(payload_json)
+  pipeline_core\llm_service.py:286:            except Exception:
+  pipeline_core\llm_service.py:287:                serialised = ""
+  pipeline_core\llm_service.py:288:            if serialised:
+  pipeline_core\llm_service.py:299:        for match in pattern.finditer(chunk):
+  pipeline_core\llm_service.py:300:            snippet = match.group(0)
+  pipeline_core\llm_service.py:301:            try:
+> pipeline_core\llm_service.py:302:                parsed = json.loads(snippet)
+> pipeline_core\llm_service.py:303:            except (TypeError, ValueError, json.JSONDecodeError):
+  pipeline_core\llm_service.py:304:                continue
+  pipeline_core\llm_service.py:305:            if isinstance(parsed, dict) and len(snippet) > 
+best_length:
+  pipeline_core\llm_service.py:306:                best_match = parsed
+  pipeline_core\llm_service.py:309:    return best_match if best_match else {}
+  pipeline_core\llm_service.py:310:
+  pipeline_core\llm_service.py:311:
+> pipeline_core\llm_service.py:312:# --- Robust JSON extraction from LLM responses 
+-------------------------------
+> pipeline_core\llm_service.py:313:def _safe_parse_json(s: str) -> Dict[str, Any]:
+> pipeline_core\llm_service.py:314:    """Extract the first valid JSON object from text; return {} on 
+failure."""
+  pipeline_core\llm_service.py:315:
+  pipeline_core\llm_service.py:316:    if not isinstance(s, str):
+  pipeline_core\llm_service.py:317:        return {}
+  pipeline_core\llm_service.py:318:    try:
+> pipeline_core\llm_service.py:319:        return json.loads(s)
+  pipeline_core\llm_service.py:320:    except Exception:
+  pipeline_core\llm_service.py:321:        pass
+  pipeline_core\llm_service.py:322:    start = s.find('{')
+  pipeline_core\llm_service.py:331:            if depth == 0:
+  pipeline_core\llm_service.py:332:                snippet = s[start:idx + 1]
+  pipeline_core\llm_service.py:333:                try:
+> pipeline_core\llm_service.py:334:                    return json.loads(snippet)
+  pipeline_core\llm_service.py:335:                except Exception:
+  pipeline_core\llm_service.py:336:                    break
+  pipeline_core\llm_service.py:337:    return {}
+  pipeline_core\llm_service.py:356:    "stock",
+  pipeline_core\llm_service.py:357:    "footage",
+  pipeline_core\llm_service.py:358:    "b-roll",
+> pipeline_core\llm_service.py:359:    "broll",
+  pipeline_core\llm_service.py:360:    "roll",
+  pipeline_core\llm_service.py:361:    "cinematic",
+  pipeline_core\llm_service.py:362:    "timelapse",
+  pipeline_core\llm_service.py:495:    ),
+  pipeline_core\llm_service.py:496:)
+  pipeline_core\llm_service.py:497:
+> pipeline_core\llm_service.py:498:_CONCEPT_FALLBACKS: Tuple[str, ...] = (
+  pipeline_core\llm_service.py:499:    "typing at desk",
+  pipeline_core\llm_service.py:500:    "whiteboard sketching",
+  pipeline_core\llm_service.py:501:    "team huddle meeting",
+  pipeline_core\llm_service.py:547:        if matched:
+  pipeline_core\llm_service.py:548:            continue
+  pipeline_core\llm_service.py:549:        if any(hint in target for hint in _ABSTRACT_HINTS):
+> pipeline_core\llm_service.py:550:            for replacement in _CONCEPT_FALLBACKS[:2]:
+  pipeline_core\llm_service.py:551:                if replacement not in seen:
+  pipeline_core\llm_service.py:552:                    concrete.append(replacement)
+  pipeline_core\llm_service.py:553:                    seen.add(replacement)
+  pipeline_core\llm_service.py:595:            break
+  pipeline_core\llm_service.py:596:    return cleaned
+  pipeline_core\llm_service.py:597:
+> pipeline_core\llm_service.py:598:SEGMENT_JSON_PROMPT = (
+> pipeline_core\llm_service.py:599:    "You are a JSON API. Return ONLY one JSON object with keys: 
+broll_keywords, queries. "
+> pipeline_core\llm_service.py:600:    "broll_keywords: 8–12 visual noun phrases (2–3 words), concrete 
+and shootable. "
+  pipeline_core\llm_service.py:601:    "queries: 8–12 short, filmable search queries (2–4 words), 
+provider-friendly. "
+  pipeline_core\llm_service.py:602:    "Banned tokens: that, this, it, they, we, you, thing, stuff, 
+very, just, really, "
+> pipeline_core\llm_service.py:603:    "stock, footage, b-roll, broll, roll, cinematic, timelapse, 
+background, background footage. "
+  pipeline_core\llm_service.py:604:    "Segment transcript:\n{segment_text}"
+  pipeline_core\llm_service.py:605:)
+  pipeline_core\llm_service.py:606:
+  pipeline_core\llm_service.py:639:            break
+  pipeline_core\llm_service.py:640:    return out[:limit]
+  pipeline_core\llm_service.py:641:
+> pipeline_core\llm_service.py:642:def _coerce_ollama_json(payload: Any) -> Dict[str, Any]:
+  pipeline_core\llm_service.py:643:    """Best-effort conversion of Ollama responses into 
+dictionaries."""
+  pipeline_core\llm_service.py:644:
+  pipeline_core\llm_service.py:645:    if isinstance(payload, dict):
+  pipeline_core\llm_service.py:652:
+  pipeline_core\llm_service.py:653:        if text.startswith('"') and text.endswith('"'):
+  pipeline_core\llm_service.py:654:            try:
+> pipeline_core\llm_service.py:655:                unescaped = json.loads(text)
+> pipeline_core\llm_service.py:656:            except json.JSONDecodeError:
+  pipeline_core\llm_service.py:657:                unescaped = None
+  pipeline_core\llm_service.py:658:            if isinstance(unescaped, str) and unescaped:
+  pipeline_core\llm_service.py:659:                text = unescaped.strip()
+  pipeline_core\llm_service.py:660:
+> pipeline_core\llm_service.py:661:        fence_match = re.search(r"```(?:json)?\s*(.*?)```", text, 
+re.DOTALL | re.IGNORECASE)
+  pipeline_core\llm_service.py:662:        if fence_match:
+  pipeline_core\llm_service.py:663:            fenced = fence_match.group(1).strip()
+  pipeline_core\llm_service.py:664:            if fenced:
+  pipeline_core\llm_service.py:665:                text = fenced
+  pipeline_core\llm_service.py:666:
+> pipeline_core\llm_service.py:667:        parsed = _safe_parse_json(text)
+  pipeline_core\llm_service.py:668:        if isinstance(parsed, dict) and parsed:
+  pipeline_core\llm_service.py:669:            return parsed
+  pipeline_core\llm_service.py:670:
+> pipeline_core\llm_service.py:671:        snippet = _first_balanced_json_block(text)
+  pipeline_core\llm_service.py:672:        if snippet:
+  pipeline_core\llm_service.py:673:            try:
+> pipeline_core\llm_service.py:674:                parsed_snippet = json.loads(snippet)
+> pipeline_core\llm_service.py:675:            except json.JSONDecodeError:
+  pipeline_core\llm_service.py:676:                parsed_snippet = None
+  pipeline_core\llm_service.py:677:            if isinstance(parsed_snippet, dict) and parsed_snippet:
+  pipeline_core\llm_service.py:678:                return parsed_snippet
+  pipeline_core\llm_service.py:679:
+> pipeline_core\llm_service.py:680:        parsed = _extract_json_braces(text)
+  pipeline_core\llm_service.py:681:        if isinstance(parsed, dict) and parsed:
+  pipeline_core\llm_service.py:682:            return parsed
+  pipeline_core\llm_service.py:683:
+  pipeline_core\llm_service.py:684:        try:
+> pipeline_core\llm_service.py:685:            parsed_direct = json.loads(text)
+> pipeline_core\llm_service.py:686:        except (TypeError, ValueError, json.JSONDecodeError):
+  pipeline_core\llm_service.py:687:            parsed_direct = None
+  pipeline_core\llm_service.py:688:        if isinstance(parsed_direct, dict) and parsed_direct:
+  pipeline_core\llm_service.py:689:            return parsed_direct
+  pipeline_core\llm_service.py:691:    return {}
+  pipeline_core\llm_service.py:692:
+  pipeline_core\llm_service.py:693:
+> pipeline_core\llm_service.py:694:def _extract_json_braces(text: str) -> Dict[str, Any]:
+> pipeline_core\llm_service.py:695:    """Fallback extraction that keeps searching for balanced 
+``{...}`` blocks."""
+  pipeline_core\llm_service.py:696:
+  pipeline_core\llm_service.py:697:    if not isinstance(text, str):
+  pipeline_core\llm_service.py:698:        return {}
+  pipeline_core\llm_service.py:701:    if match:
+  pipeline_core\llm_service.py:702:        snippet = match.group(0)
+  pipeline_core\llm_service.py:703:        try:
+> pipeline_core\llm_service.py:704:            return json.loads(snippet)
+  pipeline_core\llm_service.py:705:        except Exception:
+  pipeline_core\llm_service.py:706:            pass
+  pipeline_core\llm_service.py:707:
+  pipeline_core\llm_service.py:718:                if depth == 0 and start >= 0:
+  pipeline_core\llm_service.py:719:                    snippet = text[start : idx + 1]
+  pipeline_core\llm_service.py:720:                    try:
+> pipeline_core\llm_service.py:721:                        return json.loads(snippet)
+  pipeline_core\llm_service.py:722:                    except Exception:
+  pipeline_core\llm_service.py:723:                        start = -1
+  pipeline_core\llm_service.py:724:    return {}
+  pipeline_core\llm_service.py:725:
+  pipeline_core\llm_service.py:726:
+> pipeline_core\llm_service.py:727:def _first_balanced_json_block(text: str) -> Optional[str]:
+> pipeline_core\llm_service.py:728:    """Return the first balanced JSON object found in ``text`` if 
+possible."""
+  pipeline_core\llm_service.py:729:
+  pipeline_core\llm_service.py:730:    if not isinstance(text, str):
+  pipeline_core\llm_service.py:731:        return None
+  pipeline_core\llm_service.py:921:        "title": "Auto-generated Clip Title",
+  pipeline_core\llm_service.py:922:        "description": "Auto-generated description from 
+transcript.",
+  pipeline_core\llm_service.py:923:        "hashtags": [],
+> pipeline_core\llm_service.py:924:        "broll_keywords": [],
+  pipeline_core\llm_service.py:925:        "queries": [],
+  pipeline_core\llm_service.py:926:    }
+  pipeline_core\llm_service.py:927:
+  pipeline_core\llm_service.py:931:        "title": "",
+  pipeline_core\llm_service.py:932:        "description": "",
+  pipeline_core\llm_service.py:933:        "hashtags": [],
+> pipeline_core\llm_service.py:934:        "broll_keywords": [],
+  pipeline_core\llm_service.py:935:        "queries": [],
+  pipeline_core\llm_service.py:936:    }
+  pipeline_core\llm_service.py:937:
+  pipeline_core\llm_service.py:938:
+> pipeline_core\llm_service.py:939:def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int 
+= 5) -> List[str]:
+  pipeline_core\llm_service.py:940:    tags: List[str] = []
+  pipeline_core\llm_service.py:941:    seen: set[str] = set()
+> pipeline_core\llm_service.py:942:    for keyword in _as_list(keywords):
+> pipeline_core\llm_service.py:943:        keyword_text = str(keyword or '')
+> pipeline_core\llm_service.py:944:        cleaned = _filter_basic_latin(keyword_text)
+  pipeline_core\llm_service.py:945:        if not cleaned:
+  pipeline_core\llm_service.py:946:            continue
+  pipeline_core\llm_service.py:947:        hashtag = "#" + cleaned
+  pipeline_core\llm_service.py:955:    return tags
+  pipeline_core\llm_service.py:956:
+  pipeline_core\llm_service.py:957:
+> pipeline_core\llm_service.py:958:def _resolve_ollama_endpoint(endpoint: Optional[str]) -> str:
+> pipeline_core\llm_service.py:959:    base_url = endpoint or os.getenv("PIPELINE_LLM_ENDPOINT") or 
+os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
+> pipeline_core\llm_service.py:960:    base_url = (base_url or _DEFAULT_OLLAMA_ENDPOINT).strip()
+> pipeline_core\llm_service.py:961:    return base_url.rstrip("/") or _DEFAULT_OLLAMA_ENDPOINT
+  pipeline_core\llm_service.py:962:
+  pipeline_core\llm_service.py:963:
+> pipeline_core\llm_service.py:964:def _resolve_ollama_model(model: Optional[str]) -> str:
+> pipeline_core\llm_service.py:965:    candidate = model or os.getenv("PIPELINE_LLM_MODEL") or 
+os.getenv("OLLAMA_MODEL")
+> pipeline_core\llm_service.py:966:    candidate = (candidate or _DEFAULT_OLLAMA_MODEL).strip()
+> pipeline_core\llm_service.py:967:    return candidate or _DEFAULT_OLLAMA_MODEL
+  pipeline_core\llm_service.py:968:
+  pipeline_core\llm_service.py:969:
+  pipeline_core\llm_service.py:970:def _resolve_keep_alive(value: Optional[str]) -> Optional[str]:
+  pipeline_core\llm_service.py:978:
+  pipeline_core\llm_service.py:979:
+  pipeline_core\llm_service.py:980:def _metadata_transcript_limit() -> int:
+> pipeline_core\llm_service.py:981:    limit_env = os.getenv("PIPELINE_LLM_JSON_TRANSCRIPT_LIMIT")
+  pipeline_core\llm_service.py:982:    try:
+  pipeline_core\llm_service.py:983:        limit = int(limit_env) if limit_env is not None else 5500
+  pipeline_core\llm_service.py:984:    except (TypeError, ValueError):
+  pipeline_core\llm_service.py:986:    return max(500, limit)
+  pipeline_core\llm_service.py:987:
+  pipeline_core\llm_service.py:988:
+> pipeline_core\llm_service.py:989:_FALLBACK_STOPWORDS: set[str] = {
+  pipeline_core\llm_service.py:990:    "the",
+  pipeline_core\llm_service.py:991:    "a",
+  pipeline_core\llm_service.py:992:    "an",
+  pipeline_core\llm_service.py:1037:    "very",
+  pipeline_core\llm_service.py:1038:}
+  pipeline_core\llm_service.py:1039:
+> pipeline_core\llm_service.py:1040:_DEFAULT_FALLBACK_PHRASES: List[str] = [
+  pipeline_core\llm_service.py:1041:    "motivational speaker on stage",
+  pipeline_core\llm_service.py:1042:    "business team brainstorming",
+  pipeline_core\llm_service.py:1043:    "audience applauding event",
+  pipeline_core\llm_service.py:1054:
+  pipeline_core\llm_service.py:1055:
+  pipeline_core\llm_service.py:1056:_BASIC_STOPWORDS: Dict[str, Set[str]] = {
+> pipeline_core\llm_service.py:1057:    "en": set(_FALLBACK_STOPWORDS),
+  pipeline_core\llm_service.py:1058:    "fr": {
+  pipeline_core\llm_service.py:1059:        "le",
+  pipeline_core\llm_service.py:1060:        "la",
+  pipeline_core\llm_service.py:1203:    return queries[:12]
+  pipeline_core\llm_service.py:1204:
+  pipeline_core\llm_service.py:1205:
+> pipeline_core\llm_service.py:1206:def _fallback_keywords_from_transcript(
+  pipeline_core\llm_service.py:1207:    transcript: str,
+  pipeline_core\llm_service.py:1208:    *,
+  pipeline_core\llm_service.py:1209:    min_terms: int = 8,
+  pipeline_core\llm_service.py:1214:    max_terms = max(min_terms, max_terms)
+  pipeline_core\llm_service.py:1215:    text = (transcript or "").strip()
+  pipeline_core\llm_service.py:1216:    if not text:
+> pipeline_core\llm_service.py:1217:        return _DEFAULT_FALLBACK_PHRASES[:max_terms]
+  pipeline_core\llm_service.py:1218:
+  pipeline_core\llm_service.py:1219:    tokens = _extract_terms_from_text(text, min_length=4, 
+language=language)
+> pipeline_core\llm_service.py:1220:    filtered = [tok for tok in tokens if tok and tok not in 
+_FALLBACK_STOPWORDS]
+  pipeline_core\llm_service.py:1221:    if not filtered:
+> pipeline_core\llm_service.py:1222:        return _DEFAULT_FALLBACK_PHRASES[:max_terms]
+  pipeline_core\llm_service.py:1223:
+  pipeline_core\llm_service.py:1224:    unigram_counts = Counter(filtered)
+  pipeline_core\llm_service.py:1225:    ngram_counts: Counter[str] = Counter()
+  pipeline_core\llm_service.py:1228:            continue
+  pipeline_core\llm_service.py:1229:        for idx in range(len(filtered) - window + 1):
+  pipeline_core\llm_service.py:1230:            chunk = filtered[idx : idx + window]
+> pipeline_core\llm_service.py:1231:            if any(tok in _FALLBACK_STOPWORDS for tok in chunk):
+  pipeline_core\llm_service.py:1232:                continue
+  pipeline_core\llm_service.py:1233:            phrase = " ".join(chunk)
+  pipeline_core\llm_service.py:1234:            ngram_counts[phrase] += 1
+  pipeline_core\llm_service.py:1249:                break
+  pipeline_core\llm_service.py:1250:
+  pipeline_core\llm_service.py:1251:    if len(phrases) < min_terms:
+> pipeline_core\llm_service.py:1252:        for fallback in _DEFAULT_FALLBACK_PHRASES:
+> pipeline_core\llm_service.py:1253:            if fallback not in phrases:
+> pipeline_core\llm_service.py:1254:                phrases.append(fallback)
+  pipeline_core\llm_service.py:1255:            if len(phrases) >= max_terms:
+  pipeline_core\llm_service.py:1256:                break
+  pipeline_core\llm_service.py:1257:
+  pipeline_core\llm_service.py:1258:    return phrases[:max_terms]
+  pipeline_core\llm_service.py:1259:
+  pipeline_core\llm_service.py:1260:
+> pipeline_core\llm_service.py:1261:def _merge_with_fallback(
+  pipeline_core\llm_service.py:1262:    primary: Sequence[str],
+> pipeline_core\llm_service.py:1263:    fallback: Sequence[str],
+  pipeline_core\llm_service.py:1264:    *,
+  pipeline_core\llm_service.py:1265:    min_count: int = 8,
+  pipeline_core\llm_service.py:1266:    max_count: int = 12,
+  pipeline_core\llm_service.py:1279:        if len(merged) >= max_count:
+  pipeline_core\llm_service.py:1280:            return merged[:max_count]
+  pipeline_core\llm_service.py:1281:
+> pipeline_core\llm_service.py:1282:    for item in fallback or []:
+  pipeline_core\llm_service.py:1283:        if len(merged) >= max_count:
+  pipeline_core\llm_service.py:1284:            break
+  pipeline_core\llm_service.py:1285:        candidate = _normalise_string(item)
+  pipeline_core\llm_service.py:1288:            merged.append(candidate)
+  pipeline_core\llm_service.py:1289:
+  pipeline_core\llm_service.py:1290:    if len(merged) < min_count:
+> pipeline_core\llm_service.py:1291:        for candidate in _DEFAULT_FALLBACK_PHRASES:
+  pipeline_core\llm_service.py:1292:            if len(merged) >= max_count:
+  pipeline_core\llm_service.py:1293:                break
+  pipeline_core\llm_service.py:1294:            normalised = _normalise_string(candidate)
+  pipeline_core\llm_service.py:1301:    return merged[:max_count]
+  pipeline_core\llm_service.py:1302:
+  pipeline_core\llm_service.py:1303:
+> pipeline_core\llm_service.py:1304:def _build_keywords_prompt(transcript_snippet: str, target_lang: 
+str) -> str:
+  pipeline_core\llm_service.py:1305:    snippet = (transcript_snippet or "").strip()
+  pipeline_core\llm_service.py:1306:    language = (target_lang or "en").strip().lower() or "en"
+  pipeline_core\llm_service.py:1307:    return (
+> pipeline_core\llm_service.py:1308:        "You are a JSON API for segment-level B-roll planning.\n"
+  pipeline_core\llm_service.py:1309:        f"Use {language} language for every field.\n"
+> pipeline_core\llm_service.py:1310:        "Return ONLY one JSON object with keys: broll_keywords, 
+queries. No prose, no markdown.\n"
+> pipeline_core\llm_service.py:1311:        "broll_keywords: 8-12 visual noun phrases (2-3 words), 
+concrete and shootable.\n"
+  pipeline_core\llm_service.py:1312:        f"queries: 8-12 short, filmable search queries (2-4 words) 
+in {language}, provider-friendly.\n"
+  pipeline_core\llm_service.py:1313:        "Banned tokens: that, this, it, they, we, you, thing, 
+stuff, very, just, really, stock, footage, roll, cinematic, timelapse, background.\n"
+  pipeline_core\llm_service.py:1314:        f"Segment transcript:\n{snippet}"
+  pipeline_core\llm_service.py:1315:    )
+  pipeline_core\llm_service.py:1316:
+  pipeline_core\llm_service.py:1317:
+> pipeline_core\llm_service.py:1318:def _build_json_metadata_prompt(transcript: str, *, video_id: 
+Optional[str] = None) -> str:
+> pipeline_core\llm_service.py:1319:    override = os.getenv("PIPELINE_LLM_JSON_PROMPT")
+  pipeline_core\llm_service.py:1320:    cleaned = (transcript or "").strip()
+  pipeline_core\llm_service.py:1321:    limit = _metadata_transcript_limit()
+  pipeline_core\llm_service.py:1322:    if len(cleaned) > limit:
+  pipeline_core\llm_service.py:1331:    video_reference = f"Video ID: {video_id}\n" if video_id else ""
+  pipeline_core\llm_service.py:1332:    return (
+  pipeline_core\llm_service.py:1333:        "Tu es un expert des métadonnées pour vidéos courtes 
+(TikTok, Reels, Shorts).\n"
+> pipeline_core\llm_service.py:1334:        "Retourne STRICTEMENT un objet JSON unique avec les clés 
+exactes suivantes :\n"
+  pipeline_core\llm_service.py:1335:        "  \"title\": chaîne accrocheuse en langue source,\n"
+  pipeline_core\llm_service.py:1336:        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
+  pipeline_core\llm_service.py:1337:        "  \"hashtags\": tableau de 5 hashtags pertinents sans 
+doublons,\n"
+> pipeline_core\llm_service.py:1338:        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels 
+concrets,\n"
+  pipeline_core\llm_service.py:1339:        "  \"queries\": tableau de 4 à 8 requêtes de recherche 
+prêtes pour des banques d’images/vidéos.\n"
+> pipeline_core\llm_service.py:1340:        "N'ajoute aucune explication hors JSON.\n\n"
+  pipeline_core\llm_service.py:1341:        f"{video_reference}TRANSCRIPT:\n{cleaned}"
+  pipeline_core\llm_service.py:1342:    )
+  pipeline_core\llm_service.py:1343:
+  pipeline_core\llm_service.py:1344:
+> pipeline_core\llm_service.py:1345:def _ollama_generate_json(
+  pipeline_core\llm_service.py:1346:    prompt: str,
+  pipeline_core\llm_service.py:1347:    *,
+> pipeline_core\llm_service.py:1348:    model: Optional[str] = None,
+> pipeline_core\llm_service.py:1349:    endpoint: Optional[str] = None,
+> pipeline_core\llm_service.py:1350:    timeout: Optional[int] = None,
+  pipeline_core\llm_service.py:1351:    options: Optional[Dict[str, Any]] = None,
+  pipeline_core\llm_service.py:1352:    keep_alive: Optional[str] = None,
+> pipeline_core\llm_service.py:1353:    json_mode: Optional[bool] = None,
+  pipeline_core\llm_service.py:1354:) -> Tuple[Dict[str, Any], Dict[str, Any], Optional[int]]:
+> pipeline_core\llm_service.py:1355:    """Send a prompt to Ollama and parse the JSON payload when 
+possible."""
+  pipeline_core\llm_service.py:1356:
+> pipeline_core\llm_service.py:1357:    target_endpoint = _resolve_ollama_endpoint(endpoint)
+> pipeline_core\llm_service.py:1358:    model_name = _resolve_ollama_model(model)
+  pipeline_core\llm_service.py:1359:    keep_alive_value = _resolve_keep_alive(keep_alive)
+> pipeline_core\llm_service.py:1360:    json_mode_env = json_mode
+> pipeline_core\llm_service.py:1361:    if json_mode_env is None:
+> pipeline_core\llm_service.py:1362:        json_mode_env = 
+_env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
+  pipeline_core\llm_service.py:1363:    payload: Dict[str, Any] = {
+> pipeline_core\llm_service.py:1364:        "model": model_name,
+  pipeline_core\llm_service.py:1365:        "prompt": prompt,
+> pipeline_core\llm_service.py:1366:        "stream": False,
+  pipeline_core\llm_service.py:1367:    }
+  pipeline_core\llm_service.py:1368:
+  pipeline_core\llm_service.py:1369:    opts: Dict[str, Any] = {}
+  pipeline_core\llm_service.py:1383:    if opts:
+  pipeline_core\llm_service.py:1384:        payload["options"] = opts
+  pipeline_core\llm_service.py:1385:
+> pipeline_core\llm_service.py:1386:    json_flag = bool(json_mode_env)
+> pipeline_core\llm_service.py:1387:    if json_flag:
+> pipeline_core\llm_service.py:1388:        payload["format"] = "json"
+  pipeline_core\llm_service.py:1389:    if keep_alive_value:
+  pipeline_core\llm_service.py:1390:        payload["keep_alive"] = keep_alive_value
+  pipeline_core\llm_service.py:1391:
+> pipeline_core\llm_service.py:1392:    request_timeout = timeout if timeout is not None else 60
+> pipeline_core\llm_service.py:1393:    url = f"{target_endpoint}/api/generate"
+  pipeline_core\llm_service.py:1394:
+  pipeline_core\llm_service.py:1395:    try:
+> pipeline_core\llm_service.py:1396:        response = requests.post(url, json=payload, 
+timeout=request_timeout)
+  pipeline_core\llm_service.py:1397:        response.raise_for_status()
+> pipeline_core\llm_service.py:1398:    except requests.Timeout as exc:
+> pipeline_core\llm_service.py:1399:        raise TimeoutError("Ollama request timed out") from exc
+  pipeline_core\llm_service.py:1400:    except requests.RequestException as exc:
+  pipeline_core\llm_service.py:1401:        raise RuntimeError(f"Ollama request failed: {exc}") from 
+exc
+  pipeline_core\llm_service.py:1402:
+  pipeline_core\llm_service.py:1403:    try:
+> pipeline_core\llm_service.py:1404:        raw_payload = response.json()
+> pipeline_core\llm_service.py:1405:    except json.JSONDecodeError as exc:
+  pipeline_core\llm_service.py:1406:        response_text = response.text or ""
+  pipeline_core\llm_service.py:1407:        logger.warning(
+> pipeline_core\llm_service.py:1408:            "[LLM] Ollama JSON decoding failed",
+> pipeline_core\llm_service.py:1409:            extra={"error": str(exc), "endpoint": target_endpoint},
+  pipeline_core\llm_service.py:1410:        )
+> pipeline_core\llm_service.py:1411:        parsed_fallback = _safe_parse_json(response_text) or 
+_extract_json_braces(response_text)
+  pipeline_core\llm_service.py:1412:        raw_length = len(response_text) if response_text else None
+> pipeline_core\llm_service.py:1413:        return parsed_fallback or {}, {"response": response_text}, 
+raw_length
+  pipeline_core\llm_service.py:1414:    except ValueError as exc:
+  pipeline_core\llm_service.py:1415:        response_text = response.text or ""
+  pipeline_core\llm_service.py:1416:        logger.warning(
+> pipeline_core\llm_service.py:1417:            "[LLM] Ollama returned non-JSON payload",
+> pipeline_core\llm_service.py:1418:            extra={"error": str(exc), "endpoint": target_endpoint},
+  pipeline_core\llm_service.py:1419:        )
+> pipeline_core\llm_service.py:1420:        parsed_fallback = _safe_parse_json(response_text) or 
+_extract_json_braces(response_text)
+  pipeline_core\llm_service.py:1421:        raw_length = len(response_text) if response_text else None
+> pipeline_core\llm_service.py:1422:        return parsed_fallback or {}, {"response": response_text}, 
+raw_length
+  pipeline_core\llm_service.py:1423:
+  pipeline_core\llm_service.py:1424:    raw_response = raw_payload.get("response")
+  pipeline_core\llm_service.py:1425:    raw_length: Optional[int] = len(raw_response) if 
+isinstance(raw_response, str) else None
+  pipeline_core\llm_service.py:1427:    if isinstance(raw_response, dict):
+  pipeline_core\llm_service.py:1428:        parsed = raw_response
+  pipeline_core\llm_service.py:1429:    elif isinstance(raw_response, str):
+> pipeline_core\llm_service.py:1430:        parsed = _safe_parse_json(raw_response)
+  pipeline_core\llm_service.py:1431:        if not parsed:
+> pipeline_core\llm_service.py:1432:            parsed = _extract_json_braces(raw_response)
+  pipeline_core\llm_service.py:1433:    else:
+  pipeline_core\llm_service.py:1434:        parsed = {}
+  pipeline_core\llm_service.py:1435:
+  pipeline_core\llm_service.py:1442:    return parsed or {}, raw_payload, raw_length
+  pipeline_core\llm_service.py:1443:
+  pipeline_core\llm_service.py:1444:
+> pipeline_core\llm_service.py:1445:def _ollama_generate_sync(endpoint: str, model: str, prompt: str, 
+options: dict) -> str:
+  pipeline_core\llm_service.py:1446:    """
+> pipeline_core\llm_service.py:1447:    Fallback non-streaming pour contourner les réponses vides du 
+stream.
+> pipeline_core\llm_service.py:1448:    Utilise /api/generate avec stream=False et renvoie .strip() du 
+champ 'response'.
+  pipeline_core\llm_service.py:1449:    """
+  pipeline_core\llm_service.py:1450:
+> pipeline_core\llm_service.py:1451:    url = endpoint.rstrip("/") + "/api/generate"
+  pipeline_core\llm_service.py:1452:    payload = {
+> pipeline_core\llm_service.py:1453:        "model": model,
+  pipeline_core\llm_service.py:1454:        "prompt": prompt,
+> pipeline_core\llm_service.py:1455:        "stream": False,
+  pipeline_core\llm_service.py:1456:        "keep_alive": os.getenv("PIPELINE_LLM_KEEP_ALIVE", "30m"),
+  pipeline_core\llm_service.py:1457:        "options": {
+  pipeline_core\llm_service.py:1458:            "num_predict": int(options.get("num_predict", 128)),
+  pipeline_core\llm_service.py:1465:    }
+  pipeline_core\llm_service.py:1466:    req = urllib.request.Request(
+  pipeline_core\llm_service.py:1467:        url,
+> pipeline_core\llm_service.py:1468:        data=json.dumps(payload).encode("utf-8"),
+> pipeline_core\llm_service.py:1469:        headers={"Content-Type": "application/json"},
+  pipeline_core\llm_service.py:1470:    )
+> pipeline_core\llm_service.py:1471:    timeout = int(options.get("timeout", 120))
+> pipeline_core\llm_service.py:1472:    with urllib.request.urlopen(req, timeout=timeout) as r:
+> pipeline_core\llm_service.py:1473:        data = json.loads(r.read().decode("utf-8", 
+errors="replace"))
+  pipeline_core\llm_service.py:1474:    return (data.get("response") or "").strip()
+  pipeline_core\llm_service.py:1475:
+  pipeline_core\llm_service.py:1476:
+  pipeline_core\llm_service.py:1477:def _ollama_generate_text(
+  pipeline_core\llm_service.py:1478:    prompt: str,
+  pipeline_core\llm_service.py:1479:    *,
+> pipeline_core\llm_service.py:1480:    model: str,
+  pipeline_core\llm_service.py:1481:    options: Optional[Dict[str, Any]] = None,
+> pipeline_core\llm_service.py:1482:    timeout: float = 60.0,
+  pipeline_core\llm_service.py:1483:) -> Tuple[str, str, int, int, int]:
+  pipeline_core\llm_service.py:1484:    """Generate plain text from Ollama with retries and 
+diagnostics."""
+  pipeline_core\llm_service.py:1485:
+  pipeline_core\llm_service.py:1491:        )
+  pipeline_core\llm_service.py:1492:        return "", "empty_payload", 0
+  pipeline_core\llm_service.py:1493:
+> pipeline_core\llm_service.py:1494:    model_name = _resolve_ollama_model(model)
+> pipeline_core\llm_service.py:1495:    endpoint = _resolve_ollama_endpoint(None)
+> pipeline_core\llm_service.py:1496:    url = f"{endpoint}/api/generate"
+  pipeline_core\llm_service.py:1497:
+  pipeline_core\llm_service.py:1498:    prompt_len_chars = len(cleaned_prompt)
+  pipeline_core\llm_service.py:1499:    prompt_token_estimate = _estimate_prompt_tokens(cleaned_prompt)
+  pipeline_core\llm_service.py:1514:            option_payload[key] = value
+  pipeline_core\llm_service.py:1515:
+  pipeline_core\llm_service.py:1516:    payload: Dict[str, Any] = {
+> pipeline_core\llm_service.py:1517:        "model": model_name,
+  pipeline_core\llm_service.py:1518:        "prompt": cleaned_prompt,
+> pipeline_core\llm_service.py:1519:        "stream": True,
+  pipeline_core\llm_service.py:1520:    }
+  pipeline_core\llm_service.py:1521:    keep_alive = _resolve_keep_alive(None)
+  pipeline_core\llm_service.py:1522:    if keep_alive:
+  pipeline_core\llm_service.py:1524:    if option_payload:
+  pipeline_core\llm_service.py:1525:        payload["options"] = option_payload
+  pipeline_core\llm_service.py:1526:
+> pipeline_core\llm_service.py:1527:    fallback_options: Dict[str, Any] = {"timeout": timeout}
+  pipeline_core\llm_service.py:1528:    if option_payload:
+  pipeline_core\llm_service.py:1529:        if option_payload.get("num_predict") is not None:
+> pipeline_core\llm_service.py:1530:            fallback_options["num_predict"] = 
+option_payload.get("num_predict")
+  pipeline_core\llm_service.py:1531:        if option_payload.get("temperature") is not None:
+> pipeline_core\llm_service.py:1532:            fallback_options["temp"] = 
+option_payload.get("temperature")
+  pipeline_core\llm_service.py:1533:        if option_payload.get("top_p") is not None:
+> pipeline_core\llm_service.py:1534:            fallback_options["top_p"] = option_payload.get("top_p")
+  pipeline_core\llm_service.py:1535:        if option_payload.get("repeat_penalty") is not None:
+> pipeline_core\llm_service.py:1536:            fallback_options["repeat_penalty"] = 
+option_payload.get("repeat_penalty")
+  pipeline_core\llm_service.py:1537:
+  pipeline_core\llm_service.py:1538:    try:
+  pipeline_core\llm_service.py:1539:        min_chars = int(os.getenv("PIPELINE_LLM_MIN_CHARS", "8"))
+  pipeline_core\llm_service.py:1542:    min_chars = max(0, min_chars)
+  pipeline_core\llm_service.py:1543:
+  pipeline_core\llm_service.py:1544:    try:
+> pipeline_core\llm_service.py:1545:        max_fallback = 
+int(os.getenv("PIPELINE_LLM_FALLBACK_TRUNC", "3500"))
+  pipeline_core\llm_service.py:1546:    except (TypeError, ValueError):
+> pipeline_core\llm_service.py:1547:        max_fallback = 3500
+> pipeline_core\llm_service.py:1548:    if max_fallback <= 0:
+  pipeline_core\llm_service.py:1549:        short_prompt = cleaned_prompt
+  pipeline_core\llm_service.py:1550:    else:
+> pipeline_core\llm_service.py:1551:        short_prompt = cleaned_prompt[-max_fallback:]
+  pipeline_core\llm_service.py:1552:
+> pipeline_core\llm_service.py:1553:    force_block, block_reason = _should_block_streaming()
+  pipeline_core\llm_service.py:1554:    if force_block:
+> pipeline_core\llm_service.py:1555:        forced = _ollama_generate_sync(endpoint, model_name, 
+short_prompt, fallback_options)
+  pipeline_core\llm_service.py:1556:        forced_text = forced.strip()
+  pipeline_core\llm_service.py:1557:        _record_llm_path("segment_blocking", block_reason)
+  pipeline_core\llm_service.py:1558:        if forced_text:
+  pipeline_core\llm_service.py:1559:            logger.info(
+> pipeline_core\llm_service.py:1560:                "[LLM] dynamic text completion (non-streaming 
+fallback) ok, len=%d",
+  pipeline_core\llm_service.py:1561:                len(forced_text),
+  pipeline_core\llm_service.py:1562:            )
+  pipeline_core\llm_service.py:1563:            return forced_text, "", 0, len(forced_text), 1
+  pipeline_core\llm_service.py:1568:    reason = "empty_payload"
+  pipeline_core\llm_service.py:1569:    chunk_count = 0
+  pipeline_core\llm_service.py:1570:    attempts_used = 0
+> pipeline_core\llm_service.py:1571:    request_timeout = max(float(timeout), 1.0)
+  pipeline_core\llm_service.py:1572:
+  pipeline_core\llm_service.py:1573:    for attempt in range(3):
+  pipeline_core\llm_service.py:1574:        attempts_used = attempt + 1
+  pipeline_core\llm_service.py:1577:            "[LLM] dynamic attempt start",
+  pipeline_core\llm_service.py:1578:            extra={
+  pipeline_core\llm_service.py:1579:                "attempt": attempts_used,
+> pipeline_core\llm_service.py:1580:                "model": model_name,
+  pipeline_core\llm_service.py:1581:                "prompt_len_chars": prompt_len_chars,
+  pipeline_core\llm_service.py:1582:                "prompt_token_estimate": prompt_token_estimate,
+  pipeline_core\llm_service.py:1583:                "num_predict": option_payload.get("num_predict") 
+if option_payload else None,
+  pipeline_core\llm_service.py:1584:                "temperature": option_payload.get("temperature") 
+if option_payload else None,
+  pipeline_core\llm_service.py:1585:                "top_p": option_payload.get("top_p") if 
+option_payload else None,
+> pipeline_core\llm_service.py:1586:                "timeout": request_timeout,
+  pipeline_core\llm_service.py:1587:            },
+  pipeline_core\llm_service.py:1588:        )
+  pipeline_core\llm_service.py:1589:        try:
+> pipeline_core\llm_service.py:1590:            stream_error_detected = False
+> pipeline_core\llm_service.py:1591:            _record_llm_path("segment_stream", None)
+  pipeline_core\llm_service.py:1592:            with requests.post(
+  pipeline_core\llm_service.py:1593:                url,
+> pipeline_core\llm_service.py:1594:                json=payload,
+> pipeline_core\llm_service.py:1595:                stream=True,
+> pipeline_core\llm_service.py:1596:                timeout=(10, request_timeout),
+  pipeline_core\llm_service.py:1597:            ) as response:
+  pipeline_core\llm_service.py:1598:                response.raise_for_status()
+  pipeline_core\llm_service.py:1599:                buffered_chunks: List[str] = []
+  pipeline_core\llm_service.py:1604:                        continue
+  pipeline_core\llm_service.py:1605:                    payload_str = raw_line[5:].strip()
+  pipeline_core\llm_service.py:1606:                    try:
+> pipeline_core\llm_service.py:1607:                        event = json.loads(payload_str or "{}")
+> pipeline_core\llm_service.py:1608:                    except json.JSONDecodeError:
+  pipeline_core\llm_service.py:1609:                        event = {}
+  pipeline_core\llm_service.py:1610:                    if not isinstance(event, dict):
+  pipeline_core\llm_service.py:1611:                        event = {}
+  pipeline_core\llm_service.py:1615:                        error_text = str(error_value).strip() or 
+"unknown"
+  pipeline_core\llm_service.py:1616:                        reason = f"error:{error_text}"
+  pipeline_core\llm_service.py:1617:                        logger.warning(
+> pipeline_core\llm_service.py:1618:                            "[LLM] dynamic stream reported error",
+  pipeline_core\llm_service.py:1619:                            extra={
+  pipeline_core\llm_service.py:1620:                                "attempt": attempts_used,
+  pipeline_core\llm_service.py:1621:                                "chunk_count": chunk_count,
+  pipeline_core\llm_service.py:1623:                                "payload": event,
+  pipeline_core\llm_service.py:1624:                            },
+  pipeline_core\llm_service.py:1625:                        )
+> pipeline_core\llm_service.py:1626:                        stream_error_detected = True
+> pipeline_core\llm_service.py:1627:                        _note_stream_failure("stream_err")
+  pipeline_core\llm_service.py:1628:                        break
+  pipeline_core\llm_service.py:1629:
+  pipeline_core\llm_service.py:1630:                    if event.get("done"):
+  pipeline_core\llm_service.py:1632:                        if done_text and done_text.lower() not in 
+{"stop", "length"}:
+  pipeline_core\llm_service.py:1633:                            reason = f"done:{done_text}"
+  pipeline_core\llm_service.py:1634:                            logger.warning(
+> pipeline_core\llm_service.py:1635:                                "[LLM] dynamic stream finished 
+with unexpected reason",
+  pipeline_core\llm_service.py:1636:                                extra={
+  pipeline_core\llm_service.py:1637:                                    "attempt": attempts_used,
+  pipeline_core\llm_service.py:1638:                                    "chunk_count": chunk_count,
+  pipeline_core\llm_service.py:1640:                                    "payload": event,
+  pipeline_core\llm_service.py:1641:                                },
+  pipeline_core\llm_service.py:1642:                            )
+> pipeline_core\llm_service.py:1643:                            stream_error_detected = True
+> pipeline_core\llm_service.py:1644:                            _note_stream_failure("stream_err")
+  pipeline_core\llm_service.py:1645:                        break
+  pipeline_core\llm_service.py:1646:
+  pipeline_core\llm_service.py:1647:                    chunk = event.get("response") or ""
+  pipeline_core\llm_service.py:1652:                aggregated_text = "".join(buffered_chunks)
+  pipeline_core\llm_service.py:1653:                raw_text = aggregated_text
+  pipeline_core\llm_service.py:1654:
+> pipeline_core\llm_service.py:1655:                if stream_error_detected:
+  pipeline_core\llm_service.py:1656:                    break
+  pipeline_core\llm_service.py:1657:
+  pipeline_core\llm_service.py:1658:                text_candidate = (aggregated_text or "").strip()
+  pipeline_core\llm_service.py:1659:                if len(text_candidate) < min_chars:
+> pipeline_core\llm_service.py:1660:                    fallback_text = _ollama_generate_sync(
+> pipeline_core\llm_service.py:1661:                        endpoint,
+> pipeline_core\llm_service.py:1662:                        model_name,
+  pipeline_core\llm_service.py:1663:                        short_prompt,
+> pipeline_core\llm_service.py:1664:                        fallback_options,
+  pipeline_core\llm_service.py:1665:                    )
+> pipeline_core\llm_service.py:1666:                    if fallback_text:
+> pipeline_core\llm_service.py:1667:                        _note_stream_failure("stream_err")
+> pipeline_core\llm_service.py:1668:                        _record_llm_path("segment_blocking", 
+"stream_err")
+  pipeline_core\llm_service.py:1669:                        logger.info(
+> pipeline_core\llm_service.py:1670:                            "[LLM] dynamic text completion 
+(non-streaming fallback) ok, len=%d",
+> pipeline_core\llm_service.py:1671:                            len(fallback_text),
+  pipeline_core\llm_service.py:1672:                        )
+> pipeline_core\llm_service.py:1673:                        return fallback_text, "", chunk_count, 
+len(fallback_text), attempts_used
+  pipeline_core\llm_service.py:1674:
+  pipeline_core\llm_service.py:1675:                if text_candidate:
+  pipeline_core\llm_service.py:1676:                    reason = ""
+  pipeline_core\llm_service.py:1682:                            "raw_length": len(aggregated_text),
+  pipeline_core\llm_service.py:1683:                        },
+  pipeline_core\llm_service.py:1684:                    )
+> pipeline_core\llm_service.py:1685:                    _record_llm_path("segment_stream", None)
+  pipeline_core\llm_service.py:1686:                    break
+  pipeline_core\llm_service.py:1687:                reason = "empty_payload"
+> pipeline_core\llm_service.py:1688:        except requests.Timeout:
+> pipeline_core\llm_service.py:1689:            reason = "timeout"
+> pipeline_core\llm_service.py:1690:            _note_stream_failure("timeout")
+  pipeline_core\llm_service.py:1691:        except requests.RequestException:
+  pipeline_core\llm_service.py:1692:            reason = "transport_error"
+> pipeline_core\llm_service.py:1693:            _note_stream_failure("stream_err")
+  pipeline_core\llm_service.py:1694:        except Exception:
+> pipeline_core\llm_service.py:1695:            reason = "stream_err"
+> pipeline_core\llm_service.py:1696:            _note_stream_failure("stream_err")
+  pipeline_core\llm_service.py:1697:
+  pipeline_core\llm_service.py:1698:        if reason and reason.startswith("error:"):
+  pipeline_core\llm_service.py:1699:            break
+  pipeline_core\llm_service.py:1700:
+  pipeline_core\llm_service.py:1701:        logger.debug(
+> pipeline_core\llm_service.py:1702:            "[LLM] dynamic attempt retry",
+  pipeline_core\llm_service.py:1703:            extra={
+  pipeline_core\llm_service.py:1704:                "attempt": attempts_used,
+  pipeline_core\llm_service.py:1705:                "chunk_count": chunk_count,
+  pipeline_core\llm_service.py:1711:
+  pipeline_core\llm_service.py:1712:    stripped_text = raw_text.strip()
+  pipeline_core\llm_service.py:1713:    if stripped_text:
+> pipeline_core\llm_service.py:1714:        _record_llm_path("segment_stream", None)
+  pipeline_core\llm_service.py:1715:        logger.debug(
+  pipeline_core\llm_service.py:1716:            "[LLM] dynamic_ok",
+  pipeline_core\llm_service.py:1717:            extra={
+  pipeline_core\llm_service.py:1731:        },
+  pipeline_core\llm_service.py:1732:    )
+  pipeline_core\llm_service.py:1733:
+> pipeline_core\llm_service.py:1734:    fallback_text = _ollama_generate_sync(endpoint, model_name, 
+short_prompt, fallback_options)
+> pipeline_core\llm_service.py:1735:    fallback_reason = reason if reason in {"timeout", 
+"stream_err"} else ("stream_err" if reason else None)
+> pipeline_core\llm_service.py:1736:    if fallback_reason:
+> pipeline_core\llm_service.py:1737:        _note_stream_failure(fallback_reason)
+> pipeline_core\llm_service.py:1738:    _record_llm_path("segment_blocking", fallback_reason)
+> pipeline_core\llm_service.py:1739:    if fallback_text:
+  pipeline_core\llm_service.py:1740:        logger.info(
+> pipeline_core\llm_service.py:1741:            "[LLM] dynamic text completion (non-streaming 
+fallback) ok, len=%d",
+> pipeline_core\llm_service.py:1742:            len(fallback_text),
+  pipeline_core\llm_service.py:1743:        )
+> pipeline_core\llm_service.py:1744:        return fallback_text, (reason or ""), chunk_count, 
+len(fallback_text), attempts_used
+  pipeline_core\llm_service.py:1745:    return "", reason or "empty_payload", chunk_count, 0, 
+attempts_used
+  pipeline_core\llm_service.py:1746:
+  pipeline_core\llm_service.py:1747:
+  pipeline_core\llm_service.py:2245:    return ranked[:limit]
+  pipeline_core\llm_service.py:2246:
+  pipeline_core\llm_service.py:2247:
+> pipeline_core\llm_service.py:2248:_SPACY_MODEL: Optional[Any] = None
+  pipeline_core\llm_service.py:2249:_SPACY_FAILED = False
+  pipeline_core\llm_service.py:2250:
+  pipeline_core\llm_service.py:2251:
+> pipeline_core\llm_service.py:2252:def _load_spacy_model() -> Optional[Any]:
+> pipeline_core\llm_service.py:2253:    global _SPACY_MODEL, _SPACY_FAILED
+  pipeline_core\llm_service.py:2254:    if _SPACY_FAILED:
+  pipeline_core\llm_service.py:2255:        return None
+> pipeline_core\llm_service.py:2256:    if _SPACY_MODEL is not None:
+> pipeline_core\llm_service.py:2257:        return _SPACY_MODEL
+  pipeline_core\llm_service.py:2258:    try:
+  pipeline_core\llm_service.py:2259:        import spacy  # type: ignore
+  pipeline_core\llm_service.py:2260:    except Exception:
+  pipeline_core\llm_service.py:2261:        _SPACY_FAILED = True
+  pipeline_core\llm_service.py:2262:        return None
+  pipeline_core\llm_service.py:2263:    try:
+> pipeline_core\llm_service.py:2264:        _SPACY_MODEL = spacy.load("en_core_web_sm")  # type: 
+ignore[attr-defined]
+  pipeline_core\llm_service.py:2265:    except Exception:
+  pipeline_core\llm_service.py:2266:        _SPACY_FAILED = True
+  pipeline_core\llm_service.py:2267:        return None
+> pipeline_core\llm_service.py:2268:    return _SPACY_MODEL
+  pipeline_core\llm_service.py:2269:
+  pipeline_core\llm_service.py:2270:
+  pipeline_core\llm_service.py:2271:def _extract_noun_phrases(text: str, *, limit: int = 12) -> 
+List[str]:
+  pipeline_core\llm_service.py:2274:    if not ascii_text:
+  pipeline_core\llm_service.py:2275:        return []
+  pipeline_core\llm_service.py:2276:    candidates: Counter[str] = Counter()
+> pipeline_core\llm_service.py:2277:    nlp = _load_spacy_model()
+  pipeline_core\llm_service.py:2278:    if nlp is not None:
+  pipeline_core\llm_service.py:2279:        try:
+  pipeline_core\llm_service.py:2280:            doc = nlp(ascii_text)
+  pipeline_core\llm_service.py:2474:            idx = int(entry.get('segment_index'))
+  pipeline_core\llm_service.py:2475:        except Exception:
+  pipeline_core\llm_service.py:2476:            continue
+> pipeline_core\llm_service.py:2477:        keywords_raw = _normalise_terms(entry.get('keywords') or 
+[], limit=6)
+  pipeline_core\llm_service.py:2478:        queries_raw = _normalise_terms(entry.get('queries') or [], 
+limit=6)
+> pipeline_core\llm_service.py:2479:        keywords = build_visual_phrases(keywords_raw, limit=6)
+> pipeline_core\llm_service.py:2480:        if not keywords and keywords_raw:
+> pipeline_core\llm_service.py:2481:            keywords = keywords_raw
+  pipeline_core\llm_service.py:2482:        queries = build_visual_phrases(queries_raw, limit=6)
+> pipeline_core\llm_service.py:2483:        if not keywords and not queries:
+  pipeline_core\llm_service.py:2484:            continue
+  pipeline_core\llm_service.py:2485:        briefs.append({
+  pipeline_core\llm_service.py:2486:            'segment_index': idx,
+> pipeline_core\llm_service.py:2487:            'keywords': keywords,
+  pipeline_core\llm_service.py:2488:            'queries': queries,
+  pipeline_core\llm_service.py:2489:        })
+  pipeline_core\llm_service.py:2490:    return briefs
+  pipeline_core\llm_service.py:2491:
+  pipeline_core\llm_service.py:2492:
+> pipeline_core\llm_service.py:2493:def _tfidf_fallback(transcript: str, *, top_k: int = 12) -> 
+Tuple[List[str], List[str]]:
+  pipeline_core\llm_service.py:2494:    segments: List[List[str]] = []
+  pipeline_core\llm_service.py:2495:    for chunk in re.split(r"[\.!?\n]+", transcript or ''):
+  pipeline_core\llm_service.py:2496:        tokens = _tokenise(chunk)
+  pipeline_core\llm_service.py:2514:            idf = math.log((len(segments) + 1) / (df[term] + 1)) + 
+1.0
+  pipeline_core\llm_service.py:2515:            score = tf * idf
+  pipeline_core\llm_service.py:2516:            tfidf[term] = max(tfidf.get(term, 0.0), score)
+> pipeline_core\llm_service.py:2517:    keywords = [
+  pipeline_core\llm_service.py:2518:        _strip_diacritics(term)
+  pipeline_core\llm_service.py:2519:        for term, _ in sorted(tfidf.items(), key=lambda item: 
+item[1], reverse=True)
+  pipeline_core\llm_service.py:2520:        if term not in _GENERIC_TERMS
+  pipeline_core\llm_service.py:2531:    noun_phrases_raw = _extract_noun_phrases(transcript, 
+limit=top_k)
+  pipeline_core\llm_service.py:2532:    noun_phrase_candidates = 
+_normalise_scene_queries(noun_phrases_raw, limit=top_k)
+  pipeline_core\llm_service.py:2533:    noun_phrases = enforce_fetch_language(noun_phrase_candidates, 
+"en")
+> pipeline_core\llm_service.py:2534:    keywords.extend(noun_phrases)
+  pipeline_core\llm_service.py:2535:    queries_candidates: List[str] = []
+  pipeline_core\llm_service.py:2536:    queries_candidates.extend(_map_scene_prompts(noun_phrases, 
+limit=max(4, top_k // 2)))
+  pipeline_core\llm_service.py:2537:    queries_candidates.extend(phrase for phrase, _ in 
+bigrams.most_common(max(4, top_k // 2)))
+> pipeline_core\llm_service.py:2538:    keywords_normalised = _normalise_terms(keywords, limit=top_k)
+  pipeline_core\llm_service.py:2539:    queries_normalised = 
+_normalise_scene_queries(queries_candidates, limit=max(4, top_k // 2))
+> pipeline_core\llm_service.py:2540:    keywords_enforced = 
+enforce_fetch_language(keywords_normalised, "en")
+> pipeline_core\llm_service.py:2541:    keywords_final = _normalise_terms(keywords_enforced, 
+limit=top_k)
+  pipeline_core\llm_service.py:2542:    queries_enforced = enforce_fetch_language(queries_normalised, 
+"en")
+  pipeline_core\llm_service.py:2543:    queries_final = _normalise_scene_queries(queries_enforced, 
+limit=max(4, top_k // 2))
+> pipeline_core\llm_service.py:2544:    return keywords_final, queries_final
+  pipeline_core\llm_service.py:2545:
+  pipeline_core\llm_service.py:2546:
+  pipeline_core\llm_service.py:2547:def _normalise_dynamic_payload(
+  pipeline_core\llm_service.py:2549:    *,
+  pipeline_core\llm_service.py:2550:    transcript: str,
+  pipeline_core\llm_service.py:2551:    disable_tfidf: bool = False,
+> pipeline_core\llm_service.py:2552:    fallback_reason: str = "empty_payload",
+  pipeline_core\llm_service.py:2553:) -> Dict[str, Any]:
+  pipeline_core\llm_service.py:2554:    domains: List[Dict[str, Any]] = []
+  pipeline_core\llm_service.py:2555:    for entry in raw.get('detected_domains') or []:
+  pipeline_core\llm_service.py:2571:    else:
+  pipeline_core\llm_service.py:2572:        language = None
+  pipeline_core\llm_service.py:2573:
+> pipeline_core\llm_service.py:2574:    keywords = 
+enforce_fetch_language(_normalise_terms(raw.get('keywords') or [], limit=20), language)
+  pipeline_core\llm_service.py:2575:    search_queries = 
+enforce_fetch_language(_normalise_terms(raw.get('search_queries') or [], limit=12), language)
+  pipeline_core\llm_service.py:2576:    synonyms = _normalise_synonyms(raw.get('synonyms') or {})
+  pipeline_core\llm_service.py:2577:    briefs = _normalise_briefs(raw.get('segment_briefs') or [])
+  pipeline_core\llm_service.py:2578:
+> pipeline_core\llm_service.py:2579:    if not keywords and not search_queries:
+  pipeline_core\llm_service.py:2580:        if disable_tfidf:
+> pipeline_core\llm_service.py:2581:            reason = (fallback_reason or "unknown").strip() or 
+"unknown"
+> pipeline_core\llm_service.py:2582:            raise TfidfFallbackDisabled(
+> pipeline_core\llm_service.py:2583:                f"TF-IDF fallback disabled 
+(fallback_reason={reason})"
+  pipeline_core\llm_service.py:2584:            )
+> pipeline_core\llm_service.py:2585:        fallback_kw, fallback_q = _tfidf_fallback(transcript)
+> pipeline_core\llm_service.py:2586:        keywords = fallback_kw[:12]
+  pipeline_core\llm_service.py:2587:        if not search_queries:
+> pipeline_core\llm_service.py:2588:            search_queries = fallback_q[:8]
+  pipeline_core\llm_service.py:2589:
+  pipeline_core\llm_service.py:2590:    return {
+  pipeline_core\llm_service.py:2591:        'detected_domains': domains,
+  pipeline_core\llm_service.py:2592:        'language': language,
+> pipeline_core\llm_service.py:2593:        'keywords': keywords,
+  pipeline_core\llm_service.py:2594:        'synonyms': synonyms,
+  pipeline_core\llm_service.py:2595:        'search_queries': search_queries,
+  pipeline_core\llm_service.py:2596:        'segment_briefs': briefs,
+  pipeline_core\llm_service.py:2617:- Fenêtres visuelles recommandées : 3–6 secondes. Format vertical.
+  pipeline_core\llm_service.py:2618:- Si la langue de la transcription n’est pas l’anglais, produis 
+les requêtes en langue d’origine + anglais.
+  pipeline_core\llm_service.py:2619:
+> pipeline_core\llm_service.py:2620:RÉPONDS UNIQUEMENT EN JSON:
+  pipeline_core\llm_service.py:2621:{{
+  pipeline_core\llm_service.py:2622:  "detected_domains": [{{"name": "...", "confidence": 0.0}}],
+  pipeline_core\llm_service.py:2623:  "language": "fr|en|…",
+> pipeline_core\llm_service.py:2624:  "keywords": ["..."],
+> pipeline_core\llm_service.py:2625:  "synonyms": {{ "keyword": ["variante1","variante2"] }},
+  pipeline_core\llm_service.py:2626:  "search_queries": ["..."],
+  pipeline_core\llm_service.py:2627:  "segment_briefs": [
+> pipeline_core\llm_service.py:2628:    {{"segment_index": 0, "window_s": 4, "keywords": ["..."], 
+"queries": ["..."]}}
+  pipeline_core\llm_service.py:2629:  ],
+  pipeline_core\llm_service.py:2630:  "notes": "pièges, anti-termes, risques"
+  pipeline_core\llm_service.py:2631:}}
+  pipeline_core\llm_service.py:2636:
+  pipeline_core\llm_service.py:2637:
+  pipeline_core\llm_service.py:2638:@dataclass(slots=True)
+> pipeline_core\llm_service.py:2639:class SubtitleSegment:
+> pipeline_core\llm_service.py:2640:    """Lightweight representation of a subtitle segment."""
+  pipeline_core\llm_service.py:2641:
+  pipeline_core\llm_service.py:2642:    start: float
+  pipeline_core\llm_service.py:2643:    end: float
+  pipeline_core\llm_service.py:2644:    text: str
+  pipeline_core\llm_service.py:2645:
+  pipeline_core\llm_service.py:2646:    @classmethod
+> pipeline_core\llm_service.py:2647:    def from_mapping(cls, payload: Dict) -> "SubtitleSegment":
+  pipeline_core\llm_service.py:2648:        return cls(
+  pipeline_core\llm_service.py:2649:            start=float(payload.get("start", 0.0) or 0.0),
+  pipeline_core\llm_service.py:2650:            end=float(payload.get("end", 0.0) or 0.0),
+  pipeline_core\llm_service.py:2659:    title: str
+  pipeline_core\llm_service.py:2660:    description: str
+  pipeline_core\llm_service.py:2661:    hashtags: List[str]
+> pipeline_core\llm_service.py:2662:    broll_keywords: List[str]
+  pipeline_core\llm_service.py:2663:    raw_payload: Dict
+  pipeline_core\llm_service.py:2664:
+  pipeline_core\llm_service.py:2665:
+  pipeline_core\llm_service.py:2677:        self._integration = None
+  pipeline_core\llm_service.py:2678:        self.last_metadata: Dict[str, Any] = {}
+  pipeline_core\llm_service.py:2679:        self._metadata_cache_queries: List[str] = []
+> pipeline_core\llm_service.py:2680:        self._metadata_cache_keywords: List[str] = []
+  pipeline_core\llm_service.py:2681:
+  pipeline_core\llm_service.py:2682:        settings_obj: Any = None
+  pipeline_core\llm_service.py:2683:        if callable(get_settings):  # type: ignore[arg-type]
+  pipeline_core\llm_service.py:2700:                coerced = _coerce_positive(getattr(candidate, 
+"max_queries_per_segment", None))
+  pipeline_core\llm_service.py:2701:                if coerced is not None:
+  pipeline_core\llm_service.py:2702:                    max_queries_default = coerced
+> pipeline_core\llm_service.py:2703:            fallback_attr = getattr(config, 
+"llm_max_queries_per_segment", None)
+> pipeline_core\llm_service.py:2704:            coerced = _coerce_positive(fallback_attr)
+  pipeline_core\llm_service.py:2705:            if coerced is not None:
+  pipeline_core\llm_service.py:2706:                max_queries_default = coerced
+  pipeline_core\llm_service.py:2707:        if settings_obj is not None:
+  pipeline_core\llm_service.py:2732:                return None
+  pipeline_core\llm_service.py:2733:            flag = None
+  pipeline_core\llm_service.py:2734:            if isinstance(source, dict):
+> pipeline_core\llm_service.py:2735:                if "disable_tfidf_fallback" in source:
+> pipeline_core\llm_service.py:2736:                    flag = 
+_coerce_disable_flag(source.get("disable_tfidf_fallback"))
+  pipeline_core\llm_service.py:2737:                if flag is None and "llm" in source:
+  pipeline_core\llm_service.py:2738:                    flag = _extract_disable_flag(source.get("llm"))
+  pipeline_core\llm_service.py:2739:                return flag
+> pipeline_core\llm_service.py:2740:            if hasattr(source, "disable_tfidf_fallback"):
+> pipeline_core\llm_service.py:2741:                flag = _coerce_disable_flag(getattr(source, 
+"disable_tfidf_fallback"))
+  pipeline_core\llm_service.py:2742:            if flag is None and hasattr(source, "llm"):
+  pipeline_core\llm_service.py:2743:                flag = _extract_disable_flag(getattr(source, 
+"llm"))
+  pipeline_core\llm_service.py:2744:            return flag
+  pipeline_core\llm_service.py:2745:
+> pipeline_core\llm_service.py:2746:        disable_flag = tfidf_fallback_disabled_from_env()
+  pipeline_core\llm_service.py:2747:        if disable_flag is None:
+  pipeline_core\llm_service.py:2748:            disable_flag = _extract_disable_flag(config)
+> pipeline_core\llm_service.py:2749:        self._disable_tfidf_fallback = bool(disable_flag) if 
+disable_flag is not None else False
+  pipeline_core\llm_service.py:2750:
+> pipeline_core\llm_service.py:2751:        timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+  pipeline_core\llm_service.py:2752:        num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
+  pipeline_core\llm_service.py:2753:        temperature_env = os.getenv("PIPELINE_LLM_TEMP")
+  pipeline_core\llm_service.py:2754:        top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
+  pipeline_core\llm_service.py:2777:                parsed = min(maximum, parsed)
+  pipeline_core\llm_service.py:2778:            return max(minimum, parsed)
+  pipeline_core\llm_service.py:2779:
+> pipeline_core\llm_service.py:2780:        timeout_default = 35
+> pipeline_core\llm_service.py:2781:        settings_timeout = getattr(getattr(settings_obj, "llm", 
+None), "timeout_fallback_s", None)
+> pipeline_core\llm_service.py:2782:        if isinstance(settings_timeout, (int, float)):
+> pipeline_core\llm_service.py:2783:            timeout_default = max(5, int(settings_timeout))
+  pipeline_core\llm_service.py:2784:
+> pipeline_core\llm_service.py:2785:        self._llm_timeout = _parse_int(timeout_env, 
+default=timeout_default, minimum=5)
+  pipeline_core\llm_service.py:2786:
+  pipeline_core\llm_service.py:2787:        settings_num_predict = getattr(getattr(settings_obj, 
+"llm", None), "num_predict", None)
+  pipeline_core\llm_service.py:2788:        configured_predict = None
+  pipeline_core\llm_service.py:2796:        self._llm_repeat_penalty = 
+_parse_float(repeat_penalty_env, default=1.1, minimum=0.0)
+  pipeline_core\llm_service.py:2797:        self._llm_stop_tokens: Sequence[str] = 
+tuple(_parse_stop_tokens(stop_tokens_env))
+  pipeline_core\llm_service.py:2798:
+> pipeline_core\llm_service.py:2799:        def _clean_model(value: Optional[str], fallback: str) -> 
+str:
+  pipeline_core\llm_service.py:2800:            candidate = (value or "").strip()
+> pipeline_core\llm_service.py:2801:            return candidate or fallback
+  pipeline_core\llm_service.py:2802:
+> pipeline_core\llm_service.py:2803:        base_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL"), 
+"qwen2.5:7b")
+> pipeline_core\llm_service.py:2804:        self.model_default = base_model
+> pipeline_core\llm_service.py:2805:        self.model_json = 
+_clean_model(os.getenv("PIPELINE_LLM_MODEL_JSON"), base_model)
+> pipeline_core\llm_service.py:2806:        configured_text_model = 
+_clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), base_model)
+> pipeline_core\llm_service.py:2807:        self.model_text = configured_text_model
+  pipeline_core\llm_service.py:2808:
+> pipeline_core\llm_service.py:2809:        fallback_note: Optional[str] = None
+> pipeline_core\llm_service.py:2810:        fallback_target: Optional[str] = None
+> pipeline_core\llm_service.py:2811:        readiness_reason = "configured text model retained (no 
+readiness metadata)"
+  pipeline_core\llm_service.py:2812:        readiness_filename: Optional[str] = None
+  pipeline_core\llm_service.py:2813:        readiness_hash: Optional[str] = None
+  pipeline_core\llm_service.py:2814:
+> pipeline_core\llm_service.py:2815:        ready_path = PROJECT_ROOT / 'tools' / 'out' / 
+'llm_ready.json'
+  pipeline_core\llm_service.py:2816:        readiness_filename = ready_path.name
+  pipeline_core\llm_service.py:2817:
+  pipeline_core\llm_service.py:2818:        if ready_path.exists():
+  pipeline_core\llm_service.py:2838:                    readiness_reason = f"failed to decode 
+readiness metadata ({exc})"
+  pipeline_core\llm_service.py:2839:                else:
+  pipeline_core\llm_service.py:2840:                    try:
+> pipeline_core\llm_service.py:2841:                        ready_payload = json.loads(ready_text)
+> pipeline_core\llm_service.py:2842:                    except json.JSONDecodeError as exc:
+  pipeline_core\llm_service.py:2843:                        logger.warning(
+  pipeline_core\llm_service.py:2844:                            "[LLM] failed to parse readiness 
+metadata from %s: %s",
+  pipeline_core\llm_service.py:2845:                            ready_path,
+  pipeline_core\llm_service.py:2847:                        )
+  pipeline_core\llm_service.py:2848:                        readiness_reason = f"failed to parse 
+readiness metadata ({exc})"
+  pipeline_core\llm_service.py:2849:                    else:
+> pipeline_core\llm_service.py:2850:                        broken_models = {
+> pipeline_core\llm_service.py:2851:                            str(model).strip()
+> pipeline_core\llm_service.py:2852:                            for model in 
+ready_payload.get('broken', [])
+> pipeline_core\llm_service.py:2853:                            if str(model).strip()
+  pipeline_core\llm_service.py:2854:                        }
+  pipeline_core\llm_service.py:2855:                        text_ready = [
+> pipeline_core\llm_service.py:2856:                            str(model).strip()
+> pipeline_core\llm_service.py:2857:                            for model in 
+ready_payload.get('text_ready', [])
+> pipeline_core\llm_service.py:2858:                            if str(model).strip()
+  pipeline_core\llm_service.py:2859:                        ]
+> pipeline_core\llm_service.py:2860:                        if configured_text_model in broken_models 
+and text_ready:
+> pipeline_core\llm_service.py:2861:                            fallback_target = text_ready[0]
+  pipeline_core\llm_service.py:2862:                            logger.warning(
+> pipeline_core\llm_service.py:2863:                                "[LLM] text model %s listed as 
+broken in %s; falling back to %s",
+> pipeline_core\llm_service.py:2864:                                configured_text_model,
+  pipeline_core\llm_service.py:2865:                                ready_path,
+> pipeline_core\llm_service.py:2866:                                fallback_target,
+  pipeline_core\llm_service.py:2867:                            )
+> pipeline_core\llm_service.py:2868:                            self.model_text = fallback_target
+> pipeline_core\llm_service.py:2869:                            fallback_note = (
+> pipeline_core\llm_service.py:2870:                                f"configured model 
+{configured_text_model} listed as broken in {ready_path.name}"
+  pipeline_core\llm_service.py:2871:                            )
+  pipeline_core\llm_service.py:2872:                            readiness_reason = (
+> pipeline_core\llm_service.py:2873:                                f"configured model 
+{configured_text_model} listed as broken; "
+> pipeline_core\llm_service.py:2874:                                f"fallback to {fallback_target}"
+  pipeline_core\llm_service.py:2875:                            )
+> pipeline_core\llm_service.py:2876:                        elif configured_text_model in 
+broken_models and not text_ready:
+  pipeline_core\llm_service.py:2877:                            logger.warning(
+> pipeline_core\llm_service.py:2878:                                "[LLM] text model %s listed as 
+broken in %s but no fallback available",
+> pipeline_core\llm_service.py:2879:                                configured_text_model,
+  pipeline_core\llm_service.py:2880:                                ready_path,
+  pipeline_core\llm_service.py:2881:                            )
+> pipeline_core\llm_service.py:2882:                            fallback_note = (
+> pipeline_core\llm_service.py:2883:                                f"configured model 
+{configured_text_model} listed as broken in {ready_path.name}"
+  pipeline_core\llm_service.py:2884:                            )
+  pipeline_core\llm_service.py:2885:                            readiness_reason = (
+> pipeline_core\llm_service.py:2886:                                f"configured model 
+{configured_text_model} listed as broken; no fallback available"
+  pipeline_core\llm_service.py:2887:                            )
+> pipeline_core\llm_service.py:2888:                        elif configured_text_model in text_ready:
+  pipeline_core\llm_service.py:2889:                            readiness_reason = (
+> pipeline_core\llm_service.py:2890:                                f"configured model 
+{configured_text_model} marked ready"
+  pipeline_core\llm_service.py:2891:                            )
+  pipeline_core\llm_service.py:2892:                        else:
+  pipeline_core\llm_service.py:2893:                            readiness_reason = (
+> pipeline_core\llm_service.py:2894:                                f"configured model 
+{configured_text_model} not referenced; retaining configured value"
+  pipeline_core\llm_service.py:2895:                            )
+  pipeline_core\llm_service.py:2896:
+  pipeline_core\llm_service.py:2897:        logger.info(
+> pipeline_core\llm_service.py:2898:            "[LLM] using timeout=%ss num_predict=%s temp=%s 
+top_p=%s repeat_penalty=%s",
+> pipeline_core\llm_service.py:2899:            self._llm_timeout,
+  pipeline_core\llm_service.py:2900:            self._llm_num_predict,
+  pipeline_core\llm_service.py:2901:            self._llm_temperature,
+  pipeline_core\llm_service.py:2902:            self._llm_top_p,
+  pipeline_core\llm_service.py:2903:            self._llm_repeat_penalty,
+  pipeline_core\llm_service.py:2904:        )
+  pipeline_core\llm_service.py:2905:
+> pipeline_core\llm_service.py:2906:        if fallback_note:
+  pipeline_core\llm_service.py:2907:            logger.info(
+> pipeline_core\llm_service.py:2908:                "[LLM] text model selected: %s (fallback: %s%s)",
+> pipeline_core\llm_service.py:2909:                self.model_text,
+> pipeline_core\llm_service.py:2910:                fallback_note,
+> pipeline_core\llm_service.py:2911:                f", target={fallback_target}" if fallback_target 
+else "",
+  pipeline_core\llm_service.py:2912:            )
+  pipeline_core\llm_service.py:2913:        else:
+> pipeline_core\llm_service.py:2914:            logger.info("[LLM] text model selected: %s", 
+self.model_text)
+  pipeline_core\llm_service.py:2915:
+  pipeline_core\llm_service.py:2916:        readiness_log: Dict[str, Any] = {
+> pipeline_core\llm_service.py:2917:            'chosen_text_model': self.model_text,
+> pipeline_core\llm_service.py:2918:            'chosen_json_model': self.model_json,
+  pipeline_core\llm_service.py:2919:            'readiness_reason': readiness_reason,
+  pipeline_core\llm_service.py:2920:        }
+  pipeline_core\llm_service.py:2921:        if readiness_filename:
+  pipeline_core\llm_service.py:2922:            readiness_log['readiness_filename'] = 
+readiness_filename
+  pipeline_core\llm_service.py:2923:        if readiness_hash:
+  pipeline_core\llm_service.py:2924:            readiness_log['readiness_sha256_12'] = readiness_hash
+> pipeline_core\llm_service.py:2925:        if fallback_note:
+> pipeline_core\llm_service.py:2926:            readiness_log['fallback_note'] = fallback_note
+> pipeline_core\llm_service.py:2927:        if fallback_target:
+> pipeline_core\llm_service.py:2928:            readiness_log['fallback_target'] = fallback_target
+  pipeline_core\llm_service.py:2929:
+  pipeline_core\llm_service.py:2930:        logger.info("[LLM] readiness routing decision: %s", 
+readiness_log)
+  pipeline_core\llm_service.py:2931:
+> pipeline_core\llm_service.py:2932:    def _fallback_queries_from(
+  pipeline_core\llm_service.py:2933:        self,
+  pipeline_core\llm_service.py:2934:        transcript: str,
+  pipeline_core\llm_service.py:2935:        *,
+  pipeline_core\llm_service.py:2936:        metadata_queries: Optional[Sequence[str]] = None,
+> pipeline_core\llm_service.py:2937:        metadata_keywords: Optional[Sequence[str]] = None,
+  pipeline_core\llm_service.py:2938:        language: Optional[str] = None,
+  pipeline_core\llm_service.py:2939:    ) -> List[str]:
+> pipeline_core\llm_service.py:2940:        """Return provider-friendly fallback queries prioritising 
+metadata seeds."""
+  pipeline_core\llm_service.py:2941:
+  pipeline_core\llm_service.py:2942:        target_lang = (language or 
+_target_language_default()).strip().lower() or _target_language_default()
+  pipeline_core\llm_service.py:2943:
+  pipeline_core\llm_service.py:2944:        direct_queries = 
+_normalise_provider_terms(metadata_queries or [], target_lang=target_lang)
+> pipeline_core\llm_service.py:2945:        keyword_bases = _normalise_search_terms(metadata_keywords 
+or [], target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:2946:
+> pipeline_core\llm_service.py:2947:        if not keyword_bases:
+  pipeline_core\llm_service.py:2948:            ngram_bases = _extract_ngrams(
+  pipeline_core\llm_service.py:2949:                transcript,
+  pipeline_core\llm_service.py:2950:                sizes=(3, 2),
+  pipeline_core\llm_service.py:2951:                limit=18,
+  pipeline_core\llm_service.py:2952:                language=target_lang,
+  pipeline_core\llm_service.py:2953:            )
+> pipeline_core\llm_service.py:2954:            keyword_bases = ngram_bases[:12]
+  pipeline_core\llm_service.py:2955:
+> pipeline_core\llm_service.py:2956:        if not keyword_bases:
+> pipeline_core\llm_service.py:2957:            keyword_bases = _normalise_search_terms(
+> pipeline_core\llm_service.py:2958:                _DEFAULT_FALLBACK_PHRASES,
+  pipeline_core\llm_service.py:2959:                target_lang=target_lang,
+  pipeline_core\llm_service.py:2960:            )[:12]
+  pipeline_core\llm_service.py:2961:
+  pipeline_core\llm_service.py:2987:            if _append(candidate):
+  pipeline_core\llm_service.py:2988:                return queries[:12]
+  pipeline_core\llm_service.py:2989:
+> pipeline_core\llm_service.py:2990:        for base in keyword_bases:
+> pipeline_core\llm_service.py:2991:            keyword = base.strip()
+> pipeline_core\llm_service.py:2992:            if not keyword:
+  pipeline_core\llm_service.py:2993:                continue
+  pipeline_core\llm_service.py:2994:            for template in templates:
+> pipeline_core\llm_service.py:2995:                if _append(template.format(kw=keyword)):
+  pipeline_core\llm_service.py:2996:                    return queries[:12]
+  pipeline_core\llm_service.py:2997:
+  pipeline_core\llm_service.py:2998:        if not queries:
+> pipeline_core\llm_service.py:2999:            for fallback in 
+_build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES):
+> pipeline_core\llm_service.py:3000:                if _append(fallback):
+  pipeline_core\llm_service.py:3001:                    break
+  pipeline_core\llm_service.py:3002:
+  pipeline_core\llm_service.py:3003:        return queries[:12]
+  pipeline_core\llm_service.py:3017:
+  pipeline_core\llm_service.py:3018:        try:
+  pipeline_core\llm_service.py:3019:            result = self._complete_text(cleaned_prompt, 
+max_tokens=bounded_tokens)
+> pipeline_core\llm_service.py:3020:        except TimeoutError as exc:
+> pipeline_core\llm_service.py:3021:            raise ValueError("timeout") from exc
+  pipeline_core\llm_service.py:3022:        except Exception as exc:
+  pipeline_core\llm_service.py:3023:            raise ValueError("request failed") from exc
+  pipeline_core\llm_service.py:3024:
+  pipeline_core\llm_service.py:3025:        if isinstance(result, dict):
+  pipeline_core\llm_service.py:3026:            try:
+> pipeline_core\llm_service.py:3027:                result = json.dumps(result, ensure_ascii=False)
+  pipeline_core\llm_service.py:3028:            except Exception as exc:
+  pipeline_core\llm_service.py:3029:                raise ValueError("request failed") from exc
+  pipeline_core\llm_service.py:3030:
+  pipeline_core\llm_service.py:3111:                pass
+  pipeline_core\llm_service.py:3112:
+  pipeline_core\llm_service.py:3113:        for attr, value in (
+> pipeline_core\llm_service.py:3114:            ("timeout", self._llm_timeout),
+  pipeline_core\llm_service.py:3115:            ("num_predict", self._llm_num_predict),
+  pipeline_core\llm_service.py:3116:            ("temperature", self._llm_temperature),
+  pipeline_core\llm_service.py:3117:            ("top_p", self._llm_top_p),
+  pipeline_core\llm_service.py:3136:            except Exception:  # pragma: no cover - best effort 
+configuration
+  pipeline_core\llm_service.py:3137:                pass
+  pipeline_core\llm_service.py:3138:
+> pipeline_core\llm_service.py:3139:        target_model = getattr(self, "model_text", None)
+> pipeline_core\llm_service.py:3140:        if isinstance(target_model, str) and target_model.strip():
+> pipeline_core\llm_service.py:3141:            target_model = target_model.strip()
+> pipeline_core\llm_service.py:3142:            for attr in ("model", "model_name"):
+  pipeline_core\llm_service.py:3143:                if hasattr(llm, attr):
+  pipeline_core\llm_service.py:3144:                    try:
+> pipeline_core\llm_service.py:3145:                        setattr(llm, attr, target_model)
+  pipeline_core\llm_service.py:3146:                    except Exception:  # pragma: no cover - best 
+effort configuration
+  pipeline_core\llm_service.py:3147:                        pass
+> pipeline_core\llm_service.py:3148:            for attr in ("model", "model_name"):
+  pipeline_core\llm_service.py:3149:                if hasattr(integration, attr):
+  pipeline_core\llm_service.py:3150:                    try:
+> pipeline_core\llm_service.py:3151:                        setattr(integration, attr, target_model)
+  pipeline_core\llm_service.py:3152:                    except Exception:  # pragma: no cover - best 
+effort configuration
+  pipeline_core\llm_service.py:3153:                        pass
+  pipeline_core\llm_service.py:3154:
+  pipeline_core\llm_service.py:3160:        when available (integration.llm._call_llm). Returns raw 
+text.
+  pipeline_core\llm_service.py:3161:        """
+  pipeline_core\llm_service.py:3162:        if purpose == "dynamic":
+> pipeline_core\llm_service.py:3163:            model_candidates = (
+> pipeline_core\llm_service.py:3164:                getattr(self, "model_text", None),
+> pipeline_core\llm_service.py:3165:                getattr(self, "model_default", None),
+> pipeline_core\llm_service.py:3166:                _DEFAULT_OLLAMA_MODEL,
+  pipeline_core\llm_service.py:3167:            )
+> pipeline_core\llm_service.py:3168:            resolved_model: Optional[str] = None
+> pipeline_core\llm_service.py:3169:            for candidate in model_candidates:
+  pipeline_core\llm_service.py:3170:                if isinstance(candidate, str):
+  pipeline_core\llm_service.py:3171:                    cleaned = candidate.strip()
+  pipeline_core\llm_service.py:3172:                    if cleaned:
+> pipeline_core\llm_service.py:3173:                        resolved_model = cleaned
+  pipeline_core\llm_service.py:3174:                        break
+> pipeline_core\llm_service.py:3175:            if not resolved_model:
+> pipeline_core\llm_service.py:3176:                resolved_model = _DEFAULT_OLLAMA_MODEL
+  pipeline_core\llm_service.py:3177:
+  pipeline_core\llm_service.py:3178:            bounded_tokens = min(max_tokens, self._llm_num_predict)
+  pipeline_core\llm_service.py:3179:            prompt_text = str(prompt or "")
+  pipeline_core\llm_service.py:3190:            logger.debug(
+  pipeline_core\llm_service.py:3191:                "[LLM] dynamic completion dispatch",
+  pipeline_core\llm_service.py:3192:                extra={
+> pipeline_core\llm_service.py:3193:                    "model": resolved_model,
+  pipeline_core\llm_service.py:3194:                    "temperature": self._llm_temperature,
+  pipeline_core\llm_service.py:3195:                    "top_p": self._llm_top_p,
+  pipeline_core\llm_service.py:3196:                    "num_predict": bounded_tokens,
+  pipeline_core\llm_service.py:3197:                    "prompt_len_chars": prompt_len_chars,
+  pipeline_core\llm_service.py:3198:                    "prompt_token_estimate": prompt_token_estimate,
+> pipeline_core\llm_service.py:3199:                    "json_mode": False,
+  pipeline_core\llm_service.py:3200:                },
+  pipeline_core\llm_service.py:3201:            )
+  pipeline_core\llm_service.py:3202:
+  pipeline_core\llm_service.py:3203:            text, reason, chunk_count, raw_len, attempts = 
+_ollama_generate_text(
+  pipeline_core\llm_service.py:3204:                prompt,
+> pipeline_core\llm_service.py:3205:                model=resolved_model,
+  pipeline_core\llm_service.py:3206:                options=options,
+> pipeline_core\llm_service.py:3207:                timeout=float(self._llm_timeout),
+  pipeline_core\llm_service.py:3208:            )
+  pipeline_core\llm_service.py:3209:            logger.info(
+> pipeline_core\llm_service.py:3210:                "[LLM] dynamic text completion model=%s 
+json_mode=False prompt_len=%s raw_len=%s chunks=%s reason_if_empty=%s attempts=%s",
+> pipeline_core\llm_service.py:3211:                resolved_model,
+  pipeline_core\llm_service.py:3212:                len(str(prompt or "")),
+  pipeline_core\llm_service.py:3213:                raw_len,
+  pipeline_core\llm_service.py:3214:                chunk_count,
+  pipeline_core\llm_service.py:3230:
+  pipeline_core\llm_service.py:3231:        integration = self._get_integration()
+  pipeline_core\llm_service.py:3232:
+> pipeline_core\llm_service.py:3233:        target_model = getattr(self, "model_text", None) or 
+getattr(self, "model_default", None)
+> pipeline_core\llm_service.py:3234:        if isinstance(target_model, str):
+> pipeline_core\llm_service.py:3235:            target_model = target_model.strip() or None
+  pipeline_core\llm_service.py:3236:
+  pipeline_core\llm_service.py:3237:        # 1) Try common completion-shaped methods on integration 
+directly
+  pipeline_core\llm_service.py:3238:        last_error: Optional[BaseException] = None
+  pipeline_core\llm_service.py:3240:        if purpose == "dynamic":
+  pipeline_core\llm_service.py:3241:            method_order: Tuple[str, ...] = ("complete", "chat", 
+"generate")
+  pipeline_core\llm_service.py:3242:        else:
+> pipeline_core\llm_service.py:3243:            method_order = ("complete_json", "complete", "chat", 
+"generate")
+  pipeline_core\llm_service.py:3244:
+  pipeline_core\llm_service.py:3245:        for attr in method_order:
+  pipeline_core\llm_service.py:3246:            fn = getattr(integration, attr, None)
+  pipeline_core\llm_service.py:3247:            if callable(fn):
+  pipeline_core\llm_service.py:3248:                try:
+> pipeline_core\llm_service.py:3249:                    return self._invoke_completion(fn, prompt, 
+max_tokens=max_tokens, model=target_model)
+  pipeline_core\llm_service.py:3250:                except Exception as exc:  # pragma: no cover - 
+robustness
+  pipeline_core\llm_service.py:3251:                    last_error = exc
+> pipeline_core\llm_service.py:3252:                    if self._is_timeout_error(exc):
+  pipeline_core\llm_service.py:3253:                        timed_out = True
+  pipeline_core\llm_service.py:3254:                        break
+  pipeline_core\llm_service.py:3255:
+  pipeline_core\llm_service.py:3260:                if purpose == "dynamic":
+  pipeline_core\llm_service.py:3261:                    llm_methods: Tuple[str, ...] = ("complete", 
+"chat", "generate")
+  pipeline_core\llm_service.py:3262:                else:
+> pipeline_core\llm_service.py:3263:                    llm_methods = ("complete_json", "complete", 
+"generate")
+  pipeline_core\llm_service.py:3264:                for attr in llm_methods:
+  pipeline_core\llm_service.py:3265:                    fn = getattr(llm, attr, None)
+  pipeline_core\llm_service.py:3266:                    if callable(fn):
+  pipeline_core\llm_service.py:3267:                        try:
+> pipeline_core\llm_service.py:3268:                            return self._invoke_completion(fn, 
+prompt, max_tokens=max_tokens, model=target_model)
+  pipeline_core\llm_service.py:3269:                        except Exception as exc:  # pragma: no 
+cover - robustness
+  pipeline_core\llm_service.py:3270:                            last_error = exc
+> pipeline_core\llm_service.py:3271:                            if self._is_timeout_error(exc):
+  pipeline_core\llm_service.py:3272:                                timed_out = True
+  pipeline_core\llm_service.py:3273:                                break
+  pipeline_core\llm_service.py:3274:                    if timed_out:
+  pipeline_core\llm_service.py:3275:                        break
+  pipeline_core\llm_service.py:3276:                if not timed_out:
+> pipeline_core\llm_service.py:3277:                    # Fallback to private _call_llm used in 
+optimized_llm.py
+  pipeline_core\llm_service.py:3278:                    call = getattr(llm, "_call_llm", None)
+  pipeline_core\llm_service.py:3279:                    if callable(call):
+  pipeline_core\llm_service.py:3280:                        bounded_max_tokens = min(max_tokens, 
+self._llm_num_predict)
+  pipeline_core\llm_service.py:3292:                                call_kwargs["max_tokens"] = 
+bounded_max_tokens
+  pipeline_core\llm_service.py:3293:                            if "num_predict" in params:
+  pipeline_core\llm_service.py:3294:                                call_kwargs["num_predict"] = 
+self._llm_num_predict
+> pipeline_core\llm_service.py:3295:                            if "timeout" in params:
+> pipeline_core\llm_service.py:3296:                                call_kwargs["timeout"] = 
+self._llm_timeout
+  pipeline_core\llm_service.py:3297:                            for key in ("stop", "stop_sequences", 
+"stop_tokens", "stop_words"):
+  pipeline_core\llm_service.py:3298:                                if key in params:
+  pipeline_core\llm_service.py:3299:                                    call_kwargs[key] = 
+list(self._llm_stop_tokens)
+  pipeline_core\llm_service.py:3300:                                    break
+> pipeline_core\llm_service.py:3301:                            if target_model:
+> pipeline_core\llm_service.py:3302:                                cleaned_model = 
+target_model.strip()
+> pipeline_core\llm_service.py:3303:                                if cleaned_model:
+> pipeline_core\llm_service.py:3304:                                    if "model" in params and 
+"model" not in call_kwargs:
+> pipeline_core\llm_service.py:3305:                                        call_kwargs["model"] = 
+cleaned_model
+> pipeline_core\llm_service.py:3306:                                    elif "model_name" in params 
+and "model_name" not in call_kwargs:
+> pipeline_core\llm_service.py:3307:                                        call_kwargs["model_name"] 
+= cleaned_model
+> pipeline_core\llm_service.py:3308:                            if "json_mode" in params and purpose 
+== "dynamic":
+> pipeline_core\llm_service.py:3309:                                call_kwargs["json_mode"] = False
+  pipeline_core\llm_service.py:3310:                        else:
+  pipeline_core\llm_service.py:3311:                            call_kwargs = {
+  pipeline_core\llm_service.py:3312:                                "temperature": 
+self._llm_temperature,
+  pipeline_core\llm_service.py:3313:                                "max_tokens": bounded_max_tokens,
+> pipeline_core\llm_service.py:3314:                                "timeout": self._llm_timeout,
+  pipeline_core\llm_service.py:3315:                            }
+> pipeline_core\llm_service.py:3316:                            if target_model:
+> pipeline_core\llm_service.py:3317:                                cleaned_model = 
+target_model.strip() if isinstance(target_model, str) else None
+> pipeline_core\llm_service.py:3318:                                if cleaned_model:
+> pipeline_core\llm_service.py:3319:                                    call_kwargs["model"] = 
+cleaned_model
+> pipeline_core\llm_service.py:3320:                        if purpose == "dynamic" and "json_mode" 
+not in call_kwargs:
+> pipeline_core\llm_service.py:3321:                            call_kwargs["json_mode"] = False
+  pipeline_core\llm_service.py:3322:
+  pipeline_core\llm_service.py:3323:                        ok, text, err = call(prompt, **call_kwargs)
+  pipeline_core\llm_service.py:3324:                        if ok and isinstance(text, str):
+  pipeline_core\llm_service.py:3325:                            return text
+> pipeline_core\llm_service.py:3326:                        if err == "timeout":
+  pipeline_core\llm_service.py:3327:                            timed_out = True
+  pipeline_core\llm_service.py:3328:                        last_error = RuntimeError(f"LLM _call_llm 
+failed: {err or 'unknown'}")
+  pipeline_core\llm_service.py:3329:
+  pipeline_core\llm_service.py:3330:        if timed_out:
+> pipeline_core\llm_service.py:3331:            raise TimeoutError("LLM completion timed out") from 
+last_error
+  pipeline_core\llm_service.py:3332:
+  pipeline_core\llm_service.py:3333:        if last_error is not None:
+  pipeline_core\llm_service.py:3334:            raise RuntimeError("No compatible completion method 
+available on integration") from last_error
+  pipeline_core\llm_service.py:3335:
+  pipeline_core\llm_service.py:3336:        raise RuntimeError("No compatible completion method 
+available on integration")
+  pipeline_core\llm_service.py:3337:
+> pipeline_core\llm_service.py:3338:    def _invoke_completion(self, fn, prompt: str, *, max_tokens: 
+int, model: Optional[str] = None) -> Any:
+> pipeline_core\llm_service.py:3339:        """Call a completion function with a bounded timeout when 
+supported."""
+  pipeline_core\llm_service.py:3340:
+  pipeline_core\llm_service.py:3341:        kwargs: Dict[str, Any] = {}
+  pipeline_core\llm_service.py:3342:        bounded_max_tokens = min(max_tokens, self._llm_num_predict)
+  pipeline_core\llm_service.py:3347:
+  pipeline_core\llm_service.py:3348:        if signature is not None:
+  pipeline_core\llm_service.py:3349:            params = signature.parameters
+> pipeline_core\llm_service.py:3350:            if "timeout" in params:
+> pipeline_core\llm_service.py:3351:                kwargs["timeout"] = self._llm_timeout
+  pipeline_core\llm_service.py:3352:            if "max_tokens" in params and "max_tokens" not in 
+kwargs:
+  pipeline_core\llm_service.py:3353:                kwargs["max_tokens"] = bounded_max_tokens
+  pipeline_core\llm_service.py:3354:            if "num_predict" in params:
+  pipeline_core\llm_service.py:3357:                kwargs.setdefault("temperature", 
+self._llm_temperature)
+  pipeline_core\llm_service.py:3358:            if "top_p" in params:
+  pipeline_core\llm_service.py:3359:                kwargs["top_p"] = self._llm_top_p
+> pipeline_core\llm_service.py:3360:            if model:
+> pipeline_core\llm_service.py:3361:                cleaned_model = model.strip()
+> pipeline_core\llm_service.py:3362:                if cleaned_model:
+> pipeline_core\llm_service.py:3363:                    if "model" in params and "model" not in kwargs:
+> pipeline_core\llm_service.py:3364:                        kwargs["model"] = cleaned_model
+> pipeline_core\llm_service.py:3365:                    elif "model_name" in params and "model_name" 
+not in kwargs:
+> pipeline_core\llm_service.py:3366:                        kwargs["model_name"] = cleaned_model
+  pipeline_core\llm_service.py:3367:            stop_keys = ("stop", "stop_sequences", "stop_tokens", 
+"stop_words")
+  pipeline_core\llm_service.py:3368:            for key in stop_keys:
+  pipeline_core\llm_service.py:3369:                if key in params:
+  pipeline_core\llm_service.py:3377:            raise exc
+  pipeline_core\llm_service.py:3378:
+  pipeline_core\llm_service.py:3379:    @staticmethod
+> pipeline_core\llm_service.py:3380:    def _is_timeout_error(exc: BaseException) -> bool:
+  pipeline_core\llm_service.py:3381:        message = str(exc).lower()
+> pipeline_core\llm_service.py:3382:        return "timeout" in message or "timed out" in message
+  pipeline_core\llm_service.py:3383:
+  pipeline_core\llm_service.py:3384:    def generate_dynamic_context(self, transcript_text: str, *, 
+max_len: int = 1800) -> Dict[str, Any]:
+  pipeline_core\llm_service.py:3385:        """Domain detection + dynamic expansions (no hardcoded 
+domains)."""
+  pipeline_core\llm_service.py:3415:                token_budget = 300
+  pipeline_core\llm_service.py:3416:            try:
+  pipeline_core\llm_service.py:3417:                completion = self._complete_text(prompt, 
+max_tokens=token_budget, purpose="dynamic")
+> pipeline_core\llm_service.py:3418:            except TimeoutError:
+> pipeline_core\llm_service.py:3419:                last_reason = "timeout"
+  pipeline_core\llm_service.py:3420:                logger.warning(
+  pipeline_core\llm_service.py:3421:                    '[LLM] dynamic context attempt %s timed out 
+(limit=%s, tokens=%s)',
+  pipeline_core\llm_service.py:3422:                    idx,
+  pipeline_core\llm_service.py:3428:                last_dynamic_error = exc
+  pipeline_core\llm_service.py:3429:                last_reason = exc.reason
+  pipeline_core\llm_service.py:3430:                logger.warning(
+> pipeline_core\llm_service.py:3431:                    '[LLM] dynamic context attempt %s failed 
+(limit=%s, tokens=%s, fallback_reason=%s)',
+  pipeline_core\llm_service.py:3432:                    idx,
+  pipeline_core\llm_service.py:3433:                    limit,
+  pipeline_core\llm_service.py:3434:                    token_budget,
+  pipeline_core\llm_service.py:3451:            if isinstance(raw_text, dict):
+  pipeline_core\llm_service.py:3452:                parsed_payload = raw_text
+  pipeline_core\llm_service.py:3453:            else:
+> pipeline_core\llm_service.py:3454:                parsed_payload = _safe_parse_json(raw_text)
+  pipeline_core\llm_service.py:3455:
+  pipeline_core\llm_service.py:3456:            if parsed_payload:
+  pipeline_core\llm_service.py:3457:                raw_payload = parsed_payload
+  pipeline_core\llm_service.py:3460:            if parsed_reason:
+  pipeline_core\llm_service.py:3461:                last_reason = parsed_reason
+  pipeline_core\llm_service.py:3462:            elif isinstance(raw_text, str) and raw_text.strip():
+> pipeline_core\llm_service.py:3463:                last_reason = last_reason or "invalid_json"
+  pipeline_core\llm_service.py:3464:            elif not raw_text:
+  pipeline_core\llm_service.py:3465:                last_reason = last_reason or "empty_payload"
+  pipeline_core\llm_service.py:3466:        if not raw_payload:
+> pipeline_core\llm_service.py:3467:            fallback_reason = last_reason or 
+(last_dynamic_error.reason if last_dynamic_error else "empty_payload")
+> pipeline_core\llm_service.py:3468:            if self._disable_tfidf_fallback:
+> pipeline_core\llm_service.py:3469:                reason = (fallback_reason or "unknown").strip() or 
+"unknown"
+> pipeline_core\llm_service.py:3470:                raise TfidfFallbackDisabled(
+> pipeline_core\llm_service.py:3471:                    f"TF-IDF fallback disabled 
+(fallback_reason={reason})"
+  pipeline_core\llm_service.py:3472:                )
+  pipeline_core\llm_service.py:3473:            logger.warning(
+> pipeline_core\llm_service.py:3474:                '[LLM] dynamic context fell back to TF-IDF (no 
+structured payload, fallback_reason=%s)',
+> pipeline_core\llm_service.py:3475:                fallback_reason,
+  pipeline_core\llm_service.py:3476:                extra={
+> pipeline_core\llm_service.py:3477:                    'fallback_reason': fallback_reason,
+  pipeline_core\llm_service.py:3478:                    'stack': _capture_trimmed_stack(),
+  pipeline_core\llm_service.py:3479:                },
+  pipeline_core\llm_service.py:3480:            )
+> pipeline_core\llm_service.py:3481:            fallback_payload = _normalise_dynamic_payload(
+  pipeline_core\llm_service.py:3482:                {},
+  pipeline_core\llm_service.py:3483:                transcript=transcript_text or '',
+> pipeline_core\llm_service.py:3484:                disable_tfidf=self._disable_tfidf_fallback,
+> pipeline_core\llm_service.py:3485:                fallback_reason=fallback_reason,
+  pipeline_core\llm_service.py:3486:            )
+  pipeline_core\llm_service.py:3487:            if last_dynamic_error is not None:
+> pipeline_core\llm_service.py:3488:                last_dynamic_error.payload = fallback_payload
+  pipeline_core\llm_service.py:3489:                raise last_dynamic_error
+> pipeline_core\llm_service.py:3490:            raise DynamicCompletionError(fallback_reason, 
+payload=fallback_payload)
+  pipeline_core\llm_service.py:3491:
+  pipeline_core\llm_service.py:3492:        return _normalise_dynamic_payload(
+  pipeline_core\llm_service.py:3493:            raw_payload,
+  pipeline_core\llm_service.py:3494:            transcript=transcript_text or '',
+> pipeline_core\llm_service.py:3495:            disable_tfidf=self._disable_tfidf_fallback,
+> pipeline_core\llm_service.py:3496:            fallback_reason=last_reason or "llm_missing_terms",
+  pipeline_core\llm_service.py:3497:        )
+  pipeline_core\llm_service.py:3498:
+  pipeline_core\llm_service.py:3499:
+  pipeline_core\llm_service.py:3503:        *,
+  pipeline_core\llm_service.py:3504:        video_id: Optional[str] = None,
+  pipeline_core\llm_service.py:3505:    ) -> Optional[LLMMetadata]:
+> pipeline_core\llm_service.py:3506:        """Generate metadata and B-roll keywords from subtitle 
+segments."""
+  pipeline_core\llm_service.py:3507:
+  pipeline_core\llm_service.py:3508:        if not segments:
+  pipeline_core\llm_service.py:3509:            return None
+  pipeline_core\llm_service.py:3510:
+  pipeline_core\llm_service.py:3511:        # Normalise input for the integration layer
+> pipeline_core\llm_service.py:3512:        normalised: List[SubtitleSegment] = [
+> pipeline_core\llm_service.py:3513:            SubtitleSegment.from_mapping(seg)
+  pipeline_core\llm_service.py:3514:            for seg in segments
+  pipeline_core\llm_service.py:3515:            if seg and seg.get("text")
+  pipeline_core\llm_service.py:3516:        ]
+  pipeline_core\llm_service.py:3533:            return None
+  pipeline_core\llm_service.py:3534:
+  pipeline_core\llm_service.py:3535:        metadata = result.get("metadata") or {}
+> pipeline_core\llm_service.py:3536:        broll_data = result.get("broll_data") or {}
+  pipeline_core\llm_service.py:3537:
+  pipeline_core\llm_service.py:3538:        title = str(metadata.get("title", "")).strip()
+  pipeline_core\llm_service.py:3539:        description = str(metadata.get("description", "")).strip()
+  pipeline_core\llm_service.py:3540:        hashtags = [h for h in metadata.get("hashtags", []) if 
+isinstance(h, str) and h]
+> pipeline_core\llm_service.py:3541:        broll_keywords = [
+  pipeline_core\llm_service.py:3542:            kw
+> pipeline_core\llm_service.py:3543:            for kw in (broll_data.get("keywords") or 
+metadata.get("keywords") or [])
+  pipeline_core\llm_service.py:3544:            if isinstance(kw, str) and kw.strip()
+  pipeline_core\llm_service.py:3545:        ]
+  pipeline_core\llm_service.py:3546:
+> pipeline_core\llm_service.py:3547:        stored_keywords = _normalise_search_terms(
+> pipeline_core\llm_service.py:3548:            broll_keywords or metadata.get("broll_keywords") or [],
+  pipeline_core\llm_service.py:3549:            target_lang=_target_language_default(),
+  pipeline_core\llm_service.py:3550:        )[:12]
+  pipeline_core\llm_service.py:3551:        stored_queries = _normalise_search_terms(
+> pipeline_core\llm_service.py:3552:            metadata.get("queries") or broll_data.get("queries") 
+or [],
+  pipeline_core\llm_service.py:3553:            target_lang=_target_language_default(),
+  pipeline_core\llm_service.py:3554:        )[:12]
+  pipeline_core\llm_service.py:3555:        self.last_metadata = {
+  pipeline_core\llm_service.py:3556:            "queries": stored_queries,
+> pipeline_core\llm_service.py:3557:            "broll_keywords": stored_keywords,
+  pipeline_core\llm_service.py:3558:        }
+  pipeline_core\llm_service.py:3559:        self._metadata_cache_queries = list(stored_queries)
+> pipeline_core\llm_service.py:3560:        self._metadata_cache_keywords = list(stored_keywords)
+  pipeline_core\llm_service.py:3561:
+> pipeline_core\llm_service.py:3562:        logger.info('[LLM] Metadata generated', extra={'hashtags': 
+len(hashtags), 'broll_keywords': len(broll_keywords)})
+  pipeline_core\llm_service.py:3563:        return LLMMetadata(
+  pipeline_core\llm_service.py:3564:            title=title,
+  pipeline_core\llm_service.py:3565:            description=description,
+  pipeline_core\llm_service.py:3566:            hashtags=hashtags,
+> pipeline_core\llm_service.py:3567:            broll_keywords=broll_keywords,
+  pipeline_core\llm_service.py:3568:            raw_payload=result,
+  pipeline_core\llm_service.py:3569:        )
+  pipeline_core\llm_service.py:3570:
+  pipeline_core\llm_service.py:3571:
+> pipeline_core\llm_service.py:3572:    def _segment_llm_json(
+  pipeline_core\llm_service.py:3573:        self,
+  pipeline_core\llm_service.py:3574:        seg_text: str,
+  pipeline_core\llm_service.py:3575:        *,
+> pipeline_core\llm_service.py:3576:        timeout_s: Optional[float] = None,
+  pipeline_core\llm_service.py:3577:        num_predict: Optional[int] = None,
+  pipeline_core\llm_service.py:3578:    ) -> Optional[Dict[str, List[str]]]:
+  pipeline_core\llm_service.py:3579:        snippet = (seg_text or "").strip()
+  pipeline_core\llm_service.py:3588:            requested_predict = self._llm_num_predict
+  pipeline_core\llm_service.py:3589:        base_predict = max(64, requested_predict)
+  pipeline_core\llm_service.py:3590:
+> pipeline_core\llm_service.py:3591:        timeout_value = int(timeout_s if timeout_s is not None 
+else self._llm_timeout)
+  pipeline_core\llm_service.py:3592:
+  pipeline_core\llm_service.py:3593:        base_options = {
+  pipeline_core\llm_service.py:3594:            "num_predict": base_predict,
+  pipeline_core\llm_service.py:3597:            "repeat_penalty": float(self._llm_repeat_penalty),
+  pipeline_core\llm_service.py:3598:        }
+  pipeline_core\llm_service.py:3599:
+> pipeline_core\llm_service.py:3600:        prompt = SEGMENT_JSON_PROMPT.format(segment_text=snippet)
+  pipeline_core\llm_service.py:3601:
+  pipeline_core\llm_service.py:3602:        def _resolve_payload(parsed_payload: Any, raw_payload: 
+Any) -> Dict[str, Any]:
+  pipeline_core\llm_service.py:3603:            payload = parsed_payload if isinstance(parsed_payload, 
+dict) else {}
+  pipeline_core\llm_service.py:3612:                    if isinstance(value, str) and value.strip():
+  pipeline_core\llm_service.py:3613:                        candidates.append(value)
+  pipeline_core\llm_service.py:3614:                for candidate in candidates:
+> pipeline_core\llm_service.py:3615:                    parsed = _coerce_ollama_json(candidate)
+  pipeline_core\llm_service.py:3616:                    if isinstance(parsed, dict) and parsed:
+  pipeline_core\llm_service.py:3617:                        return parsed
+  pipeline_core\llm_service.py:3618:            return payload if isinstance(payload, dict) else {}
+  pipeline_core\llm_service.py:3626:            options = dict(base_options)
+  pipeline_core\llm_service.py:3627:            options["num_predict"] = predict_value
+  pipeline_core\llm_service.py:3628:            try:
+> pipeline_core\llm_service.py:3629:                parsed_payload, raw_payload, _ = 
+_ollama_generate_json(
+  pipeline_core\llm_service.py:3630:                    prompt,
+> pipeline_core\llm_service.py:3631:                    model=self.model_json,
+  pipeline_core\llm_service.py:3632:                    options=options,
+> pipeline_core\llm_service.py:3633:                    timeout=timeout_value,
+> pipeline_core\llm_service.py:3634:                    json_mode=True,
+  pipeline_core\llm_service.py:3635:                )
+> pipeline_core\llm_service.py:3636:            except TimeoutError:
+  pipeline_core\llm_service.py:3637:                logger.warning(
+> pipeline_core\llm_service.py:3638:                    "[LLM] Segment JSON request timed out",
+> pipeline_core\llm_service.py:3639:                    extra={"timeout_s": timeout_value, "attempt": 
+attempt_index + 1},
+  pipeline_core\llm_service.py:3640:                )
+  pipeline_core\llm_service.py:3641:                return None
+  pipeline_core\llm_service.py:3642:            except Exception as exc:
+  pipeline_core\llm_service.py:3643:                logger.warning(
+> pipeline_core\llm_service.py:3644:                    "[LLM] Segment JSON request failed",
+  pipeline_core\llm_service.py:3645:                    extra={"error": str(exc), "attempt": 
+attempt_index + 1},
+  pipeline_core\llm_service.py:3646:                )
+  pipeline_core\llm_service.py:3647:                return None
+  pipeline_core\llm_service.py:3652:                    return None
+  pipeline_core\llm_service.py:3653:                continue
+  pipeline_core\llm_service.py:3654:
+> pipeline_core\llm_service.py:3655:            keywords = _sanitize_queries(
+> pipeline_core\llm_service.py:3656:                payload.get("broll_keywords") or 
+payload.get("brollKeywords") or [],
+  pipeline_core\llm_service.py:3657:                max_words=3,
+  pipeline_core\llm_service.py:3658:                max_len=12,
+  pipeline_core\llm_service.py:3659:            )
+  pipeline_core\llm_service.py:3660:            queries = 
+_sanitize_queries(_concretize_queries(payload.get("queries") or []), max_len=12)
+  pipeline_core\llm_service.py:3661:
+> pipeline_core\llm_service.py:3662:            if keywords or queries:
+> pipeline_core\llm_service.py:3663:                return {"broll_keywords": keywords, "queries": 
+queries}
+  pipeline_core\llm_service.py:3664:
+  pipeline_core\llm_service.py:3665:        return None
+  pipeline_core\llm_service.py:3666:
+> pipeline_core\llm_service.py:3667:    def _tfidf_segment_fallback(
+  pipeline_core\llm_service.py:3668:        self,
+  pipeline_core\llm_service.py:3669:        segment_text: str,
+  pipeline_core\llm_service.py:3670:        *,
+  pipeline_core\llm_service.py:3671:        target_lang: Optional[str] = None,
+  pipeline_core\llm_service.py:3672:        seed_queries: Optional[Sequence[str]] = None,
+> pipeline_core\llm_service.py:3673:        seed_keywords: Optional[Sequence[str]] = None,
+  pipeline_core\llm_service.py:3674:    ) -> Dict[str, List[str]]:
+  pipeline_core\llm_service.py:3675:        snippet = (segment_text or "").strip()
+  pipeline_core\llm_service.py:3676:        language = (target_lang or 
+_target_language_default()).strip().lower() or _target_language_default()
+> pipeline_core\llm_service.py:3677:        if self._disable_tfidf_fallback:
+> pipeline_core\llm_service.py:3678:            raise TfidfFallbackDisabled('TF-IDF fallback disabled 
+(fallback_reason=segment_generation)')
+> pipeline_core\llm_service.py:3679:        base_keywords, base_queries = 
+_tfidf_fallback(strip_banned(snippet))
+  pipeline_core\llm_service.py:3680:
+> pipeline_core\llm_service.py:3681:        keyword_sources: List[str] = []
+> pipeline_core\llm_service.py:3682:        for source in (seed_keywords, base_keywords, seed_queries, 
+_DEFAULT_FALLBACK_PHRASES):
+  pipeline_core\llm_service.py:3683:            if not source:
+  pipeline_core\llm_service.py:3684:                continue
+> pipeline_core\llm_service.py:3685:            keyword_sources = [str(item).strip() for item in 
+source if str(item).strip()]
+> pipeline_core\llm_service.py:3686:            if keyword_sources:
+  pipeline_core\llm_service.py:3687:                break
+> pipeline_core\llm_service.py:3688:        if not keyword_sources:
+> pipeline_core\llm_service.py:3689:            keyword_sources = [str(item).strip() for item in 
+_DEFAULT_FALLBACK_PHRASES]
+  pipeline_core\llm_service.py:3690:
+> pipeline_core\llm_service.py:3691:        normalised_keywords = 
+_normalise_search_terms(keyword_sources, target_lang=language)[:12]
+> pipeline_core\llm_service.py:3692:        if not normalised_keywords:
+> pipeline_core\llm_service.py:3693:            normalised_keywords = 
+_normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, target_lang=language)[:12]
+  pipeline_core\llm_service.py:3694:
+  pipeline_core\llm_service.py:3695:        normalised_queries = _normalise_search_terms(base_queries 
+or [], target_lang=language)[:12]
+  pipeline_core\llm_service.py:3696:        if not normalised_queries:
+> pipeline_core\llm_service.py:3697:            provider_queries = 
+_build_provider_queries_from_terms(normalised_keywords or _DEFAULT_FALLBACK_PHRASES)
+  pipeline_core\llm_service.py:3698:            normalised_queries = 
+_normalise_search_terms(provider_queries, target_lang=language)[:12]
+  pipeline_core\llm_service.py:3699:
+> pipeline_core\llm_service.py:3700:        keywords = _sanitize_queries(normalised_keywords, 
+max_words=3, max_len=12)
+  pipeline_core\llm_service.py:3701:        queries = 
+_sanitize_queries(_concretize_queries(normalised_queries), max_len=12)
+  pipeline_core\llm_service.py:3702:
+  pipeline_core\llm_service.py:3703:        if not queries:
+> pipeline_core\llm_service.py:3704:            fallback_provider = 
+_build_provider_queries_from_terms(normalised_keywords or _DEFAULT_FALLBACK_PHRASES)
+> pipeline_core\llm_service.py:3705:            queries = 
+_sanitize_queries(_concretize_queries(fallback_provider), max_len=12)
+  pipeline_core\llm_service.py:3706:
+> pipeline_core\llm_service.py:3707:        if not keywords:
+> pipeline_core\llm_service.py:3708:            keywords = _sanitize_queries(
+> pipeline_core\llm_service.py:3709:                _normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, 
+target_lang=language),
+  pipeline_core\llm_service.py:3710:                max_words=3,
+  pipeline_core\llm_service.py:3711:                max_len=12,
+  pipeline_core\llm_service.py:3712:            )
+  pipeline_core\llm_service.py:3713:
+> pipeline_core\llm_service.py:3714:        return {"broll_keywords": keywords, "queries": queries}
+  pipeline_core\llm_service.py:3715:
+  pipeline_core\llm_service.py:3716:    def _metadata_first_hints(
+  pipeline_core\llm_service.py:3717:        self,
+  pipeline_core\llm_service.py:3721:        end: float,
+  pipeline_core\llm_service.py:3722:        target_lang: str,
+  pipeline_core\llm_service.py:3723:        seed_queries: Sequence[str],
+> pipeline_core\llm_service.py:3724:        seed_keywords: Sequence[str],
+  pipeline_core\llm_service.py:3725:    ) -> Dict[str, Any]:
+  pipeline_core\llm_service.py:3726:        limit = max(1, min(self._max_queries_per_segment, 3))
+  pipeline_core\llm_service.py:3727:        combined_queries: List[str] = list(seed_queries or [])
+  pipeline_core\llm_service.py:3728:        if not combined_queries:
+  pipeline_core\llm_service.py:3729:            combined_queries = list(self._metadata_cache_queries 
+or self.last_metadata.get("queries") or [])
+> pipeline_core\llm_service.py:3730:        combined_keywords: List[str] = list(seed_keywords or [])
+> pipeline_core\llm_service.py:3731:        if not combined_keywords:
+> pipeline_core\llm_service.py:3732:            combined_keywords = list(self._metadata_cache_keywords 
+or self.last_metadata.get("broll_keywords") or [])
+  pipeline_core\llm_service.py:3733:
+> pipeline_core\llm_service.py:3734:        candidate_terms = _normalise_search_terms(combined_queries 
++ combined_keywords, target_lang=target_lang)
+  pipeline_core\llm_service.py:3735:        candidate_terms = 
+_sanitize_queries(_concretize_queries(candidate_terms), max_len=12)
+  pipeline_core\llm_service.py:3736:        deduped_terms = _fuzzy_dedupe(candidate_terms)
+  pipeline_core\llm_service.py:3737:
+  pipeline_core\llm_service.py:3740:            ranked_queries = list(deduped_terms)[:limit]
+  pipeline_core\llm_service.py:3741:
+  pipeline_core\llm_service.py:3742:        if not ranked_queries:
+> pipeline_core\llm_service.py:3743:            fallback_candidates = self._fallback_queries_from(
+  pipeline_core\llm_service.py:3744:                snippet,
+  pipeline_core\llm_service.py:3745:                metadata_queries=combined_queries,
+> pipeline_core\llm_service.py:3746:                metadata_keywords=combined_keywords,
+  pipeline_core\llm_service.py:3747:                language=target_lang,
+  pipeline_core\llm_service.py:3748:            )
+> pipeline_core\llm_service.py:3749:            ranked_queries = (fallback_candidates or [])[:limit]
+  pipeline_core\llm_service.py:3750:
+  pipeline_core\llm_service.py:3751:        ranked_queries = 
+_sanitize_queries(_concretize_queries(ranked_queries), max_len=12)
+  pipeline_core\llm_service.py:3752:        if not ranked_queries:
+  pipeline_core\llm_service.py:3753:            ranked_queries = _sanitize_queries(
+> pipeline_core\llm_service.py:3754:                
+_concretize_queries(self._fallback_queries_from(snippet, language=target_lang)),
+  pipeline_core\llm_service.py:3755:                max_len=12,
+  pipeline_core\llm_service.py:3756:            )[:limit]
+  pipeline_core\llm_service.py:3757:
+> pipeline_core\llm_service.py:3758:        keywords = 
+_sanitize_queries(_concretize_queries(combined_keywords), max_words=3, max_len=12)
+> pipeline_core\llm_service.py:3759:        if not keywords:
+> pipeline_core\llm_service.py:3760:            keywords = 
+_sanitize_queries(_concretize_queries(self._metadata_cache_keywords or []), max_words=3, max_len=12)
+> pipeline_core\llm_service.py:3761:        if not keywords:
+> pipeline_core\llm_service.py:3762:            keywords = _sanitize_queries(
+> pipeline_core\llm_service.py:3763:                _normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, 
+target_lang=target_lang),
+  pipeline_core\llm_service.py:3764:                max_words=3,
+  pipeline_core\llm_service.py:3765:                max_len=12,
+  pipeline_core\llm_service.py:3766:            )
+  pipeline_core\llm_service.py:3787:            "title": "",
+  pipeline_core\llm_service.py:3788:            "description": "",
+  pipeline_core\llm_service.py:3789:            "queries": list(ranked_queries),
+> pipeline_core\llm_service.py:3790:            "broll_keywords": list(keywords),
+  pipeline_core\llm_service.py:3791:            "filters": dict(filters),
+  pipeline_core\llm_service.py:3792:            "source": source,
+  pipeline_core\llm_service.py:3793:        }
+  pipeline_core\llm_service.py:3794:        self._metadata_cache_queries = list(ranked_queries)
+> pipeline_core\llm_service.py:3795:        self._metadata_cache_keywords = list(keywords)
+  pipeline_core\llm_service.py:3796:
+  pipeline_core\llm_service.py:3797:        return {
+  pipeline_core\llm_service.py:3798:            "title": "",
+  pipeline_core\llm_service.py:3799:            "description": "",
+  pipeline_core\llm_service.py:3800:            "queries": list(ranked_queries),
+> pipeline_core\llm_service.py:3801:            "broll_keywords": list(keywords),
+  pipeline_core\llm_service.py:3802:            "filters": filters,
+  pipeline_core\llm_service.py:3803:            "source": source,
+  pipeline_core\llm_service.py:3804:        }
+  pipeline_core\llm_service.py:3811:
+  pipeline_core\llm_service.py:3812:        previous_metadata = getattr(self, "last_metadata", {}) or 
+{}
+  pipeline_core\llm_service.py:3813:        seed_queries = list(previous_metadata.get("queries") or [])
+> pipeline_core\llm_service.py:3814:        seed_keywords = 
+list(previous_metadata.get("broll_keywords") or [])
+  pipeline_core\llm_service.py:3815:
+  pipeline_core\llm_service.py:3816:        for cached_query in _LAST_METADATA_QUERIES.get("values", 
+[]) or []:
+  pipeline_core\llm_service.py:3817:            if cached_query not in seed_queries:
+  pipeline_core\llm_service.py:3818:                seed_queries.append(cached_query)
+> pipeline_core\llm_service.py:3819:        for cached_keyword in 
+_LAST_METADATA_KEYWORDS.get("values", []) or []:
+> pipeline_core\llm_service.py:3820:            if cached_keyword not in seed_keywords:
+> pipeline_core\llm_service.py:3821:                seed_keywords.append(cached_keyword)
+  pipeline_core\llm_service.py:3822:
+  pipeline_core\llm_service.py:3823:        seed_queries = seed_queries[:24]
+> pipeline_core\llm_service.py:3824:        seed_keywords = seed_keywords[:24]
+  pipeline_core\llm_service.py:3825:
+  pipeline_core\llm_service.py:3826:        if self._metadata_first_enabled:
+  pipeline_core\llm_service.py:3827:            result = self._metadata_first_hints(
+  pipeline_core\llm_service.py:3830:                end=end,
+  pipeline_core\llm_service.py:3831:                target_lang=target_lang,
+  pipeline_core\llm_service.py:3832:                seed_queries=seed_queries,
+> pipeline_core\llm_service.py:3833:                seed_keywords=seed_keywords,
+  pipeline_core\llm_service.py:3834:            )
+  pipeline_core\llm_service.py:3835:            logger.info(
+  pipeline_core\llm_service.py:3836:                "[LLM] segment path resolved",
+  pipeline_core\llm_service.py:3838:            )
+  pipeline_core\llm_service.py:3839:            return result
+  pipeline_core\llm_service.py:3840:
+> pipeline_core\llm_service.py:3841:        force_block, block_reason = _should_block_streaming()
+> pipeline_core\llm_service.py:3842:        llm_path_mode = "segment_blocking" if force_block else 
+"segment_stream"
+  pipeline_core\llm_service.py:3843:        llm_path_reason = block_reason
+  pipeline_core\llm_service.py:3844:
+  pipeline_core\llm_service.py:3845:        if not snippet:
+> pipeline_core\llm_service.py:3846:            fallback_queries_full = self._fallback_queries_from(
+  pipeline_core\llm_service.py:3847:                "",
+  pipeline_core\llm_service.py:3848:                metadata_queries=seed_queries,
+> pipeline_core\llm_service.py:3849:                metadata_keywords=seed_keywords,
+  pipeline_core\llm_service.py:3850:                language=target_lang,
+  pipeline_core\llm_service.py:3851:            )
+> pipeline_core\llm_service.py:3852:            if not fallback_queries_full:
+> pipeline_core\llm_service.py:3853:                fallback_queries_full = 
+_build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)
+  pipeline_core\llm_service.py:3854:
+> pipeline_core\llm_service.py:3855:            fallback_keywords_full = _normalise_search_terms(
+> pipeline_core\llm_service.py:3856:                seed_keywords or seed_queries or 
+_DEFAULT_FALLBACK_PHRASES,
+  pipeline_core\llm_service.py:3857:                target_lang=target_lang,
+  pipeline_core\llm_service.py:3858:            )[:12]
+> pipeline_core\llm_service.py:3859:            if not fallback_keywords_full:
+> pipeline_core\llm_service.py:3860:                fallback_keywords_full = _normalise_search_terms(
+> pipeline_core\llm_service.py:3861:                    _DEFAULT_FALLBACK_PHRASES,
+  pipeline_core\llm_service.py:3862:                    target_lang=target_lang,
+  pipeline_core\llm_service.py:3863:                )[:12]
+  pipeline_core\llm_service.py:3864:
+> pipeline_core\llm_service.py:3865:            fallback_queries = (fallback_queries_full or [])[:12]
+> pipeline_core\llm_service.py:3866:            if not fallback_queries:
+> pipeline_core\llm_service.py:3867:                fallback_queries = 
+_build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)[:12]
+  pipeline_core\llm_service.py:3868:
+  pipeline_core\llm_service.py:3869:            source_label = (
+> pipeline_core\llm_service.py:3870:                "metadata_keywords_fallback"
+> pipeline_core\llm_service.py:3871:                if seed_keywords or seed_queries
+> pipeline_core\llm_service.py:3872:                else "transcript_fallback"
+  pipeline_core\llm_service.py:3873:            )
+  pipeline_core\llm_service.py:3874:
+  pipeline_core\llm_service.py:3875:            result = {
+  pipeline_core\llm_service.py:3876:                "title": "",
+  pipeline_core\llm_service.py:3877:                "description": "",
+> pipeline_core\llm_service.py:3878:                "queries": fallback_queries[:8],
+> pipeline_core\llm_service.py:3879:                "broll_keywords": fallback_keywords_full[:8],
+  pipeline_core\llm_service.py:3880:                "filters": {"min_duration_s": 3.0},
+  pipeline_core\llm_service.py:3881:                "source": source_label,
+  pipeline_core\llm_service.py:3882:            }
+  pipeline_core\llm_service.py:3883:
+  pipeline_core\llm_service.py:3884:            self.last_metadata = {
+> pipeline_core\llm_service.py:3885:                "queries": fallback_queries[:12],
+> pipeline_core\llm_service.py:3886:                "broll_keywords": fallback_keywords_full[:12],
+  pipeline_core\llm_service.py:3887:            }
+  pipeline_core\llm_service.py:3888:
+  pipeline_core\llm_service.py:3889:            return result
+  pipeline_core\llm_service.py:3892:        max_chars = min(_metadata_transcript_limit(), 1800)
+  pipeline_core\llm_service.py:3893:        prompt_snippet = snippet[:max_chars]
+  pipeline_core\llm_service.py:3894:
+> pipeline_core\llm_service.py:3895:        llm_payload = self._segment_llm_json(
+  pipeline_core\llm_service.py:3896:            prompt_snippet,
+> pipeline_core\llm_service.py:3897:            timeout_s=self._llm_timeout,
+  pipeline_core\llm_service.py:3898:            num_predict=self._llm_num_predict,
+  pipeline_core\llm_service.py:3899:        )
+  pipeline_core\llm_service.py:3900:
+  pipeline_core\llm_service.py:3901:        if not llm_payload:
+> pipeline_core\llm_service.py:3902:            retry_timeout = min(self._llm_timeout + 15, 90)
+> pipeline_core\llm_service.py:3903:            retry_predict = self._llm_num_predict + 64
+> pipeline_core\llm_service.py:3904:            llm_payload = self._segment_llm_json(
+  pipeline_core\llm_service.py:3905:                prompt_snippet,
+> pipeline_core\llm_service.py:3906:                timeout_s=retry_timeout,
+> pipeline_core\llm_service.py:3907:                num_predict=retry_predict,
+  pipeline_core\llm_service.py:3908:            )
+  pipeline_core\llm_service.py:3909:
+  pipeline_core\llm_service.py:3910:        llm_failed = False
+  pipeline_core\llm_service.py:3911:        if not llm_payload:
+> pipeline_core\llm_service.py:3912:            fallback_reason = "segment_generation"
+> pipeline_core\llm_service.py:3913:            if self._disable_tfidf_fallback:
+> pipeline_core\llm_service.py:3914:                raise TfidfFallbackDisabled(
+> pipeline_core\llm_service.py:3915:                    f"TF-IDF fallback disabled 
+(fallback_reason={fallback_reason})"
+  pipeline_core\llm_service.py:3916:                )
+  pipeline_core\llm_service.py:3917:            logger.warning(
+> pipeline_core\llm_service.py:3918:                "[LLM] Segment hint generation fell back to TF-IDF 
+heuristics (fallback_reason=%s)",
+> pipeline_core\llm_service.py:3919:                fallback_reason,
+> pipeline_core\llm_service.py:3920:                extra={"segment_start": start, "segment_end": end, 
+"fallback_reason": fallback_reason},
+  pipeline_core\llm_service.py:3921:            )
+> pipeline_core\llm_service.py:3922:            llm_payload = self._tfidf_segment_fallback(
+  pipeline_core\llm_service.py:3923:                prompt_snippet,
+  pipeline_core\llm_service.py:3924:                target_lang=target_lang,
+  pipeline_core\llm_service.py:3925:                seed_queries=seed_queries,
+> pipeline_core\llm_service.py:3926:                seed_keywords=seed_keywords,
+  pipeline_core\llm_service.py:3927:            )
+  pipeline_core\llm_service.py:3928:            llm_failed = True
+  pipeline_core\llm_service.py:3929:            llm_path_mode = "segment_blocking"
+> pipeline_core\llm_service.py:3930:            llm_path_reason = "stream_err"
+  pipeline_core\llm_service.py:3931:
+  pipeline_core\llm_service.py:3932:        payload: Dict[str, Any] = dict(llm_payload or {})
+  pipeline_core\llm_service.py:3933:
+  pipeline_core\llm_service.py:3934:        title = _normalise_string(payload.get("title"))
+  pipeline_core\llm_service.py:3935:        description = _normalise_string(payload.get("description"))
+  pipeline_core\llm_service.py:3936:
+> pipeline_core\llm_service.py:3937:        raw_keywords = (
+> pipeline_core\llm_service.py:3938:            payload.get("broll_keywords")
+> pipeline_core\llm_service.py:3939:            or payload.get("brollKeywords")
+> pipeline_core\llm_service.py:3940:            or payload.get("keywords")
+  pipeline_core\llm_service.py:3941:            or []
+  pipeline_core\llm_service.py:3942:        )
+> pipeline_core\llm_service.py:3943:        primary_keywords = _normalise_search_terms(raw_keywords, 
+target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:3944:        raw_llm_queries = list(payload.get("queries") or [])
+  pipeline_core\llm_service.py:3945:        primary_queries = _normalise_search_terms(
+  pipeline_core\llm_service.py:3946:            _concretize_queries(raw_llm_queries),
+  pipeline_core\llm_service.py:3948:        )[:12]
+  pipeline_core\llm_service.py:3949:
+  pipeline_core\llm_service.py:3950:        metadata_terms_source: List[str] = []
+> pipeline_core\llm_service.py:3951:        if seed_keywords:
+> pipeline_core\llm_service.py:3952:            metadata_terms_source.extend(seed_keywords)
+  pipeline_core\llm_service.py:3953:        if not metadata_terms_source and seed_queries:
+  pipeline_core\llm_service.py:3954:            metadata_terms_source.extend(seed_queries)
+  pipeline_core\llm_service.py:3955:        if not metadata_terms_source:
+> pipeline_core\llm_service.py:3956:            metadata_terms_source = 
+list(_LAST_METADATA_KEYWORDS.get("values", []))
+  pipeline_core\llm_service.py:3957:        metadata_terms = _normalise_search_terms(
+  pipeline_core\llm_service.py:3958:            metadata_terms_source,
+  pipeline_core\llm_service.py:3959:            target_lang=target_lang,
+  pipeline_core\llm_service.py:3960:        )[:12]
+  pipeline_core\llm_service.py:3961:
+> pipeline_core\llm_service.py:3962:        fallback_terms: List[str] = []
+> pipeline_core\llm_service.py:3963:        used_metadata_fallback = False
+> pipeline_core\llm_service.py:3964:        used_transcript_fallback = llm_failed
+  pipeline_core\llm_service.py:3965:
+> pipeline_core\llm_service.py:3966:        if len(primary_keywords) < 6 or len(primary_queries) < 6:
+  pipeline_core\llm_service.py:3967:            if metadata_terms:
+> pipeline_core\llm_service.py:3968:                fallback_terms = metadata_terms
+> pipeline_core\llm_service.py:3969:                used_metadata_fallback = True
+  pipeline_core\llm_service.py:3970:            else:
+> pipeline_core\llm_service.py:3971:                transcript_terms = 
+_fallback_keywords_from_transcript(
+  pipeline_core\llm_service.py:3972:                    snippet,
+  pipeline_core\llm_service.py:3973:                    min_terms=8,
+  pipeline_core\llm_service.py:3974:                    max_terms=12,
+  pipeline_core\llm_service.py:3975:                    language=target_lang,
+  pipeline_core\llm_service.py:3976:                )
+> pipeline_core\llm_service.py:3977:                fallback_terms = 
+_normalise_search_terms(transcript_terms, target_lang=target_lang)[:12]
+> pipeline_core\llm_service.py:3978:                if not fallback_terms:
+> pipeline_core\llm_service.py:3979:                    fallback_terms = _normalise_search_terms(
+> pipeline_core\llm_service.py:3980:                        _DEFAULT_FALLBACK_PHRASES,
+  pipeline_core\llm_service.py:3981:                        target_lang=target_lang,
+  pipeline_core\llm_service.py:3982:                    )[:12]
+> pipeline_core\llm_service.py:3983:                used_transcript_fallback = True
+  pipeline_core\llm_service.py:3984:
+> pipeline_core\llm_service.py:3985:        combined_keywords = primary_keywords[:]
+> pipeline_core\llm_service.py:3986:        for term in fallback_terms:
+> pipeline_core\llm_service.py:3987:            if term not in combined_keywords:
+> pipeline_core\llm_service.py:3988:                combined_keywords.append(term)
+> pipeline_core\llm_service.py:3989:            if len(combined_keywords) >= 12:
+  pipeline_core\llm_service.py:3990:                break
+> pipeline_core\llm_service.py:3991:        if len(combined_keywords) < 6:
+> pipeline_core\llm_service.py:3992:            for fallback in 
+_normalise_search_terms(_DEFAULT_FALLBACK_PHRASES, target_lang=target_lang):
+> pipeline_core\llm_service.py:3993:                if fallback not in combined_keywords:
+> pipeline_core\llm_service.py:3994:                    combined_keywords.append(fallback)
+> pipeline_core\llm_service.py:3995:                if len(combined_keywords) >= 12:
+  pipeline_core\llm_service.py:3996:                    break
+> pipeline_core\llm_service.py:3997:        broll_keywords = combined_keywords[:12]
+  pipeline_core\llm_service.py:3998:
+  pipeline_core\llm_service.py:3999:        combined_queries = primary_queries[:]
+> pipeline_core\llm_service.py:4000:        fallback_queries: List[str] = []
+  pipeline_core\llm_service.py:4001:        metadata_used_for_queries = False
+> pipeline_core\llm_service.py:4002:        if fallback_terms or len(combined_queries) < 6:
+> pipeline_core\llm_service.py:4003:            metadata_for_keywords: Sequence[str] = (
+> pipeline_core\llm_service.py:4004:                fallback_terms or seed_keywords or broll_keywords 
+or primary_keywords
+  pipeline_core\llm_service.py:4005:            )
+> pipeline_core\llm_service.py:4006:            fallback_queries = self._fallback_queries_from(
+  pipeline_core\llm_service.py:4007:                snippet,
+  pipeline_core\llm_service.py:4008:                metadata_queries=seed_queries,
+> pipeline_core\llm_service.py:4009:                metadata_keywords=metadata_for_keywords,
+  pipeline_core\llm_service.py:4010:                language=target_lang,
+  pipeline_core\llm_service.py:4011:            )
+> pipeline_core\llm_service.py:4012:            if not fallback_queries:
+> pipeline_core\llm_service.py:4013:                fallback_queries = 
+_build_provider_queries_from_terms(metadata_for_keywords)
+> pipeline_core\llm_service.py:4014:            if fallback_queries and (seed_queries or 
+seed_keywords):
+  pipeline_core\llm_service.py:4015:                metadata_used_for_queries = True
+  pipeline_core\llm_service.py:4016:
+> pipeline_core\llm_service.py:4017:        for query in fallback_queries:
+  pipeline_core\llm_service.py:4018:            if query not in combined_queries:
+  pipeline_core\llm_service.py:4019:                combined_queries.append(query)
+  pipeline_core\llm_service.py:4020:            if len(combined_queries) >= 12:
+  pipeline_core\llm_service.py:4021:                break
+> pipeline_core\llm_service.py:4022:        if fallback_queries:
+  pipeline_core\llm_service.py:4023:            if metadata_used_for_queries:
+> pipeline_core\llm_service.py:4024:                used_metadata_fallback = True
+> pipeline_core\llm_service.py:4025:            elif not used_transcript_fallback:
+> pipeline_core\llm_service.py:4026:                used_transcript_fallback = True
+  pipeline_core\llm_service.py:4027:        if len(combined_queries) < 6:
+> pipeline_core\llm_service.py:4028:            extra_sources = broll_keywords or 
+_normalise_search_terms(
+> pipeline_core\llm_service.py:4029:                _DEFAULT_FALLBACK_PHRASES,
+  pipeline_core\llm_service.py:4030:                target_lang=target_lang,
+  pipeline_core\llm_service.py:4031:            )
+  pipeline_core\llm_service.py:4032:            extra_queries = 
+_build_provider_queries_from_terms(extra_sources)
+  pipeline_core\llm_service.py:4038:        queries = combined_queries[:12]
+  pipeline_core\llm_service.py:4039:
+  pipeline_core\llm_service.py:4040:        if not queries:
+> pipeline_core\llm_service.py:4041:            final_fallback_queries = self._fallback_queries_from(
+  pipeline_core\llm_service.py:4042:                snippet,
+  pipeline_core\llm_service.py:4043:                metadata_queries=seed_queries,
+> pipeline_core\llm_service.py:4044:                metadata_keywords=seed_keywords or broll_keywords 
+or primary_keywords,
+  pipeline_core\llm_service.py:4045:                language=target_lang,
+  pipeline_core\llm_service.py:4046:            )
+> pipeline_core\llm_service.py:4047:            if not final_fallback_queries:
+> pipeline_core\llm_service.py:4048:                final_fallback_queries = 
+_build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)
+> pipeline_core\llm_service.py:4049:            queries = (final_fallback_queries or [])[:12]
+> pipeline_core\llm_service.py:4050:            if queries and (seed_queries or seed_keywords):
+> pipeline_core\llm_service.py:4051:                used_metadata_fallback = True
+  pipeline_core\llm_service.py:4052:            elif queries:
+> pipeline_core\llm_service.py:4053:                used_transcript_fallback = True
+  pipeline_core\llm_service.py:4054:            if not queries:
+> pipeline_core\llm_service.py:4055:                queries = 
+_build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)[:12]
+  pipeline_core\llm_service.py:4056:
+  pipeline_core\llm_service.py:4057:        source = "llm_segment"
+> pipeline_core\llm_service.py:4058:        if used_metadata_fallback:
+> pipeline_core\llm_service.py:4059:            source = "metadata_keywords_fallback"
+> pipeline_core\llm_service.py:4060:        elif used_transcript_fallback:
+> pipeline_core\llm_service.py:4061:            source = "transcript_fallback"
+  pipeline_core\llm_service.py:4062:
+  pipeline_core\llm_service.py:4063:        try:
+  pipeline_core\llm_service.py:4064:            seg_duration = max(0.0, float(end) - float(start))
+  pipeline_core\llm_service.py:4080:
+  pipeline_core\llm_service.py:4081:        seg_idx = f"{start:.2f}-{end:.2f}"
+  pipeline_core\llm_service.py:4082:        queries = _sanitize_queries(_concretize_queries(queries), 
+max_len=12)
+> pipeline_core\llm_service.py:4083:        broll_keywords = _sanitize_queries(broll_keywords, 
+max_words=3, max_len=12)
+  pipeline_core\llm_service.py:4084:
+  pipeline_core\llm_service.py:4085:        logger.info(
+> pipeline_core\llm_service.py:4086:            "[BROLL][LLM] segment=%s queries=%s (source=%s)",
+  pipeline_core\llm_service.py:4087:            seg_idx,
+  pipeline_core\llm_service.py:4088:            queries[:4],
+  pipeline_core\llm_service.py:4089:            source,
+  pipeline_core\llm_service.py:4093:            "title": title or "",
+  pipeline_core\llm_service.py:4094:            "description": description or "",
+  pipeline_core\llm_service.py:4095:            "queries": list(queries),
+> pipeline_core\llm_service.py:4096:            "broll_keywords": list(broll_keywords),
+  pipeline_core\llm_service.py:4097:            "filters": dict(filters),
+  pipeline_core\llm_service.py:4098:            "source": source,
+  pipeline_core\llm_service.py:4099:        }
+  pipeline_core\llm_service.py:4100:
+  pipeline_core\llm_service.py:4101:        queries_with_synonyms = _augment_with_synonyms(queries, 
+max_extra_per=1, limit=12)
+  pipeline_core\llm_service.py:4102:
+> pipeline_core\llm_service.py:4103:        if not llm_failed and llm_path_mode == "segment_stream":
+  pipeline_core\llm_service.py:4104:            llm_path_reason = llm_path_reason or None
+  pipeline_core\llm_service.py:4105:        _record_llm_path(llm_path_mode, llm_path_reason)
+  pipeline_core\llm_service.py:4106:        extra_payload = {"llm_path": llm_path_mode}
+  pipeline_core\llm_service.py:4112:            "title": title,
+  pipeline_core\llm_service.py:4113:            "description": description,
+  pipeline_core\llm_service.py:4114:            "queries": queries_with_synonyms,
+> pipeline_core\llm_service.py:4115:            "broll_keywords": broll_keywords,
+  pipeline_core\llm_service.py:4116:            "filters": filters,
+  pipeline_core\llm_service.py:4117:            "source": source,
+  pipeline_core\llm_service.py:4118:        }
+  pipeline_core\llm_service.py:4119:
+  pipeline_core\llm_service.py:4120:
+> pipeline_core\llm_service.py:4121:    def provider_fallback_queries(
+  pipeline_core\llm_service.py:4122:        self,
+  pipeline_core\llm_service.py:4123:        transcript: str = "",
+  pipeline_core\llm_service.py:4124:        *,
+  pipeline_core\llm_service.py:4125:        max_items: int = 12,
+  pipeline_core\llm_service.py:4126:        language: Optional[str] = None,
+  pipeline_core\llm_service.py:4127:    ) -> Tuple[List[str], str]:
+> pipeline_core\llm_service.py:4128:        """Return provider-friendly fallback queries and their 
+origin label.
+  pipeline_core\llm_service.py:4129:
+  pipeline_core\llm_service.py:4130:        The routine first reuses cached metadata queries (already 
+normalised for
+> pipeline_core\llm_service.py:4131:        providers), then derives queries from cached keywords, and 
+finally
+  pipeline_core\llm_service.py:4132:        falls back to transcript heuristics or default phrases.  
+The returned
+  pipeline_core\llm_service.py:4133:        queries are deduplicated and normalised using the provider 
+helper to
+> pipeline_core\llm_service.py:4134:        ensure consistent downstream behaviour.
+  pipeline_core\llm_service.py:4135:        """
+  pipeline_core\llm_service.py:4136:
+  pipeline_core\llm_service.py:4137:        limit = max(1, int(max_items or 0))
+  pipeline_core\llm_service.py:4163:        if _extend(cached_queries, "metadata_cached_queries"):
+  pipeline_core\llm_service.py:4164:            return collected[:limit], origin
+  pipeline_core\llm_service.py:4165:
+> pipeline_core\llm_service.py:4166:        cached_keywords = _LAST_METADATA_KEYWORDS.get("values", [])
+> pipeline_core\llm_service.py:4167:        if cached_keywords:
+> pipeline_core\llm_service.py:4168:            keyword_queries = 
+_build_provider_queries_from_terms(cached_keywords)
+> pipeline_core\llm_service.py:4169:            if _extend(keyword_queries, 
+"metadata_keywords_fallback"):
+  pipeline_core\llm_service.py:4170:                return collected[:limit], origin
+  pipeline_core\llm_service.py:4171:
+  pipeline_core\llm_service.py:4172:        cleaned_transcript = (transcript or "").strip()
+  pipeline_core\llm_service.py:4173:        if cleaned_transcript:
+> pipeline_core\llm_service.py:4174:            transcript_terms = _fallback_keywords_from_transcript(
+  pipeline_core\llm_service.py:4175:                cleaned_transcript,
+  pipeline_core\llm_service.py:4176:                min_terms=8,
+  pipeline_core\llm_service.py:4177:                max_terms=max(limit, 8),
+  pipeline_core\llm_service.py:4178:                language=target_lang,
+  pipeline_core\llm_service.py:4179:            )
+  pipeline_core\llm_service.py:4180:            transcript_queries = 
+_build_provider_queries_from_terms(transcript_terms)
+> pipeline_core\llm_service.py:4181:            if _extend(transcript_queries, "transcript_fallback"):
+  pipeline_core\llm_service.py:4182:                return collected[:limit], origin
+  pipeline_core\llm_service.py:4183:
+> pipeline_core\llm_service.py:4184:        default_queries = 
+_build_provider_queries_from_terms(_DEFAULT_FALLBACK_PHRASES)
+> pipeline_core\llm_service.py:4185:        _extend(default_queries, "default_fallback")
+  pipeline_core\llm_service.py:4186:
+  pipeline_core\llm_service.py:4187:        if origin == "none":
+> pipeline_core\llm_service.py:4188:            origin = "default_fallback" if collected else "none"
+  pipeline_core\llm_service.py:4189:
+  pipeline_core\llm_service.py:4190:        return collected[:limit], origin
+  pipeline_core\llm_service.py:4191:
+  pipeline_core\llm_service.py:4201:    return _SHARED
+  pipeline_core\llm_service.py:4202:
+  pipeline_core\llm_service.py:4203:
+> pipeline_core\llm_service.py:4204:def generate_metadata_as_json(
+  pipeline_core\llm_service.py:4205:    transcript: str,
+  pipeline_core\llm_service.py:4206:    *,
+> pipeline_core\llm_service.py:4207:    timeout_s: float | None = None,
+  pipeline_core\llm_service.py:4208:    **kwargs: Any,
+  pipeline_core\llm_service.py:4209:) -> Dict[str, Any]:
+> pipeline_core\llm_service.py:4210:    """Call Ollama directly, enforce JSON output and normalise the 
+fields."""
+  pipeline_core\llm_service.py:4211:
+  pipeline_core\llm_service.py:4212:    try:
+  pipeline_core\llm_service.py:4213:        service = get_shared_llm_service()
+  pipeline_core\llm_service.py:4215:        logger.exception("[LLM] Unable to initialise shared 
+metadata service")
+  pipeline_core\llm_service.py:4216:        service = None
+  pipeline_core\llm_service.py:4217:
+> pipeline_core\llm_service.py:4218:    def _remember_last_metadata(queries: Sequence[str], keywords: 
+Sequence[str]) -> None:
+  pipeline_core\llm_service.py:4219:        if service is None:
+  pipeline_core\llm_service.py:4220:            return
+  pipeline_core\llm_service.py:4221:        try:
+  pipeline_core\llm_service.py:4222:            service.last_metadata = {
+  pipeline_core\llm_service.py:4223:                "queries": list(queries),
+> pipeline_core\llm_service.py:4224:                "broll_keywords": list(keywords),
+  pipeline_core\llm_service.py:4225:            }
+  pipeline_core\llm_service.py:4226:        except Exception:
+  pipeline_core\llm_service.py:4227:            logger.debug("[LLM] Failed to persist last metadata on 
+shared service", exc_info=True)
+  pipeline_core\llm_service.py:4231:        logger.warning("[LLM] Empty transcript provided for 
+metadata generation")
+  pipeline_core\llm_service.py:4232:        failure = _empty_metadata_payload()
+  pipeline_core\llm_service.py:4233:        failure["raw_response_length"] = 0
+> pipeline_core\llm_service.py:4234:        _remember_last_metadata(failure.get("queries") or [], 
+failure.get("broll_keywords") or [])
+  pipeline_core\llm_service.py:4235:        return failure
+  pipeline_core\llm_service.py:4236:
+  pipeline_core\llm_service.py:4237:    limit = _metadata_transcript_limit()
+  pipeline_core\llm_service.py:4239:        cleaned_transcript = cleaned_transcript[:limit]
+  pipeline_core\llm_service.py:4240:
+  pipeline_core\llm_service.py:4241:    video_id = kwargs.get("video_id")
+> pipeline_core\llm_service.py:4242:    use_keywords_prompt = _keywords_first_enabled()
+  pipeline_core\llm_service.py:4243:    target_lang = _target_language_default()
+  pipeline_core\llm_service.py:4244:    prompt = (
+> pipeline_core\llm_service.py:4245:        _build_keywords_prompt(cleaned_transcript, target_lang)
+> pipeline_core\llm_service.py:4246:        if use_keywords_prompt
+> pipeline_core\llm_service.py:4247:        else _build_json_metadata_prompt(cleaned_transcript, 
+video_id=video_id)
+  pipeline_core\llm_service.py:4248:    )
+  pipeline_core\llm_service.py:4249:
+> pipeline_core\llm_service.py:4250:    model_default = (os.getenv("PIPELINE_LLM_MODEL") or 
+"qwen2.5:7b").strip() or "qwen2.5:7b"
+> pipeline_core\llm_service.py:4251:    model_name = (os.getenv("PIPELINE_LLM_MODEL_JSON") or 
+model_default).strip() or model_default
+  pipeline_core\llm_service.py:4252:
+> pipeline_core\llm_service.py:4253:    original_timeout = None
+> pipeline_core\llm_service.py:4254:    if timeout_s is not None:
+> pipeline_core\llm_service.py:4255:        original_timeout = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+  pipeline_core\llm_service.py:4256:        try:
+> pipeline_core\llm_service.py:4257:            timeout_override = max(1.0, float(timeout_s))
+  pipeline_core\llm_service.py:4258:        except (TypeError, ValueError):
+> pipeline_core\llm_service.py:4259:            timeout_override = 1.0
+> pipeline_core\llm_service.py:4260:        os.environ["PIPELINE_LLM_TIMEOUT_S"] = 
+str(timeout_override)
+  pipeline_core\llm_service.py:4261:
+  pipeline_core\llm_service.py:4262:    parsed_payload: Dict[str, Any] = {}
+  pipeline_core\llm_service.py:4263:    raw_payload: Dict[str, Any] = {}
+  pipeline_core\llm_service.py:4265:    error: Optional[BaseException] = None
+  pipeline_core\llm_service.py:4266:    started = time.perf_counter()
+  pipeline_core\llm_service.py:4267:    try:
+> pipeline_core\llm_service.py:4268:        if use_keywords_prompt:
+  pipeline_core\llm_service.py:4269:            try:
+  pipeline_core\llm_service.py:4270:                num_predict_env = 
+os.getenv("PIPELINE_LLM_NUM_PREDICT")
+  pipeline_core\llm_service.py:4271:                try:
+  pipeline_core\llm_service.py:4281:                    configured_temp = 0.2
+  pipeline_core\llm_service.py:4282:                bounded_temp = max(0.0, min(0.4, configured_temp))
+  pipeline_core\llm_service.py:4283:
+> pipeline_core\llm_service.py:4284:                parsed_payload, raw_payload, raw_length = 
+_ollama_generate_json(
+  pipeline_core\llm_service.py:4285:                    prompt,
+> pipeline_core\llm_service.py:4286:                    model=model_name,
+  pipeline_core\llm_service.py:4287:                    options={
+  pipeline_core\llm_service.py:4288:                        "num_predict": bounded_predict,
+  pipeline_core\llm_service.py:4289:                        "temperature": bounded_temp,
+  pipeline_core\llm_service.py:4290:                        "top_p": 0.9,
+  pipeline_core\llm_service.py:4291:                    },
+> pipeline_core\llm_service.py:4292:                    json_mode=True,
+  pipeline_core\llm_service.py:4293:                )
+  pipeline_core\llm_service.py:4294:            except Exception as exc:  # pragma: no cover - 
+defensive logging
+  pipeline_core\llm_service.py:4295:                error = exc
+  pipeline_core\llm_service.py:4296:        else:
+> pipeline_core\llm_service.py:4297:            raw_payload = _ollama_json(prompt, model=model_name)
+  pipeline_core\llm_service.py:4298:            if isinstance(raw_payload, dict):
+  pipeline_core\llm_service.py:4299:                parsed_payload = raw_payload
+  pipeline_core\llm_service.py:4300:            else:
+> pipeline_core\llm_service.py:4301:                parsed_payload = _coerce_ollama_json(raw_payload)
+  pipeline_core\llm_service.py:4302:                if not isinstance(parsed_payload, dict):
+  pipeline_core\llm_service.py:4303:                    parsed_payload = {}
+  pipeline_core\llm_service.py:4304:            try:
+> pipeline_core\llm_service.py:4305:                raw_length = len(json.dumps(raw_payload, 
+ensure_ascii=False)) if raw_payload else 0
+  pipeline_core\llm_service.py:4306:            except Exception:
+  pipeline_core\llm_service.py:4307:                raw_length = 0
+  pipeline_core\llm_service.py:4308:    finally:
+> pipeline_core\llm_service.py:4309:        if timeout_s is not None:
+> pipeline_core\llm_service.py:4310:            if original_timeout is None:
+> pipeline_core\llm_service.py:4311:                os.environ.pop("PIPELINE_LLM_TIMEOUT_S", None)
+  pipeline_core\llm_service.py:4312:            else:
+> pipeline_core\llm_service.py:4313:                os.environ["PIPELINE_LLM_TIMEOUT_S"] = 
+original_timeout
+  pipeline_core\llm_service.py:4314:
+  pipeline_core\llm_service.py:4315:    duration = time.perf_counter() - started
+  pipeline_core\llm_service.py:4316:
+  pipeline_core\llm_service.py:4317:    if raw_length is None:
+  pipeline_core\llm_service.py:4318:        try:
+> pipeline_core\llm_service.py:4319:            raw_length = len(json.dumps(raw_payload, 
+ensure_ascii=False)) if raw_payload else 0
+  pipeline_core\llm_service.py:4320:        except Exception:
+  pipeline_core\llm_service.py:4321:            raw_length = 0
+  pipeline_core\llm_service.py:4322:
+  pipeline_core\llm_service.py:4326:        logger.warning(
+  pipeline_core\llm_service.py:4327:            "[LLM] Metadata generation failed",
+  pipeline_core\llm_service.py:4328:            extra={
+> pipeline_core\llm_service.py:4329:                "model": model_name,
+  pipeline_core\llm_service.py:4330:                "duration_s": round(duration, 3),
+  pipeline_core\llm_service.py:4331:                "transcript_length": len(cleaned_transcript),
+> pipeline_core\llm_service.py:4332:                "keywords_prompt": use_keywords_prompt,
+  pipeline_core\llm_service.py:4333:                "error": str(error),
+  pipeline_core\llm_service.py:4334:            },
+  pipeline_core\llm_service.py:4335:        )
+  pipeline_core\llm_service.py:4345:
+  pipeline_core\llm_service.py:4346:    if not metadata_section:
+  pipeline_core\llm_service.py:4347:        logger.warning(
+> pipeline_core\llm_service.py:4348:            "[LLM] JSON metadata payload missing",
+  pipeline_core\llm_service.py:4349:            extra={
+> pipeline_core\llm_service.py:4350:                "model": model_name,
+  pipeline_core\llm_service.py:4351:                "duration_s": round(duration, 3),
+  pipeline_core\llm_service.py:4352:                "transcript_length": len(cleaned_transcript),
+> pipeline_core\llm_service.py:4353:                "keywords_prompt": use_keywords_prompt,
+  pipeline_core\llm_service.py:4354:            },
+  pipeline_core\llm_service.py:4355:        )
+  pipeline_core\llm_service.py:4356:        metadata_section = {}
+  pipeline_core\llm_service.py:4357:
+  pipeline_core\llm_service.py:4358:    if not isinstance(metadata_section, dict):
+  pipeline_core\llm_service.py:4359:        logger.warning(
+> pipeline_core\llm_service.py:4360:            "[LLM] Metadata payload is not a JSON object",
+  pipeline_core\llm_service.py:4361:            extra={
+> pipeline_core\llm_service.py:4362:                "model": model_name,
+  pipeline_core\llm_service.py:4363:                "duration_s": round(duration, 3),
+  pipeline_core\llm_service.py:4364:                "transcript_length": len(cleaned_transcript),
+> pipeline_core\llm_service.py:4365:                "keywords_prompt": use_keywords_prompt,
+  pipeline_core\llm_service.py:4366:            },
+  pipeline_core\llm_service.py:4367:        )
+  pipeline_core\llm_service.py:4368:        metadata_section = {}
+  pipeline_core\llm_service.py:4380:    if not hashtags_disabled:
+  pipeline_core\llm_service.py:4381:        hashtags = 
+_normalise_hashtags(_as_list(metadata_section.get("hashtags")))[:5]
+  pipeline_core\llm_service.py:4382:
+> pipeline_core\llm_service.py:4383:    raw_keyword_values = (
+> pipeline_core\llm_service.py:4384:        metadata_section.get("broll_keywords")
+> pipeline_core\llm_service.py:4385:        or metadata_section.get("brollKeywords")
+> pipeline_core\llm_service.py:4386:        or metadata_section.get("keywords")
+  pipeline_core\llm_service.py:4387:        or []
+  pipeline_core\llm_service.py:4388:    )
+> pipeline_core\llm_service.py:4389:    initial_broll = _normalise_search_terms(raw_keyword_values, 
+target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:4390:
+  pipeline_core\llm_service.py:4391:    queries_raw = metadata_section.get("queries")
+  pipeline_core\llm_service.py:4392:    initial_queries = _normalise_search_terms(queries_raw, 
+target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:4393:
+> pipeline_core\llm_service.py:4394:    fallback_terms: List[str] = []
+> pipeline_core\llm_service.py:4395:    keywords_fallback = len(initial_broll) < 6
+> pipeline_core\llm_service.py:4396:    queries_fallback = len(initial_queries) < 6
+> pipeline_core\llm_service.py:4397:    if keywords_fallback or queries_fallback:
+> pipeline_core\llm_service.py:4398:        fallback_terms = _fallback_keywords_from_transcript(
+  pipeline_core\llm_service.py:4399:            cleaned_transcript,
+  pipeline_core\llm_service.py:4400:            min_terms=8,
+  pipeline_core\llm_service.py:4401:            max_terms=12,
+  pipeline_core\llm_service.py:4402:            language=target_lang,
+  pipeline_core\llm_service.py:4403:        )
+  pipeline_core\llm_service.py:4404:
+> pipeline_core\llm_service.py:4405:    if keywords_fallback:
+> pipeline_core\llm_service.py:4406:        broll_keywords = _merge_with_fallback(initial_broll, 
+fallback_terms, min_count=8, max_count=12)
+  pipeline_core\llm_service.py:4407:    else:
+> pipeline_core\llm_service.py:4408:        broll_keywords = initial_broll[:12]
+  pipeline_core\llm_service.py:4409:
+> pipeline_core\llm_service.py:4410:    if queries_fallback:
+> pipeline_core\llm_service.py:4411:        seed_terms = fallback_terms or broll_keywords
+> pipeline_core\llm_service.py:4412:        queries = _merge_with_fallback(initial_queries, 
+seed_terms, min_count=8, max_count=12)
+  pipeline_core\llm_service.py:4413:    else:
+  pipeline_core\llm_service.py:4414:        queries = initial_queries[:12]
+  pipeline_core\llm_service.py:4415:
+> pipeline_core\llm_service.py:4416:    broll_keywords = _normalise_search_terms(broll_keywords, 
+target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:4417:
+  pipeline_core\llm_service.py:4418:    queries = _normalise_search_terms(queries, 
+target_lang=target_lang)[:12]
+> pipeline_core\llm_service.py:4419:    if len(queries) < 6 and broll_keywords:
+> pipeline_core\llm_service.py:4420:        fallback_queries = 
+_build_provider_queries_from_terms(broll_keywords)
+> pipeline_core\llm_service.py:4421:        for candidate in _normalise_search_terms(fallback_queries, 
+target_lang=target_lang):
+  pipeline_core\llm_service.py:4422:            if candidate not in queries:
+  pipeline_core\llm_service.py:4423:                queries.append(candidate)
+  pipeline_core\llm_service.py:4424:            if len(queries) >= 12:
+  pipeline_core\llm_service.py:4425:                break
+  pipeline_core\llm_service.py:4426:    queries = queries[:12]
+  pipeline_core\llm_service.py:4427:
+> pipeline_core\llm_service.py:4428:    provider_keywords = _normalise_provider_terms(broll_keywords, 
+target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:4429:    provider_queries = _normalise_provider_terms(queries, 
+target_lang=target_lang)[:12]
+  pipeline_core\llm_service.py:4430:
+> pipeline_core\llm_service.py:4431:    broll_keywords = provider_keywords
+  pipeline_core\llm_service.py:4432:    queries = provider_queries
+  pipeline_core\llm_service.py:4433:
+  pipeline_core\llm_service.py:4434:    # Final hardening at clip level: enforce anti-generic 
+constraints
+  pipeline_core\llm_service.py:4435:    queries = _sanitize_queries(_concretize_queries(queries), 
+max_len=12)
+> pipeline_core\llm_service.py:4436:    broll_keywords = _sanitize_queries(broll_keywords, 
+max_words=3, max_len=12)
+  pipeline_core\llm_service.py:4437:
+  pipeline_core\llm_service.py:4438:    if not hashtags and not hashtags_disabled:
+> pipeline_core\llm_service.py:4439:        hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
+  pipeline_core\llm_service.py:4440:
+  pipeline_core\llm_service.py:4441:    now = time.time()
+> pipeline_core\llm_service.py:4442:    global _LAST_METADATA_KEYWORDS, _LAST_METADATA_QUERIES
+> pipeline_core\llm_service.py:4443:    _LAST_METADATA_KEYWORDS["values"] = list(broll_keywords)
+> pipeline_core\llm_service.py:4444:    _LAST_METADATA_KEYWORDS["updated_at"] = now
+  pipeline_core\llm_service.py:4445:    _LAST_METADATA_QUERIES["values"] = list(queries)
+  pipeline_core\llm_service.py:4446:    _LAST_METADATA_QUERIES["updated_at"] = now
+  pipeline_core\llm_service.py:4447:
+  pipeline_core\llm_service.py:4449:        "title": title,
+  pipeline_core\llm_service.py:4450:        "description": description,
+  pipeline_core\llm_service.py:4451:        "hashtags": hashtags,
+> pipeline_core\llm_service.py:4452:        "broll_keywords": broll_keywords,
+  pipeline_core\llm_service.py:4453:        "queries": queries,
+  pipeline_core\llm_service.py:4454:        "raw_response_length": raw_length if raw_length is not 
+None else 0,
+  pipeline_core\llm_service.py:4455:        "llm_status": "ok",
+  pipeline_core\llm_service.py:4456:    }
+  pipeline_core\llm_service.py:4457:
+  pipeline_core\llm_service.py:4458:    logger.info(
+> pipeline_core\llm_service.py:4459:        "[LLM] JSON metadata generated",
+  pipeline_core\llm_service.py:4460:        extra={
+> pipeline_core\llm_service.py:4461:            "model": model_name,
+  pipeline_core\llm_service.py:4462:            "duration_s": round(duration, 3),
+  pipeline_core\llm_service.py:4463:            "transcript_length": len(cleaned_transcript),
+  pipeline_core\llm_service.py:4464:            "hashtags": len(hashtags),
+> pipeline_core\llm_service.py:4465:            "broll_keywords": len(broll_keywords),
+  pipeline_core\llm_service.py:4466:            "queries": len(queries),
+> pipeline_core\llm_service.py:4467:            "queries_fallback": queries_fallback,
+> pipeline_core\llm_service.py:4468:            "keywords_fallback": keywords_fallback,
+> pipeline_core\llm_service.py:4469:            "keywords_prompt": use_keywords_prompt,
+  pipeline_core\llm_service.py:4470:        },
+  pipeline_core\llm_service.py:4471:    )
+  pipeline_core\llm_service.py:4472:
+> pipeline_core\llm_service.py:4473:    _remember_last_metadata(queries, broll_keywords)
+  pipeline_core\llm_service.py:4474:
+  pipeline_core\llm_service.py:4475:    return result
+  pipeline_core\llm_service.py:4476:
+
+

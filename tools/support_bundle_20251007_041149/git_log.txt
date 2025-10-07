@@ -1,0 +1,20 @@
+﻿d709eca Merge pull request #111 from YassirTHC/codex/stabilize-llm-b-roll-pipeline
+2cac852 Enhance segment LLM handling and add metadata-first mode
+3f592ca Merge pull request #110 from YassirTHC/codex/refactor-subtitle-rendering-with-montserrat-font
+45cd093 Refine Hormozi subtitles font stack and emoji mapping
+2b6018c Merge pull request #109 from YassirTHC/codex/refactor-subtitle-renderer-for-montserrat-style
+4039640 Refine Montserrat subtitles and emoji planner
+2f8ee47 Merge pull request #108 from YassirTHC/codex/implement-b-roll-invariants-rules
+0b3a0a3 feat: enforce configurable b-roll invariants
+098be95 Merge pull request #107 from YassirTHC/codex/implement-montserrat-font-style-for-subtitles
+7ff10ef feat(subs): Montserrat style + palette stable + emojis coh├⌐rents (config-typed, tests)
+da5a326 Merge pull request #106 from YassirTHC/codex/find-how-video-subtitles-are-generated
+497d688 Add audit of Hormozi subtitle style and emoji mapping
+6d4ac65 Merge pull request #105 from YassirTHC/codex/add-b-roll-scheduling-rules
+e13e548 tests(broll): cover pipeline invariants and extend moviepy stubs
+e8c8f60 broll(rules): ensure pipeline uses shared invariants
+f11f481 broll(rules): align integration imports and clean tests
+4fc7f45 broll(rules): enforce min_start/min_gap/anti-repeat; add acceptance tests and hook integration
+f32223a Merge pull request #104 from YassirTHC/codex/fix-merge-conflicts-in-lot-1
+0aaffb3 chore: restore typed config bootstrapping
+58a0bab Merge pull request #102 from YassirTHC/codex/create-execution-plan-from-documentation

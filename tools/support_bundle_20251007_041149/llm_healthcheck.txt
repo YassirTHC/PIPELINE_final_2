@@ -1,0 +1,2 @@
+﻿[llm] endpoint= http://localhost:11434  model_text=   model_json=   json_mode= True
+[llm] no generate_metadata_json() in this build

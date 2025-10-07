@@ -1,0 +1,16 @@
+﻿{
+  "BROLL_FETCH_ALLOW_IMAGES": "1",
+  "BROLL_FETCH_ALLOW_VIDEOS": "1",
+  "BROLL_FETCH_PROVIDER": "pexels,pixabay",
+  "BROLL_FORCED_KEEP": "2",
+  "BROLL_MIN_SCORE": "0.10",
+  "PEXELS_API_KEY": "****************************************************pDoD",
+  "PIPELINE_LLM_JSON_MODE": "1",
+  "PIPELINE_LLM_MODEL": "qwen3:8b",
+  "PIPELINE_LLM_NUM_PREDICT": "128",
+  "PIPELINE_LLM_TEMP": "0.3",
+  "PIPELINE_LLM_TIMEOUT_S": "120",
+  "PIPELINE_LLM_TOP_P": "0.9",
+  "PIPELINE_MAX_SEGMENTS_IN_FLIGHT": "1",
+  "PIXABAY_API_KEY": "******************************6a69"
+}

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from tools.runtime_stamp import emit_runtime_banner
 from video_pipeline.config import (
-    apply_llm_overrides,
-    Settings,
     get_settings,
     load_settings,
     log_effective_settings,
@@ -33,22 +31,16 @@ from typing import Any, Dict, List, Optional, Sequence
 
 
 
-def _raw_provider_spec(settings: Optional[Settings] = None) -> str:
-    target = settings
-    if target is None:
-        try:
-            target = get_settings()
-        except Exception:
-            target = None
-    if target is not None:
-        try:
-            providers = getattr(target.fetch, "providers", None)
-        except Exception:
-            providers = None
-        if providers:
-            cleaned = [str(provider).strip() for provider in providers if str(provider).strip()]
-            if cleaned:
-                return ",".join(cleaned)
+def _raw_provider_spec() -> str:
+    for key in ("BROLL_FETCH_PROVIDER", "AI_BROLL_FETCH_PROVIDER"):
+        raw_value = os.environ.get(key)
+        if not raw_value:
+            continue
+        cleaned = raw_value.strip()
+        if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+            cleaned = cleaned[1:-1].strip()
+        if cleaned:
+            return cleaned
     return "default"
 
 os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
@@ -77,6 +69,7 @@ _SANITIZE_KEYS = (
 
 emit_runtime_banner(env_keys=_SANITIZE_KEYS)
 
+from config import Config
 from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.logging import JsonlLogger
@@ -172,19 +165,10 @@ class _DiagEventLogger:
 _DIAG_EVENT_LOGGER: Optional[_DiagEventLogger] = None
 
 
-def _broll_events_path(settings: Optional[Settings] = None) -> Path:
-    target = settings
-    if target is None:
-        try:
-            target = get_settings()
-        except Exception:
-            target = None
-    if target is not None:
-        try:
-            base_dir = Path(getattr(target, "output_dir"))
-        except Exception:
-            base_dir = Path("output")
-    else:
+def _broll_events_path() -> Path:
+    try:
+        base_dir = Path(getattr(Config, "OUTPUT_FOLDER", Path("output")))
+    except Exception:
         base_dir = Path("output")
     return base_dir / "meta" / "broll_pipeline_events.jsonl"
 
@@ -404,6 +388,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     load_dotenv(repo_root / '.env.local', override=True)
     _sanitize_env_values(_SANITIZE_KEYS)
 
+    settings = load_settings()
+    set_settings(settings)
+    settings = get_settings()
+    log_effective_settings(settings)
+
+    if settings.llm.force_non_stream:
+        os.environ["PIPELINE_LLM_FORCE_NON_STREAM"] = "1"
+    else:
+        os.environ.setdefault("PIPELINE_LLM_FORCE_NON_STREAM", "0")
+
+    timeout_value = max(5, int(settings.llm.timeout_fallback_s)) if settings.llm.timeout_fallback_s else 35
+    os.environ.setdefault("PIPELINE_LLM_TIMEOUT_S", str(timeout_value))
+
+    num_predict_value = max(1, int(settings.llm.num_predict)) if settings.llm.num_predict else 96
+    os.environ.setdefault("PIPELINE_LLM_NUM_PREDICT", str(min(96, num_predict_value)))
+
     parser = argparse.ArgumentParser(
         description="Launch the video pipeline with stable environment defaults."
     )
@@ -417,31 +417,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--legacy", action="store_true", help="Disable the modern pipeline_core orchestrator.")
     parser.add_argument("--verbose", action="store_true", help="Print verbose logs in the console.")
     parser.add_argument("--no-emoji", action="store_true", help="Disable emoji in console output.")
-    parser.add_argument(
-        "--llm-provider",
-        help="Override the LLM provider for this run (ex: ollama, lmstudio).",
-    )
-    parser.add_argument(
-        "--llm-model-text",
-        help="Override the text completion LLM model identifier.",
-    )
-    parser.add_argument(
-        "--llm-model-json",
-        help="Override the JSON metadata LLM model identifier.",
-    )
     args, passthrough = parser.parse_known_args(argv)
-
-    settings = load_settings()
-    settings = apply_llm_overrides(
-        settings,
-        provider=args.llm_provider,
-        model_text=args.llm_model_text,
-        model_json=args.llm_model_json,
-    )
-    set_settings(settings)
-    settings = get_settings()
-
-    log_effective_settings(settings)
 
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()
@@ -459,7 +435,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         allow_videos = str(bool(snapshot['allow_videos'])).lower()
         per_segment_limit = int(snapshot['per_segment_limit'])
 
-        print(f"providers={_raw_provider_spec(settings)}")
+        print(f"providers={_raw_provider_spec()}")
         print(f"resolved_providers={resolved_display}")
         print(f"allow_images={allow_images}")
         print(f"allow_videos={allow_videos}")

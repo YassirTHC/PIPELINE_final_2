@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Mapping, Optional
@@ -115,7 +115,6 @@ class LLMSettings:
     model: str
     model_json: str
     model_text: str
-    provider: str
     endpoint: str
     base_url: str
     keep_alive: str
@@ -136,7 +135,6 @@ class LLMSettings:
     json_prompt: Optional[str]
     json_mode: bool
     json_transcript_limit: Optional[int]
-    disable_dynamic_segment: bool = False
 
     @property
     def effective_json_model(self) -> str:
@@ -209,7 +207,6 @@ class Settings:
                 "model": self.llm.model,
                 "model_json": self.llm.effective_json_model,
                 "model_text": self.llm.effective_text_model,
-                "provider": self.llm.provider,
                 "endpoint": self.llm.endpoint,
                 "keep_alive": self.llm.keep_alive,
                 "timeout_stream_s": self.llm.timeout_stream_s,
@@ -228,7 +225,6 @@ class Settings:
                 "target_lang": self.llm.target_lang,
                 "json_mode": self.llm.json_mode,
                 "json_transcript_limit": self.llm.json_transcript_limit,
-                "disable_dynamic_segment": self.llm.disable_dynamic_segment,
             },
             "fetch": {
                 "timeout_s": self.fetch.timeout_s,
@@ -323,7 +319,6 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
     model = _clean_text(_env(env, "PIPELINE_LLM_MODEL", "qwen2.5:7b") or "qwen2.5:7b")
     model_json = _clean_text(_env(env, "PIPELINE_LLM_MODEL_JSON", "") or "")
     model_text = _clean_text(_env(env, "PIPELINE_LLM_MODEL_TEXT", "") or "")
-    provider = _clean_text(_env(env, "PIPELINE_LLM_PROVIDER", "ollama") or "ollama")
     endpoint = _clean_text(
         _env(env, "PIPELINE_LLM_ENDPOINT")
         or _env(env, "PIPELINE_LLM_BASE_URL")
@@ -413,17 +408,10 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
     else:
         json_transcript_limit = None
 
-    disable_dynamic_segment = _resolve_bool_env(
-        env,
-        "PIPELINE_DISABLE_DYNAMIC_SEGMENT_LLM",
-        default=False,
-    )
-
     return LLMSettings(
         model=model,
         model_json=model_json,
         model_text=model_text,
-        provider=provider,
         endpoint=endpoint,
         base_url=endpoint,
         keep_alive=keep_alive,
@@ -444,7 +432,6 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
         json_prompt=json_prompt,
         json_mode=json_mode,
         json_transcript_limit=json_transcript_limit,
-        disable_dynamic_segment=disable_dynamic_segment,
     )
 
 
@@ -486,25 +473,14 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
             assets_dir / "Montserrat-Bold.ttf",
         ]
     )
-
-    windir = os.getenv("WINDIR")
-    windows_fonts: List[Path] = []
-    if windir:
-        base_fonts = Path(windir) / "Fonts"
-        windows_fonts.extend(
-            [
-                base_fonts / "Montserrat-ExtraBold.ttf",
-                base_fonts / "Montserrat-Bold.ttf",
-            ]
-        )
-
     candidate_paths.extend(
         [
             Path("/System/Library/Fonts/Montserrat-ExtraBold.ttf"),
             Path("/System/Library/Fonts/Montserrat-Bold.ttf"),
             Path("/Library/Fonts/Montserrat-ExtraBold.ttf"),
             Path("/Library/Fonts/Montserrat-Bold.ttf"),
-            *windows_fonts,
+            Path("C:/Windows/Fonts/Montserrat-ExtraBold.ttf"),
+            Path("C:/Windows/Fonts/Montserrat-Bold.ttf"),
         ]
     )
 
@@ -705,32 +681,6 @@ def set_settings(settings: Settings) -> None:
     global _SETTINGS_CACHE
     with _CACHE_LOCK:
         _SETTINGS_CACHE = settings
-
-
-def apply_llm_overrides(
-    settings: Settings,
-    *,
-    provider: Optional[str] = None,
-    model_text: Optional[str] = None,
-    model_json: Optional[str] = None,
-) -> Settings:
-    updates: Dict[str, str] = {}
-    if provider is not None:
-        cleaned = provider.strip()
-        if cleaned:
-            updates["provider"] = cleaned
-    if model_text is not None:
-        cleaned = model_text.strip()
-        if cleaned:
-            updates["model_text"] = cleaned
-    if model_json is not None:
-        cleaned = model_json.strip()
-        if cleaned:
-            updates["model_json"] = cleaned
-    if not updates:
-        return settings
-    new_llm = replace(settings.llm, **updates)
-    return replace(settings, llm=new_llm)
 
 
 def get_settings() -> Settings:

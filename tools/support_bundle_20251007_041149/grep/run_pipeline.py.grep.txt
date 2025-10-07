@@ -1,0 +1,263 @@
+﻿
+  run_pipeline.py:32:
+  run_pipeline.py:33:
+  run_pipeline.py:34:def _raw_provider_spec() -> str:
+> run_pipeline.py:35:    for key in ("BROLL_FETCH_PROVIDER", "AI_BROLL_FETCH_PROVIDER"):
+  run_pipeline.py:36:        raw_value = os.environ.get(key)
+  run_pipeline.py:37:        if not raw_value:
+  run_pipeline.py:38:            continue
+  run_pipeline.py:45:
+  run_pipeline.py:46:os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+  run_pipeline.py:47:os.environ.setdefault('PYTHONUTF8', '1')
+> run_pipeline.py:48:for stream in (sys.stdout, sys.stderr):
+> run_pipeline.py:49:    if hasattr(stream, 'reconfigure'):
+  run_pipeline.py:50:        try:
+> run_pipeline.py:51:            stream.reconfigure(encoding='utf-8')
+  run_pipeline.py:52:        except Exception:
+  run_pipeline.py:53:            pass
+  run_pipeline.py:54:
+  run_pipeline.py:58:    'PIXABAY_API_KEY',
+  run_pipeline.py:59:    'UNSPLASH_ACCESS_KEY',
+  run_pipeline.py:60:    'GIPHY_API_KEY',
+> run_pipeline.py:61:    'BROLL_FETCH_PROVIDER',
+> run_pipeline.py:62:    'BROLL_FETCH_ENABLE',
+> run_pipeline.py:63:    'BROLL_FETCH_ALLOW_VIDEOS',
+> run_pipeline.py:64:    'BROLL_FETCH_ALLOW_IMAGES',
+> run_pipeline.py:65:    'BROLL_FETCH_MAX_PER_KEYWORD',
+  run_pipeline.py:66:    'ENABLE_PIPELINE_CORE_FETCHER',
+  run_pipeline.py:67:)
+  run_pipeline.py:68:
+  run_pipeline.py:70:emit_runtime_banner(env_keys=_SANITIZE_KEYS)
+  run_pipeline.py:71:
+  run_pipeline.py:72:from config import Config
+> run_pipeline.py:73:from pipeline_core.configuration import FetcherOrchestratorConfig, 
+resolved_providers
+  run_pipeline.py:74:from pipeline_core.fetchers import FetcherOrchestrator
+> run_pipeline.py:75:from pipeline_core.logging import JsonlLogger
+  run_pipeline.py:76:from pipeline_core.llm_service import get_shared_llm_service
+  run_pipeline.py:77:from pipeline_core.runtime import PipelineResult
+  run_pipeline.py:78:
+  run_pipeline.py:147:    """Proxy logger that tees events to disk and keeps them in memory."""
+  run_pipeline.py:148:
+  run_pipeline.py:149:    def __init__(self, destination: Path) -> None:
+> run_pipeline.py:150:        self._jsonl = JsonlLogger(destination)
+  run_pipeline.py:151:        self.entries: List[Dict[str, Any]] = []
+  run_pipeline.py:152:
+  run_pipeline.py:153:    @property
+  run_pipeline.py:154:    def path(self) -> Path:
+> run_pipeline.py:155:        return self._jsonl.path
+  run_pipeline.py:156:
+  run_pipeline.py:157:    def log(self, payload: Dict[str, Any]) -> None:
+  run_pipeline.py:158:        if isinstance(payload, dict):
+  run_pipeline.py:159:            self.entries.append(dict(payload))
+  run_pipeline.py:160:        else:
+  run_pipeline.py:161:            self.entries.append({"event": "unknown", "payload": payload})
+> run_pipeline.py:162:        self._jsonl.log(payload)
+  run_pipeline.py:163:
+  run_pipeline.py:164:
+  run_pipeline.py:165:_DIAG_EVENT_LOGGER: Optional[_DiagEventLogger] = None
+  run_pipeline.py:166:
+  run_pipeline.py:167:
+> run_pipeline.py:168:def _broll_events_path() -> Path:
+  run_pipeline.py:169:    try:
+  run_pipeline.py:170:        base_dir = Path(getattr(Config, "OUTPUT_FOLDER", Path("output")))
+  run_pipeline.py:171:    except Exception:
+  run_pipeline.py:172:        base_dir = Path("output")
+> run_pipeline.py:173:    return base_dir / "meta" / "broll_pipeline_events.jsonl"
+  run_pipeline.py:174:
+  run_pipeline.py:175:
+  run_pipeline.py:176:def _get_diag_event_logger() -> _DiagEventLogger:
+  run_pipeline.py:177:    global _DIAG_EVENT_LOGGER
+  run_pipeline.py:178:    if _DIAG_EVENT_LOGGER is None:
+> run_pipeline.py:179:        _DIAG_EVENT_LOGGER = _DiagEventLogger(_broll_events_path())
+  run_pipeline.py:180:    return _DIAG_EVENT_LOGGER
+  run_pipeline.py:181:
+  run_pipeline.py:182:
+  run_pipeline.py:183:def _fetcher_config_snapshot(
+  run_pipeline.py:184:    config: FetcherOrchestratorConfig,
+  run_pipeline.py:185:) -> dict[str, Any]:
+> run_pipeline.py:186:    resolved_names = resolved_providers(config)
+> run_pipeline.py:187:    active_names = [provider.name for provider in config.providers if 
+provider.enabled]
+> run_pipeline.py:188:    providers_display = ','.join(active_names) if active_names else 
+','.join(resolved_names)
+  run_pipeline.py:189:    resolved_display = ','.join(resolved_names) if resolved_names else 'none'
+  run_pipeline.py:190:    per_segment_limit = int(config.per_segment_limit)
+  run_pipeline.py:191:    allow_images = bool(config.allow_images)
+  run_pipeline.py:192:    allow_videos = bool(config.allow_videos)
+  run_pipeline.py:193:
+> run_pipeline.py:194:    provider_configs = {provider.name.lower(): provider for provider in 
+config.providers}
+  run_pipeline.py:195:
+  run_pipeline.py:196:    return {
+  run_pipeline.py:197:        'config': config,
+  run_pipeline.py:198:        'resolved_names': resolved_names,
+  run_pipeline.py:199:        'active_names': active_names,
+> run_pipeline.py:200:        'providers_display': providers_display,
+  run_pipeline.py:201:        'resolved_display': resolved_display,
+  run_pipeline.py:202:        'per_segment_limit': per_segment_limit,
+  run_pipeline.py:203:        'allow_images': allow_images,
+  run_pipeline.py:211:    per_segment_limit = int(snapshot['per_segment_limit'])
+  run_pipeline.py:212:
+  run_pipeline.py:213:    lines: list[str] = []
+> run_pipeline.py:214:    for provider in config.providers:
+  run_pipeline.py:215:        if not getattr(provider, 'enabled', True):
+  run_pipeline.py:216:            continue
+  run_pipeline.py:217:        max_results = int(getattr(provider, 'max_results', per_segment_limit))
+  run_pipeline.py:220:    return lines
+  run_pipeline.py:221:
+  run_pipeline.py:222:
+> run_pipeline.py:223:def _run_broll_diagnostic(repo_root: Path) -> int:
+  run_pipeline.py:224:    try:
+> run_pipeline.py:225:        import json
+  run_pipeline.py:226:    except ImportError as exc:
+  run_pipeline.py:227:        print(f"[DIAG] missing stdlib dependency: {exc}", file=sys.stderr)
+  run_pipeline.py:228:        return 1
+  run_pipeline.py:232:        ('pixabay', 'PIXABAY_API_KEY'),
+  run_pipeline.py:233:    ]
+  run_pipeline.py:234:
+> run_pipeline.py:235:    providers_meta = []
+  run_pipeline.py:236:    for name, env_key in provider_defs:
+  run_pipeline.py:237:        raw = os.environ.get(env_key)
+> run_pipeline.py:238:        providers_meta.append({
+  run_pipeline.py:239:            'name': name,
+  run_pipeline.py:240:            'env_key': env_key,
+  run_pipeline.py:241:            'key_present': bool(raw),
+  run_pipeline.py:260:
+  run_pipeline.py:261:    allow_line = 
+f"allow_images={str(bool(allow_images)).lower()}|allow_videos={str(bool(allow_videos)).lower()}"
+  run_pipeline.py:262:
+> run_pipeline.py:263:    print(f"[DIAG] providers={_raw_provider_spec()}")
+> run_pipeline.py:264:    print(f"[DIAG] resolved_providers={resolved_display}")
+  run_pipeline.py:265:    print(f"[DIAG] {allow_line}")
+  run_pipeline.py:266:    print(f"[DIAG] per_segment_limit={per_segment_limit}")
+  run_pipeline.py:267:    for line in _render_provider_limit_lines(snapshot):
+  run_pipeline.py:268:        print(f"[DIAG] {line}")
+  run_pipeline.py:269:
+> run_pipeline.py:270:    for meta in providers_meta:
+  run_pipeline.py:271:        provider_cfg = provider_configs.get(meta['name'].lower())
+  run_pipeline.py:272:        meta['selected'] = provider_cfg is not None
+  run_pipeline.py:273:        meta['enabled'] = bool(provider_cfg.enabled) if provider_cfg is not None 
+else False
+  run_pipeline.py:275:
+  run_pipeline.py:276:    orchestrator = FetcherOrchestrator(config, event_logger=event_logger)
+  run_pipeline.py:277:
+> run_pipeline.py:278:    for meta in providers_meta:
+  run_pipeline.py:279:        if not meta['key_present']:
+  run_pipeline.py:280:            event_logger.log({'event': 'provider_skipped_missing_key', 
+'provider': meta['name']})
+  run_pipeline.py:281:
+  run_pipeline.py:282:    base_index = len(event_logger.entries)
+  run_pipeline.py:283:    try:
+> run_pipeline.py:284:        candidates = orchestrator.fetch_candidates(['nature'], segment_index=0, 
+duration_hint=6.0, segment_timeout_s=0.7)
+  run_pipeline.py:285:    except Exception as exc:  # pragma: no cover - unexpected runtime faults
+  run_pipeline.py:286:        print(f"[DIAG] fetch orchestrator failed: {exc}", file=sys.stderr)
+  run_pipeline.py:287:        candidates = []
+  run_pipeline.py:298:    for event in new_events:
+  run_pipeline.py:299:        provider = str(event.get('provider', '') or '').strip()
+  run_pipeline.py:300:        event_name = event.get('event')
+> run_pipeline.py:301:        if not provider and event_name != 'broll_candidate_evaluated':
+  run_pipeline.py:302:            continue
+  run_pipeline.py:303:        if event_name == 'fetch_request':
+  run_pipeline.py:304:            latency = event.get('latency_ms')
+  run_pipeline.py:308:            if isinstance(count, int):
+  run_pipeline.py:309:                provider_counts.setdefault(provider, 0)
+  run_pipeline.py:310:                provider_counts[provider] = max(provider_counts[provider], 
+int(count))
+> run_pipeline.py:311:        elif event_name == 'fetch_timeout':
+> run_pipeline.py:312:            error_by_provider[provider] = 'timeout'
+  run_pipeline.py:313:        elif event_name == 'fetch_error':
+  run_pipeline.py:314:            error_by_provider[provider] = str(event.get('error') or 'error')
+  run_pipeline.py:315:        elif event_name == 'provider_skipped_missing_key':
+  run_pipeline.py:316:            error_by_provider[provider] = 'missing_api_key'
+> run_pipeline.py:317:        elif event_name == 'broll_candidate_evaluated':
+  run_pipeline.py:318:            prov_name = str(event.get('provider', '') or '').strip()
+  run_pipeline.py:319:            if not prov_name:
+  run_pipeline.py:320:                continue
+  run_pipeline.py:325:                latency_by_provider.setdefault(prov_name, None)
+  run_pipeline.py:326:
+  run_pipeline.py:327:    results = []
+> run_pipeline.py:328:    for provider in providers_meta:
+  run_pipeline.py:329:        status = dict(provider)
+  run_pipeline.py:330:        name = status['name']
+  run_pipeline.py:331:        provider_cfg = provider_configs.get(name.lower())
+  run_pipeline.py:367:
+  run_pipeline.py:368:    payload = {
+  run_pipeline.py:369:        'timestamp': time.time(),
+> run_pipeline.py:370:        'providers_actifs': active_names,
+> run_pipeline.py:371:        'providers_resolved': resolved_names,
+  run_pipeline.py:372:        'allow_images': allow_images,
+  run_pipeline.py:373:        'per_segment_limit': per_segment_limit,
+> run_pipeline.py:374:        'providers': results,
+  run_pipeline.py:375:    }
+> run_pipeline.py:376:    output_path = repo_root / 'diagnostic_broll.json'
+  run_pipeline.py:377:    with output_path.open('w', encoding='utf-8') as handle:
+> run_pipeline.py:378:        json.dump(payload, handle, indent=2)
+  run_pipeline.py:379:    print(f"[DIAG] report written to {output_path}")
+  run_pipeline.py:380:
+  run_pipeline.py:381:    return 0 if any(item.get('success') for item in results) else 2
+  run_pipeline.py:393:    settings = get_settings()
+  run_pipeline.py:394:    log_effective_settings(settings)
+  run_pipeline.py:395:
+> run_pipeline.py:396:    if settings.llm.force_non_stream:
+> run_pipeline.py:397:        os.environ["PIPELINE_LLM_FORCE_NON_STREAM"] = "1"
+  run_pipeline.py:398:    else:
+> run_pipeline.py:399:        os.environ.setdefault("PIPELINE_LLM_FORCE_NON_STREAM", "0")
+  run_pipeline.py:400:
+> run_pipeline.py:401:    timeout_value = max(5, int(settings.llm.timeout_fallback_s)) if 
+settings.llm.timeout_fallback_s else 35
+> run_pipeline.py:402:    os.environ.setdefault("PIPELINE_LLM_TIMEOUT_S", str(timeout_value))
+  run_pipeline.py:403:
+  run_pipeline.py:404:    num_predict_value = max(1, int(settings.llm.num_predict)) if 
+settings.llm.num_predict else 96
+  run_pipeline.py:405:    os.environ.setdefault("PIPELINE_LLM_NUM_PREDICT", str(min(96, 
+num_predict_value)))
+  run_pipeline.py:408:        description="Launch the video pipeline with stable environment defaults."
+  run_pipeline.py:409:    )
+  run_pipeline.py:410:    parser.add_argument("--video", help="Path to the source video (mp4, mov, 
+etc.)")
+> run_pipeline.py:411:    parser.add_argument("--diag-broll", action="store_true", help="Run a B-roll 
+API diagnostic and exit.")
+  run_pipeline.py:412:    parser.add_argument(
+  run_pipeline.py:413:        "--print-config",
+  run_pipeline.py:414:        action="store_true",
+  run_pipeline.py:416:    )
+  run_pipeline.py:417:    parser.add_argument("--legacy", action="store_true", help="Disable the 
+modern pipeline_core orchestrator.")
+  run_pipeline.py:418:    parser.add_argument("--verbose", action="store_true", help="Print verbose 
+logs in the console.")
+> run_pipeline.py:419:    parser.add_argument("--no-emoji", action="store_true", help="Disable emoji 
+in console output.")
+  run_pipeline.py:420:    args, passthrough = parser.parse_known_args(argv)
+  run_pipeline.py:421:
+  run_pipeline.py:422:    if args.print_config:
+  run_pipeline.py:435:        allow_videos = str(bool(snapshot['allow_videos'])).lower()
+  run_pipeline.py:436:        per_segment_limit = int(snapshot['per_segment_limit'])
+  run_pipeline.py:437:
+> run_pipeline.py:438:        print(f"providers={_raw_provider_spec()}")
+> run_pipeline.py:439:        print(f"resolved_providers={resolved_display}")
+  run_pipeline.py:440:        print(f"allow_images={allow_images}")
+  run_pipeline.py:441:        print(f"allow_videos={allow_videos}")
+  run_pipeline.py:442:        print(f"per_segment_limit={per_segment_limit}")
+  run_pipeline.py:444:            print(line)
+  run_pipeline.py:445:        return 0
+  run_pipeline.py:446:
+> run_pipeline.py:447:    if args.diag_broll:
+> run_pipeline.py:448:        return _run_broll_diagnostic(repo_root)
+  run_pipeline.py:449:    if not args.video:
+> run_pipeline.py:450:        parser.error("--video is required unless --diag-broll is specified")
+  run_pipeline.py:451:
+  run_pipeline.py:452:    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+  run_pipeline.py:453:    os.environ["ENABLE_PIPELINE_CORE_FETCHER"] = "false" if args.legacy else 
+os.environ.get(
+  run_pipeline.py:458:    vp_args = ["--video", args.video]
+  run_pipeline.py:459:    if args.verbose:
+  run_pipeline.py:460:        vp_args.append("--verbose")
+> run_pipeline.py:461:    if args.no_emoji:
+> run_pipeline.py:462:        vp_args.append("--no-emoji")
+  run_pipeline.py:463:    vp_args.extend(passthrough)
+  run_pipeline.py:464:
+  run_pipeline.py:465:    global video_processor
+
+
