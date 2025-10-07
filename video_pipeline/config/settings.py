@@ -136,6 +136,7 @@ class LLMSettings:
     json_prompt: Optional[str]
     json_mode: bool
     json_transcript_limit: Optional[int]
+    disable_dynamic_segment: bool = False
 
     @property
     def effective_json_model(self) -> str:
@@ -227,6 +228,7 @@ class Settings:
                 "target_lang": self.llm.target_lang,
                 "json_mode": self.llm.json_mode,
                 "json_transcript_limit": self.llm.json_transcript_limit,
+                "disable_dynamic_segment": self.llm.disable_dynamic_segment,
             },
             "fetch": {
                 "timeout_s": self.fetch.timeout_s,
@@ -411,6 +413,12 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
     else:
         json_transcript_limit = None
 
+    disable_dynamic_segment = _resolve_bool_env(
+        env,
+        "PIPELINE_DISABLE_DYNAMIC_SEGMENT_LLM",
+        default=False,
+    )
+
     return LLMSettings(
         model=model,
         model_json=model_json,
@@ -436,6 +444,7 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
         json_prompt=json_prompt,
         json_mode=json_mode,
         json_transcript_limit=json_transcript_limit,
+        disable_dynamic_segment=disable_dynamic_segment,
     )
 
 

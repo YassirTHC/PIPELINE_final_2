@@ -7,7 +7,6 @@ import importlib.util
 import json
 import logging
 import math
-import os
 import re
 import sys
 import hashlib
@@ -30,9 +29,11 @@ from pipeline_core.configuration import tfidf_fallback_disabled_from_env
 from pipeline_core.llm_providers import LLMClient, get_llm_client
 
 try:  # Optional import – settings layer may not be available in unit stubs
-    from video_pipeline.config import get_settings
+    from video_pipeline.config import get_settings, load_settings, set_settings
 except Exception:  # pragma: no cover - optional dependency
     get_settings = None  # type: ignore[assignment]
+    load_settings = None  # type: ignore[assignment]
+    set_settings = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:  # pragma: no cover - import for typing only
     from video_pipeline.config import Settings  # noqa: F401
@@ -51,21 +52,44 @@ if UTILS_DIR.exists():
         spec.loader.exec_module(module)
         sys.modules['utils'] = module
 
-FAST_TESTS = os.getenv('PIPELINE_FAST_TESTS') == '1'
 
-if UTILS_DIR.exists() and not FAST_TESTS:
+def _initial_fast_tests_flag() -> bool:
+    if get_settings is None:
+        return False
+    try:
+        settings = get_settings()
+    except Exception:
+        return False
+    try:
+        return bool(getattr(settings, "fast_tests"))
+    except Exception:
+        return False
+
+
+def _load_integration_factory(initial_fast_tests: bool):
+    if initial_fast_tests or not UTILS_DIR.exists():
+        def _stub_integration(config=None):  # type: ignore[override]
+            return object()
+
+        return _stub_integration
+
     spec_pi = importlib.util.spec_from_file_location('utils.pipeline_integration', UTILS_DIR / 'pipeline_integration.py')
     if spec_pi and spec_pi.loader:
         _module_pi = importlib.util.module_from_spec(spec_pi)
         spec_pi.loader.exec_module(_module_pi)
-        create_pipeline_integration = _module_pi.create_pipeline_integration
-    else:
-        raise ImportError('Cannot load utils.pipeline_integration')
-elif FAST_TESTS:
-    def create_pipeline_integration(config=None):  # type: ignore[override]
+        return _module_pi.create_pipeline_integration
+
+    def _fallback_stub(config=None):  # type: ignore[override]
         return object()
-else:
-    raise ImportError('utils directory missing: ' + str(UTILS_DIR))
+
+    logging.getLogger(__name__).warning(
+        "[LLM] Falling back to stub pipeline integration (module load failed)"
+    )
+    return _fallback_stub
+
+
+FAST_TESTS = _initial_fast_tests_flag()
+create_pipeline_integration = _load_integration_factory(FAST_TESTS)
 
 
 logger = logging.getLogger(__name__)
@@ -1014,24 +1038,17 @@ def _resolve_keep_alive(value: Optional[str]) -> Optional[str]:
 
 
 def _metadata_transcript_limit() -> int:
-    limit_env = os.getenv("PIPELINE_LLM_JSON_TRANSCRIPT_LIMIT")
     limit: Optional[int] = None
-    if limit_env is not None:
+    llm_cfg = _llm_settings_obj()
+    if llm_cfg is not None:
         try:
-            limit = int(limit_env)
+            candidate = getattr(llm_cfg, "json_transcript_limit", None)
+            if candidate is not None:
+                limit = int(candidate)
         except (TypeError, ValueError):
             limit = None
-    if limit is None:
-        llm_cfg = _llm_settings_obj()
-        if llm_cfg is not None:
-            try:
-                candidate = getattr(llm_cfg, "json_transcript_limit", None)
-                if candidate is not None:
-                    limit = int(candidate)
-            except (TypeError, ValueError):
-                limit = None
-            except Exception:
-                logger.debug("[LLM] Unable to read json_transcript_limit", exc_info=True)
+        except Exception:
+            logger.debug("[LLM] Unable to read json_transcript_limit", exc_info=True)
     if limit is None:
         limit = 5500
     return max(500, limit)
@@ -1405,15 +1422,32 @@ def _llm_settings_obj():
         return None
 
 
-def _llm_string(*env_keys: str, attr: str, default: str) -> str:
-    for key in env_keys:
-        if not key:
-            continue
-        raw = os.getenv(key)
-        if isinstance(raw, str):
-            cleaned = raw.strip()
-            if cleaned:
-                return cleaned
+def _refresh_settings_from_env() -> None:
+    if load_settings is None or set_settings is None:
+        return
+    try:
+        fresh = load_settings()
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("[LLM] Unable to reload settings", exc_info=True)
+        return
+    try:
+        set_settings(fresh)
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("[LLM] Unable to update cached settings", exc_info=True)
+
+
+def _fast_tests_enabled() -> bool:
+    settings = _safe_get_settings()
+    if settings is None:
+        return False
+    try:
+        return bool(getattr(settings, "fast_tests"))
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("[LLM] fast_tests flag unavailable", exc_info=True)
+        return False
+
+
+def _llm_string(*_env_keys: str, attr: str, default: str) -> str:
     llm = _llm_settings_obj()
     if llm is not None:
         try:
@@ -1426,65 +1460,45 @@ def _llm_string(*env_keys: str, attr: str, default: str) -> str:
     return default
 
 
-def _llm_float(env_key: str, attr: str, default: float, *, minimum: float) -> float:
-    raw = os.getenv(env_key)
+def _llm_float(_env_key: str, attr: str, default: float, *, minimum: float) -> float:
     value = default
-    if raw is not None:
+    llm = _llm_settings_obj()
+    if llm is not None:
         try:
-            value = float(raw)
-        except (TypeError, ValueError):
-            value = default
-    else:
-        llm = _llm_settings_obj()
-        if llm is not None:
-            try:
-                candidate = getattr(llm, attr, None)
-            except Exception:  # pragma: no cover - defensive
-                logger.debug("[LLM] Missing float attribute %s", attr, exc_info=True)
-            else:
-                if candidate is not None:
-                    try:
-                        value = float(candidate)
-                    except (TypeError, ValueError):
-                        value = default
+            candidate = getattr(llm, attr, None)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[LLM] Missing float attribute %s", attr, exc_info=True)
+        else:
+            if candidate is not None:
+                try:
+                    value = float(candidate)
+                except (TypeError, ValueError):
+                    value = default
     if value < minimum:
         value = minimum
     return value
 
 
-def _llm_int(env_key: str, attr: str, default: int, *, minimum: int) -> int:
-    raw = os.getenv(env_key)
+def _llm_int(_env_key: str, attr: str, default: int, *, minimum: int) -> int:
     value = default
-    if raw is not None:
+    llm = _llm_settings_obj()
+    if llm is not None:
         try:
-            value = int(str(raw).strip())
-        except (TypeError, ValueError):
-            value = default
-    else:
-        llm = _llm_settings_obj()
-        if llm is not None:
-            try:
-                candidate = getattr(llm, attr, None)
-            except Exception:  # pragma: no cover - defensive
-                logger.debug("[LLM] Missing int attribute %s", attr, exc_info=True)
-            else:
-                if candidate is not None:
-                    try:
-                        value = int(candidate)
-                    except (TypeError, ValueError):
-                        value = default
+            candidate = getattr(llm, attr, None)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[LLM] Missing int attribute %s", attr, exc_info=True)
+        else:
+            if candidate is not None:
+                try:
+                    value = int(candidate)
+                except (TypeError, ValueError):
+                    value = default
     if value < minimum:
         value = minimum
     return value
 
 
-def _llm_bool(*env_keys: str, attr: str, default: bool) -> bool:
-    for key in env_keys:
-        if not key:
-            continue
-        flag = _env_to_bool(os.getenv(key))
-        if flag is not None:
-            return flag
+def _llm_bool(*_env_keys: str, attr: str, default: bool) -> bool:
     llm = _llm_settings_obj()
     if llm is not None:
         try:
@@ -1498,12 +1512,6 @@ def _llm_bool(*env_keys: str, attr: str, default: bool) -> bool:
 
 
 def _resolve_timeout_s(settings: Optional["Settings"]) -> float:
-    env_timeout = os.getenv("PIPELINE_LLM_TIMEOUT_S")
-    if env_timeout:
-        try:
-            return max(1.0, float(env_timeout))
-        except (TypeError, ValueError):
-            pass
     target_settings = settings
     if target_settings is None:
         target_settings = _safe_get_settings()
@@ -1522,12 +1530,6 @@ def _resolve_timeout_s(settings: Optional["Settings"]) -> float:
 
 
 def _resolve_fallback_trunc(settings: Optional["Settings"], default: int = 3500) -> int:
-    env_value = os.getenv("PIPELINE_LLM_FALLBACK_TRUNC")
-    if env_value:
-        try:
-            return max(64, int(env_value))
-        except (TypeError, ValueError):
-            pass
     target_settings = settings
     if target_settings is None:
         target_settings = _safe_get_settings()
@@ -1873,16 +1875,15 @@ def _build_keywords_prompt(transcript_snippet: str, target_lang: str) -> str:
 
 
 def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = None) -> str:
-    override = os.getenv("PIPELINE_LLM_JSON_PROMPT")
-    if not override:
-        llm_cfg = _llm_settings_obj()
-        if llm_cfg is not None:
-            try:
-                candidate = getattr(llm_cfg, "json_prompt", None)
-                if candidate and str(candidate).strip():
-                    override = str(candidate)
-            except Exception:
-                logger.debug("[LLM] Unable to read json_prompt override", exc_info=True)
+    override: Optional[str] = None
+    llm_cfg = _llm_settings_obj()
+    if llm_cfg is not None:
+        try:
+            candidate = getattr(llm_cfg, "json_prompt", None)
+            if candidate and str(candidate).strip():
+                override = str(candidate)
+        except Exception:
+            logger.debug("[LLM] Unable to read json_prompt override", exc_info=True)
     cleaned = (transcript or "").strip()
     limit = _metadata_transcript_limit()
     if len(cleaned) > limit:
@@ -1925,12 +1926,12 @@ def _ollama_generate_json(
     keep_alive_value = _resolve_keep_alive(keep_alive)
     json_mode_env = json_mode
     if json_mode_env is None:
-        json_mode_env = _env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
-    if json_mode_env is None:
         llm_cfg = _llm_settings_obj()
         if llm_cfg is not None:
             try:
-                json_mode_env = bool(getattr(llm_cfg, "json_mode"))
+                candidate = getattr(llm_cfg, "json_mode", None)
+                if candidate is not None:
+                    json_mode_env = bool(candidate)
             except Exception:
                 logger.debug("[LLM] Unable to read json_mode flag", exc_info=True)
     payload: Dict[str, Any] = {
@@ -3246,12 +3247,8 @@ class LLMMetadataGeneratorService:
         self._metadata_cache_queries: List[str] = []
         self._metadata_cache_keywords: List[str] = []
 
-        settings_obj: Any = None
-        if callable(get_settings):  # type: ignore[arg-type]
-            try:
-                settings_obj = get_settings()
-            except Exception:
-                settings_obj = None
+        _refresh_settings_from_env()
+        settings_obj: Any = _safe_get_settings()
 
         def _coerce_positive(value: Any) -> Optional[int]:
             try:
@@ -3277,8 +3274,7 @@ class LLMMetadataGeneratorService:
                 max_queries_default = coerced
 
         self._max_queries_per_segment = max(1, min(max_queries_default, 3))
-        disable_dynamic_flag = _env_to_bool(os.getenv(_METADATA_DISABLE_ENV))
-        self._metadata_first_enabled = bool(disable_dynamic_flag)
+        self._metadata_first_enabled = False
 
         def _coerce_disable_flag(value: Any) -> Optional[bool]:
             if value is None:
@@ -3314,97 +3310,80 @@ class LLMMetadataGeneratorService:
         if disable_flag is None:
             disable_flag = _extract_disable_flag(config)
         self._disable_tfidf_fallback = bool(disable_flag) if disable_flag is not None else False
+        llm_settings = getattr(settings_obj, "llm", None) if settings_obj is not None else None
 
-        timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
-        num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
-        temperature_env = os.getenv("PIPELINE_LLM_TEMP")
-        top_p_env = os.getenv("PIPELINE_LLM_TOP_P")
-        repeat_penalty_env = os.getenv("PIPELINE_LLM_REPEAT_PENALTY")
-        stop_tokens_env = os.getenv("PIPELINE_LLM_STOP_TOKENS")
-
-        def _parse_int(value: Optional[str], *, default: int, minimum: int) -> int:
+        typed_disable_segment = False
+        if llm_settings is not None:
             try:
-                parsed = int(value) if value is not None else default
-            except (TypeError, ValueError):
-                parsed = default
-            return max(minimum, parsed)
+                typed_disable_segment = bool(getattr(llm_settings, "disable_dynamic_segment"))
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("[LLM] Unable to read disable_dynamic_segment flag", exc_info=True)
+        self._metadata_first_enabled = typed_disable_segment
 
-        def _parse_float(
-            value: Optional[str],
-            *,
-            default: float,
-            minimum: float,
-            maximum: Optional[float] = None,
-        ) -> float:
+        def _coerce_float_range(value: Any, default: float, *, minimum: float, maximum: Optional[float] = None) -> float:
             try:
-                parsed = float(value) if value is not None else default
+                parsed = float(value if value is not None else default)
             except (TypeError, ValueError):
-                parsed = default
+                parsed = float(default)
             if maximum is not None:
-                parsed = min(maximum, parsed)
+                parsed = min(parsed, maximum)
             return max(minimum, parsed)
 
-        timeout_default = 35
-        llm_settings = getattr(settings_obj, "llm", None)
-        settings_timeout = getattr(llm_settings, "timeout_fallback_s", None) if llm_settings else None
-        if isinstance(settings_timeout, (int, float)):
-            timeout_default = max(5, int(settings_timeout))
+        def _coerce_int_range(value: Any, default: int, *, minimum: int, maximum: Optional[int] = None) -> int:
+            try:
+                parsed = int(value if value is not None else default)
+            except (TypeError, ValueError):
+                parsed = int(default)
+            if maximum is not None:
+                parsed = min(parsed, maximum)
+            return max(minimum, parsed)
 
-        self._llm_timeout = _parse_int(timeout_env, default=timeout_default, minimum=5)
+        timeout_default = _coerce_float_range(
+            getattr(llm_settings, "timeout_fallback_s", None) if llm_settings is not None else None,
+            35,
+            minimum=5,
+        )
+        self._llm_timeout = int(timeout_default)
 
-        settings_num_predict = getattr(llm_settings, "num_predict", None) if llm_settings else None
-        configured_predict = None
-        if isinstance(settings_num_predict, (int, float)):
-            configured_predict = max(1, int(settings_num_predict))
-        default_num_predict = configured_predict if configured_predict is not None else 96
-        parsed_predict = _parse_int(num_predict_env, default=default_num_predict, minimum=1)
-        self._llm_num_predict = max(1, min(parsed_predict, 96))
-        temperature_default = 0.3
-        top_p_default = 0.9
-        repeat_penalty_default = 1.1
+        num_predict_default = _coerce_int_range(
+            getattr(llm_settings, "num_predict", None) if llm_settings is not None else None,
+            96,
+            minimum=1,
+            maximum=96,
+        )
+        self._llm_num_predict = num_predict_default
+
+        self._llm_temperature = _coerce_float_range(
+            getattr(llm_settings, "temperature", None) if llm_settings is not None else None,
+            0.3,
+            minimum=0.0,
+        )
+        self._llm_top_p = _coerce_float_range(
+            getattr(llm_settings, "top_p", None) if llm_settings is not None else None,
+            0.9,
+            minimum=0.0,
+            maximum=1.0,
+        )
+        self._llm_repeat_penalty = _coerce_float_range(
+            getattr(llm_settings, "repeat_penalty", None) if llm_settings is not None else None,
+            1.1,
+            minimum=0.0,
+        )
+
+        stop_tokens_value: Optional[str] = None
         if llm_settings is not None:
-            try:
-                temperature_default = float(getattr(llm_settings, "temperature", temperature_default))
-            except Exception:
-                logger.debug("[LLM] Unable to read temperature", exc_info=True)
-            try:
-                top_p_default = float(getattr(llm_settings, "top_p", top_p_default))
-            except Exception:
-                logger.debug("[LLM] Unable to read top_p", exc_info=True)
-            try:
-                repeat_penalty_default = float(getattr(llm_settings, "repeat_penalty", repeat_penalty_default))
-            except Exception:
-                logger.debug("[LLM] Unable to read repeat_penalty", exc_info=True)
-        self._llm_temperature = _parse_float(temperature_env, default=temperature_default, minimum=0.0)
-        self._llm_top_p = _parse_float(top_p_env, default=top_p_default, minimum=0.0, maximum=1.0)
-        self._llm_repeat_penalty = _parse_float(repeat_penalty_env, default=repeat_penalty_default, minimum=0.0)
-        self._llm_stop_tokens: Sequence[str] = tuple(_parse_stop_tokens(stop_tokens_env))
+            raw_tokens = getattr(llm_settings, "stop_tokens", None)
+            if isinstance(raw_tokens, str):
+                stop_tokens_value = raw_tokens
+            elif isinstance(raw_tokens, (list, tuple)):
+                stop_tokens_value = json.dumps([str(token) for token in raw_tokens])
+        self._llm_stop_tokens = tuple(_parse_stop_tokens(stop_tokens_value))
 
-        def _clean_model(value: Optional[str], fallback: str) -> str:
-            candidate = (value or "").strip()
-            return candidate or fallback
-
-        default_model = "qwen2.5:7b"
-        if llm_settings is not None:
-            try:
-                default_model = (str(getattr(llm_settings, "model", default_model)) or default_model).strip() or default_model
-            except Exception:
-                logger.debug("[LLM] Unable to read base model", exc_info=True)
-        base_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL"), default_model)
-        self.model_default = base_model
-        default_json_model = base_model
-        default_text_model = base_model
-        if llm_settings is not None:
-            try:
-                default_json_model = str(getattr(llm_settings, "model_json", base_model) or base_model)
-            except Exception:
-                logger.debug("[LLM] Unable to read JSON model", exc_info=True)
-            try:
-                default_text_model = str(getattr(llm_settings, "model_text", base_model) or base_model)
-            except Exception:
-                logger.debug("[LLM] Unable to read text model", exc_info=True)
-        self.model_json = _clean_model(os.getenv("PIPELINE_LLM_MODEL_JSON"), default_json_model)
-        configured_text_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), default_text_model)
+        default_model = _llm_string(attr="model", default="qwen2.5:7b")
+        self.model_default = default_model
+        default_json_model = _llm_string(attr="model_json", default=default_model)
+        self.model_json = default_json_model
+        configured_text_model = _llm_string(attr="model_text", default=default_model)
         self.model_text = configured_text_model
 
         fallback_note: Optional[str] = None
@@ -3644,12 +3623,13 @@ class LLMMetadataGeneratorService:
 
     def _get_integration(self):
         config = self._config
-        if FAST_TESTS:
+        if _fast_tests_enabled():
+            factory = create_pipeline_integration if FAST_TESTS else _load_integration_factory(True)
             if self._reuse_shared:
                 with self._lock:
                     if self._shared_integration is None:
                         logger.info('[LLM] FAST_TESTS stub integration initialised')
-                        LLMMetadataGeneratorService._shared_integration = create_pipeline_integration(config)
+                        LLMMetadataGeneratorService._shared_integration = factory(config)
                         LLMMetadataGeneratorService._shared_config = config
                         LLMMetadataGeneratorService._init_count += 1
                 integration = self._shared_integration
@@ -3657,7 +3637,7 @@ class LLMMetadataGeneratorService:
                 return integration
             if self._integration is None:
                 logger.info('[LLM] FAST_TESTS stub integration (local) initialised')
-                self._integration = create_pipeline_integration(config)
+                self._integration = factory(config)
             integration = self._integration
             self._apply_llm_config(integration)
             return integration
@@ -4863,8 +4843,8 @@ def generate_metadata_as_json(
             ).strip() or default_model
         except Exception:
             logger.debug("[LLM] Unable to read JSON model for metadata", exc_info=True)
-    model_default = (os.getenv("PIPELINE_LLM_MODEL") or default_model).strip() or default_model
-    model_name = (os.getenv("PIPELINE_LLM_MODEL_JSON") or default_json_model).strip() or default_json_model
+    model_default = _llm_string(attr="model", default=default_model)
+    model_name = _llm_string(attr="model_json", default=default_json_model)
 
     timeout_override: Optional[float] = None
     if timeout_s is not None:
@@ -4880,28 +4860,10 @@ def generate_metadata_as_json(
     started = time.perf_counter()
     if use_keywords_prompt:
         try:
-            num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
-            if num_predict_env is None and llm_cfg is not None:
-                try:
-                    num_predict_env = str(getattr(llm_cfg, "num_predict", 192))
-                except Exception:
-                    num_predict_env = None
-            try:
-                configured_predict = int(num_predict_env) if num_predict_env is not None else 192
-            except (TypeError, ValueError):
-                configured_predict = 192
+            configured_predict = _llm_int("", attr="num_predict", default=192, minimum=1)
             bounded_predict = max(64, min(192, configured_predict))
 
-            temp_env = os.getenv("PIPELINE_LLM_TEMP")
-            if temp_env is None and llm_cfg is not None:
-                try:
-                    temp_env = str(getattr(llm_cfg, "temperature", 0.2))
-                except Exception:
-                    temp_env = None
-            try:
-                configured_temp = float(temp_env) if temp_env is not None else 0.2
-            except (TypeError, ValueError):
-                configured_temp = 0.2
+            configured_temp = _llm_float("", attr="temperature", default=0.2, minimum=0.0)
             bounded_temp = max(0.0, min(0.4, configured_temp))
 
             parsed_payload, raw_payload, raw_length = _ollama_generate_json(
