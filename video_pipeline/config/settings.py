@@ -481,11 +481,6 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
             Path("/Library/Fonts/Montserrat-Bold.ttf"),
             Path("C:/Windows/Fonts/Montserrat-ExtraBold.ttf"),
             Path("C:/Windows/Fonts/Montserrat-Bold.ttf"),
-            Path("C:/Windows/Fonts/impact.ttf"),
-            Path("/Windows/Fonts/impact.ttf"),
-            Path("/System/Library/Fonts/Impact.ttf"),
-            Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
         ]
     )
 

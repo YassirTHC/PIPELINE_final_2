@@ -72,3 +72,8 @@ graph TD
 - API keys lues via `os.getenv` et masquées dans le banner CLI, mais `FetcherOrchestrator` logge les requêtes sans masquage lorsque `_logger` absent (utilise `print`).【F:run_pipeline.py†L50-L155】【F:pipeline_core/fetchers.py†L724-L733】
 - Pas de chiffrement ou nettoyage des fichiers temporaires B-roll (téléchargés dans `temp/` puis supprimés). Vérifier conformité RGPD selon contenus.
 - Aucun mécanisme pour purger les logs JSONL (peuvent contenir transcripts). `JsonlLogger` écrit en clair sans rotation.【F:pipeline_core/logging.py†L34-L118】
+
+## Subtitle & Emoji
+- Stack police Montserrat prioritaire : `HormoziSubtitles` charge désormais `PIPELINE_SUBTITLE_FONT_PATH` puis les fontes packagées Montserrat et logge la résolution effective (warning si seuls les assets locaux sont disponibles).【F:hormozi_subtitles.py†L51-L158】【F:hormozi_subtitles.py†L182-L236】
+- Palette réduite (jaune/vert/rouge/bleu/turquoise/magenta) et alias enrichis : toutes les catégories (finance, sales, content, growth, energy, focus, time, results, win) récupèrent une couleur lisible sans fallback blanc, synchronisée avec les mappings d'emojis.【F:hormozi_subtitles.py†L167-L331】
+- Log de démarrage unifié pour les sous-titres : activation background, stroke/shadow et densité emoji sont tracés dès l'initialisation, facilitant l'audit des rendus Hormozi.【F:hormozi_subtitles.py†L159-L206】

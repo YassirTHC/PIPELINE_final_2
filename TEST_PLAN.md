@@ -23,6 +23,7 @@
 | `video_processor.enforce_broll_schedule_rules` | - Rejet si start < `min_start` (nouvelle règle).<br>- Rejet si gap < `min_gap`.<br>- Rejet si `identifier` déjà utilisé dans fenêtre `no_repeat`. | `tests/test_broll_rules.py` (nouveau).【F:video_processor.py†L423-L447】 |
 | `pipeline_core/fetchers` | - Normalisation queries (synonymes, stopwords).<br>- Timeout provider → fallback Pixabay unique.<br>- Logger JSON au lieu de `print`. | `tests/test_fetchers.py` (nouveau).【F:pipeline_core/fetchers.py†L200-L520】【F:pipeline_core/fetchers.py†L724-L733】 |
 | `JsonlLogger` | Concurrence (threads) et écriture UTF-8 (caractères accentués). | `tests/test_logging.py` (nouveau).【F:pipeline_core/logging.py†L34-L118】 |
+| `hormozi_subtitles` | - Stack Montserrat only + logs sans Impact.<br>- Palette/keyword background (on/off).<br>- Emoji mapping finance/sales/growth/energy. | `tests/test_subtitles_font.py`, `tests/test_subtitles_palette_background.py`, `tests/test_emojis_mapping.py`.【F:hormozi_subtitles.py†L182-L331】【F:tests/test_subtitles_font.py†L1-L24】【F:tests/test_subtitles_palette_background.py†L1-L48】【F:tests/test_emojis_mapping.py†L1-L45】 |
 
 ## Tests de non-régression Windows
 1. **Chemins backslash** – Cas de test sur `Settings` pour vérifier que `Path("clips")` converti via `resolve()` ne duplique pas les séparateurs. (Créer un test paramétré `WindowsPath` via `pytest.mark.parametrize`).【F:config.py†L12-L39】
