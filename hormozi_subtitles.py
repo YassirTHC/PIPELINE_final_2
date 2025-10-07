@@ -556,6 +556,9 @@ class HormoziSubtitles:
         return ImageFont.load_default()
 
     def _build_font_candidates(self, extra: Optional[Sequence[str]]) -> List[str]:
+        repo_root = Path(__file__).resolve().parent
+        candidates: List[str] = []
+
         def _push(target: Optional[str | Path]) -> None:
             if not target:
                 return
@@ -563,67 +566,137 @@ class HormoziSubtitles:
                 path_obj = Path(str(target)).expanduser()
             except Exception:
                 return
-            self._font_candidates.append(str(path_obj))
+            candidates.append(str(path_obj))
 
-        self._font_candidates = []
         if extra:
             for candidate in extra:
                 if candidate:
                     _push(candidate)
+
         if self.subtitle_settings is not None and getattr(self.subtitle_settings, "font_path", None):
             _push(self.subtitle_settings.font_path)
 
-        base_dir = Path(__file__).resolve().parent
-        asset_fonts = [
-            base_dir / "assets" / "fonts" / "Montserrat-ExtraBold.ttf",
-            base_dir / "assets" / "fonts" / "Montserrat-Bold.ttf",
+        assets_dir = repo_root / "assets" / "fonts"
+        montserrat_assets = [
+            assets_dir / "Montserrat-ExtraBold.ttf",
+            assets_dir / "Montserrat-Bold.ttf",
         ]
-        for candidate in asset_fonts:
+        for candidate in montserrat_assets:
             _push(candidate)
 
-        montserrat_system_fonts = [
-            "/System/Library/Fonts/Montserrat-ExtraBold.ttf",
-            "/System/Library/Fonts/Montserrat-Bold.ttf",
-            "/Library/Fonts/Montserrat-ExtraBold.ttf",
-            "/Library/Fonts/Montserrat-Bold.ttf",
-            "C:/Windows/Fonts/Montserrat-ExtraBold.ttf",
-            "C:/Windows/Fonts/Montserrat-Bold.ttf",
+        system_montserrat: List[Path] = [
+            Path("/System/Library/Fonts/Montserrat-ExtraBold.ttf"),
+            Path("/System/Library/Fonts/Montserrat-Bold.ttf"),
+            Path("/Library/Fonts/Montserrat-ExtraBold.ttf"),
+            Path("/Library/Fonts/Montserrat-Bold.ttf"),
         ]
-        for candidate in montserrat_system_fonts:
+        windir = os.getenv("WINDIR")
+        if windir:
+            base_fonts = Path(windir) / "Fonts"
+            system_montserrat.extend(
+                [
+                    base_fonts / "Montserrat-ExtraBold.ttf",
+                    base_fonts / "Montserrat-Bold.ttf",
+                ]
+            )
+        for candidate in system_montserrat:
             _push(candidate)
 
-        ordered_unique = list(dict.fromkeys(self._font_candidates))
+        # Normalise and deduplicate while preserving order
+        ordered_unique: List[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            normalized = candidate
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            ordered_unique.append(normalized)
+
+        montserrat_found = False
+        resolved_candidates: List[str] = []
+        for candidate in ordered_unique:
+            try:
+                path_obj = Path(candidate).expanduser()
+                resolved = str(path_obj)
+            except Exception:
+                resolved = candidate
+                path_obj = None
+            if path_obj is not None:
+                try:
+                    exists = path_obj.exists()
+                except OSError:
+                    exists = False
+            else:
+                exists = False
+            if exists and "montserrat" in path_obj.name.lower():
+                montserrat_found = True
+            resolved_candidates.append(resolved)
+
+        # Rebuild ordered list with normalised paths
+        seen.clear()
+        ordered_unique = []
+        for candidate in resolved_candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            ordered_unique.append(candidate)
+
+        if montserrat_found:
+            montserrat_first: List[str] = []
+            others: List[str] = []
+            for candidate in ordered_unique:
+                name = Path(candidate).name.lower()
+                if "montserrat" in name:
+                    montserrat_first.append(candidate)
+                else:
+                    others.append(candidate)
+            ordered_unique = montserrat_first + others
+        else:
+            logger.warning(
+                "[Subtitles] Montserrat fonts missing; attempting Impact fallback"
+            )
+            impact_candidates: List[Path] = []
+            impact_assets = assets_dir / "Impact.ttf"
+            impact_candidates.append(impact_assets)
+            if windir:
+                impact_candidates.extend(
+                    [
+                        (Path(windir) / "Fonts" / "impact.ttf"),
+                        (Path(windir) / "Fonts" / "IMPACT.TTF"),
+                    ]
+                )
+            impact_candidates.extend(
+                [
+                    Path("/Library/Fonts/Impact.ttf"),
+                    Path("/System/Library/Fonts/Supplemental/Impact.ttf"),
+                    Path("/usr/share/fonts/truetype/msttcorefonts/Impact.ttf"),
+                ]
+            )
+            for fallback in impact_candidates:
+                _push(fallback)
+            # Deduplicate again to include the new fallback entries
+            seen.clear()
+            ordered_unique = []
+            for candidate in candidates:
+                try:
+                    normalized = str(Path(candidate).expanduser())
+                except Exception:
+                    normalized = str(candidate)
+                if normalized in seen:
+                    continue
+                seen.add(normalized)
+                ordered_unique.append(normalized)
+            if not any("impact" in Path(path).name.lower() and Path(path).exists() for path in ordered_unique):
+                logger.warning(
+                    "[Subtitles] Impact fallback unavailable; Pillow default font may be used"
+                )
+
         preferred_name = str(self.config.get('preferred_font_name', '') or '').lower()
         if preferred_name:
             ordered_unique.sort(
                 key=lambda path: (0 if preferred_name in Path(path).name.lower() else 1, Path(path).name.lower())
             )
-        packaged_fallback = base_dir / "assets" / "fonts" / "Montserrat-Bold.ttf"
-        montserrat_candidates = [
-            path for path in ordered_unique
-            if "montserrat" in Path(path).name.lower()
-        ]
-        existing_montserrat = [
-            path for path in montserrat_candidates
-            if Path(path).expanduser().exists()
-        ]
-        if not existing_montserrat:
-            if packaged_fallback.exists():
-                logger.warning(
-                    "[Subtitles] No system Montserrat font detected; falling back to packaged Montserrat-Bold"
-                )
-                packaged_str = str(packaged_fallback)
-                normalized_packaged = os.path.normcase(packaged_str)
-                filtered: List[str] = []
-                for candidate in ordered_unique:
-                    if os.path.normcase(candidate) == normalized_packaged:
-                        continue
-                    filtered.append(candidate)
-                ordered_unique = [packaged_str] + filtered
-            else:
-                logger.warning(
-                    "[Subtitles] Montserrat fonts missing from system and assets; MoviePy will use default font"
-                )
+
         self._font_candidates = ordered_unique
         return ordered_unique
 

@@ -1,8 +1,10 @@
+import os
 import sys
 import types
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -11,8 +13,6 @@ if str(ROOT_DIR) not in sys.path:
 SRC_DIR = ROOT_DIR / "src"
 if SRC_DIR.exists() and str(SRC_DIR) not in sys.path:
     sys.path.insert(1, str(SRC_DIR))
-
-import os
 
 
 def _install_cv2_stub() -> None:
@@ -238,5 +238,20 @@ _install_moviepy_stub()
 
 os.environ.setdefault("PIPELINE_FAST_TESTS", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+
+@pytest.fixture
+def reset_settings_cache():
+    from video_pipeline.config import settings as settings_module
+
+    with settings_module._CACHE_LOCK:  # type: ignore[attr-defined]
+        settings_module._SETTINGS_CACHE = None  # type: ignore[attr-defined]
+    settings_module.reset_startup_log_for_tests()
+    try:
+        yield
+    finally:
+        with settings_module._CACHE_LOCK:  # type: ignore[attr-defined]
+            settings_module._SETTINGS_CACHE = None  # type: ignore[attr-defined]
+        settings_module.reset_startup_log_for_tests()
 
 
