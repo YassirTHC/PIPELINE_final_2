@@ -732,15 +732,13 @@ class HormoziSubtitles:
             Path("/Library/Fonts/Montserrat-ExtraBold.ttf"),
             Path("/Library/Fonts/Montserrat-Bold.ttf"),
         ]
-        windir = os.getenv("WINDIR")
-        if windir:
-            base_fonts = Path(windir) / "Fonts"
-            system_montserrat.extend(
-                [
-                    base_fonts / "Montserrat-ExtraBold.ttf",
-                    base_fonts / "Montserrat-Bold.ttf",
-                ]
-            )
+        windows_fonts = Path("C:/Windows/Fonts")
+        system_montserrat.extend(
+            [
+                windows_fonts / "Montserrat-ExtraBold.ttf",
+                windows_fonts / "Montserrat-Bold.ttf",
+            ]
+        )
         for candidate in system_montserrat:
             _push(candidate)
 

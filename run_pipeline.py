@@ -5,6 +5,7 @@ from __future__ import annotations
 from tools.runtime_stamp import emit_runtime_banner
 from video_pipeline.config import (
     apply_llm_overrides,
+    Settings,
     get_settings,
     load_settings,
     log_effective_settings,
@@ -32,16 +33,22 @@ from typing import Any, Dict, List, Optional, Sequence
 
 
 
-def _raw_provider_spec() -> str:
-    for key in ("BROLL_FETCH_PROVIDER", "AI_BROLL_FETCH_PROVIDER"):
-        raw_value = os.environ.get(key)
-        if not raw_value:
-            continue
-        cleaned = raw_value.strip()
-        if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
-            cleaned = cleaned[1:-1].strip()
-        if cleaned:
-            return cleaned
+def _raw_provider_spec(settings: Optional[Settings] = None) -> str:
+    target = settings
+    if target is None:
+        try:
+            target = get_settings()
+        except Exception:
+            target = None
+    if target is not None:
+        try:
+            providers = getattr(target.fetch, "providers", None)
+        except Exception:
+            providers = None
+        if providers:
+            cleaned = [str(provider).strip() for provider in providers if str(provider).strip()]
+            if cleaned:
+                return ",".join(cleaned)
     return "default"
 
 os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
@@ -70,7 +77,6 @@ _SANITIZE_KEYS = (
 
 emit_runtime_banner(env_keys=_SANITIZE_KEYS)
 
-from config import Config
 from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.logging import JsonlLogger
@@ -166,10 +172,19 @@ class _DiagEventLogger:
 _DIAG_EVENT_LOGGER: Optional[_DiagEventLogger] = None
 
 
-def _broll_events_path() -> Path:
-    try:
-        base_dir = Path(getattr(Config, "OUTPUT_FOLDER", Path("output")))
-    except Exception:
+def _broll_events_path(settings: Optional[Settings] = None) -> Path:
+    target = settings
+    if target is None:
+        try:
+            target = get_settings()
+        except Exception:
+            target = None
+    if target is not None:
+        try:
+            base_dir = Path(getattr(target, "output_dir"))
+        except Exception:
+            base_dir = Path("output")
+    else:
         base_dir = Path("output")
     return base_dir / "meta" / "broll_pipeline_events.jsonl"
 
@@ -426,25 +441,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     set_settings(settings)
     settings = get_settings()
 
-    if args.llm_provider:
-        os.environ["PIPELINE_LLM_PROVIDER"] = settings.llm.provider
-    if args.llm_model_text:
-        os.environ["PIPELINE_LLM_MODEL_TEXT"] = settings.llm.model_text
-    if args.llm_model_json:
-        os.environ["PIPELINE_LLM_MODEL_JSON"] = settings.llm.model_json
-
     log_effective_settings(settings)
-
-    if settings.llm.force_non_stream:
-        os.environ["PIPELINE_LLM_FORCE_NON_STREAM"] = "1"
-    else:
-        os.environ.setdefault("PIPELINE_LLM_FORCE_NON_STREAM", "0")
-
-    timeout_value = max(5, int(settings.llm.timeout_fallback_s)) if settings.llm.timeout_fallback_s else 35
-    os.environ.setdefault("PIPELINE_LLM_TIMEOUT_S", str(timeout_value))
-
-    num_predict_value = max(1, int(settings.llm.num_predict)) if settings.llm.num_predict else 96
-    os.environ.setdefault("PIPELINE_LLM_NUM_PREDICT", str(min(96, num_predict_value)))
 
     if args.print_config:
         config = FetcherOrchestratorConfig.from_environment()
@@ -462,7 +459,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         allow_videos = str(bool(snapshot['allow_videos'])).lower()
         per_segment_limit = int(snapshot['per_segment_limit'])
 
-        print(f"providers={_raw_provider_spec()}")
+        print(f"providers={_raw_provider_spec(settings)}")
         print(f"resolved_providers={resolved_display}")
         print(f"allow_images={allow_images}")
         print(f"allow_videos={allow_videos}")
