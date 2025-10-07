@@ -13,6 +13,12 @@ from typing import Iterable, List, Optional, Sequence
 
 from config import Config
 
+try:  # Optional dependency: the typed settings live in the video_pipeline package.
+    from video_pipeline.config import Settings, get_settings
+except Exception:  # pragma: no cover - tests may stub the settings layer
+    Settings = None  # type: ignore[assignment]
+    get_settings = None  # type: ignore[assignment]
+
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +108,13 @@ def tfidf_fallback_disabled_from_env() -> Optional[bool]:
         _warn_tfidf_legacy_env_once()
         return legacy_flag
 
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            return bool(getattr(settings, "tfidf_fallback_disabled"))
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] tfidf fallback flag missing", exc_info=True)
+
     return None
 
 
@@ -153,6 +166,15 @@ def _coerce_positive_float(value: Optional[str | float], default: float) -> floa
 
 
 def _default_per_segment_limit() -> int:
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            configured = int(getattr(settings.fetch, "max_per_keyword", 0))
+        except Exception:  # pragma: no cover - defensive when fetch missing
+            configured = 0
+        if configured > 0:
+            return configured
+
     fallback = _coerce_positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", 0), 6)
     env_value = _env_int("BROLL_FETCH_MAX_PER_KEYWORD", "FETCH_MAX", minimum=1)
     if env_value is not None:
@@ -161,6 +183,13 @@ def _default_per_segment_limit() -> int:
 
 
 def _default_allow_images() -> bool:
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            return bool(getattr(settings.fetch, "allow_images"))
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] fetch.allow_images missing", exc_info=True)
+
     override = _env_bool("BROLL_FETCH_ALLOW_IMAGES")
     if override is not None:
         return override
@@ -171,6 +200,13 @@ def _default_allow_images() -> bool:
 
 
 def _default_allow_videos() -> bool:
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            return bool(getattr(settings.fetch, "allow_videos"))
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] fetch.allow_videos missing", exc_info=True)
+
     override = _env_bool("BROLL_FETCH_ALLOW_VIDEOS")
     if override is not None:
         return override
@@ -181,17 +217,40 @@ def _default_allow_videos() -> bool:
 
 
 def _default_max_segments_in_flight() -> int:
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            configured = int(getattr(settings, "max_segments_in_flight", 1))
+        except Exception:  # pragma: no cover - defensive
+            configured = 1
+        if configured > 0:
+            return configured
     return _coerce_positive_int(os.getenv("PIPELINE_MAX_SEGMENTS_IN_FLIGHT"), 1)
 
 
 def _default_llm_queries_per_segment() -> int:
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            configured = int(getattr(settings, "llm_max_queries_per_segment", 3))
+        except Exception:  # pragma: no cover - defensive
+            configured = 3
+        if configured > 0:
+            return configured
     return _coerce_positive_int(os.getenv("PIPELINE_LLM_MAX_QUERIES_PER_SEGMENT"), 3)
+
 
 def _default_disable_tfidf_fallback() -> bool:
     flag = tfidf_fallback_disabled_from_env()
-    if flag is None:
-        return False
-    return flag
+    if flag is not None:
+        return flag
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            return bool(getattr(settings, "tfidf_fallback_disabled"))
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] tfidf flag missing", exc_info=True)
+    return False
 
 
 def _parse_provider_list(raw: Optional[str]) -> Optional[set[str]]:
@@ -238,6 +297,17 @@ def _provider_api_key(env_key: str) -> Optional[str]:
         value = value.strip()
     if value:
         return value
+
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            api_keys = getattr(settings.fetch, "api_keys", {})
+            typed = api_keys.get(env_key)
+            if isinstance(typed, str) and typed.strip():
+                return typed.strip()
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] fetch.api_keys lookup failed", exc_info=True)
+
     fallback = getattr(Config, env_key, None)
     if isinstance(fallback, str):
         fallback = fallback.strip()
@@ -252,9 +322,37 @@ def _build_provider_defaults(
     limit: Optional[int] = None,
 ) -> list[ProviderConfig]:
     resolved_limit = limit if limit is not None else _default_per_segment_limit()
+    settings = _current_settings()
+    fetch_settings = getattr(settings, "fetch", None) if settings is not None else None
+
+    typed_order: list[str] = []
+    typed_limits: dict[str, int] = {}
+    if fetch_settings is not None:
+        try:
+            typed_order = [
+                str(item).strip().lower()
+                for item in getattr(fetch_settings, "providers", [])
+                if str(item).strip()
+            ]
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] fetch.providers inspection failed", exc_info=True)
+            typed_order = []
+        try:
+            for key, value in getattr(fetch_settings, "provider_limits", {}).items():
+                try:
+                    parsed = int(value)
+                except (TypeError, ValueError):
+                    continue
+                if parsed > 0:
+                    typed_limits[str(key).strip().lower()] = parsed
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] fetch.provider_limits inspection failed", exc_info=True)
+
     selection: Optional[set[str]]
     if selected is not None:
         selection = {item.lower() for item in selected}
+    elif typed_order:
+        selection = set(typed_order)
     else:
         raw_selection = (
             os.getenv("BROLL_FETCH_PROVIDER")
@@ -268,6 +366,17 @@ def _build_provider_defaults(
         ("pixabay", "PIXABAY_API_KEY", 0.9),
     ]
 
+    if typed_order:
+        ordered_specs: list[tuple[str, str, float]] = []
+        for provider_name in typed_order:
+            for spec in provider_specs:
+                if spec[0].lower() == provider_name and spec not in ordered_specs:
+                    ordered_specs.append(spec)
+        for spec in provider_specs:
+            if spec not in ordered_specs:
+                ordered_specs.append(spec)
+        provider_specs = ordered_specs
+
     providers: list[ProviderConfig] = []
     for name, env_key, weight in provider_specs:
         api_key = _provider_api_key(env_key)
@@ -279,17 +388,37 @@ def _build_provider_defaults(
             continue
 
         enabled = _provider_enabled_from_env(name, True)
+        limit_override = typed_limits.get(normalized_name)
+        max_results = limit_override if limit_override is not None else resolved_limit
 
         provider = ProviderConfig(
             name=name,
             weight=weight,
             enabled=enabled,
-            max_results=resolved_limit,
+            max_results=max_results,
             supports_images=False,
             supports_videos=True,
         )
         providers.append(provider)
     return providers
+
+
+def _path_from_settings(attr: str, fallback: Path) -> Path:
+    settings = _current_settings()
+    if settings is not None:
+        try:
+            value = getattr(settings, attr)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[CONFIG] settings.%s unavailable", attr, exc_info=True)
+        else:
+            if isinstance(value, Path):
+                return value
+            if value is not None:
+                try:
+                    return Path(str(value))
+                except Exception:  # pragma: no cover - defensive
+                    logger.debug("[CONFIG] unable to normalise path for %s", attr, exc_info=True)
+    return fallback
 
 
 @dataclass(slots=True)
@@ -300,9 +429,9 @@ class PipelinePaths:
     new modules remain drop-in replacements for the current behaviour.
     """
 
-    clips_dir: Path = field(default_factory=lambda: Config.CLIPS_FOLDER)
-    output_dir: Path = field(default_factory=lambda: Config.OUTPUT_FOLDER)
-    temp_dir: Path = field(default_factory=lambda: Config.TEMP_FOLDER)
+    clips_dir: Path = field(default_factory=lambda: _path_from_settings("clips_dir", Config.CLIPS_FOLDER))
+    output_dir: Path = field(default_factory=lambda: _path_from_settings("output_dir", Config.OUTPUT_FOLDER))
+    temp_dir: Path = field(default_factory=lambda: _path_from_settings("temp_dir", Config.TEMP_FOLDER))
 
 
 @dataclass(slots=True)
@@ -357,9 +486,17 @@ class FetcherOrchestratorConfig:
     def from_environment(cls) -> "FetcherOrchestratorConfig":
         """Create a config instance honouring environment overrides."""
 
+        settings = _current_settings()
+        fetch_settings = getattr(settings, "fetch", None) if settings is not None else None
+
+        timeout_source = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+        if timeout_source is None and fetch_settings is not None:
+            try:
+                timeout_source = getattr(fetch_settings, "timeout_s", None)
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("[CONFIG] fetch.timeout_s unavailable", exc_info=True)
         timeout = _coerce_positive_float(
-            os.getenv("PIPELINE_LLM_TIMEOUT_S")
-            or getattr(Config, "PIPELINE_LLM_TIMEOUT_S", None),
+            timeout_source or getattr(Config, "PIPELINE_LLM_TIMEOUT_S", None),
             8.0,
         )
 
@@ -370,24 +507,37 @@ class FetcherOrchestratorConfig:
                 return None
             return parsed if parsed > 0 else None
 
-        fetch_max = _positive_int(os.getenv("FETCH_MAX")) or 8
+        typed_max = None
+        if fetch_settings is not None:
+            try:
+                typed_max = _positive_int(getattr(fetch_settings, "max_per_keyword", None))
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("[CONFIG] fetch.max_per_keyword unavailable", exc_info=True)
+
+        fetch_max = _positive_int(os.getenv("FETCH_MAX"))
+        if fetch_max is None:
+            fetch_max = typed_max
+        if fetch_max is None:
+            fetch_max = 8
 
         global_override = _positive_int(os.getenv("BROLL_FETCH_MAX_PER_KEYWORD"))
         if global_override is None:
-            global_override = _positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None))
+            if fetch_settings is not None and typed_max is not None:
+                global_override = typed_max
+            else:
+                global_override = _positive_int(getattr(Config, "BROLL_FETCH_MAX_PER_KEYWORD", None))
 
-        provider_env = os.getenv("BROLL_FETCH_PROVIDER")
-        if not provider_env:
-            provider_env = os.getenv("AI_BROLL_FETCH_PROVIDER")
+        provider_env = os.getenv("BROLL_FETCH_PROVIDER") or os.getenv("AI_BROLL_FETCH_PROVIDER")
         provider_tokens = to_list(provider_env)
-        if not provider_tokens:
-            provider_tokens = ["pixabay"]
-
-        normalized_selection = {token.lower() for token in provider_tokens}
-        if normalized_selection == {"all"}:
-            selection: Optional[Iterable[str]] = None
+        selection: Optional[Iterable[str]]
+        if provider_tokens:
+            normalized_selection = {token.lower() for token in provider_tokens}
+            if normalized_selection == {"all"}:
+                selection = None
+            else:
+                selection = provider_tokens
         else:
-            selection = normalized_selection
+            selection = None
 
         providers: list[ProviderConfig] = []
         effective_limits: list[int] = []
@@ -401,6 +551,13 @@ class FetcherOrchestratorConfig:
                 candidates.append(global_override)
             if provider_override is not None:
                 candidates.append(provider_override)
+            typed_limit = None
+            try:
+                typed_limit = int(getattr(provider, "max_results", 0))
+            except Exception:  # pragma: no cover - defensive
+                typed_limit = None
+            if typed_limit and typed_limit > 0:
+                candidates.append(typed_limit)
 
             eff_limit = min(candidates)
 
@@ -420,8 +577,17 @@ class FetcherOrchestratorConfig:
                 base_limits.append(global_override)
             per_segment_limit = min(base_limits)
 
-        allow_images = to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"), default=_default_allow_images())
-        allow_videos = to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"), default=_default_allow_videos())
+        allow_images_default = _default_allow_images()
+        allow_videos_default = _default_allow_videos()
+        if fetch_settings is not None:
+            try:
+                allow_images_default = bool(getattr(fetch_settings, "allow_images", allow_images_default))
+                allow_videos_default = bool(getattr(fetch_settings, "allow_videos", allow_videos_default))
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("[CONFIG] fetch allow flags unavailable", exc_info=True)
+
+        allow_images = to_bool(os.getenv("BROLL_FETCH_ALLOW_IMAGES"), default=allow_images_default)
+        allow_videos = to_bool(os.getenv("BROLL_FETCH_ALLOW_VIDEOS"), default=allow_videos_default)
 
         return cls(
             providers=tuple(providers),
@@ -607,4 +773,13 @@ class PipelineConfigBundle:
     renderer: RendererConfig = field(default_factory=RendererConfig)
 
 
+
+def _current_settings() -> Optional["Settings"]:
+    if get_settings is None:  # pragma: no cover - optional dependency in tests
+        return None
+    try:
+        return get_settings()
+    except Exception:  # pragma: no cover - defensive guardrail
+        logger.debug("[CONFIG] typed settings unavailable", exc_info=True)
+        return None
 

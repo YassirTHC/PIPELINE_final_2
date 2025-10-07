@@ -128,30 +128,21 @@ _DEFAULT_OLLAMA_KEEP_ALIVE = "5m"
 
 
 def _keywords_first_enabled() -> bool:
-    flag = _env_to_bool(os.getenv("PIPELINE_LLM_KEYWORDS_FIRST"))
-    if flag is None:
-        return True
-    return flag
+    return _llm_bool("PIPELINE_LLM_KEYWORDS_FIRST", attr="keywords_first", default=True)
 
 
 def _target_language_default() -> str:
-    raw = os.getenv("PIPELINE_LLM_TARGET_LANG", "en")
-    if raw is None:
-        return "en"
+    raw = _llm_string("PIPELINE_LLM_TARGET_LANG", attr="target_lang", default="en")
     cleaned = raw.strip().lower()
     return cleaned or "en"
 
 
 def _hashtags_disabled() -> bool:
-    flag = _env_to_bool(os.getenv("PIPELINE_LLM_DISABLE_HASHTAGS"))
-    if flag is None:
-        return False
-    return flag
+    return _llm_bool("PIPELINE_LLM_DISABLE_HASHTAGS", attr="disable_hashtags", default=False)
 
 
 def _should_block_streaming() -> Tuple[bool, Optional[str]]:
-    forced = _env_to_bool(os.getenv("PIPELINE_LLM_FORCE_NON_STREAM"))
-    if forced:
+    if _llm_bool("PIPELINE_LLM_FORCE_NON_STREAM", attr="force_non_stream", default=False):
         return True, "flag_disable"
     if _STREAM_BLOCKED:
         return True, _STREAM_BLOCK_REASON or "stream_err"
@@ -200,43 +191,61 @@ def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
     return tokens or _DEFAULT_STOP_TOKENS
 
 
-def _ollama_json(prompt: str, *, model: Optional[str] = None, endpoint: Optional[str] = None) -> Dict[str, Any]:
+def _ollama_json(
+    prompt: str,
+    *,
+    model: Optional[str] = None,
+    endpoint: Optional[str] = None,
+    timeout_override: Optional[float] = None,
+) -> Dict[str, Any]:
     """Send a prompt to Ollama and try to extract the largest JSON object."""
 
     prompt = (prompt or "").strip()
     if not prompt:
         return {}
 
-    model_name = (model or os.getenv("PIPELINE_LLM_MODEL") or "qwen2.5:7b").strip() or "qwen2.5:7b"
-    base_url = (
-        endpoint
-        or os.getenv("PIPELINE_LLM_ENDPOINT")
-        or os.getenv("PIPELINE_LLM_BASE_URL")
-        or os.getenv("OLLAMA_HOST")
-        or "http://localhost:11434"
+    llm_cfg = _llm_settings_obj()
+    default_model = "qwen2.5:7b"
+    if llm_cfg is not None:
+        try:
+            default_model = (str(getattr(llm_cfg, "model", default_model)) or default_model).strip() or default_model
+        except Exception:
+            logger.debug("[LLM] Unable to read default model", exc_info=True)
+    model_name = (model or _llm_string("PIPELINE_LLM_MODEL", attr="model", default=default_model)).strip() or default_model
+
+    default_base = "http://localhost:11434"
+    if llm_cfg is not None:
+        try:
+            candidate_base = getattr(llm_cfg, "endpoint", None) or getattr(llm_cfg, "base_url", None)
+            if candidate_base:
+                default_base = str(candidate_base)
+        except Exception:
+            logger.debug("[LLM] Unable to read LLM endpoint", exc_info=True)
+    base_url = endpoint or _llm_string(
+        "PIPELINE_LLM_ENDPOINT",
+        "PIPELINE_LLM_BASE_URL",
+        "OLLAMA_HOST",
+        attr="endpoint",
+        default=default_base,
     )
-    base_url = base_url.strip() or "http://localhost:11434"
+    if not base_url.strip() and llm_cfg is not None:
+        try:
+            base_url = str(getattr(llm_cfg, "base_url", default_base))
+        except Exception:
+            base_url = default_base
+    base_url = base_url.strip() or default_base
     url = f"{base_url.rstrip('/')}/api/generate"
 
-    def _parse_float(value: Optional[str], *, default: float, minimum: float) -> float:
+    if timeout_override is not None:
         try:
-            parsed = float(value) if value is not None else default
+            timeout = max(1.0, float(timeout_override))
         except (TypeError, ValueError):
-            parsed = default
-        return max(minimum, parsed)
-
-    def _parse_int(value: Optional[str], *, default: int, minimum: int) -> int:
-        try:
-            parsed = int(value) if value is not None else default
-        except (TypeError, ValueError):
-            parsed = default
-        return max(minimum, parsed)
-
-    timeout_env = os.getenv("PIPELINE_LLM_TIMEOUT_S")
-    timeout = _parse_float(timeout_env, default=60.0, minimum=1.0)
-    num_predict = _parse_int(os.getenv("PIPELINE_LLM_NUM_PREDICT"), default=256, minimum=1)
-    temperature = _parse_float(os.getenv("PIPELINE_LLM_TEMP"), default=0.3, minimum=0.0)
-    top_p = _parse_float(os.getenv("PIPELINE_LLM_TOP_P"), default=0.9, minimum=0.0)
+            timeout = _llm_float("PIPELINE_LLM_TIMEOUT_S", attr="timeout_stream_s", default=60.0, minimum=1.0)
+    else:
+        timeout = _llm_float("PIPELINE_LLM_TIMEOUT_S", attr="timeout_stream_s", default=60.0, minimum=1.0)
+    num_predict = _llm_int("PIPELINE_LLM_NUM_PREDICT", attr="num_predict", default=256, minimum=1)
+    temperature = _llm_float("PIPELINE_LLM_TEMP", attr="temperature", default=0.3, minimum=0.0)
+    top_p = _llm_float("PIPELINE_LLM_TOP_P", attr="top_p", default=0.9, minimum=0.0)
 
     payload: Dict[str, Any] = {
         "model": model_name,
@@ -959,13 +968,39 @@ def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int = 5) -> List[
 
 
 def _resolve_ollama_endpoint(endpoint: Optional[str]) -> str:
-    base_url = endpoint or os.getenv("PIPELINE_LLM_ENDPOINT") or os.getenv("PIPELINE_LLM_BASE_URL") or os.getenv("OLLAMA_HOST")
+    if endpoint:
+        base_url = endpoint
+    else:
+        default_base = _DEFAULT_OLLAMA_ENDPOINT
+        llm_cfg = _llm_settings_obj()
+        if llm_cfg is not None:
+            try:
+                candidate = getattr(llm_cfg, "endpoint", None) or getattr(llm_cfg, "base_url", None)
+                if candidate:
+                    default_base = str(candidate)
+            except Exception:
+                logger.debug("[LLM] Unable to resolve cached endpoint", exc_info=True)
+        base_url = _llm_string(
+            "PIPELINE_LLM_ENDPOINT",
+            "PIPELINE_LLM_BASE_URL",
+            "OLLAMA_HOST",
+            attr="endpoint",
+            default=default_base,
+        )
+        if not base_url.strip() and llm_cfg is not None:
+            try:
+                base_url = str(getattr(llm_cfg, "base_url", default_base))
+            except Exception:
+                base_url = default_base
     base_url = (base_url or _DEFAULT_OLLAMA_ENDPOINT).strip()
     return base_url.rstrip("/") or _DEFAULT_OLLAMA_ENDPOINT
 
 
 def _resolve_ollama_model(model: Optional[str]) -> str:
-    candidate = model or os.getenv("PIPELINE_LLM_MODEL") or os.getenv("OLLAMA_MODEL")
+    if model:
+        candidate = model
+    else:
+        candidate = _llm_string("PIPELINE_LLM_MODEL", "OLLAMA_MODEL", attr="model", default=_DEFAULT_OLLAMA_MODEL)
     candidate = (candidate or _DEFAULT_OLLAMA_MODEL).strip()
     return candidate or _DEFAULT_OLLAMA_MODEL
 
@@ -973,18 +1008,31 @@ def _resolve_ollama_model(model: Optional[str]) -> str:
 def _resolve_keep_alive(value: Optional[str]) -> Optional[str]:
     raw = value
     if raw is None:
-        raw = os.getenv("PIPELINE_LLM_KEEP_ALIVE")
-    if raw is None:
-        raw = _DEFAULT_OLLAMA_KEEP_ALIVE
+        raw = _llm_string("PIPELINE_LLM_KEEP_ALIVE", attr="keep_alive", default=_DEFAULT_OLLAMA_KEEP_ALIVE)
     cleaned = (raw or "").strip()
     return cleaned or None
 
 
 def _metadata_transcript_limit() -> int:
     limit_env = os.getenv("PIPELINE_LLM_JSON_TRANSCRIPT_LIMIT")
-    try:
-        limit = int(limit_env) if limit_env is not None else 5500
-    except (TypeError, ValueError):
+    limit: Optional[int] = None
+    if limit_env is not None:
+        try:
+            limit = int(limit_env)
+        except (TypeError, ValueError):
+            limit = None
+    if limit is None:
+        llm_cfg = _llm_settings_obj()
+        if llm_cfg is not None:
+            try:
+                candidate = getattr(llm_cfg, "json_transcript_limit", None)
+                if candidate is not None:
+                    limit = int(candidate)
+            except (TypeError, ValueError):
+                limit = None
+            except Exception:
+                logger.debug("[LLM] Unable to read json_transcript_limit", exc_info=True)
+    if limit is None:
         limit = 5500
     return max(500, limit)
 
@@ -1346,6 +1394,109 @@ def _safe_get_settings() -> Optional["Settings"]:
         return None
 
 
+def _llm_settings_obj():
+    settings = _safe_get_settings()
+    if settings is None:
+        return None
+    try:
+        return getattr(settings, "llm", None)
+    except Exception:  # pragma: no cover - defensive when settings incomplete
+        logger.debug("[LLM] Settings.llm unavailable", exc_info=True)
+        return None
+
+
+def _llm_string(*env_keys: str, attr: str, default: str) -> str:
+    for key in env_keys:
+        if not key:
+            continue
+        raw = os.getenv(key)
+        if isinstance(raw, str):
+            cleaned = raw.strip()
+            if cleaned:
+                return cleaned
+    llm = _llm_settings_obj()
+    if llm is not None:
+        try:
+            value = getattr(llm, attr, None)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[LLM] Missing attribute %s", attr, exc_info=True)
+        else:
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return default
+
+
+def _llm_float(env_key: str, attr: str, default: float, *, minimum: float) -> float:
+    raw = os.getenv(env_key)
+    value = default
+    if raw is not None:
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            value = default
+    else:
+        llm = _llm_settings_obj()
+        if llm is not None:
+            try:
+                candidate = getattr(llm, attr, None)
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("[LLM] Missing float attribute %s", attr, exc_info=True)
+            else:
+                if candidate is not None:
+                    try:
+                        value = float(candidate)
+                    except (TypeError, ValueError):
+                        value = default
+    if value < minimum:
+        value = minimum
+    return value
+
+
+def _llm_int(env_key: str, attr: str, default: int, *, minimum: int) -> int:
+    raw = os.getenv(env_key)
+    value = default
+    if raw is not None:
+        try:
+            value = int(str(raw).strip())
+        except (TypeError, ValueError):
+            value = default
+    else:
+        llm = _llm_settings_obj()
+        if llm is not None:
+            try:
+                candidate = getattr(llm, attr, None)
+            except Exception:  # pragma: no cover - defensive
+                logger.debug("[LLM] Missing int attribute %s", attr, exc_info=True)
+            else:
+                if candidate is not None:
+                    try:
+                        value = int(candidate)
+                    except (TypeError, ValueError):
+                        value = default
+    if value < minimum:
+        value = minimum
+    return value
+
+
+def _llm_bool(*env_keys: str, attr: str, default: bool) -> bool:
+    for key in env_keys:
+        if not key:
+            continue
+        flag = _env_to_bool(os.getenv(key))
+        if flag is not None:
+            return flag
+    llm = _llm_settings_obj()
+    if llm is not None:
+        try:
+            candidate = getattr(llm, attr)
+        except Exception:  # pragma: no cover - defensive
+            logger.debug("[LLM] Missing bool attribute %s", attr, exc_info=True)
+        else:
+            if candidate is not None:
+                return bool(candidate)
+    return default
+
+
 def _resolve_timeout_s(settings: Optional["Settings"]) -> float:
     env_timeout = os.getenv("PIPELINE_LLM_TIMEOUT_S")
     if env_timeout:
@@ -1353,11 +1504,20 @@ def _resolve_timeout_s(settings: Optional["Settings"]) -> float:
             return max(1.0, float(env_timeout))
         except (TypeError, ValueError):
             pass
-    if settings is not None:
+    target_settings = settings
+    if target_settings is None:
+        target_settings = _safe_get_settings()
+    if target_settings is not None:
         try:
-            return float(getattr(settings.llm, "timeout_fallback_s", 60.0))
+            return float(getattr(target_settings.llm, "timeout_fallback_s", 60.0))
         except Exception:
             logger.debug("[LLM] Unable to read timeout from settings", exc_info=True)
+    llm = _llm_settings_obj()
+    if llm is not None:
+        try:
+            return float(getattr(llm, "timeout_fallback_s", 60.0))
+        except Exception:
+            logger.debug("[LLM] Unable to read timeout from cached settings", exc_info=True)
     return 60.0
 
 
@@ -1368,12 +1528,22 @@ def _resolve_fallback_trunc(settings: Optional["Settings"], default: int = 3500)
             return max(64, int(env_value))
         except (TypeError, ValueError):
             pass
-    if settings is not None:
+    target_settings = settings
+    if target_settings is None:
+        target_settings = _safe_get_settings()
+    if target_settings is not None:
         try:
-            configured = int(getattr(settings.llm, "fallback_trunc"))
+            configured = int(getattr(target_settings.llm, "fallback_trunc"))
             return max(64, configured)
         except Exception:
             logger.debug("[LLM] Unable to read fallback_trunc from settings", exc_info=True)
+    llm = _llm_settings_obj()
+    if llm is not None:
+        try:
+            configured = int(getattr(llm, "fallback_trunc"))
+            return max(64, configured)
+        except Exception:
+            logger.debug("[LLM] Unable to read fallback_trunc from cached settings", exc_info=True)
     return max(64, default)
 
 
@@ -1704,6 +1874,15 @@ def _build_keywords_prompt(transcript_snippet: str, target_lang: str) -> str:
 
 def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = None) -> str:
     override = os.getenv("PIPELINE_LLM_JSON_PROMPT")
+    if not override:
+        llm_cfg = _llm_settings_obj()
+        if llm_cfg is not None:
+            try:
+                candidate = getattr(llm_cfg, "json_prompt", None)
+                if candidate and str(candidate).strip():
+                    override = str(candidate)
+            except Exception:
+                logger.debug("[LLM] Unable to read json_prompt override", exc_info=True)
     cleaned = (transcript or "").strip()
     limit = _metadata_transcript_limit()
     if len(cleaned) > limit:
@@ -1747,6 +1926,13 @@ def _ollama_generate_json(
     json_mode_env = json_mode
     if json_mode_env is None:
         json_mode_env = _env_to_bool(os.getenv("PIPELINE_LLM_JSON_MODE"))
+    if json_mode_env is None:
+        llm_cfg = _llm_settings_obj()
+        if llm_cfg is not None:
+            try:
+                json_mode_env = bool(getattr(llm_cfg, "json_mode"))
+            except Exception:
+                logger.debug("[LLM] Unable to read json_mode flag", exc_info=True)
     payload: Dict[str, Any] = {
         "model": model_name,
         "prompt": prompt,
@@ -1836,18 +2022,19 @@ def _ollama_generate_sync(endpoint: str, model: str, prompt: str, options: dict)
     """
 
     url = endpoint.rstrip("/") + "/api/generate"
+    keep_alive_value = _resolve_keep_alive(None) or "30m"
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "keep_alive": os.getenv("PIPELINE_LLM_KEEP_ALIVE", "30m"),
+        "keep_alive": keep_alive_value,
         "options": {
             "num_predict": int(options.get("num_predict", 128)),
             "temperature": float(options.get("temp", 0.3)),
             "top_p": float(options.get("top_p", 0.9)),
             "repeat_penalty": float(options.get("repeat_penalty", 1.1)),
             "mirostat": 0,
-            "num_ctx": int(os.getenv("PIPELINE_LLM_NUM_CTX", "4096")),
+            "num_ctx": _llm_int("PIPELINE_LLM_NUM_CTX", attr="num_ctx", default=4096, minimum=1),
         },
     }
     req = urllib.request.Request(
@@ -1922,16 +2109,9 @@ def _ollama_generate_text(
         if option_payload.get("repeat_penalty") is not None:
             fallback_options["repeat_penalty"] = option_payload.get("repeat_penalty")
 
-    try:
-        min_chars = int(os.getenv("PIPELINE_LLM_MIN_CHARS", "8"))
-    except (TypeError, ValueError):
-        min_chars = 8
-    min_chars = max(0, min_chars)
+    min_chars = _llm_int("PIPELINE_LLM_MIN_CHARS", attr="min_chars", default=8, minimum=0)
 
-    try:
-        max_fallback = int(os.getenv("PIPELINE_LLM_FALLBACK_TRUNC", "3500"))
-    except (TypeError, ValueError):
-        max_fallback = 3500
+    max_fallback = _llm_int("PIPELINE_LLM_FALLBACK_TRUNC", attr="fallback_trunc", default=3500, minimum=0)
     if max_fallback <= 0:
         short_prompt = cleaned_prompt
     else:
@@ -3165,32 +3345,66 @@ class LLMMetadataGeneratorService:
             return max(minimum, parsed)
 
         timeout_default = 35
-        settings_timeout = getattr(getattr(settings_obj, "llm", None), "timeout_fallback_s", None)
+        llm_settings = getattr(settings_obj, "llm", None)
+        settings_timeout = getattr(llm_settings, "timeout_fallback_s", None) if llm_settings else None
         if isinstance(settings_timeout, (int, float)):
             timeout_default = max(5, int(settings_timeout))
 
         self._llm_timeout = _parse_int(timeout_env, default=timeout_default, minimum=5)
 
-        settings_num_predict = getattr(getattr(settings_obj, "llm", None), "num_predict", None)
+        settings_num_predict = getattr(llm_settings, "num_predict", None) if llm_settings else None
         configured_predict = None
         if isinstance(settings_num_predict, (int, float)):
             configured_predict = max(1, int(settings_num_predict))
         default_num_predict = configured_predict if configured_predict is not None else 96
         parsed_predict = _parse_int(num_predict_env, default=default_num_predict, minimum=1)
         self._llm_num_predict = max(1, min(parsed_predict, 96))
-        self._llm_temperature = _parse_float(temperature_env, default=0.3, minimum=0.0)
-        self._llm_top_p = _parse_float(top_p_env, default=0.9, minimum=0.0, maximum=1.0)
-        self._llm_repeat_penalty = _parse_float(repeat_penalty_env, default=1.1, minimum=0.0)
+        temperature_default = 0.3
+        top_p_default = 0.9
+        repeat_penalty_default = 1.1
+        if llm_settings is not None:
+            try:
+                temperature_default = float(getattr(llm_settings, "temperature", temperature_default))
+            except Exception:
+                logger.debug("[LLM] Unable to read temperature", exc_info=True)
+            try:
+                top_p_default = float(getattr(llm_settings, "top_p", top_p_default))
+            except Exception:
+                logger.debug("[LLM] Unable to read top_p", exc_info=True)
+            try:
+                repeat_penalty_default = float(getattr(llm_settings, "repeat_penalty", repeat_penalty_default))
+            except Exception:
+                logger.debug("[LLM] Unable to read repeat_penalty", exc_info=True)
+        self._llm_temperature = _parse_float(temperature_env, default=temperature_default, minimum=0.0)
+        self._llm_top_p = _parse_float(top_p_env, default=top_p_default, minimum=0.0, maximum=1.0)
+        self._llm_repeat_penalty = _parse_float(repeat_penalty_env, default=repeat_penalty_default, minimum=0.0)
         self._llm_stop_tokens: Sequence[str] = tuple(_parse_stop_tokens(stop_tokens_env))
 
         def _clean_model(value: Optional[str], fallback: str) -> str:
             candidate = (value or "").strip()
             return candidate or fallback
 
-        base_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL"), "qwen2.5:7b")
+        default_model = "qwen2.5:7b"
+        if llm_settings is not None:
+            try:
+                default_model = (str(getattr(llm_settings, "model", default_model)) or default_model).strip() or default_model
+            except Exception:
+                logger.debug("[LLM] Unable to read base model", exc_info=True)
+        base_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL"), default_model)
         self.model_default = base_model
-        self.model_json = _clean_model(os.getenv("PIPELINE_LLM_MODEL_JSON"), base_model)
-        configured_text_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), base_model)
+        default_json_model = base_model
+        default_text_model = base_model
+        if llm_settings is not None:
+            try:
+                default_json_model = str(getattr(llm_settings, "model_json", base_model) or base_model)
+            except Exception:
+                logger.debug("[LLM] Unable to read JSON model", exc_info=True)
+            try:
+                default_text_model = str(getattr(llm_settings, "model_text", base_model) or base_model)
+            except Exception:
+                logger.debug("[LLM] Unable to read text model", exc_info=True)
+        self.model_json = _clean_model(os.getenv("PIPELINE_LLM_MODEL_JSON"), default_json_model)
+        configured_text_model = _clean_model(os.getenv("PIPELINE_LLM_MODEL_TEXT"), default_text_model)
         self.model_text = configured_text_model
 
         fallback_note: Optional[str] = None
@@ -4634,70 +4848,91 @@ def generate_metadata_as_json(
         else _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
     )
 
-    model_default = (os.getenv("PIPELINE_LLM_MODEL") or "qwen2.5:7b").strip() or "qwen2.5:7b"
-    model_name = (os.getenv("PIPELINE_LLM_MODEL_JSON") or model_default).strip() or model_default
+    llm_cfg = _llm_settings_obj()
+    default_model = "qwen2.5:7b"
+    default_json_model = default_model
+    if llm_cfg is not None:
+        try:
+            default_model = (str(getattr(llm_cfg, "model", default_model)) or default_model).strip() or default_model
+        except Exception:
+            logger.debug("[LLM] Unable to read base model for metadata", exc_info=True)
+        try:
+            default_json_model = (
+                str(getattr(llm_cfg, "model_json", "") or getattr(llm_cfg, "effective_json_model", default_model))
+                or default_model
+            ).strip() or default_model
+        except Exception:
+            logger.debug("[LLM] Unable to read JSON model for metadata", exc_info=True)
+    model_default = (os.getenv("PIPELINE_LLM_MODEL") or default_model).strip() or default_model
+    model_name = (os.getenv("PIPELINE_LLM_MODEL_JSON") or default_json_model).strip() or default_json_model
 
-    original_timeout = None
+    timeout_override: Optional[float] = None
     if timeout_s is not None:
-        original_timeout = os.getenv("PIPELINE_LLM_TIMEOUT_S")
         try:
             timeout_override = max(1.0, float(timeout_s))
         except (TypeError, ValueError):
             timeout_override = 1.0
-        os.environ["PIPELINE_LLM_TIMEOUT_S"] = str(timeout_override)
 
     parsed_payload: Dict[str, Any] = {}
     raw_payload: Dict[str, Any] = {}
     raw_length: Optional[int] = None
     error: Optional[BaseException] = None
     started = time.perf_counter()
-    try:
-        if use_keywords_prompt:
+    if use_keywords_prompt:
+        try:
+            num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
+            if num_predict_env is None and llm_cfg is not None:
+                try:
+                    num_predict_env = str(getattr(llm_cfg, "num_predict", 192))
+                except Exception:
+                    num_predict_env = None
             try:
-                num_predict_env = os.getenv("PIPELINE_LLM_NUM_PREDICT")
-                try:
-                    configured_predict = int(num_predict_env) if num_predict_env is not None else 192
-                except (TypeError, ValueError):
-                    configured_predict = 192
-                bounded_predict = max(64, min(192, configured_predict))
+                configured_predict = int(num_predict_env) if num_predict_env is not None else 192
+            except (TypeError, ValueError):
+                configured_predict = 192
+            bounded_predict = max(64, min(192, configured_predict))
 
-                temp_env = os.getenv("PIPELINE_LLM_TEMP")
+            temp_env = os.getenv("PIPELINE_LLM_TEMP")
+            if temp_env is None and llm_cfg is not None:
                 try:
-                    configured_temp = float(temp_env) if temp_env is not None else 0.2
-                except (TypeError, ValueError):
-                    configured_temp = 0.2
-                bounded_temp = max(0.0, min(0.4, configured_temp))
+                    temp_env = str(getattr(llm_cfg, "temperature", 0.2))
+                except Exception:
+                    temp_env = None
+            try:
+                configured_temp = float(temp_env) if temp_env is not None else 0.2
+            except (TypeError, ValueError):
+                configured_temp = 0.2
+            bounded_temp = max(0.0, min(0.4, configured_temp))
 
-                parsed_payload, raw_payload, raw_length = _ollama_generate_json(
-                    prompt,
-                    model=model_name,
-                    options={
-                        "num_predict": bounded_predict,
-                        "temperature": bounded_temp,
-                        "top_p": 0.9,
-                    },
-                    json_mode=True,
-                )
-            except Exception as exc:  # pragma: no cover - defensive logging
-                error = exc
+            parsed_payload, raw_payload, raw_length = _ollama_generate_json(
+                prompt,
+                model=model_name,
+                timeout=int(timeout_override) if timeout_override is not None else None,
+                options={
+                    "num_predict": bounded_predict,
+                    "temperature": bounded_temp,
+                    "top_p": 0.9,
+                },
+                json_mode=True,
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            error = exc
+    else:
+        raw_payload = _ollama_json(
+            prompt,
+            model=model_name,
+            timeout_override=timeout_override,
+        )
+        if isinstance(raw_payload, dict):
+            parsed_payload = raw_payload
         else:
-            raw_payload = _ollama_json(prompt, model=model_name)
-            if isinstance(raw_payload, dict):
-                parsed_payload = raw_payload
-            else:
-                parsed_payload = _coerce_ollama_json(raw_payload)
-                if not isinstance(parsed_payload, dict):
-                    parsed_payload = {}
-            try:
-                raw_length = len(json.dumps(raw_payload, ensure_ascii=False)) if raw_payload else 0
-            except Exception:
-                raw_length = 0
-    finally:
-        if timeout_s is not None:
-            if original_timeout is None:
-                os.environ.pop("PIPELINE_LLM_TIMEOUT_S", None)
-            else:
-                os.environ["PIPELINE_LLM_TIMEOUT_S"] = original_timeout
+            parsed_payload = _coerce_ollama_json(raw_payload)
+            if not isinstance(parsed_payload, dict):
+                parsed_payload = {}
+        try:
+            raw_length = len(json.dumps(raw_payload, ensure_ascii=False)) if raw_payload else 0
+        except Exception:
+            raw_length = 0
 
     duration = time.perf_counter() - started
 

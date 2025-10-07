@@ -17,6 +17,7 @@ Le dépôt orchestre un pipeline complet de génération de clips verticaux : tr
 - **Fichiers touchés** : `run_pipeline.py`, `video_pipeline/config/settings.py`, `video_pipeline/config/__init__.py`, `tests/test_config_boot.py`, `config.py`.
 - **Décisions clés** : réintroduction du chargeur de configuration typé avec cache process-wide, log `[CONFIG]` idempotent et masquage des secrets, avertissement de dépréciation pour `config.py` afin d'orienter vers l'API unifiée.
 - **Suites possibles (Lots 2/3)** : brancher ces settings typés sur la sélection B-roll avancée et enrichir les validations/contrôles dans `pipeline_core.configuration` sans modifier le point d'entrée CLI.
+- **Résolution intégration LLM/B-roll (2024-12)** : `pipeline_core.configuration` et `pipeline_core.llm_service` lisent désormais les valeurs issues du loader typé (timeouts, modèles JSON/text, allow_images/videos, clés API) et n'ont plus besoin de shims `os.environ`; `run_pipeline.py` ne réécrit plus les variables `PIPELINE_LLM_*` après `load_settings()`.【F:pipeline_core/configuration.py†L1-L360】【F:pipeline_core/llm_service.py†L1329-L2050】【F:run_pipeline.py†L401-L470】
 
 ## Carte des modules
 ```mermaid

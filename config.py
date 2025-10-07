@@ -238,6 +238,26 @@ class BrollConfig:
         self.whisper_model = kwargs.get('whisper_model', 'base')
         self.use_transcript = kwargs.get('use_transcript', True)
         self.enable_fetcher = kwargs.get('enable_fetcher', False)
+
+
+try:  # Align legacy Config paths with typed settings when available.
+    _SETTINGS_SNAPSHOT = _typed_get_settings()
+except Exception:  # pragma: no cover - defensive
+    _SETTINGS_SNAPSHOT = None
+else:
+    try:
+        Config.CLIPS_FOLDER = Path(_SETTINGS_SNAPSHOT.clips_dir)
+        Config.OUTPUT_FOLDER = Path(_SETTINGS_SNAPSHOT.output_dir)
+        Config.TEMP_FOLDER = Path(_SETTINGS_SNAPSHOT.temp_dir)
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+    try:
+        AdvancedConfig.CLIPS_FOLDER = Path(_SETTINGS_SNAPSHOT.clips_dir)
+        AdvancedConfig.OUTPUT_FOLDER = Path(_SETTINGS_SNAPSHOT.output_dir)
+        AdvancedConfig.TEMP_FOLDER = Path(_SETTINGS_SNAPSHOT.temp_dir)
+    except Exception:  # pragma: no cover - defensive
+        pass
         self.fetch_provider = kwargs.get('fetch_provider')
         self.fetch_max_per_keyword = kwargs.get('fetch_max_per_keyword', 6)
         self.fetch_allow_videos = kwargs.get('fetch_allow_videos', True)
