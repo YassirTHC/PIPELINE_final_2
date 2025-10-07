@@ -24,7 +24,10 @@ import difflib
 
 import requests
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, StrictStr, conlist
+
 from pipeline_core.configuration import tfidf_fallback_disabled_from_env
+from pipeline_core.llm_providers import LLMClient, get_llm_client
 
 try:  # Optional import – settings layer may not be available in unit stubs
     from video_pipeline.config import get_settings
@@ -1299,6 +1302,390 @@ def _merge_with_fallback(
                 break
 
     return merged[:max_count]
+
+
+JSON_ATTEMPTS = 2
+
+
+class MetadataSchema(BaseModel):
+    """Strict schema validated against LLM JSON responses."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    title: StrictStr = Field(..., min_length=1, max_length=256)
+    description: StrictStr = Field(..., min_length=1, max_length=4000)
+    hashtags: conlist(StrictStr, min_length=5, max_length=5)
+    broll_keywords: conlist(StrictStr, min_length=8, max_length=8)
+    queries: conlist(StrictStr, min_length=12, max_length=12)
+
+
+class SegmentQueriesSchema(BaseModel):
+    """Schema for the public ``generate_segment_queries`` helper."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    queries: conlist(StrictStr, min_length=6, max_length=12)
+
+
+@dataclass(slots=True)
+class MetadataPipelineResult:
+    metadata: Dict[str, Any]
+    raw_response: str
+    route: str
+    provider: str
+    reason: Optional[str] = None
+
+
+def _safe_get_settings() -> Optional["Settings"]:
+    if get_settings is None:
+        return None
+    try:
+        return get_settings()
+    except Exception:
+        logger.debug("[LLM] Settings backend unavailable", exc_info=True)
+        return None
+
+
+def _resolve_timeout_s(settings: Optional["Settings"]) -> float:
+    env_timeout = os.getenv("PIPELINE_LLM_TIMEOUT_S")
+    if env_timeout:
+        try:
+            return max(1.0, float(env_timeout))
+        except (TypeError, ValueError):
+            pass
+    if settings is not None:
+        try:
+            return float(getattr(settings.llm, "timeout_fallback_s", 60.0))
+        except Exception:
+            logger.debug("[LLM] Unable to read timeout from settings", exc_info=True)
+    return 60.0
+
+
+def _resolve_fallback_trunc(settings: Optional["Settings"], default: int = 3500) -> int:
+    env_value = os.getenv("PIPELINE_LLM_FALLBACK_TRUNC")
+    if env_value:
+        try:
+            return max(64, int(env_value))
+        except (TypeError, ValueError):
+            pass
+    if settings is not None:
+        try:
+            configured = int(getattr(settings.llm, "fallback_trunc"))
+            return max(64, configured)
+        except Exception:
+            logger.debug("[LLM] Unable to read fallback_trunc from settings", exc_info=True)
+    return max(64, default)
+
+
+def _log_provider_event(provider: str, event: str, *, level: int = logging.INFO, **extra: Any) -> None:
+    payload = {"llm_provider": provider, "llm_event": event}
+    payload.update(extra)
+    logger.log(level, f"[LLM][provider={provider}] {event}", extra=payload)
+
+
+def _truncate_field(value: str, limit: int) -> str:
+    text = (value or "").strip()
+    if limit > 0 and len(text) > limit:
+        return text[:limit].rstrip()
+    return text
+
+
+def _normalise_metadata_output(
+    metadata: Dict[str, Any],
+    *,
+    fallback_trunc: int,
+    transcript: str,
+) -> Dict[str, Any]:
+    defaults = _default_metadata_payload()
+    title = _truncate_field(str(metadata.get("title") or defaults["title"]), min(120, fallback_trunc))
+    description = _truncate_field(str(metadata.get("description") or defaults["description"]), fallback_trunc)
+
+    target_lang = _target_language_default()
+    hashtags_disabled = _hashtags_disabled()
+
+    hashtags: List[str] = []
+    if not hashtags_disabled:
+        hashtags = _normalise_hashtags(metadata.get("hashtags"))[:5]
+    if hashtags_disabled:
+        hashtags = []
+
+    transcript_terms = _fallback_keywords_from_transcript(
+        transcript,
+        min_terms=12,
+        max_terms=12,
+        language=target_lang,
+    )
+
+    broll_keywords = _normalise_search_terms(metadata.get("broll_keywords") or [], target_lang=target_lang)
+    broll_keywords = _merge_with_fallback(broll_keywords, transcript_terms, min_count=8, max_count=8)
+    broll_keywords = _sanitize_queries(broll_keywords, min_words=1, max_words=3, max_len=12)
+
+    queries = _normalise_search_terms(metadata.get("queries") or [], target_lang=target_lang)
+    queries = _merge_with_fallback(queries, transcript_terms, min_count=12, max_count=12)
+    queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
+
+    if not hashtags and not hashtags_disabled:
+        hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
+    if not hashtags and not hashtags_disabled:
+        fallback_hash_terms = transcript_terms[:5]
+        hashtags = _hashtags_from_keywords(fallback_hash_terms, limit=5)
+    if not hashtags and not hashtags_disabled:
+        for default_tag in ("#video", "#viralclip", "#shorts", "#reels", "#tiktok"):
+            if len(hashtags) >= 5:
+                break
+            if default_tag not in hashtags:
+                hashtags.append(default_tag)
+    hashtags = hashtags[:5]
+
+    return {
+        "title": title or defaults["title"],
+        "description": description or defaults["description"],
+        "hashtags": hashtags,
+        "broll_keywords": broll_keywords,
+        "queries": queries,
+    }
+
+
+def _metadata_from_tfidf(transcript: str, *, fallback_trunc: int) -> Dict[str, Any]:
+    disable_flag = tfidf_fallback_disabled_from_env()
+    if disable_flag:
+        raise TfidfFallbackDisabled("TF-IDF fallback disabled via configuration")
+
+    target_lang = _target_language_default()
+    keywords_raw, queries_raw = _tfidf_fallback(transcript, top_k=12)
+    transcript_terms = _fallback_keywords_from_transcript(
+        transcript,
+        min_terms=12,
+        max_terms=12,
+        language=target_lang,
+    )
+
+    keywords = _merge_with_fallback(
+        _normalise_search_terms(keywords_raw[:8], target_lang=target_lang),
+        transcript_terms,
+        min_count=8,
+        max_count=8,
+    )
+    keywords = _sanitize_queries(keywords, min_words=1, max_words=3, max_len=12)
+
+    queries = _merge_with_fallback(
+        _normalise_search_terms(queries_raw[:12], target_lang=target_lang),
+        transcript_terms,
+        min_count=12,
+        max_count=12,
+    )
+    queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
+
+    hashtags: List[str] = [] if _hashtags_disabled() else _hashtags_from_keywords(keywords, limit=5)
+    if not hashtags and not _hashtags_disabled():
+        hashtags = _hashtags_from_keywords(transcript_terms, limit=5)
+    if not hashtags and not _hashtags_disabled():
+        hashtags = ["#video", "#viralclip", "#shorts", "#reels", "#tiktok"]
+
+    primary_text = (transcript or "").strip()
+    if not primary_text:
+        primary_text = "Auto-generated clip"  # fallback summary
+    sentences = re.split(r"[\.!?\n]+", primary_text)
+    first_sentence = next((s for s in sentences if s and s.strip()), primary_text)
+    title = _truncate_field(first_sentence, min(120, fallback_trunc)) or "Auto-generated Clip Title"
+    description_parts = [seg.strip() for seg in sentences if seg and seg.strip()][:3]
+    description = " ".join(description_parts) or primary_text
+    description = _truncate_field(description, fallback_trunc)
+
+    payload = {
+        "title": title,
+        "description": description,
+        "hashtags": hashtags[:5],
+        "broll_keywords": keywords,
+        "queries": queries,
+    }
+    try:
+        return MetadataSchema.model_validate(payload).model_dump()
+    except ValidationError:
+        # Ensure strict compliance even if heuristics yielded uneven sizes
+        fallback_terms = _fallback_keywords_from_transcript(primary_text, min_terms=12, max_terms=12)
+        payload["broll_keywords"] = _merge_with_fallback(keywords, fallback_terms, min_count=8, max_count=8)
+        payload["queries"] = _merge_with_fallback(queries, fallback_terms, min_count=12, max_count=12)
+        payload["hashtags"] = (hashtags or _hashtags_from_keywords(fallback_terms, limit=5))[:5]
+        return MetadataSchema.model_validate(payload).model_dump()
+
+
+def _extract_structured_json(text: str) -> Dict[str, Any]:
+    parsed = _safe_parse_json(text)
+    if parsed:
+        return parsed
+    parsed = _extract_json_braces(text)
+    if parsed:
+        return parsed
+    return {}
+
+
+def _run_metadata_generation(
+    transcript: str,
+    *,
+    timeout_override: Optional[float] = None,
+) -> MetadataPipelineResult:
+    settings = _safe_get_settings()
+    client = get_llm_client(settings)
+    provider = getattr(client, "provider_name", "unknown")
+    timeout_s = timeout_override if timeout_override is not None else _resolve_timeout_s(settings)
+    fallback_trunc = _resolve_fallback_trunc(settings)
+
+    cleaned_transcript = (transcript or "").strip()
+    if not cleaned_transcript:
+        metadata = _metadata_from_tfidf("", fallback_trunc=fallback_trunc)
+        return MetadataPipelineResult(metadata=metadata, raw_response="", route="tfidf", provider=provider, reason="empty_transcript")
+
+    limit = _metadata_transcript_limit()
+    if len(cleaned_transcript) > limit:
+        cleaned_transcript = cleaned_transcript[:limit]
+
+    prompt = _build_json_metadata_prompt(cleaned_transcript)
+    schema = MetadataSchema.model_json_schema()
+
+    last_raw = ""
+    for attempt in range(JSON_ATTEMPTS):
+        try:
+            raw = client.complete_json(prompt, schema, timeout_s)
+            last_raw = raw
+        except Exception as exc:
+            _log_provider_event(provider, f"json_invalid(err={exc})", level=logging.WARNING, attempt=attempt + 1)
+            continue
+        if not raw:
+            _log_provider_event(provider, "json_invalid(err=empty)", level=logging.WARNING, attempt=attempt + 1)
+            continue
+        parsed = _extract_structured_json(raw)
+        if not parsed:
+            _log_provider_event(provider, "json_invalid(err=parse)", level=logging.WARNING, attempt=attempt + 1)
+            continue
+        try:
+            schema_payload = MetadataSchema.model_validate(parsed).model_dump()
+        except ValidationError as exc:
+            summary = str(exc).splitlines()[0] if str(exc) else "validation_error"
+            _log_provider_event(provider, f"json_invalid(err={summary})", level=logging.WARNING, attempt=attempt + 1)
+            continue
+        normalised = _normalise_metadata_output(schema_payload, fallback_trunc=fallback_trunc, transcript=cleaned_transcript)
+        _log_provider_event(provider, "json_ok", attempt=attempt + 1)
+        return MetadataPipelineResult(metadata=normalised, raw_response=raw, route="json", provider=provider)
+
+    text_prompt = f"{prompt}\n\nRespond using a single valid JSON object."
+    try:
+        text_response = client.complete_text(text_prompt, timeout_s)
+        last_raw = text_response
+        _log_provider_event(provider, "text_ok")
+    except Exception as exc:
+        text_response = ""
+        _log_provider_event(provider, f"text_error(err={exc})", level=logging.WARNING)
+
+    if text_response:
+        parsed = _extract_structured_json(text_response)
+        if parsed:
+            try:
+                schema_payload = MetadataSchema.model_validate(parsed).model_dump()
+                normalised = _normalise_metadata_output(schema_payload, fallback_trunc=fallback_trunc, transcript=cleaned_transcript)
+                _log_provider_event(provider, "extract_ok")
+                return MetadataPipelineResult(metadata=normalised, raw_response=text_response, route="text", provider=provider)
+            except ValidationError as exc:
+                summary = str(exc).splitlines()[0] if str(exc) else "validation_error"
+                _log_provider_event(provider, f"json_invalid(err={summary})", level=logging.WARNING)
+
+    try:
+        metadata = _metadata_from_tfidf(cleaned_transcript, fallback_trunc=fallback_trunc)
+    except TfidfFallbackDisabled as exc:
+        _log_provider_event(provider, f"fallback_tfidf(reason={exc.reason})", level=logging.ERROR)
+        raise
+
+    _log_provider_event(provider, "fallback_tfidf(reason=no_valid_llm_response)", level=logging.WARNING)
+    return MetadataPipelineResult(metadata=metadata, raw_response=last_raw, route="tfidf", provider=provider, reason="no_valid_llm_response")
+
+
+def generate_metadata_json(transcript: str) -> Dict[str, Any]:
+    """Public helper returning validated metadata for a transcript."""
+
+    result = _run_metadata_generation(transcript)
+    return result.metadata
+
+
+def _normalise_segment_queries(raw_queries: Sequence[str]) -> List[str]:
+    queries = _sanitize_queries(_concretize_queries(raw_queries), max_len=12)
+    if not queries:
+        queries = _sanitize_queries(raw_queries, max_len=12)
+    return queries[:12]
+
+
+def _segment_queries_fallback(transcript: str) -> List[str]:
+    disable_flag = tfidf_fallback_disabled_from_env()
+    if disable_flag:
+        raise TfidfFallbackDisabled("TF-IDF fallback disabled via configuration")
+    _, queries = _tfidf_fallback(transcript, top_k=12)
+    fallback_terms = _fallback_keywords_from_transcript(transcript, min_terms=12, max_terms=12)
+    queries = _merge_with_fallback(queries, fallback_terms, min_count=12, max_count=12)
+    return _normalise_segment_queries(queries)
+
+
+def generate_segment_queries(segment_text: str) -> List[str]:
+    """Return search queries for a transcript segment using the configured provider."""
+
+    cleaned = (segment_text or "").strip()
+    if not cleaned:
+        return []
+
+    settings = _safe_get_settings()
+    client = get_llm_client(settings)
+    provider = getattr(client, "provider_name", "unknown")
+    timeout_s = _resolve_timeout_s(settings)
+    schema = SegmentQueriesSchema.model_json_schema()
+    prompt = (
+        "You are a JSON API for short-form video search queries.\n"
+        "Return ONLY one JSON object with key \"queries\" (list of 6 to 12 concise search queries).\n"
+        "Queries must be actionable video search prompts (2-4 words), no markdown, no explanations.\n"
+        f"Segment transcript:\n{cleaned[:_resolve_fallback_trunc(settings, 512)]}"
+    )
+
+    last_raw = ""
+    for attempt in range(JSON_ATTEMPTS):
+        try:
+            raw = client.complete_json(prompt, schema, timeout_s)
+            last_raw = raw
+        except Exception as exc:
+            _log_provider_event(provider, f"json_invalid(err={exc})", level=logging.WARNING, stage="segment", attempt=attempt + 1)
+            continue
+        parsed = _extract_structured_json(raw)
+        if not parsed:
+            _log_provider_event(provider, "json_invalid(err=parse)", level=logging.WARNING, stage="segment", attempt=attempt + 1)
+            continue
+        try:
+            payload = SegmentQueriesSchema.model_validate(parsed).model_dump()
+        except ValidationError as exc:
+            summary = str(exc).splitlines()[0] if str(exc) else "validation_error"
+            _log_provider_event(provider, f"json_invalid(err={summary})", level=logging.WARNING, stage="segment", attempt=attempt + 1)
+            continue
+        queries = _normalise_segment_queries(payload.get("queries") or [])
+        _log_provider_event(provider, "json_ok", stage="segment", attempt=attempt + 1)
+        return queries
+
+    try:
+        text_response = client.complete_text(f"{prompt}\nRespond with JSON only.", timeout_s)
+        last_raw = text_response
+        _log_provider_event(provider, "text_ok", stage="segment")
+    except Exception as exc:
+        text_response = ""
+        _log_provider_event(provider, f"text_error(err={exc})", level=logging.WARNING, stage="segment")
+
+    if text_response:
+        parsed = _extract_structured_json(text_response)
+        if parsed:
+            try:
+                payload = SegmentQueriesSchema.model_validate(parsed).model_dump()
+                _log_provider_event(provider, "extract_ok", stage="segment")
+                return _normalise_segment_queries(payload.get("queries") or [])
+            except ValidationError as exc:
+                summary = str(exc).splitlines()[0] if str(exc) else "validation_error"
+                _log_provider_event(provider, f"json_invalid(err={summary})", level=logging.WARNING, stage="segment")
+
+    queries = _segment_queries_fallback(cleaned)
+    _log_provider_event(provider, "fallback_tfidf(reason=segment)", level=logging.WARNING, stage="segment")
+    return queries
 
 
 def _build_keywords_prompt(transcript_snippet: str, target_lang: str) -> str:
