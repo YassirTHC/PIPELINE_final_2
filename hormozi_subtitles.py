@@ -12,7 +12,7 @@ import os
 import re
 import requests
 import unicodedata
-import random
+import logging
 from typing import Dict, List, Optional, Sequence, Tuple
 from pathlib import Path
 from collections import deque
@@ -23,6 +23,9 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     SubtitleSettings = None  # type: ignore
     get_settings = None  # type: ignore
+
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_typed_subtitle_settings() -> Optional["SubtitleSettings"]:
@@ -61,6 +64,7 @@ class HormoziSubtitles:
         )
         self._font_primary: Optional[str] = None
         self._font_candidates: List[str] = []
+        self._font_logged = False
         self._last_render_metadata: Dict[str, object] = {}
 
         # 🖼️ NOUVEAU : Système de chargement d'emojis PNG amélioré
@@ -97,40 +101,54 @@ class HormoziSubtitles:
             '🚨': '1f6a8.png',      # Emergency light
         }
         
-        # Configuration du style Hormozi
+        # Configuration du style Hormozi – version Montserrat virale
         self.config = {
             'font_size': 85,
             'font_color': (255, 255, 255),
-            'outline_color': (0, 0, 0),
-            'outline_width': 4,
+            'stroke_color': (0, 0, 0),
+            'stroke_px': 6,
             'position': 'bottom',
             'margin_bottom': 200,
             'line_spacing': 10,
             'animation_duration': 0.15,
             'bounce_scale': 1.3,
             'fade_duration': 0.1,
+            'shadow_opacity': 0.35,
+            'shadow_offset': 3,
             'emoji_scale_ratio': 0.9,
             'emoji_gap_px': 8,
             'enable_emojis': True,
             'emoji_png_only': True,
-            'emoji_boost': 1.1,
+            'emoji_boost': 1.0,
             'keyword_background': False,
             'emoji_prefetch_common': True,
-            'emoji_position': 'end',            # 'end' (fin du groupe)
-            'emoji_max_per_group': 1,           # 1 emoji max par groupe
-            'emoji_density_non_keyword': 0.25,  # Réduit: 25% max (sera modulé dynamiquement)
-            'emoji_density_keyword': 0.5,       # Probabilité d'emoji même si mot-clé présent
-            'emoji_min_gap_groups': 2,          # Nombre minimal de groupes entre deux emojis
-            'emoji_theme_boost': {},            # Densité par thème {'business': +0.1, ...}
-            'emoji_blacklist': [],              # Mots à éviter
-            'emoji_big_spike_prob': 0.08,       # Proba de big-emoji sur pic d'intensité (rare)
-            'use_twemoji_local': True,          # Utiliser pack Twemoji en cache si dispo
+            'emoji_target_per_10': 5,
+            'emoji_min_gap_groups': 2,
+            'emoji_max_per_segment': 3,
+            'emoji_no_context_fallback': "",
+            'hero_emoji_enable': True,
+            'hero_emoji_max_per_segment': 1,
+            'emoji_history_window': 4,
+            'use_twemoji_local': True,
         }
         if self.subtitle_settings is not None:
             self.config['font_size'] = int(self.subtitle_settings.font_size)
             self.config['margin_bottom'] = int(self.subtitle_settings.subtitle_safe_margin_px)
             self.config['keyword_background'] = bool(self.subtitle_settings.keyword_background)
             self.config['enable_emojis'] = bool(self.subtitle_settings.enable_emojis)
+            self.config['stroke_px'] = max(0, int(self.subtitle_settings.stroke_px))
+            self.config['shadow_opacity'] = float(max(0.0, self.subtitle_settings.shadow_opacity))
+            self.config['shadow_offset'] = max(0, int(self.subtitle_settings.shadow_offset))
+            self.config['emoji_target_per_10'] = max(0, int(self.subtitle_settings.emoji_target_per_10))
+            self.config['emoji_min_gap_groups'] = max(0, int(self.subtitle_settings.emoji_min_gap_groups))
+            self.config['emoji_max_per_segment'] = max(0, int(self.subtitle_settings.emoji_max_per_segment))
+            self.config['emoji_no_context_fallback'] = str(self.subtitle_settings.emoji_no_context_fallback or "")
+            self.config['hero_emoji_enable'] = bool(self.subtitle_settings.hero_emoji_enable)
+            self.config['hero_emoji_max_per_segment'] = max(0, int(self.subtitle_settings.hero_emoji_max_per_segment))
+            if getattr(self.subtitle_settings, 'font', None):
+                preferred_font = str(self.subtitle_settings.font)
+                if preferred_font:
+                    self.config['preferred_font_name'] = preferred_font
 
         self._font_candidates = self._build_font_candidates(font_candidates)
         # Presets de marque (brand kits)
@@ -141,22 +159,22 @@ class HormoziSubtitles:
         }
         
         palette = {
-            'finance': '#FFD54F',
-            'business': '#4FC3F7',
-            'sales': '#FF7043',
-            'content': '#BA68C8',
-            'actions': '#FFB74D',
-            'success': '#81C784',
-            'urgency': '#64B5F6',
-            'emotions': '#F06292',
-            'tech': '#26C6DA',
-            'mobile': '#26A69A',
-            'personal': '#9575CD',
-            'solutions': '#4DD0E1',
-            'problems': '#E57373',
-            'health': '#81D4FA',
-            'sports': '#4DB6AC',
-            'education': '#7986CB',
+            'finance': '#FFD700',
+            'business': '#00E5FF',
+            'sales': '#FF8C00',
+            'content': '#FF1493',
+            'actions': '#FF8C00',
+            'success': '#32CD32',
+            'urgency': '#FF8C00',
+            'emotions': '#FF1493',
+            'tech': '#8A2BE2',
+            'mobile': '#00E5FF',
+            'personal': '#32CD32',
+            'solutions': '#00E5FF',
+            'problems': '#FF8C00',
+            'health': '#32CD32',
+            'sports': '#8A2BE2',
+            'education': '#8A2BE2',
         }
         aliases = {
             'money': 'finance',
@@ -263,11 +281,19 @@ class HormoziSubtitles:
             # Personal/Health
             'BRAIN':'personal','MENTAL':'personal','NEUROSCIENCE':'personal','DOPAMINE':'personal','ANXIETY':'personal','STRESS':'personal','TRAUMA':'personal','MINDSET':'personal','DISCIPLINE':'personal','HABITS':'personal','GOALS':'personal','FOCUS':'personal','PRODUCTIVITY':'personal','EXERCISE':'personal','MOVEMENT':'personal'
         }
+
+        self._hero_triggers: Dict[str, Sequence[str]] = {
+            '🔥': ('OFFER', 'OFFRE', 'DEAL'),
+            '⚡': ('ENERGY', 'ENERGIE', 'POWER'),
+            '💰': ('PROFIT', 'PROFITS', 'MONEY', 'ARGENT', 'CASH', 'REVENU', 'REVENUE'),
+        }
         
         # Mémoire pour éviter la répétition immédiate d'un même emoji
         self._last_emoji: str = ""
-        self._recent_emojis = deque(maxlen=3)
-        self._groups_since_last_emoji: int = 999
+        history_window = max(1, int(self.config.get('emoji_history_window', 4)))
+        self._recent_emojis = deque(maxlen=history_window)
+        self._global_group_index = 0
+        self._last_emoji_global_index = -999
         # Mémoire pour lisser la position verticale des sous-titres
         self._y_ema: float | None = None
         self._line_h_ema: float | None = None
@@ -389,6 +415,7 @@ class HormoziSubtitles:
                     return min(i+2, len(raw_words))
                 return len(raw_words)
             i = 0
+            segment_groups: List[Dict] = []
             while i < len(raw_words):
                 j = next_cut(i)
                 if i in boundaries:
@@ -398,121 +425,67 @@ class HormoziSubtitles:
                 start_time = float(chunk[0].get("start", seg_start))
                 end_time = float(chunk[-1].get("end", seg_end))
                 tokens = []
-                colored_applied = False
-                group_emojis: List[str] = []
+                group_categories: List[str] = []
+                candidate_emojis: List[str] = []
+                hero_candidates: List[str] = []
                 has_keyword = False
-                colored_quota = 3  # 🎨 OPTIMISÉ: 6 → 3 pour visionnage confortable
+                colored_quota = 3
                 colored_used = 0
+                linking_words = {
+                    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of',
+                    'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had',
+                    'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might',
+                    'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'their', 'we',
+                    'us', 'our', 'you', 'your', 'i', 'me', 'my'
+                }
+                token_norms: List[str] = []
                 for w in chunk:
                     base = (str(w.get("word") or w.get("text") or "").strip())
                     clean = self._normalize(base)
-                    t_color = "#FFFFFF"
-                    t_is_kw = False
-                    # 🎨 Éviter de colorer les mots de liaison pour un visionnage confortable
-                    linking_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them', 'their', 'we', 'us', 'our', 'you', 'your', 'i', 'me', 'my'}
-                    
-                    if (colored_used < colored_quota and 
-                        clean.lower() not in linking_words):
-                        # 🚀 SYSTÈME INTELLIGENT PRIORITAIRE
-                        try:
-                            if self.SMART_SYSTEMS_AVAILABLE:
-                                # FORCER l'utilisation du système intelligent
-                                # Normaliser le mot-clé pour le système intelligent
-                                normalized_keyword = clean.lower().strip()
-                                t_color = self.get_smart_color_for_keyword(normalized_keyword, seg_text, 1.0)
-                                t_is_kw = True
-                                colored_used += 1
-                                print(f"🎨 Couleur intelligente appliquée: {clean} → {t_color}")
-                            else:
-                                # Fallback : ancien système
-                                if clean in self.keyword_colors:
-                                    t_color = self.keyword_colors[clean]
-                                    t_is_kw = True
-                                    colored_used += 1
-                                else:
-                                    cat_data = self._get_category_for_word(base)
-                                    if cat_data:
-                                        t_color = cat_data.get("color", "#FFFFFF")
-                                        t_is_kw = True
-                                        colored_used += 1
-                        except Exception as e:
-                            print(f"⚠️ Erreur système intelligent pour {clean}: {e}")
-                            # Fallback en cas d'erreur
-                            if clean in self.keyword_colors:
-                                t_color = self.keyword_colors[clean]
-                                t_is_kw = True
-                                colored_used += 1
-                    if t_is_kw:
-                        has_keyword = True
-                    display_text = base.upper()
+                    color_hex = "#FFFFFF"
+                    is_keyword = False
+                    category: Optional[str] = None
+                    if display_base := base.strip():
+                        display_text = display_base.upper()
+                    else:
+                        display_text = ""
                     if not display_text:
                         continue
+                    if (colored_used < colored_quota and clean.lower() not in linking_words):
+                        category = self.keyword_to_category.get(clean)
+                        if not category and clean in self.emoji_alias:
+                            category = self.emoji_alias[clean]
+                        if not category:
+                            cat_data = self._get_category_for_word(base)
+                            category = self._category_from_color(cat_data.get("color") if cat_data else None)
+                        if category:
+                            color_hex = self.category_colors.get(category, "#FFFFFF")
+                            is_keyword = True
+                            has_keyword = True
+                            colored_used += 1
+                            if category not in group_categories:
+                                group_categories.append(category)
+                            if category in self.category_emojis:
+                                candidate_emojis.extend(self.category_emojis[category])
+                    display_text = base.upper()
                     tokens.append({
                         "text": display_text,
                         "normalized": clean,
-                        "is_keyword": t_is_kw,
-                        "color": t_color
+                        "is_keyword": is_keyword,
+                        "color": color_hex,
+                        "category": category,
                     })
-                # Emojis fin de groupe
-                chosen_emoji = ""
-                if self.config.get('enable_emojis', False):
-                    # Calcul d'intensité commun (ponctuation, mots forts)
-                    upper_text_src = (seg_text or " ".join(t['text'] for t in tokens)).upper()
-                    intensity = 0.0
-                    if '!' in upper_text_src or '🔥' in upper_text_src:
-                        intensity += 0.6
-                    if any(w in upper_text_src for w in ['INCROYABLE','AMAZING','INSANE','CRAZY','WOW','%','$','€']):
-                        intensity += 0.4
-                    # Respecter un écart minimal entre deux groupes avec emoji
-                    allow_by_gap = self._groups_since_last_emoji >= int(self.config.get('emoji_min_gap_groups', 0))
-                    if has_keyword:
-                        # Probabilité même sur mot‑clé, modulée par intensité
-                        base_k = float(self.config.get('emoji_density_keyword', 0.5))
-                        dyn_k = max(0.0, min(1.0, base_k + 0.2 * min(1.0, intensity)))
-                        if allow_by_gap and random.random() < dyn_k:
-                            # 🚀 SYSTÈME D'EMOJIS INTELLIGENT PRIORITAIRE
-                            try:
-                                if self.SMART_SYSTEMS_AVAILABLE:
-                                    # FORCER l'utilisation du système d'emojis contextuel
-                                    chosen_emoji = self.get_contextual_emoji_for_keyword(
-                                        clean, seg_text, "positive", intensity
-                                    )
-                                    print(f"😊 Emoji contextuel appliqué: {clean} → {chosen_emoji}")
-                                else:
-                                    # Fallback : ancien système
-                                    chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
-                            except Exception as e:
-                                print(f"⚠️ Erreur emoji intelligent pour {clean}: {e}")
-                                # Fallback en cas d'erreur
-                                chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
-                    else:
-                        # Densité réduite et dynamique pour groupes sans mot‑clé
-                        base_nk = float(self.config.get('emoji_density_non_keyword', 0.25))
-                        dyn_nk = max(0.0, min(1.0, base_nk - 0.05 + 0.2 * min(1.0, intensity)))
-                        if allow_by_gap and random.random() < dyn_nk:
-                            # 🚀 SYSTÈME D'EMOJIS INTELLIGENT PRIORITAIRE
-                            try:
-                                if self.SMART_SYSTEMS_AVAILABLE:
-                                    # FORCER l'utilisation du système d'emojis contextuel
-                                    chosen_emoji = self.get_contextual_emoji_for_keyword(
-                                        clean, seg_text, "neutral", intensity
-                                    )
-                                    print(f"😊 Emoji contextuel appliqué: {clean} → {chosen_emoji}")
-                                else:
-                                    # Fallback : ancien système
-                                    chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
-                            except Exception as e:
-                                print(f"⚠️ Erreur emoji intelligent pour {clean}: {e}")
-                                # Fallback en cas d'erreur
-                                chosen_emoji = self._choose_emoji_for_tokens(tokens, seg_text or " ".join(t['text'] for t in tokens))
-                group_emojis: List[str] = []
-                if chosen_emoji:
-                    group_emojis.append(chosen_emoji)
-                    self._groups_since_last_emoji = 0
-                else:
-                    self._groups_since_last_emoji += 1
+                    if clean:
+                        token_norms.append(clean)
+                candidate_emojis = list(dict.fromkeys(candidate_emojis))
+                token_norm_set = set(token_norms)
+                for emoji_char, triggers in self._hero_triggers.items():
+                    for trigger in triggers:
+                        if self._normalize(trigger) in token_norm_set:
+                            hero_candidates.append(emoji_char)
+                            break
                 chunk_text = " ".join(t["text"] for t in tokens)
-                words.append({
+                segment_groups.append({
                     "text": chunk_text,
                     "original": chunk_text,
                     "start": start_time,
@@ -521,8 +494,15 @@ class HormoziSubtitles:
                     "color": "#FFFFFF",
                     "emoji": "",
                     "tokens": tokens,
-                    "emojis": group_emojis
+                    "emojis": [],
+                    "categories": group_categories,
+                    "candidate_emojis": candidate_emojis,
+                    "hero_candidates": list(dict.fromkeys(hero_candidates)),
+                    "has_keyword": has_keyword,
                 })
+            if segment_groups:
+                self._plan_emojis_for_segment(segment_groups)
+                words.extend(segment_groups)
         return words
 
     def export_tokens_json(self, groups: List[Dict], out_path: str) -> None:
@@ -545,7 +525,16 @@ class HormoziSubtitles:
         """Convertit couleur hex en RGB"""
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-    
+
+    def _category_from_color(self, color_hex: Optional[str]) -> Optional[str]:
+        if not color_hex:
+            return None
+        target = str(color_hex).lower()
+        for key, value in self.category_colors.items():
+            if str(value).lower() == target:
+                return key
+        return None
+
     def _load_emoji_font(self, size: int) -> ImageFont.FreeTypeFont:
         """Charge une police emoji système (Segoe UI Emoji/Noto) pour fallback texte."""
         candidates = [
@@ -606,6 +595,11 @@ class HormoziSubtitles:
             _push(candidate)
 
         ordered_unique = list(dict.fromkeys(self._font_candidates))
+        preferred_name = str(self.config.get('preferred_font_name', '') or '').lower()
+        if preferred_name:
+            ordered_unique.sort(
+                key=lambda path: (0 if preferred_name in Path(path).name.lower() else 1, Path(path).name.lower())
+            )
         self._font_candidates = ordered_unique
         return ordered_unique
 
@@ -616,6 +610,9 @@ class HormoziSubtitles:
             try:
                 if Path(candidate).expanduser().exists():
                     self._font_primary = str(Path(candidate).expanduser())
+                    if not self._font_logged:
+                        logger.info("[Subtitles] Using font: %s", self._font_primary)
+                        self._font_logged = True
                     return self._font_primary
             except OSError:
                 continue
@@ -624,6 +621,7 @@ class HormoziSubtitles:
 
     def _invalidate_font_candidate(self, path: str) -> None:
         self._font_primary = None
+        self._font_logged = False
         normalized: List[str] = []
         for candidate in self._font_candidates:
             try:
@@ -820,76 +818,89 @@ class HormoziSubtitles:
             pass
 
     def _choose_emoji_for_tokens(self, tokens: List[Dict], group_text: str) -> str:
-        """Choisit un emoji contextuel à partir des tokens et du texte du groupe.
-        Respecte les catégories, alias et intensificateurs. Évite la répétition immédiate.
-        """
-        # Score par catégorie
-        scores: Dict[str, float] = {k: 0.0 for k in self.category_emojis.keys()}
-        upper_text = (group_text or "").upper()
-        # Intensificateurs (boost émotions/actions)
-        intensity = 0.0
-        if '!' in upper_text or '🔥' in upper_text:
-            intensity += 0.6
-        if any(w in upper_text for w in ['INCROYABLE','AMAZING','INSANE','CRAZY','WOW','TRÈS','TRES','ULTRA','SUPER']):
-            intensity += 0.4
-        # Heuristiques numériques
-        if any(ch in upper_text for ch in ['%','€','$']):
-            scores['finance'] += 0.6
-        # Accumuler selon tokens
-        for t in tokens:
-            display = str(t.get('text') or '').strip().upper()
-            norm = t.get('normalized') or self._normalize(display)
-            if not display:
-                continue
-            # Mot-clé déclaré → bonus fort pour sa catégorie
-            if t.get('is_keyword') and norm in self.keyword_to_category:
-                cat_for_kw = self.keyword_to_category[norm]
-                if cat_for_kw not in scores:
-                    cat_for_kw = 'personal' if cat_for_kw in ('health', 'wellness') else 'business'
-                scores[cat_for_kw] = scores.get(cat_for_kw, 0.0) + 2.0
-            # Alias
-            if norm in self.emoji_alias:
-                alias_cat = self.emoji_alias[norm]
-                if alias_cat not in scores:
-                    alias_cat = 'business'
-                scores[alias_cat] = scores.get(alias_cat, 0.0) + 1.2
-            # Catégorie FR via règles dédiées
-            cat_data = self._get_category_for_word(display)
-            if cat_data:
-                # retrouver la clé de couleur inverse → meilleure approximation
-                for key, color in self.category_colors.items():
-                    if color == cat_data.get('color'):
-                        scores[key] += 1.0
-                        break
-        # Intensité boost
-        scores['emotions'] += intensity
-        scores['actions'] += (intensity * 0.5)
-        # Densité par thème (configurable)
-        for theme, boost in (self.config.get('emoji_theme_boost') or {}).items():
-            if theme in scores:
-                scores[theme] += float(boost or 0.0)
-        if not scores:
-            return ""
-        best_cat, best_score = max(scores.items(), key=lambda x: x[1])
-        if best_score <= 0.0:
-            return ""
-        candidates = list(self.category_emojis.get(best_cat) or [])
+        """Choisit un emoji contextuel à partir des catégories déjà évaluées."""
+        candidates: List[str] = []
+        for token in tokens:
+            category = token.get('category')
+            if category and category in self.category_emojis:
+                candidates.extend(self.category_emojis[category])
+        unique_candidates = [c for c in dict.fromkeys(candidates) if c]
+        emoji = self._select_from_candidates(unique_candidates, group_text, avoid=self._recent_emojis)
+        if not emoji:
+            fallback = str(self.config.get('emoji_no_context_fallback') or "")
+            return fallback
+        return emoji
+
+    def _select_from_candidates(
+        self,
+        candidates: Sequence[str],
+        group_text: str,
+        avoid: Optional[Sequence[str]] = None,
+    ) -> str:
         if not candidates:
             return ""
-        seed = abs(hash((upper_text, best_cat)))
-        chosen: Optional[str] = None
-        for offset in range(len(candidates)):
-            candidate = candidates[(seed + offset) % len(candidates)]
-            if candidate not in self._recent_emojis:
-                chosen = candidate
-                break
-        if chosen is None:
-            chosen = candidates[seed % len(candidates)]
-        if chosen == self._last_emoji and len(candidates) > 1:
-            chosen = candidates[(seed + 1) % len(candidates)]
-        self._last_emoji = chosen
-        self._recent_emojis.append(chosen)
-        return chosen or ""
+        avoid_set = {c for c in (avoid or []) if c}
+        pool = [c for c in candidates if c and c not in avoid_set]
+        if not pool:
+            pool = [c for c in candidates if c]
+        if not pool:
+            return ""
+        seed = abs(hash((group_text or "", tuple(pool))))
+        return pool[seed % len(pool)]
+
+    def _select_group_emoji(self, group: Dict) -> str:
+        emoji = self._select_from_candidates(
+            group.get('candidate_emojis') or [],
+            group.get('text', ""),
+            avoid=self._recent_emojis,
+        )
+        if emoji:
+            return emoji
+        fallback = str(self.config.get('emoji_no_context_fallback') or "")
+        if fallback and fallback not in self._recent_emojis:
+            return fallback
+        return ""
+
+    def _select_hero_emoji(self, candidates: Sequence[str]) -> str:
+        if not candidates:
+            return ""
+        for candidate in candidates:
+            if candidate and candidate not in self._recent_emojis:
+                return candidate
+        return candidates[0] if candidates and candidates[0] not in {""} else ""
+
+    def _plan_emojis_for_segment(self, groups: List[Dict]) -> None:
+        if not groups or not self.config.get('enable_emojis', False):
+            return
+        target = max(0, int(round(len(groups) * float(self.config.get('emoji_target_per_10', 0)) / 10.0)))
+        target = min(target, int(self.config.get('emoji_max_per_segment', target)))
+        if target <= 0:
+            return
+        min_gap = max(0, int(self.config.get('emoji_min_gap_groups', 0)))
+        hero_remaining = int(self.config.get('hero_emoji_max_per_segment', 0)) if self.config.get('hero_emoji_enable', True) else 0
+        placements = 0
+        for idx, group in enumerate(groups):
+            group['emojis'] = []
+            global_index = self._global_group_index + idx
+            if placements >= target:
+                continue
+            if global_index - self._last_emoji_global_index < min_gap:
+                continue
+            hero_emoji = ""
+            if hero_remaining > 0:
+                hero_emoji = self._select_hero_emoji(group.get('hero_candidates') or [])
+            if hero_emoji:
+                emoji = hero_emoji
+                hero_remaining -= 1
+            else:
+                emoji = self._select_group_emoji(group)
+            if not emoji:
+                continue
+            group['emojis'] = [emoji]
+            placements += 1
+            self._last_emoji_global_index = global_index
+            self._recent_emojis.append(emoji)
+        self._global_group_index += len(groups)
 
     def create_subtitle_frame(self, frame: np.ndarray, words: List[Dict], 
                               current_time: float) -> np.ndarray:
@@ -906,11 +917,18 @@ class HormoziSubtitles:
         items = []
         total_w = 0
         max_h = 0
+        group_meta: List[Dict[str, object]] = []
         for wobj in active_words:
             prog = float(wobj.get('animation_progress', 1.0))
             scale = 1.0 + (self.config['bounce_scale'] - 1.0) * (1.0 - min(prog,1.0))
             fsize = max(1, int(self.config['font_size'] * scale))
             font = self._load_font(fsize)
+            group_idx = len(group_meta)
+            group_meta.append({
+                'emojis': list(wobj.get('emojis') or []),
+                'font_size': fsize,
+                'max_height': 0,
+            })
             tokens = wobj.get("tokens") if isinstance(wobj, dict) else None
             # 1) Mots
             if tokens:
@@ -946,18 +964,22 @@ class HormoziSubtitles:
                         'pad_y': pad_y,
                         'keyword': is_keyword,
                         'color_hex': color_hex,
+                        'group_index': group_idx,
                     })
                     total_w += w_total
                     max_h = max(max_h, h_total)
+                    group_meta[group_idx]['max_height'] = max(group_meta[group_idx]['max_height'], h_total)
+                    group_meta[group_idx]['font_size'] = max(group_meta[group_idx]['font_size'], fsize)
                     if j < len(tokens) - 1:
                         # Espace basé sur la taille de police actuelle
                         try:
                             space_w = int(max(1, draw.textlength(" ", font=font)))
                         except Exception:
                             space_w = int(max(1, 0.33 * fsize))
-                        items.append({'type': 'space', 'w': space_w, 'h': th, 'fs': fsize})
+                        items.append({'type': 'space', 'w': space_w, 'h': th, 'fs': fsize, 'group_index': group_idx})
                         total_w += space_w
                         max_h = max(max_h, h_total)
+                        group_meta[group_idx]['max_height'] = max(group_meta[group_idx]['max_height'], h_total)
             else:
                 text = (wobj.get('text') or '').strip()
                 bbox = draw.textbbox((0, 0), text, font=font)
@@ -978,27 +1000,10 @@ class HormoziSubtitles:
                     'pad_y': 0,
                     'keyword': False,
                     'color_hex': '#FFFFFF',
+                    'group_index': group_idx,
                 })
                 total_w += tw
                 max_h = max(max_h, th)
-            # 2) Emojis en fin de groupe
-            if self.config.get('enable_emojis', False) and self.config.get('emoji_position', 'end') == 'end':
-                for emoji_char in (wobj.get('emojis') or []):
-                    target_h = int(fsize * self.config['emoji_scale_ratio'] * self.config.get('emoji_boost', 1.0))
-                    em_img = self._load_emoji_png(emoji_char, target_h)
-                    if em_img is not None:
-                        ew, eh = em_img.size
-                        items.append({'type': 'emoji', 'img': em_img, 'w': ew + self.config['emoji_gap_px'], 'h': eh, 'fs': fsize})
-                        total_w += (ew + self.config['emoji_gap_px'])
-                        max_h = max(max_h, eh)
-                    elif not self.config.get('emoji_png_only', False):
-                        efont = self._load_emoji_font(target_h)
-                        ebbox = draw.textbbox((0, 0), emoji_char, font=efont)
-                        ew = ebbox[2] - ebbox[0]
-                        eh = ebbox[3] - ebbox[1]
-                        items.append({'type': 'emoji_text', 'char': emoji_char, 'font': efont, 'w': ew + self.config['emoji_gap_px'], 'h': eh, 'fs': fsize})
-                        total_w += (ew + self.config['emoji_gap_px'])
-                        max_h = max(max_h, eh)
         # Auto-scale si trop large (> 92% de la largeur)
         target_w = int(width * 0.92)
         if total_w > target_w and items:
@@ -1039,6 +1044,7 @@ class HormoziSubtitles:
                         'pad_y': pad_y,
                         'keyword': keyword,
                         'color_hex': color_hex,
+                        'group_index': it.get('group_index'),
                     })
                     total_w += nw_total
                     max_h = max(max_h, nh_total)
@@ -1049,18 +1055,27 @@ class HormoziSubtitles:
                         nw = int(max(1, draw.textlength(" ", font=nfont)))
                     except Exception:
                         nw = int(max(1, 0.33 * new_fs))
-                    new_items.append({'type':'space','w':nw,'h':it['h'],'fs':new_fs})
+                    new_items.append({'type':'space','w':nw,'h':it['h'],'fs':new_fs,'group_index': it.get('group_index')})
                     total_w += nw; max_h = max(max_h, it['h'])
                 elif it['type'] == 'emoji':
                     em = it['img']
                     nw = max(1, int(em.size[0] * shrink)); nh = max(1, int(em.size[1] * shrink))
                     em_resized = em.resize((nw, nh), Image.Resampling.LANCZOS)
-                    new_items.append({'type':'emoji','img':em_resized,'w':nw + self.config['emoji_gap_px'],'h':nh,'fs':int(it.get('fs', self.config['font_size']) * shrink)})
+                    new_items.append({'type':'emoji','img':em_resized,'w':nw + self.config['emoji_gap_px'],'h':nh,'fs':int(it.get('fs', self.config['font_size']) * shrink),'group_index': it.get('group_index')})
                     total_w += (nw + self.config['emoji_gap_px']); max_h = max(max_h, nh)
                 else:
                     new_items.append(it)
                     total_w += it.get('w', 0); max_h = max(max_h, it.get('h', 0))
             items = new_items
+        for meta in group_meta:
+            meta['max_height'] = 0
+        for it in items:
+            group_idx = it.get('group_index') if isinstance(it, dict) else None
+            if group_idx is None:
+                continue
+            if it['type'] in {'word', 'space'}:
+                group_meta[group_idx]['max_height'] = max(group_meta[group_idx].get('max_height', 0), it.get('h', 0))
+                group_meta[group_idx]['font_size'] = max(group_meta[group_idx].get('font_size', 0), it.get('fs', 0))
         # Position
         x = (width - total_w) // 2
         # Marge adaptative: au moins un pourcentage de la hauteur
@@ -1081,9 +1096,14 @@ class HormoziSubtitles:
             alpha_y = 0.15
             self._y_ema = (1 - alpha_y) * self._y_ema + alpha_y * y_target
         y = int(self._y_ema)
-        base_outline = int(self.config.get('outline_width', 4))
-        outline_w = max(base_outline, max(2, int(round(width * 0.002))))
-        shadow_offset = max(1, int(round(width * 0.0015)))
+        stroke_px = max(0, int(self.config.get('stroke_px', 6)))
+        stroke_color = tuple(self.config.get('stroke_color', (0, 0, 0)))
+        shadow_offset_px = max(0, int(self.config.get('shadow_offset', 3)))
+        shadow_opacity = float(self.config.get('shadow_opacity', 0.35))
+        group_positions: Dict[int, Dict[str, Optional[int]]] = {
+            idx: {'start_x': None, 'end_x': None, 'baseline_y': None, 'max_h': 0}
+            for idx in range(len(group_meta))
+        }
         # Rendu
         for it in items:
             if it['type'] == 'word':
@@ -1101,36 +1121,82 @@ class HormoziSubtitles:
                 draw_x = x + pad_x
                 draw_y = y + pad_y
                 bg_rgb = it.get('bg_rgb')
+                group_idx = it.get('group_index')
+                if group_idx is not None:
+                    pos = group_positions[group_idx]
+                    if pos['start_x'] is None:
+                        pos['start_x'] = x
+                        pos['baseline_y'] = draw_y
+                    pos['end_x'] = x + word_w
+                    pos['max_h'] = max(pos['max_h'], word_h)
+                    if pos['baseline_y'] is None or draw_y < pos['baseline_y']:
+                        pos['baseline_y'] = draw_y
                 if self.config.get('keyword_background', False) and bg_rgb:
                     radius = max(2, int(it.get('fs', self.config['font_size']) * 0.25))
                     rect = [int(x), int(y), int(x + word_w), int(y + word_h)]
                     draw.rounded_rectangle(rect, radius=radius, fill=(*bg_rgb, int(alpha * 0.92)))
-                if shadow_offset > 0:
-                    shadow_alpha = max(50, int(alpha * 0.45))
-                    draw.text((draw_x + shadow_offset, draw_y + shadow_offset), word_text, font=font, fill=(0, 0, 0, shadow_alpha))
-                # Contour statique (noir) style Hormozi
-                for dx in range(-outline_w, outline_w + 1):
-                    for dy in range(-outline_w, outline_w + 1):
-                        if dx != 0 or dy != 0:
-                            draw.text((draw_x + dx, draw_y + dy), word_text, font=font, fill=self.config['outline_color'])
+                if shadow_offset_px > 0 and shadow_opacity > 0:
+                    shadow_alpha = max(0, min(255, int(alpha * shadow_opacity)))
+                    if shadow_alpha > 0:
+                        draw.text((draw_x + shadow_offset_px, draw_y + shadow_offset_px), word_text, font=font, fill=(0, 0, 0, shadow_alpha))
+                if stroke_px > 0:
+                    stroke_fill = (*stroke_color, alpha)
+                    for dx in range(-stroke_px, stroke_px + 1):
+                        for dy in range(-stroke_px, stroke_px + 1):
+                            if dx == 0 and dy == 0:
+                                continue
+                            if dx * dx + dy * dy > stroke_px * stroke_px:
+                                continue
+                            draw.text((draw_x + dx, draw_y + dy), word_text, font=font, fill=stroke_fill)
                 # Dessin du texte une seule fois (pas de gradient/ombre pour éviter le sur-noircissement)
                 draw.text((draw_x, draw_y), word_text, font=font, fill=fill)
                 x += word_w
             elif it['type'] == 'space':
                 # Avancer la position horizontale pour l'espace calculé
+                group_idx = it.get('group_index')
+                if group_idx is not None:
+                    pos = group_positions[group_idx]
+                    if pos['start_x'] is None:
+                        pos['start_x'] = x
+                        pos['baseline_y'] = y
+                    pos['end_x'] = x + it['w']
+                    pos['max_h'] = max(pos['max_h'], it.get('h', 0))
                 x += it['w']
-            elif it['type'] == 'emoji':
-                em = it['img']
-                ey = y + max(0, (max_h - em.size[1]) // 2)
-                img.alpha_composite(em, (int(x + self.config['emoji_gap_px']), int(ey)))
-                x += it['w']
-            elif it['type'] == 'emoji_text':
-                efont = it['font']
-                ebbox = ImageDraw.Draw(Image.new('RGBA', (1,1))).textbbox((0, 0), it['char'], font=efont)
-                eh = ebbox[3] - ebbox[1]
-                ey = y + max(0, (max_h - eh) // 2)
-                ImageDraw.Draw(img).text((x + self.config['emoji_gap_px'], ey), it['char'], font=efont, fill=(255,255,255,255))
-                x += it['w']
+
+        for group_idx, meta in enumerate(group_meta):
+            emojis = meta.get('emojis') or []
+            if not emojis:
+                continue
+            pos = group_positions.get(group_idx)
+            if not pos:
+                continue
+            start_x = pos.get('start_x')
+            end_x = pos.get('end_x')
+            baseline_y = pos.get('baseline_y', y)
+            if start_x is None or end_x is None:
+                continue
+            target_base_fs = max(int(meta.get('font_size') or self.config['font_size']), 1)
+            target_h = max(1, int(target_base_fs * self.config.get('emoji_scale_ratio', 0.9) * self.config.get('emoji_boost', 1.0)))
+            for idx, emoji_char in enumerate(emojis):
+                if not emoji_char:
+                    continue
+                emoji_img = self._load_emoji_png(emoji_char, target_h)
+                if emoji_img is None and not self.config.get('emoji_png_only', False):
+                    efont = self._load_emoji_font(target_h)
+                    temp = Image.new('RGBA', (target_h * 2, target_h * 2), (0, 0, 0, 0))
+                    temp_draw = ImageDraw.Draw(temp)
+                    temp_draw.text((0, 0), emoji_char, font=efont, fill=(255, 255, 255, 255))
+                    bbox = temp.getbbox()
+                    if bbox:
+                        emoji_img = temp.crop(bbox)
+                if emoji_img is None:
+                    continue
+                ew, eh = emoji_img.size
+                offset_x = int(end_x - ew * (0.6 - 0.15 * idx))
+                offset_x = min(max(0, offset_x), width - ew)
+                offset_y = int(max(0, (baseline_y or y) - eh * 0.45))
+                img.alpha_composite(emoji_img, (offset_x, offset_y))
+
         text_array = np.array(img)
         if text_array.shape[2] == 4:
             alpha_channel = text_array[:, :, 3] / 255.0
@@ -1143,7 +1209,7 @@ class HormoziSubtitles:
                 ).astype(frame.dtype)
         self._last_render_metadata = {
             'items': items,
-            'outline_width': outline_w,
+            'stroke_px': stroke_px,
             'margin_bottom': margin_bottom_px,
         }
         return frame

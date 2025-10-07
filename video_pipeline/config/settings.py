@@ -166,10 +166,20 @@ class BrollSettings:
 @dataclass(slots=True)
 class SubtitleSettings:
     font_path: Optional[str]
+    font: Optional[str] = None
     font_size: int = 78
     subtitle_safe_margin_px: int = 180
-    keyword_background: bool = True
+    keyword_background: bool = False
+    stroke_px: int = 6
+    shadow_opacity: float = 0.35
+    shadow_offset: int = 3
     enable_emojis: bool = True
+    emoji_target_per_10: int = 5
+    emoji_min_gap_groups: int = 2
+    emoji_max_per_segment: int = 3
+    emoji_no_context_fallback: str = ""
+    hero_emoji_enable: bool = True
+    hero_emoji_max_per_segment: int = 1
 
 
 @dataclass(slots=True)
@@ -231,10 +241,20 @@ class Settings:
             },
             "subtitles": {
                 "font_path": self.subtitles.font_path,
+                "font": self.subtitles.font,
                 "font_size": self.subtitles.font_size,
                 "subtitle_safe_margin_px": self.subtitles.subtitle_safe_margin_px,
                 "keyword_background": self.subtitles.keyword_background,
                 "enable_emojis": self.subtitles.enable_emojis,
+                "stroke_px": self.subtitles.stroke_px,
+                "shadow_opacity": self.subtitles.shadow_opacity,
+                "shadow_offset": self.subtitles.shadow_offset,
+                "emoji_target_per_10": self.subtitles.emoji_target_per_10,
+                "emoji_min_gap_groups": self.subtitles.emoji_min_gap_groups,
+                "emoji_max_per_segment": self.subtitles.emoji_max_per_segment,
+                "emoji_no_context_fallback": self.subtitles.emoji_no_context_fallback,
+                "hero_emoji_enable": self.subtitles.hero_emoji_enable,
+                "hero_emoji_max_per_segment": self.subtitles.hero_emoji_max_per_segment,
             },
             "flags": {
                 "tfidf_fallback_disabled": self.tfidf_fallback_disabled,
@@ -437,6 +457,7 @@ def _broll_settings(env: Optional[Mapping[str, str]]) -> BrollSettings:
 
 def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
     repo_root = Path(__file__).resolve().parents[2]
+
     override = _env(env, "PIPELINE_SUB_FONT_PATH")
     if not override:
         override = _env(env, "PIPELINE_SUBTITLE_FONT_PATH")
@@ -477,33 +498,99 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         except OSError:
             continue
 
+    def _env_preferred(*keys: str) -> Optional[str]:
+        for key in keys:
+            value = _env(env, key)
+            if value is not None:
+                return value
+        return None
+
+    font_name = _env_preferred("PIPELINE_SUBTITLE_FONT", "PIPELINE_SUB_FONT")
+
     font_size = _coerce_int(
-        _env(env, "PIPELINE_SUB_FONT_SIZE"),
+        _env_preferred("PIPELINE_SUBTITLE_FONT_SIZE", "PIPELINE_SUB_FONT_SIZE"),
         78,
         minimum=12,
     )
     safe_margin = _coerce_int(
-        _env(env, "PIPELINE_SUB_SAFE_MARGIN_PX"),
+        _env_preferred("PIPELINE_SUBTITLE_SAFE_MARGIN_PX", "PIPELINE_SUB_SAFE_MARGIN_PX"),
         180,
         minimum=0,
     )
     keyword_background = _resolve_bool_env(
         env,
+        "PIPELINE_SUBTITLE_KEYWORD_BACKGROUND",
         "PIPELINE_SUB_KEYWORD_BACKGROUND",
-        default=True,
+        default=False,
     )
     enable_emojis = _resolve_bool_env(
         env,
+        "PIPELINE_SUBTITLE_ENABLE_EMOJIS",
         "PIPELINE_SUB_ENABLE_EMOJIS",
         default=True,
+    )
+    stroke_px = _coerce_int(
+        _env_preferred("PIPELINE_SUBTITLE_STROKE_PX", "PIPELINE_SUB_STROKE_PX"),
+        6,
+        minimum=0,
+    )
+    shadow_opacity = _coerce_float(
+        _env_preferred("PIPELINE_SUBTITLE_SHADOW_OPACITY", "PIPELINE_SUB_SHADOW_OPACITY"),
+        0.35,
+        minimum=0.0,
+    )
+    shadow_offset = _coerce_int(
+        _env_preferred("PIPELINE_SUBTITLE_SHADOW_OFFSET", "PIPELINE_SUB_SHADOW_OFFSET"),
+        3,
+        minimum=0,
+    )
+    emoji_target = _coerce_int(
+        _env_preferred("PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10", "PIPELINE_SUB_EMOJI_TARGET_PER_10"),
+        5,
+        minimum=0,
+    )
+    emoji_min_gap = _coerce_int(
+        _env_preferred("PIPELINE_SUBTITLE_EMOJI_MIN_GAP_GROUPS", "PIPELINE_SUB_EMOJI_MIN_GAP_GROUPS"),
+        2,
+        minimum=0,
+    )
+    emoji_max_segment = _coerce_int(
+        _env_preferred("PIPELINE_SUBTITLE_EMOJI_MAX_PER_SEGMENT", "PIPELINE_SUB_EMOJI_MAX_PER_SEGMENT"),
+        3,
+        minimum=0,
+    )
+    emoji_fallback = _env_preferred(
+        "PIPELINE_SUBTITLE_EMOJI_NO_CONTEXT_FALLBACK",
+        "PIPELINE_SUB_EMOJI_NO_CONTEXT_FALLBACK",
+    ) or ""
+    hero_enable = _resolve_bool_env(
+        env,
+        "PIPELINE_SUBTITLE_HERO_EMOJI_ENABLE",
+        "PIPELINE_SUB_HERO_EMOJI_ENABLE",
+        default=True,
+    )
+    hero_max = _coerce_int(
+        _env_preferred("PIPELINE_SUBTITLE_HERO_EMOJI_MAX_PER_SEGMENT", "PIPELINE_SUB_HERO_EMOJI_MAX_PER_SEGMENT"),
+        1,
+        minimum=0,
     )
 
     return SubtitleSettings(
         font_path=resolved_font,
+        font=font_name,
         font_size=font_size,
         subtitle_safe_margin_px=safe_margin,
         keyword_background=keyword_background,
+        stroke_px=stroke_px,
+        shadow_opacity=shadow_opacity,
+        shadow_offset=shadow_offset,
         enable_emojis=enable_emojis,
+        emoji_target_per_10=emoji_target,
+        emoji_min_gap_groups=emoji_min_gap,
+        emoji_max_per_segment=emoji_max_segment,
+        emoji_no_context_fallback=emoji_fallback,
+        hero_emoji_enable=hero_enable,
+        hero_emoji_max_per_segment=hero_max,
     )
 
 

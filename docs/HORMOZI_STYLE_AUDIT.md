@@ -18,29 +18,25 @@ célèbre sur TikTok, et si la logique d'emojis est cohérente.
 * **Position basse avec marge de sécurité** – la logique maintient les sous-titres
   centrés, en bas de l'image, avec une marge (~200 px) proche des standards Hormozi.【F:hormozi_subtitles.py†L776-L858】
 
-### Écarts relevés
+### Mise à niveau Montserrat "viral"
 
-* **Palette incohérente** – la table `category_colors` surcharge plusieurs fois la clé
-  `business` (or puis bleu) et ne définit pas la clé `finance` alors qu'elle est
-  utilisée plus loin, ce qui provoque des retours en blanc et des erreurs de cohérence
-  par rapport au combo jaune/vert très marqué du style Hormozi.【F:hormozi_subtitles.py†L112-L170】【F:hormozi_subtitles.py†L337-L374】
-* **Pas de fond coloré derrière le mot clé** – `keyword_background` est à `False` et
-  aucun rectangle de couleur n'est dessiné derrière les mots ; or le style Hormozi 1
-  se caractérise justement par des blocs pleins jaunes/verts/rouges sous les mots
-  clés. Le pipeline produit donc un texte coloré mais sans background, ce qui reste
-  visuellement loin du rendu attendu.【F:hormozi_subtitles.py†L82-L140】【F:hormozi_subtitles.py†L878-L1008】
-* **Couverture partielle des catégories** – des catégories ajoutées dans
-  `_bootstrap_categories` (`sales`, `content`, `sports`, etc.) ne possèdent ni couleur
-  ni emojis dédiés, de sorte que les mots correspondants ressortent en blanc, sans
-  accent, contrairement à la direction artistique Hormozi qui exige une coloration
-  quasi systématique des termes forts.【F:hormozi_subtitles.py†L660-L732】
-* **Police non garantie** – si Impact/Arial Bold ne sont pas installées, le code
-  retombe sur la police par défaut Pillow, ce qui casse l'identité visuelle. Un pack
-  de police embarqué serait nécessaire pour garantir le style.【F:hormozi_subtitles.py†L584-L604】
+* **Palette resserrée et stable** – la table `category_colors` aligne désormais les
+  thèmes principaux (finance, business, sales, content, sports…) sur six couleurs
+  haute-contraste (#FFD700, #00E5FF, #FF1493, #32CD32, #FF8C00, #8A2BE2) directement
+  appliquées sur le texte.【F:hormozi_subtitles.py†L101-L164】
+* **Texte coloré sans blocs** – `keyword_background` est désactivé par défaut et la
+  coloration passe par le remplissage du mot lui-même, avec un stroke noir de 6 px
+  et un drop shadow léger pour garder la lisibilité sans cartons opaques.【F:hormozi_subtitles.py†L64-L142】【F:hormozi_subtitles.py†L930-L1038】
+* **Police Montserrat ExtraBold forcée** – la résolution de police préfère les
+  fichiers Montserrat embarqués ; le chemin retenu est journalisé via `Settings` et
+  un log `[Subtitles]` est émis à la première utilisation.【F:video_pipeline/config/settings.py†L170-L229】【F:hormozi_subtitles.py†L251-L308】
+* **Auto-layout stabilisé** – la largeur est rescannée pour rester sous 92 % de la
+  vidéo et l'animation conserve un Y lissé pour éviter les sauts, même avec le
+  rebond.【F:hormozi_subtitles.py†L820-L912】
 
-> **Conclusion** : le moteur pose de bonnes bases (majuscule, contour, bounce), mais
-> il manque la palette jaune/verte sur fond rectangulaire et une table de couleurs
-> cohérente pour répliquer fidèlement le style Hormozi 1 viral.
+> **Conclusion** : le rendu colle désormais à la tendance "viral Montserrat" : mots
+> tout en capitales, couleurs punchy directement sur la lettre, stroke noir massif et
+> drop shadow subtil, le tout centré en bas avec une marge sécurisée configurable.
 
 ## 2. Qualité du mapping et du rendu des emojis
 
@@ -55,41 +51,39 @@ célèbre sur TikTok, et si la logique d'emojis est cohérente.
 * **Fallback PNG/Unicode** – lorsqu'aucun PNG Twemoji n'est disponible, le pipeline
   bascule sur un rendu Unicode en police couleur, évitant un trou dans l'affichage.【F:hormozi_subtitles.py†L612-L652】【F:hormozi_subtitles.py†L1008-L1040】
 
-### Limites et incohérences
+### Logique emoji revisitée
 
-* **Couverture incomplète** – les catégories `sales`, `content`, `mobile`, `sports`,
-  etc., introduites pour les mots clés, ne disposent d'aucune entrée dans
-  `category_emojis`. Ces mots n'obtiennent donc jamais d'emoji dédié, ce qui nuit à la
-  cohérence entre le discours et l'iconographie.【F:hormozi_subtitles.py†L660-L708】【F:hormozi_subtitles.py†L188-L256】
-* **Priorité couleur → emoji cassée** – la construction de `self.keyword_colors`/`emoji_mapping`
-  s'appuie sur `self.category_colors.get(cat, '#FFFFFF')`. Quand `cat` vaut `finance`
-  ou `sales` (non définis dans la palette), le mot reste blanc et l'emoji mapping est
-  ignoré. On perd ainsi les cas emblématiques (💰, ⚡) censés renforcer le style.【F:hormozi_subtitles.py†L248-L276】【F:hormozi_subtitles.py†L708-L736】
-* **Densité aléatoire** – lorsque aucun score ne ressort, `_choose_emoji_for_tokens`
-  force un fallback vers la catégorie `business`. On se retrouve facilement avec des
-  💼/📊 hors contexte si les mots n'appartiennent à aucune catégorie connue.【F:hormozi_subtitles.py†L768-L824】
-* **Pas d'association multi-mots** – le moteur raisonne groupe par groupe et ne gère
-  pas d'emojis composés (ex : texte parlant d'"🔥 OFFER" devrait déclencher à la fois
-  🔥 et 💰). Un enrichissement via `span_style_map` ou des big-emojis ciblés serait
-  nécessaire pour atteindre la densité TikTok.【F:hormozi_subtitles.py†L188-L256】【F:hormozi_subtitles.py†L928-L1008】
+* **Mapping exhaustif** – toutes les catégories renseignées dans
+  `_bootstrap_categories` disposent d'un nuancier et d'une liste d'emojis, alias
+  compris. Le fallback générique disparaît au profit d'un retour vide lorsque le
+  contexte est absent.【F:hormozi_subtitles.py†L166-L254】【F:hormozi_subtitles.py†L264-L342】
+* **Densité contrôlée** – `_plan_emojis_for_segment` distribue environ 4 à 5 emojis
+  pour 10 groupes, impose un écart minimal configuré et empêche la répétition dans la
+  fenêtre des 4 derniers groupes.【F:hormozi_subtitles.py†L866-L950】【F:tests/test_emojis_density_and_mapping.py†L18-L53】
+* **Hero triggers** – des déclencheurs dédiés (🔥 + "offer", ⚡ + "energy", 💰 +
+  "profit") permettent de placer un emoji "hero" par segment, option activable via la
+  config typée.【F:hormozi_subtitles.py†L220-L247】【F:hormozi_subtitles.py†L866-L950】
+* **Placement attaché au mot** – les emojis se superposent désormais dans l'angle
+  supérieur droit du groupe coloré, plutôt qu'en suffixe flottant, ce qui renforce la
+  lecture verticale sans casser le centrage.【F:hormozi_subtitles.py†L930-L1038】
 
-> **Conclusion** : le mapping actuel suffit pour une première passe automatique, mais
-> des trous de couverture et des couleurs incohérentes empêchent d'obtenir une
-> narration emoji vraiment logique et alignée sur les mots clés.
+> **Conclusion** : la narration emoji gagne en cohérence (pas de 💼 hors sujet), en
+> rythme et en densité, tout en restant maîtrisée grâce au seuil cible paramétrable.
 
 ## 3. Recommandations rapides
 
-1. **Stabiliser la palette** : ajouter explicitement `finance`, `sales`, `content`, etc.
-   dans `category_colors` et éviter les doublons de clés.
-2. **Activer les fonds colorés** : dessiner des rectangles derrière les mots clés
-   (`keyword_background=True`) pour coller à la charte Hormozi.
-3. **Fournir une police embarquée** : inclure Impact (ou équivalent) dans le repo et
-   la charger par défaut.
-4. **Compléter `category_emojis`** : fournir des listes pour toutes les catégories
-   créées dans `_bootstrap_categories`, et enrichir `emoji_alias` pour couvrir
-   davantage de cas en français.
-5. **Réduire le fallback générique** : ajuster `_choose_emoji_for_tokens` pour
-   retourner `""` plutôt qu'un emoji hors sujet quand aucune catégorie ne ressort.
+1. **Élargir les alias sémantiques** : poursuivre l'enrichissement de
+   `_bootstrap_categories`/`emoji_alias` pour couvrir de nouveaux vocables marketing
+   et francophones.
+2. **Documenter les presets** : exposer dans la doc produit des presets prêts à l'emploi
+   combinant tailles, stroke et drop shadow pour différents formats (shorts, 9:16, 1:1).
+3. **Surveiller les déclencheurs hero** : affiner la liste `_hero_triggers` au gré des
+   retours créatifs afin d'éviter toute saturation visuelle.
+4. **Optimiser le cache emoji** : prévoir un nettoyage périodique du dossier
+   `emoji_assets/` afin de limiter la taille disque lorsque de nouveaux emojis sont
+   téléchargés.
+5. **Outiller la QA** : conserver une suite de tests dédiés (stroke, densité emojis,
+   fallback vide) pour prévenir toute régression lors d'évolutions futures.
 
 Ces ajustements rapprocheraient nettement le rendu du style Hormozi 1 viral et
 rendraient les emojis plus cohérents avec le contenu des sous-titres.
@@ -98,5 +92,5 @@ rendraient les emojis plus cohérents avec le contenu des sous-titres.
 
 * **Police Montserrat prioritaire** – les fichiers `Montserrat-ExtraBold.ttf` et `Montserrat-Bold.ttf` sont embarqués et chargés avant les polices système. Le chemin effectif est résolu dans la config typée (`SubtitleSettings.font_path`) et consigné dans le log startup.【F:MANIFEST.in†L1-L1】【F:video_pipeline/config/settings.py†L162-L202】
 * **Config typée appliquée au burn-in** – `video_processor_clean` transmet désormais `get_settings().subtitles` au wrapper `add_hormozi_subtitles`, garantissant que marge, taille, fonds de mots-clés et émojis suivent la configuration centralisée.【F:video_processor_clean.py†L811-L818】
-* **Palette stabilisée + fonds rectangulaires** – `self.category_colors` couvre explicitement `finance`, `sales`, `content`, `mobile`, `sports` et synonymes. Lors du rendu, un fond arrondi est peint derrière chaque mot-clé lorsque `keyword_background` est actif.【F:hormozi_subtitles.py†L147-L182】【F:hormozi_subtitles.py†L870-L924】
-* **Mapping emoji cohérent** – `category_emojis` fournit une liste pour chaque catégorie, les alias héritent de la même base et le moteur anti-repeat sélectionne un symbole différent sur les appels successifs ou retourne `""` si aucune catégorie n'est pertinente.【F:hormozi_subtitles.py†L184-L210】【F:hormozi_subtitles.py†L770-L828】
+* **Palette stabilisée + remplissage texte** – `self.category_colors` couvre explicitement `finance`, `sales`, `content`, `mobile`, `sports` et synonymes, avec application directe sur la lettre et stroke configurable.【F:hormozi_subtitles.py†L166-L254】【F:tests/test_subtitles_montserrat_fill.py†L9-L37】
+* **Mapping emoji cohérent** – `category_emojis` fournit une liste pour chaque catégorie, les alias héritent de la même base et la planification applique l'anti-repeat fenêtre de 4 groupes ou retourne `""` en l'absence de contexte.【F:hormozi_subtitles.py†L866-L950】【F:tests/test_emojis_density_and_mapping.py†L18-L53】

@@ -60,10 +60,34 @@ def _reset_config(monkeypatch):
         "UNSPLASH_ACCESS_KEY",
         "PIPELINE_SUB_FONT_PATH",
         "PIPELINE_SUBTITLE_FONT_PATH",
+        "PIPELINE_SUB_FONT",
+        "PIPELINE_SUBTITLE_FONT",
         "PIPELINE_SUB_FONT_SIZE",
+        "PIPELINE_SUBTITLE_FONT_SIZE",
         "PIPELINE_SUB_SAFE_MARGIN_PX",
+        "PIPELINE_SUBTITLE_SAFE_MARGIN_PX",
         "PIPELINE_SUB_KEYWORD_BACKGROUND",
+        "PIPELINE_SUBTITLE_KEYWORD_BACKGROUND",
         "PIPELINE_SUB_ENABLE_EMOJIS",
+        "PIPELINE_SUBTITLE_ENABLE_EMOJIS",
+        "PIPELINE_SUBTITLE_STROKE_PX",
+        "PIPELINE_SUBTITLE_SHADOW_OPACITY",
+        "PIPELINE_SUBTITLE_SHADOW_OFFSET",
+        "PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10",
+        "PIPELINE_SUBTITLE_EMOJI_MIN_GAP_GROUPS",
+        "PIPELINE_SUBTITLE_EMOJI_MAX_PER_SEGMENT",
+        "PIPELINE_SUBTITLE_EMOJI_NO_CONTEXT_FALLBACK",
+        "PIPELINE_SUBTITLE_HERO_EMOJI_ENABLE",
+        "PIPELINE_SUBTITLE_HERO_EMOJI_MAX_PER_SEGMENT",
+        "PIPELINE_SUB_STROKE_PX",
+        "PIPELINE_SUB_SHADOW_OPACITY",
+        "PIPELINE_SUB_SHADOW_OFFSET",
+        "PIPELINE_SUB_EMOJI_TARGET_PER_10",
+        "PIPELINE_SUB_EMOJI_MIN_GAP_GROUPS",
+        "PIPELINE_SUB_EMOJI_MAX_PER_SEGMENT",
+        "PIPELINE_SUB_EMOJI_NO_CONTEXT_FALLBACK",
+        "PIPELINE_SUB_HERO_EMOJI_ENABLE",
+        "PIPELINE_SUB_HERO_EMOJI_MAX_PER_SEGMENT",
     ]
     for key in keys:
         monkeypatch.delenv(key, raising=False)
@@ -103,10 +127,20 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     monkeypatch.setenv("PIPELINE_FAST_TESTS", "true")
     monkeypatch.setenv("PIPELINE_MAX_SEGMENTS_IN_FLIGHT", "-2")
     monkeypatch.setenv("PIPELINE_SUB_FONT_PATH", str(tmp_path / "missing.ttf"))
+    monkeypatch.setenv("PIPELINE_SUBTITLE_FONT", "Montserrat ExtraBold")
     monkeypatch.setenv("PIPELINE_SUB_FONT_SIZE", "100")
     monkeypatch.setenv("PIPELINE_SUB_SAFE_MARGIN_PX", "120")
     monkeypatch.setenv("PIPELINE_SUB_KEYWORD_BACKGROUND", "0")
     monkeypatch.setenv("PIPELINE_SUB_ENABLE_EMOJIS", "false")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_STROKE_PX", "8")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_SHADOW_OPACITY", "0.5")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_SHADOW_OFFSET", "6")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10", "7")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_MIN_GAP_GROUPS", "3")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_MAX_PER_SEGMENT", "4")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_NO_CONTEXT_FALLBACK", "⭐")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_HERO_EMOJI_ENABLE", "0")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_HERO_EMOJI_MAX_PER_SEGMENT", "2")
 
     settings = load_settings()
 
@@ -146,8 +180,18 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     assert settings.subtitles.subtitle_safe_margin_px == 120
     assert settings.subtitles.keyword_background is False
     assert settings.subtitles.enable_emojis is False
+    assert settings.subtitles.font == "Montserrat ExtraBold"
     assert settings.subtitles.font_path is not None
     assert settings.subtitles.font_path.endswith("Montserrat-ExtraBold.ttf")
+    assert settings.subtitles.stroke_px == 8
+    assert settings.subtitles.shadow_opacity == pytest.approx(0.5)
+    assert settings.subtitles.shadow_offset == 6
+    assert settings.subtitles.emoji_target_per_10 == 7
+    assert settings.subtitles.emoji_min_gap_groups == 3
+    assert settings.subtitles.emoji_max_per_segment == 4
+    assert settings.subtitles.emoji_no_context_fallback == "⭐"
+    assert settings.subtitles.hero_emoji_enable is False
+    assert settings.subtitles.hero_emoji_max_per_segment == 2
 
 
 def test_config_boot_aliases_and_paths(monkeypatch, tmp_path):
