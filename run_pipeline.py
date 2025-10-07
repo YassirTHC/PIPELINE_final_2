@@ -393,6 +393,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     settings = get_settings()
     log_effective_settings(settings)
 
+    if settings.llm.force_non_stream:
+        os.environ["PIPELINE_LLM_FORCE_NON_STREAM"] = "1"
+    else:
+        os.environ.setdefault("PIPELINE_LLM_FORCE_NON_STREAM", "0")
+
+    timeout_value = max(5, int(settings.llm.timeout_fallback_s)) if settings.llm.timeout_fallback_s else 35
+    os.environ.setdefault("PIPELINE_LLM_TIMEOUT_S", str(timeout_value))
+
+    num_predict_value = max(1, int(settings.llm.num_predict)) if settings.llm.num_predict else 96
+    os.environ.setdefault("PIPELINE_LLM_NUM_PREDICT", str(min(96, num_predict_value)))
+
     parser = argparse.ArgumentParser(
         description="Launch the video pipeline with stable environment defaults."
     )
