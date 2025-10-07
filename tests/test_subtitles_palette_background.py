@@ -42,6 +42,19 @@ def test_keyword_background_enabled_sets_metadata():
     assert any(item.get('bg_rgb') for item in items if item.get('type') == 'word')
 
 
+def test_keyword_background_disabled_has_no_rectangles():
+    proc = HormoziSubtitles()
+    proc.config['keyword_background'] = False
+    proc.config['enable_emojis'] = False
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+    words = _build_test_words()
+
+    _ = proc.create_subtitle_frame(frame, words, current_time=0.0)
+    metadata = getattr(proc, '_last_render_metadata', {})
+    items = metadata.get('items', [])
+    assert all(not item.get('bg_rgb') for item in items if item.get('type') == 'word')
+
+
 def test_palette_covers_primary_categories():
     proc = HormoziSubtitles()
     required = ['finance', 'sales', 'content', 'mobile', 'sports']

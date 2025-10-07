@@ -151,6 +151,7 @@ class HormoziSubtitles:
                     self.config['preferred_font_name'] = preferred_font
 
         self._font_candidates = self._build_font_candidates(font_candidates)
+        self._log_startup_state()
         # Presets de marque (brand kits)
         self.brand_presets = {
             'default': {'font_size': 85, 'outline_color': (0,0,0), 'outline_width': 4},
@@ -159,22 +160,12 @@ class HormoziSubtitles:
         }
         
         palette = {
-            'finance': '#FFD700',
-            'business': '#00E5FF',
-            'sales': '#FF8C00',
-            'content': '#FF1493',
-            'actions': '#FF8C00',
-            'success': '#32CD32',
-            'urgency': '#FF8C00',
-            'emotions': '#FF1493',
-            'tech': '#8A2BE2',
-            'mobile': '#00E5FF',
-            'personal': '#32CD32',
-            'solutions': '#00E5FF',
-            'problems': '#FF8C00',
-            'health': '#32CD32',
-            'sports': '#8A2BE2',
-            'education': '#8A2BE2',
+            'finance': '#FFD447',  # jaune
+            'sales': '#FF5B5B',    # rouge
+            'content': '#FF5DA2',  # magenta
+            'growth': '#34C759',   # vert
+            'energy': '#1DD3B0',   # turquoise
+            'focus': '#2563EB',    # bleu
         }
         aliases = {
             'money': 'finance',
@@ -182,46 +173,64 @@ class HormoziSubtitles:
             'profit': 'finance',
             'wealth': 'finance',
             'revenue': 'finance',
-            'corporate': 'business',
-            'strategy': 'business',
-            'leadership': 'business',
-            'team': 'business',
+            'business': 'sales',
+            'corporate': 'sales',
+            'strategy': 'focus',
+            'leadership': 'growth',
+            'team': 'growth',
             'marketing': 'content',
             'creative': 'content',
-            'action': 'actions',
-            'energy': 'actions',
-            'power': 'actions',
-            'movement': 'actions',
-            'victory': 'success',
-            'achievement': 'success',
-            'winning': 'success',
-            'time': 'urgency',
-            'deadline': 'urgency',
-            'pressure': 'urgency',
-            'attention': 'urgency',
-            'important': 'urgency',
-            'critical': 'urgency',
-            'stop': 'urgency',
-            'urgent': 'urgency',
-            'passion': 'emotions',
-            'excitement': 'emotions',
-            'inspiration': 'emotions',
-            'digital': 'tech',
-            'innovation': 'tech',
-            'future': 'tech',
-            'mindset': 'personal',
-            'growth': 'personal',
-            'learning': 'personal',
-            'fix': 'solutions',
-            'resolve': 'solutions',
-            'improve': 'solutions',
-            'challenges': 'problems',
-            'obstacles': 'problems',
-            'difficulties': 'problems',
-            'wellness': 'health',
-            'fitness': 'health',
-            'mindfulness': 'health',
+            'content': 'content',
+            'actions': 'energy',
+            'action': 'energy',
+            'energy': 'energy',
+            'power': 'energy',
+            'movement': 'energy',
+            'success': 'growth',
+            'victory': 'growth',
+            'achievement': 'growth',
+            'winning': 'growth',
+            'results': 'growth',
+            'win': 'growth',
+            'growth': 'growth',
+            'urgency': 'focus',
+            'time': 'focus',
+            'deadline': 'focus',
+            'pressure': 'focus',
+            'attention': 'focus',
+            'important': 'focus',
+            'critical': 'focus',
+            'stop': 'focus',
+            'urgent': 'focus',
+            'focus': 'focus',
+            'passion': 'energy',
+            'excitement': 'energy',
+            'inspiration': 'energy',
+            'emotions': 'energy',
+            'digital': 'focus',
+            'innovation': 'focus',
+            'future': 'growth',
+            'tech': 'focus',
+            'mobile': 'focus',
+            'mindset': 'growth',
+            'learning': 'growth',
+            'personal': 'growth',
+            'solutions': 'focus',
+            'fix': 'focus',
+            'resolve': 'focus',
+            'improve': 'focus',
+            'problems': 'sales',
+            'challenges': 'sales',
+            'obstacles': 'sales',
+            'difficulties': 'sales',
+            'health': 'growth',
+            'wellness': 'growth',
+            'fitness': 'energy',
+            'sports': 'energy',
+            'education': 'content',
+            'time-management': 'focus',
         }
+        self._default_category_color = palette['focus']
         self.category_colors: Dict[str, str] = {}
         for key, value in palette.items():
             self.category_colors[key] = value
@@ -230,21 +239,11 @@ class HormoziSubtitles:
         
         base_emojis: Dict[str, List[str]] = {
             'finance': ['💰', '💸', '📈', '🤑', '🏦', '💳'],
-            'business': ['💼', '📊', '📈', '🤝', '🏢', '📝'],
-            'sales': ['🛒', '🤝', '💳', '📦', '📈', '💸'],
+            'sales': ['🛒', '🤝', '🏷️', '💳', '📈', '📞'],
             'content': ['🎬', '📝', '📹', '🎧', '🎨', '📱'],
-            'actions': ['⚡', '🚀', '🔥', '💪', '🏃', '💥'],
-            'success': ['🏆', '🎯', '🌟', '✅', '🎉', '💯'],
-            'urgency': ['⏰', '⚠️', '🚨', '⏳', '❗', '🕒'],
-            'emotions': ['🔥', '🤯', '😍', '✨', '😁', '🥳'],
-            'tech': ['🤖', '💻', '🧠', '🛰️', '🔌', '📡'],
-            'mobile': ['📱', '📲', '💬', '🕹️', '📟', '📶'],
-            'personal': ['🧠', '💡', '🧘', '📚', '📝', '🎯'],
-            'solutions': ['✅', '🧩', '🔑', '🛠️', '💡', '🔧'],
-            'problems': ['⚠️', '❌', '🛑', '💣', '🤔', '😬'],
-            'health': ['❤️', '💪', '🥗', '🧘', '🏥', '🩺'],
-            'sports': ['🏀', '⚽', '🏃', '💪', '🎽', '🥇'],
-            'education': ['📚', '🎓', '✏️', '🧠', '📖', '📝'],
+            'growth': ['📈', '🌱', '🚀', '🎯', '🏆', '💡'],
+            'energy': ['⚡', '🔥', '💥', '💪', '🚀', '🌪️'],
+            'focus': ['🎯', '🧠', '⌛', '🕒', '🔍', '📘'],
         }
         self.category_emojis: Dict[str, List[str]] = {
             key: list(values) for key, values in base_emojis.items()
@@ -266,20 +265,20 @@ class HormoziSubtitles:
         self.emoji_alias: Dict[str, str] = {
             # Finance
             'ARGENT':'finance','EURO':'finance','EUROS':'finance','REVENU':'finance','REVENUS':'finance','BENEFICE':'finance','BENEFICES':'finance','VENTE':'finance','VENTES':'finance','ACHAT':'finance','ACHETER':'finance','PRICE':'finance','PRICING':'finance','CASH':'finance','MONEY':'finance','PROFIT':'finance','REVENUE':'finance','WEALTH':'finance','BUDGET':'finance','INVEST':'finance','INVESTIR':'finance','ROI':'finance','LTV':'finance','AOV':'finance','BITCOIN':'finance','CRYPTO':'finance','ETHEREUM':'finance',
-            # Success/Growth
-            'SUCCES':'success','SUCCESS':'success','WIN':'success','VICTOIRE':'success','RESULTAT':'success','RESULTATS':'success','GROWTH':'success','GROW':'success','SCALE':'success','EXPAND':'success','PERF':'success','PERFORMANCE':'success','RECORD':'success','TOP':'success','BEST':'success','MILLION':'finance','MILLIONS':'finance',
-            # Actions/Urgency
-            'FAST':'urgency','QUICK':'urgency','RAPIDE':'urgency','IMMEDIAT':'urgency','NOW':'urgency','TODAY':'urgency','MAINTENANT':'urgency','VITE':'urgency','HURRY':'urgency','DEADLINE':'urgency','URGENT':'urgency','ACTION':'actions','ACT':'actions','BUILD':'actions','CREATE':'actions','LAUNCH':'actions','START':'actions','IMPLEMENT':'actions','EXECUTE':'actions','OPTIMIZE':'actions','IMPROVE':'actions',
-            # Business/Team/Client
-            'BUSINESS':'business','ENTREPRISE':'business','SOCIETE':'business','COMPANY':'business','TEAM':'business','CLIENT':'business','CUSTOMER':'business','BRAND':'business','MARKETING':'business','STRATEGY':'business','SYSTEM':'business','PROCESS':'business',
-            # Emotions
-            'WOW':'emotions','INCROYABLE':'emotions','AMAZING':'emotions','INCREDIBLE':'emotions','FIRE':'emotions','🔥':'emotions','CRAZY':'emotions','INSANE':'emotions','MOTIVATION':'emotions','ENERGY':'emotions','PASSION':'emotions','LOVE':'emotions','❤️':'emotions',
-            # Tech
-            'AI':'tech','IA':'tech','AUTOMATION':'tech','ALGORITHME':'tech','ALGORITHM':'tech','CODE':'tech','SOFTWARE':'tech','APP':'tech','DIGITAL':'tech','API':'tech','CLOUD':'tech','DATA':'tech',
+            # Growth / Success / Results
+            'SUCCES':'growth','SUCCESS':'growth','WIN':'growth','VICTOIRE':'growth','RESULTAT':'growth','RESULTATS':'growth','GROWTH':'growth','GROW':'growth','SCALE':'growth','EXPAND':'growth','PERF':'growth','PERFORMANCE':'growth','RECORD':'growth','TOP':'growth','BEST':'growth','RESULTS':'growth','WINNING':'growth','MILLION':'finance','MILLIONS':'finance',
+            # Energy / Actions / Urgency / Time
+            'FAST':'focus','QUICK':'focus','RAPIDE':'focus','IMMEDIAT':'focus','NOW':'focus','TODAY':'focus','MAINTENANT':'focus','VITE':'focus','HURRY':'focus','DEADLINE':'focus','URGENT':'focus','ACTION':'energy','ACT':'energy','BUILD':'energy','CREATE':'energy','LAUNCH':'energy','START':'energy','IMPLEMENT':'energy','EXECUTE':'energy','OPTIMIZE':'energy','IMPROVE':'energy','ENERGY':'energy','POWER':'energy','MOTION':'energy','TIME':'focus','SPEED':'focus',
+            # Business/Team/Client / Sales
+            'BUSINESS':'sales','ENTREPRISE':'sales','SOCIETE':'sales','COMPANY':'sales','TEAM':'growth','CLIENT':'sales','CUSTOMER':'sales','BRAND':'sales','MARKETING':'content','CONTENT':'content','STRATEGY':'focus','SYSTEM':'focus','PROCESS':'focus','SALES':'sales','VENTES':'sales','DEAL':'sales','CLOSE':'sales','NEGOCIER':'sales','NEGOCIATE':'sales','PIPELINE':'sales',
+            # Emotions / Energy vibes
+            'WOW':'energy','INCROYABLE':'energy','AMAZING':'energy','INCREDIBLE':'energy','FIRE':'energy','🔥':'energy','CRAZY':'energy','INSANE':'energy','MOTIVATION':'energy','PASSION':'energy','LOVE':'energy','❤️':'energy','HYPE':'energy',
+            # Tech / Focus
+            'AI':'focus','IA':'focus','AUTOMATION':'focus','ALGORITHME':'focus','ALGORITHM':'focus','CODE':'focus','SOFTWARE':'focus','APP':'focus','DIGITAL':'focus','API':'focus','CLOUD':'focus','DATA':'focus','TECH':'focus','MOBILE':'focus',
             # Problems/Solutions
-            'PROBLEME':'problems','PROBLEM':'problems','ISSUE':'problems','ERREUR':'problems','FAIL':'problems','BUG':'problems','SOLUTION':'solutions','SOLUTIONS':'solutions','FIX':'solutions','PATCH':'solutions','HOWTO':'solutions','SECRET':'solutions','TIP':'solutions','TRICK':'solutions',
-            # Personal/Health
-            'BRAIN':'personal','MENTAL':'personal','NEUROSCIENCE':'personal','DOPAMINE':'personal','ANXIETY':'personal','STRESS':'personal','TRAUMA':'personal','MINDSET':'personal','DISCIPLINE':'personal','HABITS':'personal','GOALS':'personal','FOCUS':'personal','PRODUCTIVITY':'personal','EXERCISE':'personal','MOVEMENT':'personal'
+            'PROBLEME':'sales','PROBLEM':'sales','ISSUE':'sales','ERREUR':'sales','FAIL':'sales','BUG':'sales','SOLUTION':'focus','SOLUTIONS':'focus','FIX':'focus','PATCH':'focus','HOWTO':'focus','SECRET':'focus','TIP':'focus','TRICK':'focus',
+            # Personal/Health/Growth
+            'BRAIN':'growth','MENTAL':'growth','NEUROSCIENCE':'growth','DOPAMINE':'growth','ANXIETY':'growth','STRESS':'growth','TRAUMA':'growth','MINDSET':'growth','DISCIPLINE':'growth','HABITS':'growth','GOALS':'growth','FOCUS':'focus','PRODUCTIVITY':'focus','EXERCISE':'energy','MOVEMENT':'energy','HEALTH':'growth','WELLNESS':'growth'
         }
 
         self._hero_triggers: Dict[str, Sequence[str]] = {
@@ -312,7 +311,7 @@ class HormoziSubtitles:
         self.keyword_colors: Dict[str, str] = {}
         self.emoji_mapping: Dict[str, str] = {}
         for kw, cat in self.keyword_to_category.items():
-            self.keyword_colors[kw] = self.category_colors.get(cat, '#FFFFFF')
+            self.keyword_colors[kw] = self._category_color(cat)
             if cat in self.category_emojis and self.category_emojis[cat]:
                 self.emoji_mapping[kw] = self.category_emojis[cat][0]
         
@@ -333,6 +332,11 @@ class HormoziSubtitles:
         s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
         s = re.sub(r"[^A-Za-z0-9']+", '', s)
         return s.upper()
+
+    def _category_color(self, category: Optional[str]) -> str:
+        if category and category in self.category_colors:
+            return self.category_colors[category]
+        return self._default_category_color
 
     def _get_category_for_word(self, word: str):
         """Retourne la config de catégorie (couleur/emoji) si le mot appartient à une catégorie FR/EN."""
@@ -459,7 +463,7 @@ class HormoziSubtitles:
                             cat_data = self._get_category_for_word(base)
                             category = self._category_from_color(cat_data.get("color") if cat_data else None)
                         if category:
-                            color_hex = self.category_colors.get(category, "#FFFFFF")
+                            color_hex = self._category_color(category)
                             is_keyword = True
                             has_keyword = True
                             colored_used += 1
@@ -491,7 +495,7 @@ class HormoziSubtitles:
                     "start": start_time,
                     "end": end_time,
                     "is_keyword": any(t["is_keyword"] for t in tokens),
-                    "color": "#FFFFFF",
+                    "color": self._default_category_color,
                     "emoji": "",
                     "tokens": tokens,
                     "emojis": [],
@@ -577,21 +581,15 @@ class HormoziSubtitles:
         for candidate in asset_fonts:
             _push(candidate)
 
-        fallback_fonts = [
+        montserrat_system_fonts = [
             "/System/Library/Fonts/Montserrat-ExtraBold.ttf",
             "/System/Library/Fonts/Montserrat-Bold.ttf",
             "/Library/Fonts/Montserrat-ExtraBold.ttf",
             "/Library/Fonts/Montserrat-Bold.ttf",
             "C:/Windows/Fonts/Montserrat-ExtraBold.ttf",
             "C:/Windows/Fonts/Montserrat-Bold.ttf",
-            "C:/Windows/Fonts/impact.ttf",
-            "/Windows/Fonts/impact.ttf",
-            "/System/Library/Fonts/Impact.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/TTF/arial.ttf",
         ]
-        for candidate in fallback_fonts:
+        for candidate in montserrat_system_fonts:
             _push(candidate)
 
         ordered_unique = list(dict.fromkeys(self._font_candidates))
@@ -600,6 +598,32 @@ class HormoziSubtitles:
             ordered_unique.sort(
                 key=lambda path: (0 if preferred_name in Path(path).name.lower() else 1, Path(path).name.lower())
             )
+        packaged_fallback = base_dir / "assets" / "fonts" / "Montserrat-Bold.ttf"
+        montserrat_candidates = [
+            path for path in ordered_unique
+            if "montserrat" in Path(path).name.lower()
+        ]
+        existing_montserrat = [
+            path for path in montserrat_candidates
+            if Path(path).expanduser().exists()
+        ]
+        if not existing_montserrat:
+            if packaged_fallback.exists():
+                logger.warning(
+                    "[Subtitles] No system Montserrat font detected; falling back to packaged Montserrat-Bold"
+                )
+                packaged_str = str(packaged_fallback)
+                normalized_packaged = os.path.normcase(packaged_str)
+                filtered: List[str] = []
+                for candidate in ordered_unique:
+                    if os.path.normcase(candidate) == normalized_packaged:
+                        continue
+                    filtered.append(candidate)
+                ordered_unique = [packaged_str] + filtered
+            else:
+                logger.warning(
+                    "[Subtitles] Montserrat fonts missing from system and assets; MoviePy will use default font"
+                )
         self._font_candidates = ordered_unique
         return ordered_unique
 
@@ -635,6 +659,39 @@ class HormoziSubtitles:
 
     def get_font_path(self) -> Optional[str]:
         return self._resolve_font_path()
+
+    def _log_startup_state(self) -> None:
+        try:
+            resolved_font = self._resolve_font_path()
+            fonts_for_log: List[str] = []
+            for candidate in self._font_candidates:
+                try:
+                    path_obj = Path(candidate).expanduser()
+                    if path_obj.exists():
+                        fonts_for_log.append(str(path_obj))
+                except OSError:
+                    continue
+            if resolved_font and resolved_font not in fonts_for_log:
+                fonts_for_log.insert(0, resolved_font)
+            if fonts_for_log:
+                logger.info("[Subtitles] Fonts resolved: %s", ", ".join(fonts_for_log))
+            else:
+                logger.warning("[Subtitles] No Montserrat font resolved; relying on Pillow default")
+            logger.info(
+                "[Subtitles] Keyword background=%s stroke_px=%s shadow_opacity=%.2f shadow_offset=%s",
+                bool(self.config.get('keyword_background')),
+                self.config.get('stroke_px'),
+                float(self.config.get('shadow_opacity', 0.0)),
+                self.config.get('shadow_offset'),
+            )
+            logger.info(
+                "[Subtitles] Emoji density target=%s gap=%s max=%s",
+                self.config.get('emoji_target_per_10'),
+                self.config.get('emoji_min_gap_groups'),
+                self.config.get('emoji_max_per_segment'),
+            )
+        except Exception:
+            logger.debug("[Subtitles] Unable to log startup state", exc_info=True)
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont:
         tried: set[str] = set()
@@ -1419,7 +1476,7 @@ class HormoziSubtitles:
             return f"#{r:02x}{g:02x}{b:02x}"
         
         # Fallback : couleur par défaut
-        return "#FFFFFF"
+        return self._default_category_color
     
     def get_contextual_emoji_for_keyword(self, keyword: str, text: str = "", sentiment: str = "neutral", intensity: float = 1.0) -> str:
         """MAPPING AUTHENTIQUE HORMOZI 1 POUR TIKTOK VIRAL"""
