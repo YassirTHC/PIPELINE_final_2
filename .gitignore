@@ -21,3 +21,9 @@ clips/
 Thumbs.db
 .vscode/
 .idea/
+# Secrets / env
+.env
+.env.*
+*.env
+*.key
+*.pem
