@@ -2085,11 +2085,31 @@ class VideoProcessor:
             metadata_payload = {}
         metadata_query_cap = max(query_cap, 8)
         metadata_status = str(metadata_payload.get('llm_status') or '').strip().lower()
-        metadata_queries_raw = metadata_payload.get("queries") or []
+        metadata_queries_raw: List[str] = []
         llm_query_source_label: Optional[str] = None
         base_llm_queries: List[str] = []
         if metadata_status == 'ok':
+            try:
+                metadata_queries_raw = (
+                    metadata_payload.get("queries")
+                    or metadata_payload.get("search_queries")
+                    or metadata_payload.get("broll_queries")
+                    or []
+                )
+            except Exception:
+                metadata_queries_raw = []
+            try:
+                debug_keys = list(metadata_payload.keys())
+            except Exception:
+                debug_keys = []
+            print(f"    🔍 DEBUG metadata_payload keys: {debug_keys}")
+            debug_preview = metadata_queries_raw[:5] if metadata_queries_raw else "VIDE - Va régénérer !"
+            print(f"    🔍 DEBUG queries found: {debug_preview}")
             base_llm_queries = _relaxed_normalise_terms(metadata_queries_raw, metadata_query_cap)
+            if not base_llm_queries:
+                broll_kw = metadata_payload.get("broll_keywords") or []
+                print(f"    ⚠️ Queries vides ! Utilisation broll_keywords: {broll_kw[:5]}")
+                base_llm_queries = list(broll_kw[:metadata_query_cap])
             if base_llm_queries:
                 llm_query_source_label = 'llm_metadata'
         if not base_llm_queries:
