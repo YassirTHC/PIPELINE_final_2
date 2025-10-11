@@ -27,3 +27,10 @@ Thumbs.db
 *.env
 *.key
 *.pem
+# Secrets & debug
+.env
+_llm_raw.json
+_meta_debug.json
+diagnostic_broll.json
+last_pipeline_run.txt
+*.backup*
