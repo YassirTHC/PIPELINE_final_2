@@ -2059,18 +2059,208 @@ class VideoProcessor:
         else:
             forced_keep_remaining = None
         forced_keep_allowed = bool(getattr(selection_cfg, 'allow_forced_keep', True))
-# =================== NOUVEAU BLOC À INSERER ===================
+        try:
+            flags = getattr(self._pipeline_config, "flags", None)
+            raw_cap = getattr(flags, "llm_max_queries_per_segment", None)
+            query_cap = int(raw_cap) if raw_cap is not None else SEGMENT_REFINEMENT_MAX_TERMS
+        except Exception:
+            query_cap = SEGMENT_REFINEMENT_MAX_TERMS
+        if not isinstance(query_cap, int):
+            try:
+                query_cap = int(query_cap)
+            except Exception:
+                query_cap = SEGMENT_REFINEMENT_MAX_TERMS
+        if query_cap <= 0:
+            query_cap = SEGMENT_REFINEMENT_MAX_TERMS
+        if query_cap <= 0:
+            query_cap = 4
+
+        dyn_ctx = getattr(self, "_dyn_context", {})
+        if not isinstance(dyn_ctx, dict):
+            dyn_ctx = {}
+        dyn_language = str(dyn_ctx.get("language") or "").strip().lower()
+
+        metadata_payload = getattr(self, "_latest_metadata", {})
+        if not isinstance(metadata_payload, dict):
+            metadata_payload = {}
+        metadata_query_cap = max(query_cap, 8)
+        metadata_status = str(metadata_payload.get('llm_status') or '').strip().lower()
+        metadata_queries_raw = metadata_payload.get("queries") or []
+        llm_query_source_label: Optional[str] = None
+        base_llm_queries: List[str] = []
+        if metadata_status == 'ok':
+            base_llm_queries = _relaxed_normalise_terms(metadata_queries_raw, metadata_query_cap)
+            if base_llm_queries:
+                llm_query_source_label = 'llm_metadata'
+        if not base_llm_queries:
+            base_llm_queries = _relaxed_normalise_terms(dyn_ctx.get("search_queries") or [], metadata_query_cap)
+            if base_llm_queries and llm_query_source_label is None:
+                llm_query_source_label = 'dynamic_context'
+        if not base_llm_queries:
+            try:
+                fetch_kw = getattr(self, "_fetch_keywords", [])
+            except Exception:
+                fetch_kw = []
+            base_llm_queries = _relaxed_normalise_terms(fetch_kw, metadata_query_cap)
+            if base_llm_queries and llm_query_source_label is None:
+                llm_query_source_label = 'fetch_keywords'
+        if not base_llm_queries:
+            base_llm_queries = _relaxed_normalise_terms(broll_keywords or [], metadata_query_cap)
+            if base_llm_queries and llm_query_source_label is None:
+                llm_query_source_label = 'transcript_keywords'
+
+        try:
+            selector_keywords = list(getattr(self, "_selector_keywords", []))
+        except Exception:
+            selector_keywords = []
 
         for idx, segment in enumerate(segments):
-            # On utilise DIRECTEMENT la liste de requêtes du LLM principal
-            queries = llm_queries
-            query_source = 'llm_metadata'
-            query_source_counter[query_source] += 1
-            # On garde l'affichage pour vérifier que ça marche
-            print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
             seg_duration = max(0.0, segment.end - segment.start)
-            # (Le reste de la boucle, à partir de "filters = {}", continue ici)
-# ==============================================================================
+            report_entry = report_segments[idx] if idx < len(report_segments) else None
+
+            llm_hints = None
+            llm_healthy = bool(getattr(self, "_llm_service", None))
+            hint_terms: List[str] = []
+            hint_source: Optional[str] = None
+            raw_hint_items: List[str] = []
+            if getattr(self, "_llm_service", None):
+                try:
+                    llm_hints = self._llm_service.generate_hints_for_segment(
+                        segment.text,
+                        segment.start,
+                        segment.end,
+                    )
+                except Exception:
+                    llm_hints = None
+                    llm_healthy = False
+                else:
+                    llm_healthy = True
+            if llm_hints and isinstance(llm_hints.get('queries'), list):
+                raw_hint_items = [item for item in llm_hints['queries'] if isinstance(item, str)]
+                hint_terms = _dedupe_queries(raw_hint_items, cap=metadata_query_cap)
+                raw_source = llm_hints.get('source') if isinstance(llm_hints, dict) else None
+                if isinstance(raw_source, str) and raw_source.strip():
+                    hint_source = raw_source.strip()
+
+            raw_segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
+            segment_keywords = _dedupe_queries(raw_segment_keywords, cap=query_cap)
+
+            try:
+                brief_queries, brief_keywords = _segment_brief_terms(dyn_ctx, idx)
+            except Exception:
+                brief_queries, brief_keywords = [], []
+
+            queries, query_source = _merge_segment_query_sources(
+                segment_text=getattr(segment, "text", "") or "",
+                llm_queries=base_llm_queries,
+                brief_queries=brief_queries,
+                brief_keywords=brief_keywords,
+                segment_keywords=segment_keywords,
+                selector_keywords=selector_keywords,
+                cap=query_cap,
+            )
+
+            if query_source == 'llm_hint':
+                if brief_queries:
+                    query_source = 'segment_brief'
+                elif llm_query_source_label:
+                    query_source = llm_query_source_label
+                else:
+                    query_source = 'transcript_fallback'
+
+            if hint_terms:
+                queries = hint_terms
+                query_source = hint_source or 'llm_hint'
+                try:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
+                        queries,
+                        query_source,
+                    )
+                except Exception:
+                    pass
+            elif llm_hints and raw_hint_items:
+                raw_hint_clean = [item.strip() for item in raw_hint_items if isinstance(item, str) and item.strip()]
+                if raw_hint_clean:
+                    queries = raw_hint_clean[:max(1, query_cap)]
+                    query_source = hint_source or 'llm_hint'
+                    try:
+                        logger.info(
+                            "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                            float(getattr(segment, 'start', 0.0) or 0.0),
+                            float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
+                            queries,
+                            query_source,
+                        )
+                    except Exception:
+                        pass
+
+            try:
+                queries = enforce_fetch_language(queries, dyn_language or None)
+            except Exception:
+                queries = list(queries)
+
+            if query_source == 'segment_brief':
+                try:
+                    banned_terms = {_norm_query_term(term) for term in raw_segment_keywords}
+                except Exception:
+                    banned_terms = set()
+                if banned_terms:
+                    filtered_queries = [q for q in queries if _norm_query_term(q) not in banned_terms]
+                    if filtered_queries:
+                        queries = filtered_queries[:max(1, query_cap)]
+
+            if report_entry is not None:
+                try:
+                    report_entry['queries'] = list(queries)
+                    report_entry['query_source'] = query_source
+                except Exception:
+                    pass
+
+            if not queries:
+                log_broll_decision(
+                    event_logger,
+                    segment_idx=idx,
+                    start=segment.start,
+                    end=segment.end,
+                    query_count=0,
+                    candidate_count=0,
+                    unique_candidates=0,
+                    url_dedup_hits=0,
+                    phash_dedup_hits=0,
+                    selected_url=None,
+                    selected_score=None,
+                    provider=None,
+                    latency_ms=0,
+                    llm_healthy=llm_healthy,
+                    reject_reasons=['no_keywords'],
+                    queries=queries,
+                )
+                continue
+
+            segments_with_queries += 1
+            query_source_counter[query_source] += 1
+
+            try:
+                if event_logger:
+                    event_logger.log(
+                        {
+                            'event': 'broll_segment_queries',
+                            'segment': idx,
+                            'queries': list(queries),
+                            'source': query_source,
+                            'language': dyn_language or None,
+                        }
+                    )
+            except Exception:
+                pass
+
+            try:
+                print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
+            except Exception:
+                pass
 
             filters = {}
             if llm_hints and isinstance(llm_hints.get('filters'), dict):
@@ -4483,6 +4673,10 @@ class VideoProcessor:
             selector_keywords: List[str] = []
             fetch_keywords: List[str] = []
             dyn_context: Dict[str, Any] = {}
+            llm_kw: List[str] = list(broll_keywords or [])
+            llm_queries: List[str] = []
+            syn_map: Dict[str, Sequence[str]] = {}
+            seg_queries: List[str] = []
             try:
                 transcript_text_full = " ".join(str(s.get("text", "")) for s in (subtitles or []))
             except Exception:
@@ -4495,12 +4689,25 @@ class VideoProcessor:
                     dyn_context = exc.payload or {}
                 except Exception:
                     dyn_context = {}
+            if not isinstance(dyn_context, dict):
+                dyn_context = {}
 
-            llm_kw = list(dyn_context.get("keywords", []) or (broll_keywords or []))
-            llm_queries = list(dyn_context.get("search_queries", []) or [])
-            syn_map = dyn_context.get("synonyms", {}) or {}
-            seg_queries: List[str] = []
-            for br in (dyn_context.get("segment_briefs", []) or []):
+            try:
+                if isinstance(dyn_context, dict):
+                    llm_kw = list(dyn_context.get("keywords", []) or llm_kw)
+                    llm_queries = list(dyn_context.get("search_queries", []) or llm_queries)
+                    syn_map = dyn_context.get("synonyms", {}) or syn_map
+            except Exception:
+                llm_kw = list(broll_keywords or [])
+                llm_queries = []
+                syn_map = {}
+            briefs_source = []
+            if isinstance(dyn_context, dict):
+                try:
+                    briefs_source = dyn_context.get("segment_briefs", []) or []
+                except Exception:
+                    briefs_source = []
+            for br in briefs_source:
                 try:
                     seg_queries.extend(br.get("queries", []) or [])
                 except Exception:
