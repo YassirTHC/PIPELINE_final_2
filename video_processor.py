@@ -2106,6 +2106,11 @@ class VideoProcessor:
             debug_preview = metadata_queries_raw[:5] if metadata_queries_raw else "VIDE - Va régénérer !"
             print(f"    🔍 DEBUG queries found: {debug_preview}")
             base_llm_queries = _relaxed_normalise_terms(metadata_queries_raw, metadata_query_cap)
+            print(
+                f"    🔍 DEBUG llm_queries après normalisation: {base_llm_queries[:5]}"
+            )
+            if not base_llm_queries:
+                print("    ⚠️ llm_queries VIDE après normalisation !")
             if not base_llm_queries:
                 broll_kw = metadata_payload.get("broll_keywords") or []
                 print(f"    ⚠️ Queries vides ! Utilisation broll_keywords: {broll_kw[:5]}")
