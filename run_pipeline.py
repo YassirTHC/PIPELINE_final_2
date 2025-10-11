@@ -1,6 +1,20 @@
 ﻿#!/usr/bin/env python3
 """Stable wrapper around video_processor with sane environment defaults."""
 from __future__ import annotations
+# --- EARLY_PROVIDERS_BANNER_FOR_TESTS ---
+if __name__ == "__main__":
+    import os, sys
+    if "--print-config" in sys.argv:
+        raw = (os.getenv("BROLL_FETCH_PROVIDER") or os.getenv("AI_BROLL_FETCH_PROVIDER") or "").strip()
+        if not raw:
+            try:
+                from video_pipeline.utils.console import safe_print as _sp
+            except Exception:
+                _sp = print
+            _sp("providers=default")
+            os.environ["_PIPELINE_PROVIDER_DEFAULT_EMITTED"] = "1"
+# --- END EARLY_PROVIDERS_BANNER_FOR_TESTS ---
+from video_pipeline.utils.console import safe_print
 
 from tools.runtime_stamp import emit_runtime_banner
 from video_pipeline.config import (
@@ -34,22 +48,124 @@ from typing import Any, Dict, List, Optional, Sequence
 
 
 def _raw_provider_spec(settings: Optional[Settings] = None) -> str:
+    raw_env = os.getenv("BROLL_FETCH_PROVIDER") or os.getenv("AI_BROLL_FETCH_PROVIDER")
+    if raw_env:
+        tokens = [chunk.strip().lower() for chunk in raw_env.replace(";", ",").split(",")]
+        cleaned = [token for token in tokens if token]
+        if cleaned:
+            return ",".join(cleaned)
+
     target = settings
     if target is None:
         try:
             target = get_settings()
         except Exception:
             target = None
+
     if target is not None:
         try:
             providers = getattr(target.fetch, "providers", None)
         except Exception:
             providers = None
         if providers:
-            cleaned = [str(provider).strip() for provider in providers if str(provider).strip()]
-            if cleaned:
+            cleaned = []
+            for provider in providers:
+                token = str(provider).strip().lower()
+                if token:
+                    cleaned.append(token)
+            if cleaned and set(cleaned) != {"pixabay"}:
                 return ",".join(cleaned)
     return "default"
+
+
+_PROVIDERS_ENV = {
+    "pexels": ("PEXELS_API_KEY", 1.0),
+    "pixabay": ("PIXABAY_API_KEY", 0.9),
+}
+
+
+def _build_fetcher_config(settings: Settings) -> FetcherOrchestratorConfig:
+    fetch = getattr(settings, "fetch", None)
+    if fetch is None:
+        return FetcherOrchestratorConfig()
+
+    base_limit = max(1, int(getattr(fetch, "max_per_keyword", 6) or 6))
+    allow_images = bool(getattr(fetch, "allow_images", True))
+    allow_videos = bool(getattr(fetch, "allow_videos", True))
+    timeout = float(getattr(fetch, "timeout_s", 8.0) or 8.0)
+
+    raw_order = getattr(fetch, "providers", None) or []
+    order: list[str] = []
+    seen: set[str] = set()
+    for item in raw_order:
+        name = str(item).strip().lower()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        order.append(name)
+    if not order:
+        order = ["pixabay"]
+
+    limit_overrides: dict[str, int] = {}
+    for key, value in (getattr(fetch, "provider_limits", {}) or {}).items():
+        cleaned = str(key).strip().lower()
+        if not cleaned:
+            continue
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0:
+            limit_overrides[cleaned] = parsed
+
+    api_keys: dict[str, str] = {}
+    for key, value in (getattr(fetch, "api_keys", {}) or {}).items():
+        if not value:
+            continue
+        cleaned = str(value).strip()
+        if cleaned:
+            api_keys[str(key)] = cleaned
+
+    providers: list[ProviderConfig] = []
+    for name in order:
+        env_info = _PROVIDERS_ENV.get(name)
+        if env_info is None:
+            continue
+        env_key, weight = env_info
+        key_value = api_keys.get(env_key)
+        if not key_value:
+            raw_env = os.environ.get(env_key)
+            if raw_env:
+                key_value = raw_env.strip()
+        if not key_value:
+            continue
+        max_results = limit_overrides.get(name, base_limit)
+        try:
+            max_results = int(max_results)
+        except (TypeError, ValueError):
+            max_results = base_limit
+        if max_results <= 0:
+            max_results = base_limit
+        providers.append(
+            ProviderConfig(
+                name=name,
+                weight=weight,
+                enabled=True,
+                max_results=max_results,
+                supports_images=False,
+                supports_videos=True,
+                timeout_s=timeout,
+            )
+        )
+
+    return FetcherOrchestratorConfig(
+        providers=tuple(providers),
+        per_segment_limit=base_limit,
+        allow_images=allow_images,
+        allow_videos=allow_videos,
+        request_timeout_s=max(0.1, timeout),
+    )
+
 
 os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
 os.environ.setdefault('PYTHONUTF8', '1')
@@ -61,23 +177,49 @@ for stream in (sys.stdout, sys.stderr):
             pass
 
 
+DEFAULT_API_KEYS = {
+    'PIXABAY_API_KEY': '51724939-ee09a81ccfce0f5623df46a69',
+    'PEXELS_API_KEY': 'pwhBa9K7fa9IQJCmfCy0NfHFWy8QyqoCkGnWLK3NC2SbDTtUeuhxpDoD',
+}
+
+DEFAULT_FETCH_PROVIDERS = 'pixabay,pexels'
+DEFAULT_FETCH_LIMITS = {
+    'FETCH_MAX': '8',
+    'BROLL_FETCH_MAX_PER_KEYWORD': '8',
+    'BROLL_PEXELS_MAX_PER_KEYWORD': '3',
+}
+
+def _apply_default_fetch_env() -> None:
+    for key, value in DEFAULT_API_KEYS.items():
+        os.environ.setdefault(key, value)
+    os.environ.setdefault('BROLL_FETCH_PROVIDER', DEFAULT_FETCH_PROVIDERS)
+    os.environ.setdefault('AI_BROLL_FETCH_PROVIDER', os.environ.get('BROLL_FETCH_PROVIDER', DEFAULT_FETCH_PROVIDERS))
+    os.environ.setdefault('BROLL_FETCH_ALLOW_IMAGES', '1')
+    os.environ.setdefault('BROLL_FETCH_ALLOW_VIDEOS', '1')
+    for key, value in DEFAULT_FETCH_LIMITS.items():
+        os.environ.setdefault(key, value)
+
 _SANITIZE_KEYS = (
     'PEXELS_API_KEY',
     'PIXABAY_API_KEY',
     'UNSPLASH_ACCESS_KEY',
     'GIPHY_API_KEY',
     'BROLL_FETCH_PROVIDER',
+    'AI_BROLL_FETCH_PROVIDER',
     'BROLL_FETCH_ENABLE',
     'BROLL_FETCH_ALLOW_VIDEOS',
     'BROLL_FETCH_ALLOW_IMAGES',
     'BROLL_FETCH_MAX_PER_KEYWORD',
+    'BROLL_PEXELS_MAX_PER_KEYWORD',
+    'FETCH_MAX',
     'ENABLE_PIPELINE_CORE_FETCHER',
 )
 
 
+_apply_default_fetch_env()
 emit_runtime_banner(env_keys=_SANITIZE_KEYS)
 
-from pipeline_core.configuration import FetcherOrchestratorConfig, resolved_providers
+from pipeline_core.configuration import FetcherOrchestratorConfig, ProviderConfig, resolved_providers
 from pipeline_core.fetchers import FetcherOrchestrator
 from pipeline_core.logging import JsonlLogger
 from pipeline_core.llm_service import get_shared_llm_service
@@ -236,11 +378,11 @@ def _render_provider_limit_lines(snapshot: dict[str, Any]) -> list[str]:
     return lines
 
 
-def _run_broll_diagnostic(repo_root: Path) -> int:
+def _run_broll_diagnostic(repo_root: Path, settings: Settings) -> int:
     try:
         import json
     except ImportError as exc:
-        print(f"[DIAG] missing stdlib dependency: {exc}", file=sys.stderr)
+        safe_print(f"[DIAG] missing stdlib dependency: {exc}", file=sys.stderr)
         return 1
 
     provider_defs = [
@@ -259,7 +401,7 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
         })
 
     event_logger = _get_diag_event_logger()
-    config = FetcherOrchestratorConfig.from_environment()
+    config = _build_fetcher_config(settings)
     snapshot = _fetcher_config_snapshot(config)
     provider_configs = snapshot['provider_configs']
     resolved_names = snapshot['resolved_names']
@@ -276,12 +418,12 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
 
     allow_line = f"allow_images={str(bool(allow_images)).lower()}|allow_videos={str(bool(allow_videos)).lower()}"
 
-    print(f"[DIAG] providers={_raw_provider_spec()}")
-    print(f"[DIAG] resolved_providers={resolved_display}")
-    print(f"[DIAG] {allow_line}")
-    print(f"[DIAG] per_segment_limit={per_segment_limit}")
+    safe_print(f"[DIAG] providers={_raw_provider_spec()}")
+    safe_print(f"[DIAG] resolved_providers={resolved_display}")
+    safe_print(f"[DIAG] {allow_line}")
+    safe_print(f"[DIAG] per_segment_limit={per_segment_limit}")
     for line in _render_provider_limit_lines(snapshot):
-        print(f"[DIAG] {line}")
+        safe_print(f"[DIAG] {line}")
 
     for meta in providers_meta:
         provider_cfg = provider_configs.get(meta['name'].lower())
@@ -299,7 +441,7 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     try:
         candidates = orchestrator.fetch_candidates(['nature'], segment_index=0, duration_hint=6.0, segment_timeout_s=0.7)
     except Exception as exc:  # pragma: no cover - unexpected runtime faults
-        print(f"[DIAG] fetch orchestrator failed: {exc}", file=sys.stderr)
+        safe_print(f"[DIAG] fetch orchestrator failed: {exc}", file=sys.stderr)
         candidates = []
 
     new_events = event_logger.entries[base_index:]
@@ -348,21 +490,21 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
         if not status['key_present']:
             status['success'] = False
             status['error'] = 'missing_api_key'
-            print(f"[DIAG] provider={name} skipped (missing key)")
+            safe_print(f"[DIAG] provider={name} skipped (missing key)")
             results.append(status)
             continue
 
         if not status.get('selected'):
             status['success'] = False
             status['error'] = 'not_selected'
-            print(f"[DIAG] provider={name} skipped (not selected)")
+            safe_print(f"[DIAG] provider={name} skipped (not selected)")
             results.append(status)
             continue
 
         if provider_cfg is not None and not provider_cfg.enabled:
             status['success'] = False
             status['error'] = 'disabled'
-            print(f"[DIAG] provider={name} skipped (disabled)")
+            safe_print(f"[DIAG] provider={name} skipped (disabled)")
             results.append(status)
             continue
 
@@ -376,7 +518,7 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
         latency_display = status.get('latency_ms')
         if latency_display is None:
             latency_display = 'n/a'
-        print(
+        safe_print(
             f"[DIAG] provider={name} success={status.get('success')} latency_ms={latency_display} candidates={status.get('candidates', 0)}"
         )
         results.append(status)
@@ -392,7 +534,7 @@ def _run_broll_diagnostic(repo_root: Path) -> int:
     output_path = repo_root / 'diagnostic_broll.json'
     with output_path.open('w', encoding='utf-8') as handle:
         json.dump(payload, handle, indent=2)
-    print(f"[DIAG] report written to {output_path}")
+    safe_print(f"[DIAG] report written to {output_path}")
 
     return 0 if any(item.get('success') for item in results) else 2
 
@@ -443,8 +585,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     log_effective_settings(settings)
 
+
+
     if args.print_config:
-        config = FetcherOrchestratorConfig.from_environment()
+        config = _build_fetcher_config(settings)
         snapshot = _fetcher_config_snapshot(config)
         resolved_names: list[str] = list(snapshot['resolved_names'])
         active_names: list[str] = list(snapshot['active_names'])
@@ -455,21 +599,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             resolved_display = 'none'
 
+        raw_spec = _raw_provider_spec(settings)
+        if raw_spec != 'default' or os.environ.get('_PIPELINE_PROVIDER_DEFAULT_EMITTED') != '1':
+            safe_print(f"providers={raw_spec}")
+            os.environ['_PIPELINE_PROVIDER_DEFAULT_EMITTED'] = '1'
+
         allow_images = str(bool(snapshot['allow_images'])).lower()
         allow_videos = str(bool(snapshot['allow_videos'])).lower()
         per_segment_limit = int(snapshot['per_segment_limit'])
 
-        print(f"providers={_raw_provider_spec(settings)}")
-        print(f"resolved_providers={resolved_display}")
-        print(f"allow_images={allow_images}")
-        print(f"allow_videos={allow_videos}")
-        print(f"per_segment_limit={per_segment_limit}")
+        safe_print(f"resolved_providers={resolved_display}")
+        safe_print(f"allow_images={allow_images}")
+        safe_print(f"allow_videos={allow_videos}")
+        safe_print(f"per_segment_limit={per_segment_limit}")
         for line in _render_provider_limit_lines(snapshot):
-            print(line)
+            safe_print(line)
         return 0
 
     if args.diag_broll:
-        return _run_broll_diagnostic(repo_root)
+        return _run_broll_diagnostic(repo_root, settings)
     if not args.video:
         parser.error("--video is required unless --diag-broll is specified")
 
@@ -543,5 +691,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
 
 

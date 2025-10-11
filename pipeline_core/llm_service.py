@@ -94,6 +94,12 @@ create_pipeline_integration = _load_integration_factory(FAST_TESTS)
 
 logger = logging.getLogger(__name__)
 
+# Metadata list bounds align with the LLM contract.
+MIN_HASHTAGS = 6
+MAX_HASHTAGS = 10
+MIN_METADATA_TERMS = 8
+MAX_METADATA_TERMS = 12
+
 
 def _estimate_prompt_tokens(text: str) -> int:
     """Roughly estimate token usage for logging/diagnostics."""
@@ -972,7 +978,7 @@ def _empty_metadata_payload() -> Dict[str, Any]:
     }
 
 
-def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int = 5) -> List[str]:
+def _hashtags_from_keywords(keywords: Sequence[str], *, limit: int = MAX_HASHTAGS) -> List[str]:
     tags: List[str] = []
     seen: set[str] = set()
     for keyword in _as_list(keywords):
@@ -1274,8 +1280,8 @@ def _build_provider_queries_from_terms(terms: Sequence[str]) -> List[str]:
 def _fallback_keywords_from_transcript(
     transcript: str,
     *,
-    min_terms: int = 8,
-    max_terms: int = 12,
+    min_terms: int = MIN_METADATA_TERMS,
+    max_terms: int = MAX_METADATA_TERMS,
     language: Optional[str] = None,
 ) -> List[str]:
     min_terms = max(1, min_terms)
@@ -1330,44 +1336,33 @@ def _merge_with_fallback(
     primary: Sequence[str],
     fallback: Sequence[str],
     *,
-    min_count: int = 8,
-    max_count: int = 12,
+    min_count: int = MIN_METADATA_TERMS,
+    max_count: int = MAX_METADATA_TERMS,
 ) -> List[str]:
-    min_count = max(1, min_count)
-    max_count = max(min_count, max_count)
+    min_count = max(0, min_count)
+    max_count = max(min_count or 1, max_count)
 
     merged: List[str] = []
     seen: set[str] = set()
 
-    for item in primary or []:
-        candidate = _normalise_string(item)
-        if candidate and candidate not in seen:
-            seen.add(candidate)
-            merged.append(candidate)
-        if len(merged) >= max_count:
-            return merged[:max_count]
+    def _append(values: Sequence[str]) -> None:
+        for item in values or []:
+            if len(merged) >= max_count:
+                break
+            candidate = _normalise_string(item)
+            if candidate and candidate not in seen:
+                seen.add(candidate)
+                merged.append(candidate)
 
-    for item in fallback or []:
-        if len(merged) >= max_count:
-            break
-        candidate = _normalise_string(item)
-        if candidate and candidate not in seen:
-            seen.add(candidate)
-            merged.append(candidate)
-
+    _append(primary)
     if len(merged) < min_count:
-        for candidate in _DEFAULT_FALLBACK_PHRASES:
-            if len(merged) >= max_count:
-                break
-            normalised = _normalise_string(candidate)
-            if normalised and normalised not in seen:
-                seen.add(normalised)
-                merged.append(normalised)
-            if len(merged) >= max_count:
-                break
+        _append(fallback)
+    if len(merged) < min_count:
+        _append(_DEFAULT_FALLBACK_PHRASES)
 
-    return merged[:max_count]
-
+    if len(merged) > max_count:
+        return merged[:max_count]
+    return merged
 
 JSON_ATTEMPTS = 2
 
@@ -1379,9 +1374,9 @@ class MetadataSchema(BaseModel):
 
     title: StrictStr = Field(..., min_length=1, max_length=256)
     description: StrictStr = Field(..., min_length=1, max_length=4000)
-    hashtags: conlist(StrictStr, min_length=5, max_length=5)
-    broll_keywords: conlist(StrictStr, min_length=8, max_length=8)
-    queries: conlist(StrictStr, min_length=12, max_length=12)
+    hashtags: conlist(StrictStr, min_length=MIN_HASHTAGS, max_length=MAX_HASHTAGS)
+    broll_keywords: conlist(StrictStr, min_length=MIN_METADATA_TERMS, max_length=MAX_METADATA_TERMS)
+    queries: conlist(StrictStr, min_length=MIN_METADATA_TERMS, max_length=MAX_METADATA_TERMS)
 
 
 class SegmentQueriesSchema(BaseModel):
@@ -1569,45 +1564,89 @@ def _normalise_metadata_output(
     transcript: str,
 ) -> Dict[str, Any]:
     defaults = _default_metadata_payload()
-    title = _truncate_field(str(metadata.get("title") or defaults["title"]), min(120, fallback_trunc))
-    description = _truncate_field(str(metadata.get("description") or defaults["description"]), fallback_trunc)
+    title = _truncate_field(str(metadata.get("title", "")), min(120, fallback_trunc)) or defaults["title"]
+    description = _truncate_field(str(metadata.get("description", "")), fallback_trunc) or defaults["description"]
 
     target_lang = _target_language_default()
     hashtags_disabled = _hashtags_disabled()
 
     hashtags: List[str] = []
     if not hashtags_disabled:
-        hashtags = _normalise_hashtags(metadata.get("hashtags"))[:5]
-    if hashtags_disabled:
-        hashtags = []
+        hashtags = [tag for tag in _normalise_hashtags(metadata.get("hashtags")) if tag]
+        if len(hashtags) > MAX_HASHTAGS:
+            hashtags = hashtags[:MAX_HASHTAGS]
 
     transcript_terms = _fallback_keywords_from_transcript(
         transcript,
-        min_terms=12,
-        max_terms=12,
+        min_terms=MIN_METADATA_TERMS,
+        max_terms=MAX_METADATA_TERMS,
         language=target_lang,
     )
 
-    broll_keywords = _normalise_search_terms(metadata.get("broll_keywords") or [], target_lang=target_lang)
-    broll_keywords = _merge_with_fallback(broll_keywords, transcript_terms, min_count=8, max_count=8)
-    broll_keywords = _sanitize_queries(broll_keywords, min_words=1, max_words=3, max_len=12)
+    def _dedupe_preserve(items: Sequence[str]) -> List[str]:
+        deduped: List[str] = []
+        seen: Set[str] = set()
+        for item in items:
+            candidate = _normalise_string(item)
+            if not candidate:
+                continue
+            key = candidate.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(candidate)
+        return deduped
 
-    queries = _normalise_search_terms(metadata.get("queries") or [], target_lang=target_lang)
-    queries = _merge_with_fallback(queries, transcript_terms, min_count=12, max_count=12)
-    queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
+    raw_keyword_values = metadata.get("broll_keywords") or metadata.get("brollKeywords") or metadata.get("keywords") or []
+    base_broll = _dedupe_preserve(_as_list(raw_keyword_values))
+    fallback_broll = _normalise_search_terms(raw_keyword_values, target_lang=target_lang) or transcript_terms
+
+    broll_keywords = base_broll[:MAX_METADATA_TERMS]
+    if len(broll_keywords) < MIN_METADATA_TERMS:
+        broll_keywords = _merge_with_fallback(
+            broll_keywords,
+            fallback_broll,
+            min_count=MIN_METADATA_TERMS,
+            max_count=MAX_METADATA_TERMS,
+        )
+
+    queries_raw = metadata.get("queries") or []
+    base_queries = _dedupe_preserve(_as_list(queries_raw))
+    fallback_queries = _normalise_search_terms(queries_raw, target_lang=target_lang) or transcript_terms
+
+    queries = base_queries[:MAX_METADATA_TERMS]
+    if len(queries) < MIN_METADATA_TERMS:
+        queries = _merge_with_fallback(
+            queries,
+            fallback_queries,
+            min_count=MIN_METADATA_TERMS,
+            max_count=MAX_METADATA_TERMS,
+        )
 
     if not hashtags and not hashtags_disabled:
-        hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
-    if not hashtags and not hashtags_disabled:
-        fallback_hash_terms = transcript_terms[:5]
-        hashtags = _hashtags_from_keywords(fallback_hash_terms, limit=5)
-    if not hashtags and not hashtags_disabled:
-        for default_tag in ("#video", "#viralclip", "#shorts", "#reels", "#tiktok"):
-            if len(hashtags) >= 5:
-                break
+        hashtags = _hashtags_from_keywords(broll_keywords, limit=MAX_HASHTAGS)
+    if len(hashtags) < MIN_HASHTAGS and not hashtags_disabled:
+        hashtags = _hashtags_from_keywords(transcript_terms, limit=MAX_HASHTAGS)
+    if len(hashtags) < MIN_HASHTAGS and not hashtags_disabled:
+        default_hashtags = (
+            "#video",
+            "#viralclip",
+            "#shorts",
+            "#reels",
+            "#tiktok",
+            "#trending",
+            "#viralvideo",
+            "#foryoupage",
+            "#explorepage",
+            "#shortform",
+        )
+        for default_tag in default_hashtags:
             if default_tag not in hashtags:
                 hashtags.append(default_tag)
-    hashtags = hashtags[:5]
+            if len(hashtags) >= MAX_HASHTAGS:
+                break
+    if len(hashtags) > MAX_HASHTAGS:
+        hashtags = hashtags[:MAX_HASHTAGS]
 
     return {
         "title": title or defaults["title"],
@@ -1616,72 +1655,76 @@ def _normalise_metadata_output(
         "broll_keywords": broll_keywords,
         "queries": queries,
     }
-
-
 def _metadata_from_tfidf(transcript: str, *, fallback_trunc: int) -> Dict[str, Any]:
     disable_flag = tfidf_fallback_disabled_from_env()
     if disable_flag:
         raise TfidfFallbackDisabled("TF-IDF fallback disabled via configuration")
 
     target_lang = _target_language_default()
-    keywords_raw, queries_raw = _tfidf_fallback(transcript, top_k=12)
-    transcript_terms = _fallback_keywords_from_transcript(
-        transcript,
-        min_terms=12,
-        max_terms=12,
-        language=target_lang,
-    )
-
-    keywords = _merge_with_fallback(
-        _normalise_search_terms(keywords_raw[:8], target_lang=target_lang),
-        transcript_terms,
-        min_count=8,
-        max_count=8,
-    )
-    keywords = _sanitize_queries(keywords, min_words=1, max_words=3, max_len=12)
-
-    queries = _merge_with_fallback(
-        _normalise_search_terms(queries_raw[:12], target_lang=target_lang),
-        transcript_terms,
-        min_count=12,
-        max_count=12,
-    )
-    queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
-
-    hashtags: List[str] = [] if _hashtags_disabled() else _hashtags_from_keywords(keywords, limit=5)
-    if not hashtags and not _hashtags_disabled():
-        hashtags = _hashtags_from_keywords(transcript_terms, limit=5)
-    if not hashtags and not _hashtags_disabled():
-        hashtags = ["#video", "#viralclip", "#shorts", "#reels", "#tiktok"]
+    keywords_raw, queries_raw = _tfidf_fallback(transcript, top_k=MAX_METADATA_TERMS)
+    base_keywords = _normalise_search_terms(keywords_raw[:MAX_METADATA_TERMS], target_lang=target_lang)
+    base_queries = _normalise_search_terms(queries_raw[:MAX_METADATA_TERMS], target_lang=target_lang)
 
     primary_text = (transcript or "").strip()
     if not primary_text:
         primary_text = "Auto-generated clip"  # fallback summary
-    sentences = re.split(r"[\.!?\n]+", primary_text)
+    sentences = re.split(r"[\\.!?\\n]+", primary_text)
     first_sentence = next((s for s in sentences if s and s.strip()), primary_text)
     title = _truncate_field(first_sentence, min(120, fallback_trunc)) or "Auto-generated Clip Title"
     description_parts = [seg.strip() for seg in sentences if seg and seg.strip()][:3]
     description = " ".join(description_parts) or primary_text
     description = _truncate_field(description, fallback_trunc)
 
-    payload = {
+    seed_hashtags: List[str] = []
+    if not _hashtags_disabled():
+        seed_hashtags = _hashtags_from_keywords(base_keywords, limit=MAX_HASHTAGS)
+
+
+    fallback_trunc = _resolve_fallback_trunc(None)
+    seed_payload = {
         "title": title,
         "description": description,
-        "hashtags": hashtags[:5],
-        "broll_keywords": keywords,
-        "queries": queries,
+        "hashtags": seed_hashtags,
+        "broll_keywords": base_keywords,
+        "queries": base_queries,
     }
+
+    normalised = _normalise_metadata_output(seed_payload, fallback_trunc=fallback_trunc, transcript=primary_text)
+
     try:
-        return MetadataSchema.model_validate(payload).model_dump()
+        return MetadataSchema.model_validate(normalised).model_dump()
     except ValidationError:
-        # Ensure strict compliance even if heuristics yielded uneven sizes
-        fallback_terms = _fallback_keywords_from_transcript(primary_text, min_terms=12, max_terms=12)
-        payload["broll_keywords"] = _merge_with_fallback(keywords, fallback_terms, min_count=8, max_count=8)
-        payload["queries"] = _merge_with_fallback(queries, fallback_terms, min_count=12, max_count=12)
-        payload["hashtags"] = (hashtags or _hashtags_from_keywords(fallback_terms, limit=5))[:5]
-        return MetadataSchema.model_validate(payload).model_dump()
-
-
+        fallback_terms = _fallback_keywords_from_transcript(
+            primary_text,
+            min_terms=MIN_METADATA_TERMS,
+            max_terms=MAX_METADATA_TERMS,
+            language=target_lang,
+        )
+        recovery_payload = dict(normalised)
+        recovery_payload["broll_keywords"] = _merge_with_fallback(
+            recovery_payload.get("broll_keywords", []),
+            fallback_terms,
+            min_count=MIN_METADATA_TERMS,
+            max_count=MAX_METADATA_TERMS,
+        )
+        recovery_payload["queries"] = _merge_with_fallback(
+            recovery_payload.get("queries", []),
+            fallback_terms,
+            min_count=MIN_METADATA_TERMS,
+            max_count=MAX_METADATA_TERMS,
+        )
+        if not _hashtags_disabled():
+            hashtags = list(recovery_payload.get("hashtags", []))
+            if len(hashtags) < MIN_HASHTAGS:
+                for tag in _hashtags_from_keywords(fallback_terms, limit=MAX_HASHTAGS):
+                    if tag not in hashtags:
+                        hashtags.append(tag)
+                    if len(hashtags) >= MAX_HASHTAGS:
+                        break
+                recovery_payload["hashtags"] = hashtags[:MAX_HASHTAGS]
+        else:
+            recovery_payload["hashtags"] = []
+        return MetadataSchema.model_validate(recovery_payload).model_dump()
 def _extract_structured_json(text: str) -> Dict[str, Any]:
     parsed = _safe_parse_json(text)
     if parsed:
@@ -3345,11 +3388,11 @@ class LLMMetadataGeneratorService:
         )
         self._llm_timeout = int(timeout_default)
 
+        configured_num_predict = getattr(llm_settings, "num_predict", None) if llm_settings is not None else None
         num_predict_default = _coerce_int_range(
-            getattr(llm_settings, "num_predict", None) if llm_settings is not None else None,
-            96,
+            configured_num_predict,
+            _llm_int("PIPELINE_LLM_NUM_PREDICT", attr="num_predict", default=256, minimum=1),
             minimum=1,
-            maximum=96,
         )
         self._llm_num_predict = num_predict_default
 
@@ -4861,7 +4904,7 @@ def generate_metadata_as_json(
     if use_keywords_prompt:
         try:
             configured_predict = _llm_int("", attr="num_predict", default=192, minimum=1)
-            bounded_predict = max(64, min(192, configured_predict))
+            bounded_predict = configured_predict
 
             configured_temp = _llm_float("", attr="temperature", default=0.2, minimum=0.0)
             bounded_temp = max(0.0, min(0.4, configured_temp))
@@ -4953,16 +4996,16 @@ def generate_metadata_as_json(
 
     defaults = _default_metadata_payload()
 
-    title = _normalise_string(metadata_section.get("title")) or defaults["title"]
-    description = _normalise_string(metadata_section.get("description")) or defaults["description"]
+    title = _normalise_string(metadata_section.get("title", "")) or _normalise_string(metadata_section.get("title_alt", "")) or defaults["title"]
+    description = _normalise_string(metadata_section.get("description", "")) or _normalise_string(metadata_section.get("description_alt", "")) or defaults["description"]
 
     hashtags_disabled = _hashtags_disabled()
     if hashtags_disabled:
         metadata_section["hashtags"] = []
 
-    hashtags: List[str] = []
+    seed_hashtags: List[str] = []
     if not hashtags_disabled:
-        hashtags = _normalise_hashtags(_as_list(metadata_section.get("hashtags")))[:5]
+        seed_hashtags = [tag for tag in _normalise_hashtags(_as_list(metadata_section.get("hashtags"))) if tag]
 
     raw_keyword_values = (
         metadata_section.get("broll_keywords")
@@ -4970,57 +5013,113 @@ def generate_metadata_as_json(
         or metadata_section.get("keywords")
         or []
     )
-    initial_broll = _normalise_search_terms(raw_keyword_values, target_lang=target_lang)[:12]
+    initial_broll = _normalise_search_terms(raw_keyword_values, target_lang=target_lang)
 
     queries_raw = metadata_section.get("queries")
-    initial_queries = _normalise_search_terms(queries_raw, target_lang=target_lang)[:12]
+    initial_queries = _normalise_search_terms(queries_raw or [], target_lang=target_lang)
 
-    fallback_terms: List[str] = []
-    keywords_fallback = len(initial_broll) < 6
-    queries_fallback = len(initial_queries) < 6
-    if keywords_fallback or queries_fallback:
-        fallback_terms = _fallback_keywords_from_transcript(
-            cleaned_transcript,
-            min_terms=8,
-            max_terms=12,
-            language=target_lang,
-        )
+    keywords_fallback = len(initial_broll) < MIN_METADATA_TERMS
+    queries_fallback = len(initial_queries) < MIN_METADATA_TERMS
+
+    fallback_trunc = _resolve_fallback_trunc(None)
+    seed_payload = {
+        "title": title,
+        "description": description,
+        "hashtags": seed_hashtags,
+        "broll_keywords": raw_keyword_values,
+        "queries": queries_raw,
+    }
+
+    normalised = _normalise_metadata_output(seed_payload, fallback_trunc=fallback_trunc, transcript=cleaned_transcript)
+
+    hashtags = list(normalised.get("hashtags") or [])
+    broll_keywords = list(normalised.get("broll_keywords") or [])
+    queries = list(normalised.get("queries") or [])
+
+    if len(broll_keywords) > len(initial_broll):
+        keywords_fallback = True
+    if len(queries) > len(initial_queries):
+        queries_fallback = True
+
+    base_broll = list(broll_keywords)
+    base_queries = list(queries)
+
+    if not keywords_fallback:
+        if len(broll_keywords) > MAX_METADATA_TERMS:
+            broll_keywords = broll_keywords[:MAX_METADATA_TERMS]
+        if len(broll_keywords) < MIN_METADATA_TERMS:
+            keywords_fallback = True
+
+    if not queries_fallback:
+        if len(queries) > MAX_METADATA_TERMS:
+            queries = queries[:MAX_METADATA_TERMS]
+        if len(queries) < MIN_METADATA_TERMS:
+            queries_fallback = True
 
     if keywords_fallback:
-        broll_keywords = _merge_with_fallback(initial_broll, fallback_terms, min_count=8, max_count=12)
-    else:
-        broll_keywords = initial_broll[:12]
+        provider_keywords = _normalise_provider_terms(base_broll, target_lang=target_lang)
+        if len(provider_keywords) < MIN_METADATA_TERMS:
+            provider_keywords = _merge_with_fallback(
+                provider_keywords,
+                base_broll,
+                min_count=MIN_METADATA_TERMS,
+                max_count=MAX_METADATA_TERMS,
+            )
+        if len(provider_keywords) > MAX_METADATA_TERMS:
+            provider_keywords = provider_keywords[:MAX_METADATA_TERMS]
+
+        broll_keywords = _sanitize_queries(
+            provider_keywords,
+            min_words=1,
+            max_words=3,
+            max_len=MAX_METADATA_TERMS,
+        )
+        if len(broll_keywords) < MIN_METADATA_TERMS:
+            broll_keywords = _merge_with_fallback(
+                broll_keywords,
+                provider_keywords,
+                min_count=MIN_METADATA_TERMS,
+                max_count=MAX_METADATA_TERMS,
+            )
 
     if queries_fallback:
-        seed_terms = fallback_terms or broll_keywords
-        queries = _merge_with_fallback(initial_queries, seed_terms, min_count=8, max_count=12)
+        provider_queries = _normalise_provider_terms(base_queries, target_lang=target_lang)
+        if len(provider_queries) < MIN_METADATA_TERMS:
+            provider_queries = _merge_with_fallback(
+                provider_queries,
+                base_queries,
+                min_count=MIN_METADATA_TERMS,
+                max_count=MAX_METADATA_TERMS,
+            )
+        if len(provider_queries) > MAX_METADATA_TERMS:
+            provider_queries = provider_queries[:MAX_METADATA_TERMS]
+
+        queries = _sanitize_queries(
+            _concretize_queries(provider_queries),
+            max_len=MAX_METADATA_TERMS,
+        )
+        if len(queries) < MIN_METADATA_TERMS:
+            queries = _merge_with_fallback(
+                queries,
+                provider_queries,
+                min_count=MIN_METADATA_TERMS,
+                max_count=MAX_METADATA_TERMS,
+            )
     else:
-        queries = initial_queries[:12]
+        queries = base_queries[:MAX_METADATA_TERMS]
 
-    broll_keywords = _normalise_search_terms(broll_keywords, target_lang=target_lang)[:12]
+    if not keywords_fallback:
+        broll_keywords = base_broll[:MAX_METADATA_TERMS]
 
-    queries = _normalise_search_terms(queries, target_lang=target_lang)[:12]
-    if len(queries) < 6 and broll_keywords:
-        fallback_queries = _build_provider_queries_from_terms(broll_keywords)
-        for candidate in _normalise_search_terms(fallback_queries, target_lang=target_lang):
-            if candidate not in queries:
-                queries.append(candidate)
-            if len(queries) >= 12:
-                break
-    queries = queries[:12]
+    if not queries_fallback:
+        queries = base_queries[:MAX_METADATA_TERMS]
 
-    provider_keywords = _normalise_provider_terms(broll_keywords, target_lang=target_lang)[:12]
-    provider_queries = _normalise_provider_terms(queries, target_lang=target_lang)[:12]
-
-    broll_keywords = provider_keywords
-    queries = provider_queries
-
-    # Final hardening at clip level: enforce anti-generic constraints
-    queries = _sanitize_queries(_concretize_queries(queries), max_len=12)
-    broll_keywords = _sanitize_queries(broll_keywords, max_words=3, max_len=12)
-
-    if not hashtags and not hashtags_disabled:
-        hashtags = _hashtags_from_keywords(broll_keywords, limit=5)
+    if not hashtags_disabled and len(hashtags) < MIN_HASHTAGS:
+        hashtags = _hashtags_from_keywords(broll_keywords, limit=MAX_HASHTAGS)
+    if len(hashtags) > MAX_HASHTAGS:
+        hashtags = hashtags[:MAX_HASHTAGS]
+    if hashtags_disabled:
+        hashtags = []
 
     now = time.time()
     global _LAST_METADATA_KEYWORDS, _LAST_METADATA_QUERIES
@@ -5030,8 +5129,8 @@ def generate_metadata_as_json(
     _LAST_METADATA_QUERIES["updated_at"] = now
 
     result: Dict[str, Any] = {
-        "title": title,
-        "description": description,
+        "title": normalised.get("title") or title,
+        "description": normalised.get("description") or description,
         "hashtags": hashtags,
         "broll_keywords": broll_keywords,
         "queries": queries,
@@ -5055,15 +5154,4 @@ def generate_metadata_as_json(
     )
 
     _remember_last_metadata(queries, broll_keywords)
-
     return result
-
-
-
-
-
-
-
-
-
-

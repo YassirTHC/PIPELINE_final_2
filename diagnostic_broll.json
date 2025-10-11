@@ -1,0 +1,40 @@
+{
+  "timestamp": 1759958266.045244,
+  "providers_actifs": [
+    "pexels",
+    "pixabay"
+  ],
+  "providers_resolved": [
+    "pexels",
+    "pixabay"
+  ],
+  "allow_images": true,
+  "per_segment_limit": 8,
+  "providers": [
+    {
+      "name": "pexels",
+      "env_key": "PEXELS_API_KEY",
+      "key_present": true,
+      "masked_key": "****pDoD",
+      "selected": true,
+      "enabled": true,
+      "max_results": 3,
+      "candidates": 5,
+      "latency_ms": 545,
+      "success": true
+    },
+    {
+      "name": "pixabay",
+      "env_key": "PIXABAY_API_KEY",
+      "key_present": true,
+      "masked_key": "****6a69",
+      "selected": true,
+      "enabled": true,
+      "max_results": 8,
+      "candidates": 0,
+      "latency_ms": 485,
+      "success": false,
+      "error": "no_results"
+    }
+  ]
+}

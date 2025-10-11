@@ -1,12 +1,4 @@
 ﻿import sys
-
-try:
-    pass  # keep top-level try valid
-# sys.stdout.reconfigure(encoding="utf-8")  # disabled during tests
-# sys.stderr.reconfigure(encoding="utf-8")  # disabled during tests
-except Exception:
-    pass
-
 from contextlib import ExitStack
 from pathlib import Path
 from urllib.parse import urlparse
@@ -79,10 +71,21 @@ def _split_basic_latin_runs(text: str, *, keep: Set[str] | None = None) -> List[
     return runs
 
 
+def _is_generic_title(t: str) -> bool:
+    t0 = re.sub(r"\s+", " ", (t or "").strip().lower())
+    bad = {"auto-generated clip title", "auto generated clip title", "untitled", "clip title", "title"}
+    return (not t0) or (t0 in bad) or t0.startswith("auto-generated") or len(t0) < 6
+
+
 try:
     from pipeline_core.llm_service import generate_metadata_as_json
-except Exception:
+    print("âœ… LLM industriel importÃ© avec succÃ¨s")
+except Exception as e:
+    print(f"âŒ ERREUR import LLM industriel: {e}")
+    import traceback
+    traceback.print_exc()
     generate_metadata_as_json = None
+    reshape_broll_terms = None
 
 try:
     from config import Config as _ROOT_CONFIG
@@ -1170,7 +1173,7 @@ def _merge_segment_query_sources(
             added = True
         return added
 
-    _consume("llm_hint", llm_queries, relax=True)
+    _consume("llm_hint", llm_queries)
     brief_pool: list[str] = []
     brief_pool.extend(brief_keywords or [])
     brief_pool.extend(brief_queries or [])
@@ -2059,18 +2062,206 @@ class VideoProcessor:
         else:
             forced_keep_remaining = None
         forced_keep_allowed = bool(getattr(selection_cfg, 'allow_forced_keep', True))
-# =================== NOUVEAU BLOC À INSERER ===================
-
         for idx, segment in enumerate(segments):
-            # On utilise DIRECTEMENT la liste de requêtes du LLM principal
-            queries = llm_queries
-            query_source = 'llm_metadata'
-            query_source_counter[query_source] += 1
-            # On garde l'affichage pour vérifier que ça marche
-            print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
             seg_duration = max(0.0, segment.end - segment.start)
-            # (Le reste de la boucle, à partir de "filters = {}", continue ici)
-# ==============================================================================
+            llm_hints = None
+            llm_healthy = True
+
+            report_entry = report_segments[idx] if idx < len(report_segments) else None
+
+            dyn_ctx = getattr(self, '_dyn_context', {})
+            dyn_language = str(dyn_ctx.get('language') or '').strip().lower() if isinstance(dyn_ctx, dict) else ''
+
+            segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
+            keyword_terms = _dedupe_queries(segment_keywords, cap=SEGMENT_REFINEMENT_MAX_TERMS)
+
+            try:
+                brief_queries, brief_keywords = _segment_brief_terms(dyn_ctx or {}, idx)
+            except Exception:
+                brief_queries, brief_keywords = [], []
+
+            metadata_payload = {}
+            try:
+                maybe_meta = getattr(self, '_latest_metadata', {})
+                if isinstance(maybe_meta, dict):
+                    metadata_payload = maybe_meta
+            except Exception:
+                metadata_payload = {}
+
+            metadata_status = str(metadata_payload.get('llm_status') or '').strip().lower()
+            llm_source_label = 'llm_metadata' if metadata_status == 'ok' else 'transcript_normalized'
+            metadata_query_cap = min(12, max(SEGMENT_REFINEMENT_MAX_TERMS, 8))
+            llm_queries: List[str] = []
+            if metadata_status == 'ok':
+                metadata_queries_raw = metadata_payload.get('queries') or []
+                llm_queries = _relaxed_normalise_terms(metadata_queries_raw, metadata_query_cap)
+                if not llm_queries:
+                    metadata_status = 'fallback'
+
+            if metadata_status != 'ok':
+                transcript_source = getattr(segment, 'text', '') or ''
+                transcript_tokens = _split_basic_latin_runs(transcript_source.lower(), keep={"'", "-"})
+                llm_queries = _normalize_queries(
+                    list(metadata_payload.get('broll_keywords') or []),
+                    transcript_tokens,
+                    max_queries=metadata_query_cap,
+                )
+                if llm_queries:
+                    llm_source_label = 'transcript_normalized'
+
+            query_source = 'segment_brief'
+
+            llm_attempted = False
+            fallback_source_label: Optional[str] = None
+
+            if getattr(self, '_llm_service', None):
+                llm_attempted = True
+                try:
+                    llm_hints = self._llm_service.generate_hints_for_segment(
+                        segment.text,
+                        segment.start,
+                        segment.end,
+                    )
+                except Exception:
+                    llm_hints = None
+                    llm_healthy = False
+                else:
+                    llm_healthy = True
+
+            hint_payload: List[str] = []
+            hint_source: Optional[str] = None
+            if llm_hints and isinstance(llm_hints.get('queries'), list):
+                hint_payload = [item for item in llm_hints['queries'] if isinstance(item, str)]
+                raw_hint_source = llm_hints.get('source') if isinstance(llm_hints, dict) else None
+                if isinstance(raw_hint_source, str) and raw_hint_source.strip():
+                    hint_source = raw_hint_source.strip()
+
+            hint_terms: List[str] = []
+            if hint_payload:
+                hint_terms = _dedupe_queries(hint_payload, cap=metadata_query_cap)
+                if hint_terms and not hint_source:
+                    hint_source = 'llm_hint'
+                if hint_terms:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', 0.0) or 0.0),
+                        hint_terms,
+                        hint_source or 'llm_hint',
+                    )
+                elif hint_payload:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', 0.0) or 0.0),
+                        hint_payload,
+                        hint_source or 'llm_hint',
+                    )
+            if not hint_source:
+                hint_source = llm_source_label
+
+            if llm_attempted and not hint_payload and getattr(self, '_llm_service', None):
+                fallback_terms: Sequence[str] = []
+                provider_fallback = getattr(self._llm_service, 'provider_fallback_queries', None)
+                if callable(provider_fallback):
+                    try:
+                        fallback_terms, fallback_source_label = provider_fallback(
+                            getattr(segment, 'text', '') or '',
+                            max_items=metadata_query_cap,
+                            language=dyn_language or None,
+                        )
+                    except Exception:
+                        fallback_terms, fallback_source_label = [], None
+
+                normalised_fallback = _relaxed_normalise_terms(fallback_terms, metadata_query_cap)
+                if normalised_fallback:
+                    llm_queries = _dedupe_queries(list(llm_queries) + normalised_fallback, cap=metadata_query_cap)
+                    if fallback_source_label and fallback_source_label != 'none':
+                        llm_source_label = fallback_source_label
+                if not hint_payload:
+                    llm_healthy = False
+
+            queries: List[str]
+            if hint_terms:
+                queries = hint_terms
+                query_source = hint_source or 'llm_hint'
+                if dyn_language in ('', 'en'):
+                    queries = enforce_fetch_language(queries, dyn_language or None)
+            else:
+                selector_keywords = list(getattr(self, '_selector_keywords', []))
+                queries, query_source = _merge_segment_query_sources(
+                    segment_text=getattr(segment, 'text', '') or '',
+                    llm_queries=llm_queries,
+                    brief_queries=brief_queries,
+                    brief_keywords=brief_keywords,
+                    segment_keywords=keyword_terms,
+                    selector_keywords=selector_keywords,
+                    cap=SEGMENT_REFINEMENT_MAX_TERMS,
+                )
+
+                if query_source == 'llm_hint':
+                    query_source = llm_source_label
+
+                if dyn_language in ('', 'en'):
+                    queries = enforce_fetch_language(queries, dyn_language or None)
+
+                if not queries:
+                    fallback_terms = _build_transcript_fallback_terms(
+                        getattr(segment, 'text', '') or '',
+                        keyword_terms,
+                        limit=max(1, SEGMENT_REFINEMENT_MAX_TERMS),
+                    )
+                    queries = _relaxed_normalise_terms(fallback_terms, max(1, SEGMENT_REFINEMENT_MAX_TERMS))
+                    if dyn_language in ('', 'en'):
+                        queries = enforce_fetch_language(queries, dyn_language or None)
+                    if queries:
+                        query_source = 'transcript_fallback'
+
+            query_source_counter[query_source] += 1
+
+            try:
+                event_logger.log({
+                    'event': 'broll_segment_queries',
+                    'segment': idx,
+                    'queries': queries,
+                    'source': query_source,
+                    'language': dyn_language or None,
+                })
+            except Exception:
+                pass
+
+            if report_entry is not None:
+                try:
+                    report_entry['queries'] = list(queries)
+                except Exception:
+                    pass
+
+            if not queries:
+                log_broll_decision(
+                    event_logger,
+                    segment_idx=idx,
+                    start=segment.start,
+                    end=segment.end,
+                    query_count=0,
+                    candidate_count=0,
+                    unique_candidates=0,
+                    url_dedup_hits=0,
+                    phash_dedup_hits=0,
+                    selected_url=None,
+                    selected_score=None,
+                    provider=None,
+                    latency_ms=0,
+                    llm_healthy=llm_healthy,
+                    reject_reasons=['no_keywords'],
+                    queries=queries,
+                )
+                continue
+
+            segments_with_queries += 1
+            try:
+                print(f"[BROLL] segment #{idx}: queries={queries} (source={query_source})")
+            except Exception:
+                pass
 
             filters = {}
             if llm_hints and isinstance(llm_hints.get('filters'), dict):
@@ -2624,7 +2815,16 @@ class VideoProcessor:
             except Exception as e:
                 print(f"[REPORT] failed: {e}")
 
-        return final_inserted, render_path, {'render_ok': summary_payload.get('render_ok')}
+        extra_payload: Dict[str, Any] = {'render_ok': summary_payload.get('render_ok')}
+        if materialized_entries:
+            try:
+                timeline_payload = [entry.to_dict() for entry in materialized_entries]
+            except Exception:
+                timeline_payload = []
+            if timeline_payload:
+                extra_payload['timeline'] = timeline_payload
+                extra_payload['selections'] = list(timeline_payload)
+        return final_inserted, render_path, extra_payload
 
     def _download_core_candidate(self, candidate, download_dir: Path, order: int, segment: Optional[int] = None) -> Optional[Path]:
         """Download a remote candidate selected by the core orchestrator."""
@@ -3693,7 +3893,6 @@ class VideoProcessor:
     def _process_single_clip_impl(self, clip_path: Path, *, verbose: bool = False):
         """Traite un clip individuel (reframe -> transcription (pour B-roll) -> B-roll -> sous-titres)"""
 
-        self._latest_metadata = {}
         try:
             self._current_video_id = Path(clip_path).stem
         except Exception:
@@ -3763,7 +3962,14 @@ class VideoProcessor:
         try:
             # RÃƒÂ©utiliser les donnÃƒÂ©es dÃƒÂ©jÃƒÂ  gÃƒÂ©nÃƒÂ©rÃƒÂ©es
             if not broll_keywords:  # Fallback si pas encore gÃƒÂ©nÃƒÂ©rÃƒÂ©
-                metadata = self.generate_caption_and_hashtags(subtitles) or metadata or {}
+                metadata = (
+                    getattr(self, "_latest_metadata", None)
+                    or self.generate_caption_and_hashtags(subtitles)
+                    or metadata
+                    or {}
+                )
+                print(f"  🧭 Source métadonnées retenue: {metadata.get('metadata_source') or metadata.get('llm_status') or 'unknown'}")
+
                 title = str(metadata.get('title') or '').strip()
                 description = str(metadata.get('description') or '').strip()
                 hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
@@ -3871,10 +4077,31 @@ class VideoProcessor:
                 "problÃƒÂ¨me": {"color": "#FF3131", "emoji": "Ã°Å¸â€ºâ€˜"},
                 "probleme": {"color": "#FF3131", "emoji": "Ã°Å¸â€ºâ€˜"},
             }
+            try:
+                subtitle_settings = get_settings().subtitles
+            except Exception:
+                subtitle_settings = None
+
+            font_size = getattr(subtitle_settings, 'font_size', None)
+            if not font_size:
+                font_size = getattr(Config, 'SUBTITLE_FONT_SIZE', 110)
+            stroke_px = getattr(subtitle_settings, 'stroke_px', None)
+            if stroke_px is None:
+                stroke_px = getattr(Config, 'SUBTITLE_STROKE_WIDTH', 5)
+            margin_bottom = getattr(subtitle_settings, 'subtitle_safe_margin_px', None)
+            if margin_bottom is None:
+                margin_bottom = getattr(Config, 'SUBTITLE_MARGIN_BOTTOM', 220)
+            font_path = getattr(subtitle_settings, 'font_path', None) if subtitle_settings else None
+
             add_hormozi_subtitles(
                 str(with_broll_path), subtitles, str(final_subtitled_path),
                 brand_kit=getattr(Config, 'BRAND_KIT_ID', 'default'),
-                span_style_map=span_style_map
+                span_style_map=span_style_map,
+                font_size=font_size,
+                stroke_px=stroke_px,
+                margin_bottom=margin_bottom,
+                subtitle_settings=subtitle_settings,
+                font_path=font_path,
             )
         except Exception as e:
             print(f"  Ã¢ÂÅ’ Erreur ajout sous-titres Hormozi: {e}")
@@ -4305,8 +4532,18 @@ class VideoProcessor:
             payload['title'] = title
             payload['description'] = description
             payload['hashtags'] = [h for h in (hashtags or []) if isinstance(h, str) and h]
-            payload['broll_keywords'] = [kw for kw in (broll_keywords or []) if isinstance(kw, str) and kw]
-            payload['queries'] = [q for q in (queries or []) if isinstance(q, str) and q]
+            transcript_for_scoring = full_text if isinstance(full_text, str) else ""
+            cleaned_broll = [kw for kw in (broll_keywords or []) if isinstance(kw, str) and kw]
+            cleaned_queries = [q for q in (queries or []) if isinstance(q, str) and q]
+            if callable(reshape_broll_terms):
+                reshaped_broll = reshape_broll_terms(cleaned_broll, transcript_for_scoring, cap=12)
+                if reshaped_broll:
+                    cleaned_broll = reshaped_broll
+                reshaped_query_terms = reshape_broll_terms(cleaned_queries, transcript_for_scoring, cap=12)
+                if reshaped_query_terms:
+                    cleaned_queries = reshaped_query_terms
+            payload['broll_keywords'] = cleaned_broll[:12]
+            payload['queries'] = cleaned_queries[:12]
             payload['metadata_source'] = source_label or status
             payload['llm_status'] = status
             return payload
@@ -4319,7 +4556,7 @@ class VideoProcessor:
             return metadata
 
         try:
-            pass  # keep try valid (reset disabled)
+            # self._latest_metadata = {}  # désactivé: on garde le dernier payload LLM pour la phase d'écriture
         except Exception:
             pass
 
@@ -4335,6 +4572,17 @@ class VideoProcessor:
                 broll_keywords_fb = list(fallback_meta.get('broll_keywords') or [])
                 queries_fb = fallback_meta.get('queries') or []
 
+                print("    Ã°Å¸ÂªÂ« [Fallback] MÃƒÂ©tadonnÃƒÂ©es gÃƒÂ©nÃƒÂ©rÃƒÂ©es sans LLM avancÃƒÂ©")
+                print(f"    Ã°Å¸Å½Â¯ Titre fallback: {title_fb}")
+                if description_fb:
+                    print(f"    Ã°Å¸â€œÂ Description fallback: {description_fb[:100]}...")
+                if hashtags_fb:
+                    print(f"    #Ã¯Â¸ÂÃ¢Æ’Â£ Hashtags fallback: {', '.join(hashtags_fb[:5])}...")
+                if broll_keywords_fb:
+                    print(f"    Ã°Å¸Å½Â¬ Mots-clÃƒÂ©s B-roll fallback: {', '.join(broll_keywords_fb[:5])}...")
+                if queries_fb:
+                    print(f"    Ã°Å¸â€Å½ RequÃƒÂªtes fallback: {', '.join(queries_fb[:3])}...")
+
                 if not title_fb and description_fb:
                     title_fb = (description_fb[:60] + ('Ã¢â‚¬Â¦' if len(description_fb) > 60 else ''))
                 payload = _finalize_metadata(
@@ -4347,17 +4595,6 @@ class VideoProcessor:
                     base=fallback_meta,
                     source_label='fallback',
                 )
-                print("    Ã°Å¸ÂªÂ« [Fallback] MÃƒÂ©tadonnÃƒÂ©es gÃƒÂ©nÃƒÂ©rÃƒÂ©es sans LLM avancÃƒÂ©")
-                print(f"    Ã°Å¸Å½Â¯ Titre fallback: {title_fb}")
-                if description_fb:
-                    print(f"    Ã°Å¸â€œÂ Description fallback: {description_fb[:100]}...")
-                if hashtags_fb:
-                    print(f"    #Ã¯Â¸ÂÃ¢Æ’Â£ Hashtags fallback: {', '.join(hashtags_fb[:5])}...")
-                if broll_keywords_fb:
-                    print(f"    Ã°Å¸Å½Â¬ Mots-clÃƒÂ©s B-roll fallback: {', '.join(broll_keywords_fb[:5])}...")
-                if queries_fb:
-                    print(f"    Ã°Å¸â€Å½ RequÃƒÂªtes fallback: {', '.join(queries_fb[:3])}...")
-
                 return _remember(payload)
             return None
 
@@ -4401,8 +4638,7 @@ class VideoProcessor:
                 video_id=video_id_hint,
             )
 
-            need_fallback = (not meta) or (not (meta.get('title') or meta.get('description')))
-            if need_fallback:
+            if not meta or not any(meta.get(key) for key in ("title", "description", "hashtags", "broll_keywords", "queries")):
                 fallback_result = _run_fallback("    Ã¢Å¡Â Ã¯Â¸Â [LLM INDUSTRIEL] RÃƒÂ©ponse JSON vide ou non analysable, activation du fallback")
                 if fallback_result:
                     return fallback_result
@@ -4410,6 +4646,12 @@ class VideoProcessor:
 
             title = (meta.get('title') or '').strip()
             description = (meta.get('description') or '').strip()
+            if _is_generic_title(title):
+                print("    ⚠️ [LLM INDUSTRIEL] Titre trop générique → on applique une heuristique.")
+                if full_text.strip():
+                    title = full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")
+                    if isinstance(meta, dict):
+                        meta["title"] = title
             hashtags = [h for h in (meta.get('hashtags') or []) if h]
             broll_keywords = meta.get('broll_keywords') or []
             queries = meta.get('queries') or []
@@ -6549,46 +6791,94 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     elapsed = time.time() - start
     print(f"[CLI] Done in {elapsed:.1f}s -> {result}")
     return 0
+
 def _dev_run_sanity_tests():
-    print("\\n[DEV] Scénario A (LLM OK) ===")
-    print("  🧭 Source métadonnées retenue: llm")
-    print("  🏷️ Titre final: LLM: Strong specific title for the clip")
-    print("\\n[DEV] Scénario B (LLM générique) ===")
-    print("  🧭 Source métadonnées retenue: llm")
-    print("  🏷️ Titre final: Protocole lombalgie: 3 erreurs fréquentes et comment les évit…")
-def _vp_maybe_utf8_console():
-    """Safely set UTF-8 console encoding only on real TTY, never under pytest/capture."""
-    import sys, os
-    try:
-        if os.environ.get("PYTEST_CURRENT_TEST"):
-            return
-        for name in ("stdout", "stderr"):
-            s = getattr(sys, name, None)
-            if s is None or not hasattr(s, "reconfigure"):
-                continue
-            try:
-                is_tty = s.isatty()
-            except Exception:
-                is_tty = False
-            if is_tty and os.environ.get("VP_CONSOLE_UTF8", "1") == "1":
-                s.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    """
+    Test DEV minimal (sans dépendances externes):
+    - Scénario A: LLM renvoie un vrai titre => on doit voir 'Source métadonnées retenue: llm'
+    - Scénario B: LLM renvoie 'Auto-generated Clip Title' => la garde doit produire un titre heuristique (basé sur full_text),
+      sans passer par 'Titre fallback'.
+    """
+    class _Dummy:
+        def __init__(self):
+            # Simule un objet 'self' similaire au vrai, avec stockage du dernier payload
+            self._latest_metadata = None
 
+        # Mocks: seront remplacés à la volée
+        def generate_caption_and_hashtags(self, subtitles):
+            return None
 
-if __name__ == '__main__':
-    import os, sys
-    if os.environ.get('VP_DEV_TESTS') == '1':
+        def _run_fallback(self, msg):
+            return {
+                "title": "Fallback Title OK",
+                "description": "desc fb",
+                "hashtags": ["#fb"],
+                "broll_keywords": ["broll-fb"],
+                "queries": ["q-fb"],
+                "metadata_source": "fallback"
+            }
+
+    def _call_write_path(dummy, subtitles, full_text):
+        # Rejoue uniquement le fragment de calcul 'metadata = ...' et post-traitements légers
+        meta_llm = getattr(dummy, "_latest_metadata", None) or dummy.generate_caption_and_hashtags(subtitles) or {}
+        if not meta_llm or not (meta_llm.get("title") or meta_llm.get("description")):
+            fallback_meta = dummy._run_fallback("DEV: fallback")
+            meta = fallback_meta or {}
+        else:
+            meta = meta_llm
+
+        # Garde anti-titre générique (même logique que celle ajoutée dans le bloc LLM succès)
+        title = str(meta.get("title") or "").strip()
+        if _is_generic_title(title):
+            if full_text.strip():
+                title = full_text.strip()[:60] + ("…" if len(full_text.strip()) > 60 else "")
+                meta["title"] = title
+
+        print(f"  🧭 Source métadonnées retenue: {meta.get('metadata_source') or meta.get('llm_status') or 'unknown'}")
+        print(f"  🏷️ Titre final: {meta.get('title')}")
+        return meta
+
+    # === Scénario A: LLM OK ===
+    d = _Dummy()
+
+    def _llm_ok(_sub):
+        return {
+            "title": "LLM: Strong specific title for the clip",
+            "description": "desc llm",
+            "hashtags": ["#llm"],
+            "broll_keywords": ["broll-llm"],
+            "queries": ["q-llm"],
+            "metadata_source": "llm"
+        }
+
+    d.generate_caption_and_hashtags = _llm_ok
+    d._latest_metadata = dict(_llm_ok(None))  # simule succès précédent
+    print("
+[DEV] Scénario A (LLM OK) ===")
+    _ = _call_write_path(d, subtitles="...", full_text="Texte transcript riche et spécifique.")
+
+    # === Scénario B: LLM générique ===
+    d2 = _Dummy()
+
+    def _llm_generic(_sub):
+        return {
+            "title": "Auto-generated Clip Title",
+            "description": "desc llm generic",
+            "hashtags": ["#llm"],
+            "broll_keywords": ["broll-llm"],
+            "queries": ["q-llm"],
+            "metadata_source": "llm"
+        }
+
+    d2.generate_caption_and_hashtags = _llm_generic
+    d2._latest_metadata = dict(_llm_generic(None))
+    print("
+[DEV] Scénario B (LLM générique) ===")
+    _ = _call_write_path(d2, subtitles="...", full_text="Protocole lombalgie: 3 erreurs fréquentes et comment les éviter.")
+
+if __name__ == "__main__":
+    import os
+    if os.environ.get("VP_DEV_TESTS") == "1":
         _dev_run_sanity_tests()
-        sys.exit(0)
-    _vp_maybe_utf8_console()
-    raise SystemExit(main())
-
-
-
-
-
-
-
-
-
+    else:
+        raise SystemExit(main())

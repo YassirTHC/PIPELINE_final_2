@@ -8,7 +8,6 @@ from .settings import (
     reset_startup_log_for_tests,
 )
 
-# Helpers legacy si présents (ne cassent pas l'import sinon)
 try:
     from pipeline_core.configuration import (
         print_config,
@@ -19,30 +18,21 @@ try:
 except Exception:
     pass
 
-# ---------- Compat shims ----------
 def apply_llm_overrides(settings, *_, **__):
-    """Legacy no-op: overrides LLM gérés dans Settings.llm."""
     return settings
 
 _GLOBAL_SETTINGS = None
 
 def set_settings(s):
-    """Legacy: injecte un Settings global pour les tests/CLI."""
     global _GLOBAL_SETTINGS
     _GLOBAL_SETTINGS = s
 
 def get_settings(overrides=None):
-    """
-    Legacy: si set_settings() a été utilisé et pas d'overrides,
-    renvoyer le Settings global; sinon déléguer à load_settings().
-    """
     if _GLOBAL_SETTINGS is not None and (overrides is None or overrides == {}):
         return _GLOBAL_SETTINGS
     return load_settings(overrides)
 
-# ---------- Fallback police ----------
 def _resolve_font_path(font_name: str | None) -> str | None:
-    # 1) Env explicite (deux alias)
     for env_name in ("PIPELINE_SUBTITLE_FONT_PATH", "PIPELINE_SUB_FONT_PATH"):
         p = os.getenv(env_name)
         if not p:
@@ -50,14 +40,12 @@ def _resolve_font_path(font_name: str | None) -> str | None:
         try:
             pp = Path(p)
             if not pp.is_absolute():
-                root = Path(__file__).resolve().parents[2]  # repo root
+                root = Path(__file__).resolve().parents[2]
                 pp = (root / pp).resolve()
             if pp.exists():
                 return str(pp)
         except Exception:
             pass
-
-    # 2) Fonts packagées dans le repo
     try:
         root = Path(__file__).resolve().parents[2]
         for rel in ("assets/fonts/Montserrat-ExtraBold.ttf",
@@ -67,27 +55,17 @@ def _resolve_font_path(font_name: str | None) -> str | None:
                 return str(cand)
     except Exception:
         pass
-
-    # 3) Windows\Fonts
     try:
         win = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
-        for name in ("Montserrat-ExtraBold.ttf",
-                     "Montserrat-Bold.ttf",
-                     "impact.ttf"):
+        for name in ("Montserrat-ExtraBold.ttf","Montserrat-Bold.ttf","impact.ttf"):
             cand = win / name
             if cand.exists():
                 return str(cand)
     except Exception:
         pass
-
     return None
 
-# ---------- Wrapper load_settings ----------
 def load_settings(overrides=None):
-    """
-    Appelle le loader typé puis garantit un font_path valide pour les sous-titres
-    (fallback Montserrat packagé → Windows\Fonts → Impact).
-    """
     s = _raw_load_settings(overrides)
     try:
         sub = getattr(s, "subtitles", None)
@@ -96,7 +74,6 @@ def load_settings(overrides=None):
             if path:
                 sub.font_path = path
     except Exception:
-        # on ne casse pas le chargement si la résolution échoue
         pass
     return s
 

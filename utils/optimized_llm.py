@@ -10,6 +10,7 @@ import requests
 import json
 import time
 import logging
+import re
 from typing import Dict, List, Optional, Sequence, Tuple, Any
 from pathlib import Path
 
@@ -117,9 +118,10 @@ class OptimizedLLM:
         max_tokens: int = 100,
         *,
         timeout: Optional[int] = None,
-        json_mode: Optional[bool] = None,
+        json_mode: bool = False,
+        stream: Optional[bool] = None,
+        non_stream: Optional[bool] = None,
     ) -> Tuple[bool, str, Optional[str]]:
-        """Appel LLM simple avec gestion d'erreur"""
         try:
             options = {
                 "num_predict": max_tokens if max_tokens is not None else self.num_predict,
@@ -130,15 +132,20 @@ class OptimizedLLM:
             }
             options = {key: value for key, value in options.items() if value is not None}
 
-            payload = {
+            payload: Dict[str, Any] = {
                 "model": self.model,
                 "prompt": prompt,
-                "stream": False,
                 "options": options,
             }
-            if json_mode is True:
+            if non_stream is not None:
+                payload["stream"] = not bool(non_stream)
+            elif stream is not None:
+                payload["stream"] = bool(stream)
+            else:
+                payload["stream"] = False
+            if json_mode:
                 payload["format"] = "json"
-            elif json_mode is False:
+            elif "format" in payload:
                 payload.pop("format", None)
 
             start_time = time.time()
@@ -158,39 +165,46 @@ class OptimizedLLM:
                     logger.warning("[LLM] empty response payload")
                     return False, '', 'empty'
 
-                logger.info(f"✅ LLM réussi en {duration:.1f}s - {len(response_text)} caractères")
+                logger.info(f"[LLM] success in {duration:.1f}s - {len(response_text)} chars")
                 return True, response_text, None
             else:
-                logger.error(f"❌ Erreur HTTP: {response.status_code}")
+                logger.error(f"[LLM] HTTP error: {response.status_code}")
                 return False, "", "http_error"
 
         except requests.exceptions.Timeout:
             effective_timeout = timeout or self.timeout
-            logger.error(f"⏱️ Timeout après {effective_timeout}s")
+            logger.error(f"[LLM] timeout after {effective_timeout}s")
             return False, "", "timeout"
         except Exception as e:
-            logger.error(f"❌ Erreur LLM: {str(e)}")
+            logger.error(f"[LLM] exception: {str(e)}")
             return False, "", "exception"
-    
+
     def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
-        """Extraction robuste du JSON depuis la réponse LLM"""
-        try:
-            # Nettoyer et extraire le JSON
-            text = text.strip()
-            start_idx = text.find("{")
-            end_idx = text.rfind("}")
-            
-            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                json_str = text[start_idx:end_idx + 1]
-                return json.loads(json_str)
-            else:
-                logger.warning("⚠️ Aucun JSON trouvé dans la réponse")
-                return None
-                
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ Erreur parsing JSON: {e}")
+        """Robust JSON extraction from LLM responses."""
+        if not text:
             return None
-    
+
+        try:
+            cleaned = text.strip()
+            cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.S | re.I)
+            cleaned = re.sub(r"```json\s*(.*?)\s*```", r"\1", cleaned, flags=re.S | re.I)
+            cleaned = re.sub(r"```\s*(.*?)\s*```", r"\1", cleaned, flags=re.S | re.I)
+
+            match = re.search(r"\{.*\}", cleaned, flags=re.S)
+            if not match:
+                logger.warning("[LLM] no JSON object found in response")
+                return None
+
+            json_str = match.group(0)
+            return json.loads(json_str)
+
+        except json.JSONDecodeError as exc:
+            logger.error(f"[LLM] JSON parsing error: {exc}")
+            return None
+        except Exception as exc:
+            logger.error(f"[LLM] unexpected error decoding JSON: {exc}")
+            return None
+
     def complete(
         self,
         prompt: str,
@@ -243,7 +257,7 @@ JSON:"""
         
         logger.info(f"🎯 Génération mots-clés avec prompt minimaliste ({len(prompt)} caractères)")
 
-        success, response, _ = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
             return False, []
         
@@ -294,7 +308,7 @@ JSON:"""
         
         logger.info(f"🎯 Génération titre + hashtags avec prompt minimaliste ({len(prompt)} caractères)")
         
-        success, response, _ = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
             return False, {}
         
@@ -340,7 +354,7 @@ JSON:"""
         
         logger.info(f"🎯 Génération métadonnées complètes avec prompt minimaliste ({len(prompt)} caractères)")
         
-        success, response, _ = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
             return False, {}
         
@@ -421,16 +435,16 @@ JSON:"""
 
         logger.info(f"🎯 Génération B-roll avec prompt minimaliste ({len(prompt)} caractères)")
 
-        success, response, error_kind = self._call_llm(prompt, max_tokens=350)
+        success, response, error_kind = self._call_llm(prompt, max_tokens=350, json_mode=True, non_stream=True)
         if not success and error_kind in {"timeout", "empty"}:
             if error_kind == "timeout":
                 shorter = trimmed[:600]
                 retry_prompt = prompt.replace(trimmed, shorter)
                 logger.info("⏱️ Retentative LLM B-roll avec transcript raccourci")
-                success, response, error_kind = self._call_llm(retry_prompt, max_tokens=200, timeout=40)
+                success, response, error_kind = self._call_llm(retry_prompt, max_tokens=200, timeout=40, json_mode=True, non_stream=True)
             else:
                 logger.info("[LLM] Retentative B-roll après réponse vide")
-                success, response, error_kind = self._call_llm(prompt, max_tokens=250)
+                success, response, error_kind = self._call_llm(prompt, max_tokens=250, json_mode=True, non_stream=True)
         if not success:
             return False, {}
         
@@ -509,7 +523,7 @@ JSON:"""
         
         logger.info(f"🎯 Génération complète avec B-roll ({len(prompt)} caractères)")
         
-        success, response, _ = self._call_llm(prompt)
+        success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
             return False, {}
         

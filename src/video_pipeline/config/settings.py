@@ -1,4 +1,4 @@
-﻿"""Strongly typed configuration loader for the video pipeline."""
+"""Strongly typed configuration loader for the video pipeline."""
 from __future__ import annotations
 
 import json
@@ -130,7 +130,7 @@ class LLMSettings:
     num_ctx: int
     fallback_trunc: int
     force_non_stream: bool
-    keywords_first: bool
+    keywords_first: bool = True
     disable_hashtags: bool
     target_lang: str
     json_prompt: Optional[str]
@@ -160,9 +160,9 @@ class FetchSettings:
 
 @dataclass(slots=True)
 class BrollSettings:
-    min_start_s: float = 2.0
-    min_gap_s: float = 1.5
-    no_repeat_s: float = 6.0
+    min_start_s: float = 1.0
+    min_gap_s: float = 1.0
+    no_repeat_s: float = 4.0
 
 
 @dataclass(slots=True)
@@ -383,12 +383,12 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
     force_non_stream = _resolve_bool_env(
         env,
         "PIPELINE_LLM_FORCE_NON_STREAM",
-        default=True,
+        default=False,
     )
     keywords_first = _resolve_bool_env(
         env,
         "PIPELINE_LLM_KEYWORDS_FIRST",
-        default=False,
+        default=True,
     )
     disable_hashtags = _resolve_bool_env(
         env,
@@ -400,7 +400,7 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
     json_mode = _resolve_bool_env(
         env,
         "PIPELINE_LLM_JSON_MODE",
-        default=True,
+        default=False,
     )
     json_transcript_limit_raw = _env(env, "PIPELINE_LLM_JSON_TRANSCRIPT_LIMIT")
     json_transcript_limit: Optional[int]
@@ -456,7 +456,7 @@ def _broll_settings(env: Optional[Mapping[str, str]]) -> BrollSettings:
             minimum=0.0,
         ),
         min_gap_s=_coerce_float(
-            _env(env, "PIPELINE_BROLL_MIN_GAP_SECONDS", "1.5"),
+            _env(env, "PIPELINE_BROLL_MIN_GAP_S", "1.0"),
             1.5,
             minimum=0.0,
         ),
@@ -763,5 +763,4 @@ def reset_startup_log_for_tests() -> None:
     global _STARTUP_LOG_EMITTED
     with _CACHE_LOCK:
         _STARTUP_LOG_EMITTED = False
-
 

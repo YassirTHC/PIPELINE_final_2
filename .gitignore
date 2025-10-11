@@ -1,107 +1,23 @@
 ﻿# Python
 __pycache__/
-*.py[cod]
-*.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual Environment - STRICT EXCLUSION
+*.pyc
+.venv/
+venv/
 venv311/
-venv*/
-env/
-ENV/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Builds / sorties
+output/
+temp/
+logs/
+*.log
 
-# OS
+# Données lourdes
+clips/
+*.mp4
+*.wav
+
+# OS / IDE
 .DS_Store
 Thumbs.db
-
-# Project specific - STRICT EXCLUSION
-temp/
-cache/
-logs/
-failed/
-processed/
-clips/*.mp4
-output/
-AI-B-roll/broll_library/
-*.mp4
-*.avi
-*.mov
-*.mkv
-*.webm
-
-# API Keys and sensitive data
-.env
-.env.local
-.env.production
-.env.staging
-*.key
-config/api_keys.yaml
-config/pipeline.yaml
-api_config.py.backup
-
-# Temporary files
-*.tmp
-*.temp
-*.log
-*.bin
-
-# Backup files
-*.backup
-*.bak
-*.backup_current
-*.pre_fix_backup
-*.backup_avant_correction
-*.backup_correction_complete
-*.backup_nettoyage_imports
-
-# Database files
-*.db
-
-# Session files
-pipeline_session_*.json
-
-# Exclude ALL venv311 content
-venv311/**
-!venv311/.gitkeep
-
-# Exclude large media files
-*.wav
-*.mp3
-*.aac
-*.flac
-
-# Exclude test outputs
-test_output/
-debug_*
-diff_backup.patch
-_patch.py
-__pycache__/
-diagnostic_broll.json
-.env
-.env.local
-__pycache__/
-*.pyc
+.vscode/
+.idea/

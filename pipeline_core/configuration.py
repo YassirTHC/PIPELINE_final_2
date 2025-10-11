@@ -440,8 +440,6 @@ def detected_provider_names(
     fallback = resolved_providers(config)
     return list(fallback)
 
-
-
 def _selection_config_from_environment() -> "SelectionConfig":
     """Factory backed by typed settings only (legacy env removed)."""
 
@@ -532,14 +530,20 @@ class PipelineConfigBundle:
     llm: LLMServiceConfig = field(default_factory=LLMServiceConfig)
     renderer: RendererConfig = field(default_factory=RendererConfig)
 
-
-
 def _current_settings() -> Optional["Settings"]:
+    global get_settings, Settings
     if get_settings is None:  # pragma: no cover - optional dependency in tests
-        return None
+        try:
+            from video_pipeline.config import Settings as _Settings, get_settings as _get_settings  # type: ignore
+        except Exception:  # pragma: no cover - defensive guardrail when settings layer is unavailable
+            return None
+        else:
+            Settings = _Settings  # type: ignore[assignment]
+            get_settings = _get_settings  # type: ignore[assignment]
     try:
         return get_settings()
     except Exception:  # pragma: no cover - defensive guardrail
         logger.debug("[CONFIG] typed settings unavailable", exc_info=True)
         return None
+
 

@@ -103,12 +103,12 @@ class HormoziSubtitles:
         
         # Configuration du style Hormozi – version Montserrat virale
         self.config = {
-            'font_size': 85,
+            'font_size': 110,
             'font_color': (255, 255, 255),
             'stroke_color': (0, 0, 0),
             'stroke_px': 6,
             'position': 'bottom',
-            'margin_bottom': 200,
+            'margin_bottom': 220,
             'line_spacing': 10,
             'animation_duration': 0.15,
             'bounce_scale': 1.3,

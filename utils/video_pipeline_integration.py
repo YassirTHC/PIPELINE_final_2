@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Import des modules locaux
 from domain_detection_enhanced import detect_domain_enhanced, get_domain_info
 from keyword_processing import optimize_for_broll
-from optimized_llm import create_optimized_llm, generate_complete_with_broll
+from optimized_llm import create_optimized_llm
 from metrics_and_qa import record_llm_metrics, get_system_metrics
 
 # Configuration du logging
@@ -152,11 +152,28 @@ class VideoPipelineIntegration:
         """Génération du contenu LLM avec retry"""
         for attempt in range(self.config['max_retries']):
             try:
-                success, data = generate_complete_with_broll(transcript)
-                if success:
-                    return True, data
-                else:
-                    logger.warning(f"⚠️ Tentative {attempt + 1} échouée pour {video_id}")
+                success_meta, metadata = self.llm.generate_complete_metadata(transcript)
+                success_broll, broll_data = self.llm.generate_broll_keywords_and_queries(
+                    transcript,
+                    max_keywords=self.config.get('max_keywords_per_video', 10),
+                )
+
+                if success_meta and success_broll:
+                    metadata['broll_keywords'] = broll_data.get('broll_keywords', [])
+                    metadata['search_queries'] = broll_data.get('search_queries', [])
+                    if broll_data.get('domain'):
+                        metadata['domain'] = broll_data['domain']
+                    if broll_data.get('context'):
+                        metadata['context'] = broll_data['context']
+                    return True, metadata
+
+                if success_meta:
+                    logger.warning('[LLM] B-roll generation failed, falling back to metadata keywords')
+                    metadata['broll_keywords'] = metadata.get('keywords', [])
+                    metadata['search_queries'] = metadata.get('keywords', [])
+                    return True, metadata
+
+                logger.warning(f'[LLM] Attempt {attempt + 1} failed for {video_id}')
             except Exception as e:
                 logger.error(f"❌ Erreur LLM tentative {attempt + 1}: {e}")
         
