@@ -255,3 +255,16 @@ def reset_settings_cache():
         settings_module.reset_startup_log_for_tests()
 
 
+@pytest.fixture(autouse=True)
+def _stub_segment_json(monkeypatch):
+    import video_processor as vp
+
+    monkeypatch.setattr(
+        vp,
+        "generate_segment_queries",
+        lambda *_args, **_kwargs: [],
+        raising=False,
+    )
+    yield
+
+

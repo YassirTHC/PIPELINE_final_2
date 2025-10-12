@@ -7,6 +7,7 @@ import importlib.util
 import json
 import logging
 import math
+import os
 import re
 import sys
 import hashlib
@@ -410,6 +411,10 @@ BANNED_GENERIC = {
     "very",
     "just",
     "really",
+    "show",
+    "shows",
+    "showing",
+    "displaying",
 }
 
 BANNED_PROVIDER_NOISE = {
@@ -535,7 +540,59 @@ _NEGATIVE_QUERY_TERMS: Set[str] = {
 _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
     (
         re.compile(r"\binternal rewards?\b", flags=re.IGNORECASE),
-        ("journaling at desk", "smiling after workout", "deep breath at window"),
+        (
+            "reward journal writing",
+            "celebration fist pump",
+            "motivated athlete celebrating",
+        ),
+    ),
+    (
+        re.compile(r"\bself rewards?\b|\breward system\b|\bintrinsic rewards?\b", flags=re.IGNORECASE),
+        (
+            "self reward checklist",
+            "celebrating small win",
+            "reward jar treat",
+        ),
+    ),
+    (
+        re.compile(r"\bresearch\b|\bscientific\b|\bstudy\b|\blaborator(?:y|ies)\b", flags=re.IGNORECASE),
+        (
+            "scientist using microscope",
+            "research team discussion",
+            "lab technician writing notes",
+        ),
+    ),
+    (
+        re.compile(r"\bhands (?:manipulating|generating) energy\b", flags=re.IGNORECASE),
+        (
+            "hands holding neon light",
+            "hands touching plasma globe",
+            "hands lifting glowing orb",
+        ),
+    ),
+    (
+        re.compile(r"\bhands (?:grasping|building|manipulating|generating|operating)\b", flags=re.IGNORECASE),
+        (
+            "hands assembling device",
+            "focus breathing exercise",
+            "motivated athlete lacing shoes",
+        ),
+    ),
+    (
+        re.compile(r"\bhands practicing\b", flags=re.IGNORECASE),
+        (
+            "hands arranging sticky notes",
+            "hands closeup detail",
+            "hands adjusting wristwatch",
+        ),
+    ),
+    (
+        re.compile(r"\bself[- ]control\b|\bcontrol focus\b|\bsteady focus\b|\bregulate\b", flags=re.IGNORECASE),
+        (
+            "person meditating indoors",
+            "deep breathing exercise",
+            "calm yoga focus",
+        ),
     ),
     (
         re.compile(r"\bmindset shifts?\b|\bconceptual mapping\b", flags=re.IGNORECASE),
@@ -546,28 +603,127 @@ _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
         ("clock close up", "sunset sky", "hourglass closeup"),
     ),
     (
-        re.compile(r"\benergy\b|\benergised\b|\benergized\b", flags=re.IGNORECASE),
-        ("city night traffic", "powerlines closeup", "spark plug closeup"),
+        re.compile(r"\bdesk practicing\b|\bdesk working\b", flags=re.IGNORECASE),
+        (
+            "vision board planning",
+            "goal journal writing",
+            "laptop typing focus",
+        ),
     ),
     (
-        re.compile(r"\badrenaline\b|\bintensit(?:y|ies)\b|\bfocus\b", flags=re.IGNORECASE),
-        ("runner tying shoes", "boxing training", "eyes closeup focus"),
+        re.compile(r"\benergy\b|\benergised\b|\benergized\b|\bnoradrenaline\b|\badrenaline\b", flags=re.IGNORECASE),
+        (
+            "athlete explosive sprint",
+            "brain neuron activity",
+            "sunrise training run",
+        ),
+    ),
+    (
+        re.compile(r"\bhuman practicing\b", flags=re.IGNORECASE),
+        (
+            "person meditating room",
+            "human breathing exercise",
+            "person stretching warmup",
+        ),
+    ),
+    (
+        re.compile(r"\bintensit(?:y|ies)\b|\bfocus\b|\bconcentration\b", flags=re.IGNORECASE),
+        (
+            "focused eyes closeup",
+            "steady breathing exercise",
+            "boxing training",
+        ),
+    ),
+    (
+        re.compile(r"\bpath\b|\bjourney\b|\btrajectory\b", flags=re.IGNORECASE),
+        (
+            "hiker on forest trail",
+            "city bridge walk",
+            "runner on track",
+        ),
+    ),
+    (
+        re.compile(r"\bmotivation\b|\bdrive\b|\bgoal achievement\b|\bpersonal goals?\b", flags=re.IGNORECASE),
+        (
+            "motivational speaker stage",
+            "runner start line",
+            "goal planner journal",
+        ),
     ),
 )
 
 _CONCEPT_FALLBACKS: Tuple[str, ...] = (
-    "typing at desk",
-    "whiteboard sketching",
-    "team huddle meeting",
-    "city street walking",
+    "goal planner journal",
+    "motivation quote wall",
+    "focus breathing exercise",
+    "sunrise training run",
+    "motivational coach pep talk",
+    "scientist using microscope",
+    "celebration fist pump",
 )
 
 _DEFAULT_CONCRETE_QUERIES: Tuple[str, ...] = (
-    "typing at desk",
-    "whiteboard planning",
-    "runner tying shoes",
-    "city night traffic",
+    "goal planner journal",
+    "motivational quote wall",
+    "scientist using microscope",
+    "sunrise training run",
 )
+
+_TRAILING_QUERY_STOPWORDS: Tuple[str, ...] = (
+    "at",
+    "in",
+    "on",
+    "to",
+    "for",
+    "with",
+    "of",
+    "the",
+    "a",
+    "an",
+)
+
+_REMOVABLE_QUERY_TOKENS: Tuple[str, ...] = (
+    "showing",
+    "displaying",
+    "being",
+    "doing",
+    "having",
+    "what",
+    "they",
+    "their",
+    "them",
+    "someone",
+    "something",
+)
+
+_BANNED_QUERY_PHRASES: Set[str] = {
+    "what they",
+    "what start",
+    "first thing",
+    "occurs when",
+}
+
+
+def _polish_query_phrase(text: str) -> str:
+    """Strip filler tokens and trailing stopwords from a candidate query."""
+
+    if not text:
+        return ""
+
+    tokens = [token for token in str(text).split() if token]
+    if not tokens:
+        return ""
+
+    core: List[str] = []
+    for token in tokens:
+        if token in _REMOVABLE_QUERY_TOKENS:
+            continue
+        core.append(token)
+
+    while core and core[-1] in _TRAILING_QUERY_STOPWORDS:
+        core.pop()
+
+    return " ".join(core)
 
 _ABSTRACT_HINTS: Tuple[str, ...] = (
     "process",
@@ -594,23 +750,33 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
             continue
         filtered_tokens = [token for token in base.split() if token and token not in _NEGATIVE_QUERY_TERMS]
         filtered = " ".join(filtered_tokens).strip()
-        target = filtered or base
+        target = _polish_query_phrase(filtered or base)
+        if not target:
+            continue
+        tokens = target.split()
         matched = False
         for pattern, replacements in _CONCRETIZE_RULES:
             if pattern.search(target):
                 for replacement in replacements[:2]:
-                    if replacement not in seen:
-                        concrete.append(replacement)
-                        seen.add(replacement)
+                    polished = _polish_query_phrase(replacement)
+                    if polished and polished not in seen:
+                        concrete.append(polished)
+                        seen.add(polished)
                 matched = True
                 break
         if matched:
             continue
+        if len(tokens) >= 2 and not all(token in _ABSTRACT_HINTS for token in tokens):
+            if target not in seen:
+                concrete.append(target)
+                seen.add(target)
+            continue
         if any(hint in target for hint in _ABSTRACT_HINTS):
             for replacement in _CONCEPT_FALLBACKS[:2]:
-                if replacement not in seen:
-                    concrete.append(replacement)
-                    seen.add(replacement)
+                polished = _polish_query_phrase(replacement)
+                if polished and polished not in seen:
+                    concrete.append(polished)
+                    seen.add(polished)
             continue
         if target and target not in seen:
             concrete.append(target)
@@ -618,9 +784,10 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
 
     if not concrete:
         for replacement in _DEFAULT_CONCRETE_QUERIES:
-            if replacement not in seen:
-                concrete.append(replacement)
-                seen.add(replacement)
+            polished = _polish_query_phrase(replacement)
+            if polished and polished not in seen:
+                concrete.append(polished)
+                seen.add(polished)
     return concrete
 
 
@@ -640,11 +807,18 @@ def _sanitize_queries(
     seen: Set[str] = set()
     for raw in queries or []:
         candidate = remove_blocklisted_tokens(str(raw or ''), RX_BANNED)
-        candidate = re.sub(r'\s+', ' ', candidate).strip()
+        candidate = re.sub(r'\s+', ' ', candidate).strip().lower()
+        candidate = _polish_query_phrase(candidate)
         if not candidate:
+            continue
+        if candidate in _BANNED_QUERY_PHRASES:
             continue
         words = candidate.split()
         if len(words) < min_words or len(words) > max_words:
+            continue
+        if all(word in _STOPWORDS_EN for word in words):
+            continue
+        if any(word in _GENERIC_TERMS for word in words):
             continue
         key = candidate.lower()
         if not key or key in seen:
@@ -659,8 +833,10 @@ SEGMENT_JSON_PROMPT = (
     "You are a JSON API. Return ONLY one JSON object with keys: broll_keywords, queries. "
     "broll_keywords: 8–12 visual noun phrases (2–3 words), concrete and shootable. "
     "queries: 8–12 short, filmable search queries (2–4 words), provider-friendly. "
-    "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, "
-    "stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
+    "Make every query a tangible subject or action that mirrors the transcript (people, props, locations, lab work, training, meditation, celebrations). "
+    "Tie queries to nouns or verbs from the transcript — if it mentions research, science, energy, discipline, or control, include those exact contexts. "
+    "Never end queries with filler like 'at', 'in', 'with', 'of'. Do not use words such as 'showing', 'displaying', 'scene', 'shot'. "
+    "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
     "Segment transcript:\n{segment_text}"
 )
 
@@ -1512,6 +1688,18 @@ def _llm_int(_env_key: str, attr: str, default: int, *, minimum: int) -> int:
 
 
 def _llm_bool(*_env_keys: str, attr: str, default: bool) -> bool:
+    for key in _env_keys:
+        try:
+            raw = os.getenv(key)
+        except Exception:
+            raw = None
+        if raw is None:
+            continue
+        lowered = raw.strip().lower()
+        if lowered in {"1", "true", "t", "yes", "y", "on"}:
+            return True
+        if lowered in {"0", "false", "f", "no", "n", "off", ""}:
+            return False
     llm = _llm_settings_obj()
     if llm is not None:
         try:
@@ -1958,14 +2146,15 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
 
     video_reference = f"Video ID: {video_id}\n" if video_id else ""
     return (
-        "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
+        "Tu es un expert des métadonnées virales pour vidéos courtes (TikTok, Reels, Shorts).\n"
         "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
-        "  \"title\": chaîne accrocheuse en langue source,\n"
-        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
-        "  \"hashtags\": tableau de 5 hashtags pertinents sans doublons,\n"
-        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels concrets,\n"
-        "  \"queries\": tableau de 4 à 8 requêtes de recherche prêtes pour des banques d’images/vidéos.\n"
-        "N'ajoute aucune explication hors JSON.\n\n"
+        "  \"title\": slogan ultra-accrocheur (≤60 caractères) en langue source, style TikTok, avec un hook immédiat,\n"
+        "  \"description\": 2 phrases dynamiques style TikTok avec emojis et appel à l’action positif,\n"
+        "  \"hashtags\": tableau de 6 hashtags viraux pertinents sans doublons ni répétitions de dièse,\n"
+        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite, sans termes comme \"showing\" ou \"at\".\n"
+        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll, finissant toujours par un sujet/action concret (jamais \"showing\", \"scene\", \"shot\", ni préposition finale).\n"
+        "Respecte strictement la langue source et n'ajoute aucune explication hors JSON.\n"
+        "Assure-toi que chaque mot-clé et requête colle à ce qui se passe dans la transcription au moment présent.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
 
@@ -2609,7 +2798,7 @@ _ACTION_HINTS = {
     "working",
 }
 
-_DEFAULT_ACTION = "showing"
+_DEFAULT_ACTION = "practicing"
 
 
 _STOPWORDS_EN = {
@@ -4969,6 +5158,51 @@ def generate_metadata_as_json(
         except Exception:
             raw_length = 0
 
+    if error is not None and use_keywords_prompt:
+        try:
+            logger.warning(
+                "[LLM] Keywords-first metadata failed, retrying with rich prompt",
+                extra={
+                    "model": model_name,
+                    "duration_s": round(duration, 3),
+                    "transcript_length": len(cleaned_transcript),
+                    "error": str(error),
+                },
+            )
+            fallback_prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+            fallback_raw_payload = _ollama_json(
+                fallback_prompt,
+                model=model_name,
+                timeout_override=timeout_override,
+            )
+            try:
+                raw_length = (
+                    len(json.dumps(fallback_raw_payload, ensure_ascii=False))
+                    if fallback_raw_payload
+                    else 0
+                )
+            except Exception:
+                raw_length = 0
+            if isinstance(fallback_raw_payload, dict):
+                parsed_payload = fallback_raw_payload
+            else:
+                coerced = _coerce_ollama_json(fallback_raw_payload)
+                parsed_payload = coerced if isinstance(coerced, dict) else {}
+            raw_payload = fallback_raw_payload
+            error = None
+            use_keywords_prompt = False
+        except Exception as fallback_exc:
+            logger.warning(
+                "[LLM] Rich metadata prompt retry failed",
+                extra={
+                    "model": model_name,
+                    "duration_s": round(duration, 3),
+                    "transcript_length": len(cleaned_transcript),
+                    "error": str(fallback_exc),
+                },
+            )
+            error = fallback_exc
+
     if error is not None:
         failure = _empty_metadata_payload()
         failure["raw_response_length"] = 0
@@ -5160,6 +5394,115 @@ def generate_metadata_as_json(
         "llm_status": "ok",
     }
 
+    defaults_title = defaults["title"]
+    defaults_description = defaults["description"]
+    title_missing = not result["title"] or result["title"] == defaults_title
+    description_missing = not result["description"] or result["description"] == defaults_description
+
+    secondary_prompt_used = False
+    if use_keywords_prompt and (title_missing or description_missing):
+        secondary_prompt_used = True
+        logger.info(
+            "[LLM] Keywords-first payload missing summary fields, triggering secondary prompt",
+            extra={
+                "model": model_name,
+                "duration_s": round(duration, 3),
+                "transcript_length": len(cleaned_transcript),
+                "keywords_prompt": use_keywords_prompt,
+            },
+        )
+        fallback_raw_length: Optional[int] = None
+        try:
+            fallback_prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+            fallback_raw_payload = _ollama_json(
+                fallback_prompt,
+                model=model_name,
+                timeout_override=timeout_override,
+            )
+            try:
+                fallback_raw_length = (
+                    len(json.dumps(fallback_raw_payload, ensure_ascii=False)) if fallback_raw_payload else 0
+                )
+            except Exception:
+                fallback_raw_length = 0
+
+            if isinstance(fallback_raw_payload, dict):
+                fallback_section: Dict[str, Any] = fallback_raw_payload
+            else:
+                coerced = _coerce_ollama_json(fallback_raw_payload)
+                fallback_section = coerced if isinstance(coerced, dict) else {}
+
+            for key in ("metadata", "result", "data"):
+                candidate = fallback_section.get(key) if isinstance(fallback_section, dict) else None
+                if isinstance(candidate, dict):
+                    fallback_section = candidate
+            if not isinstance(fallback_section, dict):
+                fallback_section = {}
+
+            fallback_seed = {
+                "title": fallback_section.get("title"),
+                "description": fallback_section.get("description"),
+                "hashtags": fallback_section.get("hashtags"),
+                "broll_keywords": fallback_section.get("broll_keywords")
+                or fallback_section.get("brollKeywords")
+                or fallback_section.get("keywords"),
+                "queries": fallback_section.get("queries"),
+            }
+            fallback_normalised = _normalise_metadata_output(
+                fallback_seed,
+                fallback_trunc=fallback_trunc,
+                transcript=cleaned_transcript,
+            )
+
+            fallback_title = fallback_normalised.get("title") or _normalise_string(
+                fallback_section.get("title", "")
+            )
+            fallback_description = fallback_normalised.get("description") or _normalise_string(
+                fallback_section.get("description", "")
+            )
+            fallback_hashtags = list(fallback_normalised.get("hashtags") or [])
+            fallback_broll = list(fallback_normalised.get("broll_keywords") or [])
+            fallback_queries = list(fallback_normalised.get("queries") or [])
+
+            if title_missing and fallback_title and fallback_title != defaults_title:
+                result["title"] = fallback_title
+                title_missing = False
+            if description_missing and fallback_description and fallback_description != defaults_description:
+                result["description"] = fallback_description
+                description_missing = False
+            if fallback_hashtags:
+                result["hashtags"] = fallback_hashtags[:MAX_HASHTAGS]
+            if keywords_fallback and fallback_broll:
+                result["broll_keywords"] = fallback_broll[:MAX_METADATA_TERMS]
+                keywords_fallback = False
+            if queries_fallback and fallback_queries:
+                result["queries"] = fallback_queries[:MAX_METADATA_TERMS]
+                queries_fallback = False
+            if fallback_raw_length is not None:
+                existing_len = result.get("raw_response_length") or 0
+                if fallback_raw_length > existing_len:
+                    result["raw_response_length"] = fallback_raw_length
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "[LLM] Secondary metadata prompt failed",
+                extra={
+                    "model": model_name,
+                    "duration_s": round(duration, 3),
+                    "transcript_length": len(cleaned_transcript),
+                    "keywords_prompt": use_keywords_prompt,
+                    "error": str(exc),
+                },
+            )
+
+    hashtags = list(result.get("hashtags") or [])
+    broll_keywords = list(result.get("broll_keywords") or [])
+    queries = list(result.get("queries") or [])
+    result["hashtags"] = list(hashtags)
+    result["broll_keywords"] = list(broll_keywords)
+    result["queries"] = list(queries)
+    title_default = not result["title"] or result["title"] == defaults_title
+    description_default = not result["description"] or result["description"] == defaults_description
+
     logger.info(
         "[LLM] JSON metadata generated",
         extra={
@@ -5172,6 +5515,9 @@ def generate_metadata_as_json(
             "queries_fallback": queries_fallback,
             "keywords_fallback": keywords_fallback,
             "keywords_prompt": use_keywords_prompt,
+            "secondary_prompt": secondary_prompt_used,
+            "title_default": title_default,
+            "description_default": description_default,
         },
     )
 
