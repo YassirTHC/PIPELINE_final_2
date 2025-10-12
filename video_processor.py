@@ -27,7 +27,7 @@ import subprocess
 import shlex
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO
+from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO, Iterable
 from collections import Counter
 from dataclasses import dataclass
 
@@ -689,6 +689,7 @@ try:
         enforce_fetch_language,
         get_shared_llm_service,
         has_concrete_subject,
+        generate_segment_queries,
     )
 except ImportError:  # pragma: no cover - test environments may stub partial API
     from pipeline_core.llm_service import LLMMetadataGeneratorService  # type: ignore
@@ -736,8 +737,39 @@ except ImportError:  # pragma: no cover - test environments may stub partial API
             _FALLBACK_SHARED_SERVICE = LLMMetadataGeneratorService()
         return _FALLBACK_SHARED_SERVICE
 
+    def generate_segment_queries(segment_text: str):  # type: ignore[override]
+        return []
+
 # Ã°Å¸Å¡â‚¬ NOUVEAU: Cache global pour ÃƒÂ©viter le rechargement des modÃƒÂ¨les
 _MODEL_CACHE = {}
+
+_TRUEISH = {"1", "true", "t", "yes", "y", "on"}
+
+
+def _env_truthy(name: str, *, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in _TRUEISH
+
+
+_BROLL_LLM_ONLY = _env_truthy("PIPELINE_BROLL_LLM_ONLY")
+_BROLL_MIN_SHARED_TOKENS = max(
+    0,
+    int(os.getenv("PIPELINE_BROLL_MIN_SHARED_TOKENS", "1") or 0),
+)
+_BROLL_SEGMENT_JSON = _env_truthy("PIPELINE_BROLL_SEGMENT_JSON", default=True)
+_SEGMENT_JSON_MIN_CHARS = max(
+    0,
+    int(os.getenv("PIPELINE_BROLL_SEGMENT_JSON_MIN_CHARS", "32") or 0),
+)
+
+_FALLBACK_HINT_SOURCES = {
+    "metadata_keywords_fallback",
+    "transcript_fallback",
+    "metadata_first",
+    "seed_queries",
+}
 
 # --- Dynamic LLM context toggle (default: on)
 ENABLE_DYNAMIC_CONTEXT = os.getenv("ENABLE_DYNAMIC_CONTEXT", "true").lower() not in {"0","false","no"}
@@ -1112,15 +1144,67 @@ def _build_transcript_fallback_terms(
         unique_tokens.append(cleaned)
 
     phrases: list[str] = []
-    for token in unique_tokens:
+    for idx in range(len(unique_tokens) - 1):
         if len(phrases) >= limit:
             break
-        phrases.append(token)
+        phrases.append(f"{unique_tokens[idx]} {unique_tokens[idx + 1]}")
+
+    if len(phrases) < limit:
+        for token in unique_tokens:
+            if len(phrases) >= limit:
+                break
+            candidate = f"{token} visuals"
+            if candidate not in phrases:
+                phrases.append(candidate)
+
+    if not phrases and unique_tokens:
+        phrases.append(f"{unique_tokens[0]} scene")
 
     if not phrases:
         return ["stock footage"][:limit]
 
     return phrases[:limit]
+
+
+def _tokenise_terms(values: Iterable[str]) -> set[str]:
+    tokens: set[str] = set()
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        for token in re.findall(r"[a-zA-Z]{4,}", value.lower()):
+            tokens.add(token)
+    return tokens
+
+
+def _filter_terms_for_segment(
+    terms: Sequence[str],
+    *,
+    segment_tokens: set[str],
+    llm_tokens: set[str],
+    allow_when_empty: bool,
+) -> list[str]:
+    if not terms:
+        return []
+
+    min_shared = max(0, int(_BROLL_MIN_SHARED_TOKENS))
+    filtered: list[str] = []
+    for term in terms:
+        if not isinstance(term, str):
+            continue
+        term_tokens = _tokenise_terms([term])
+        if min_shared == 0:
+            filtered.append(term)
+            continue
+
+        segment_overlap = term_tokens & segment_tokens
+        llm_overlap = term_tokens & llm_tokens
+        if len(segment_overlap) >= min_shared or len(llm_overlap) >= min_shared:
+            filtered.append(term)
+
+    if filtered:
+        return filtered
+
+    return list(terms) if allow_when_empty else []
 
 
 def _merge_segment_query_sources(
@@ -1132,6 +1216,7 @@ def _merge_segment_query_sources(
     segment_keywords: Sequence[str],
     selector_keywords: Sequence[str],
     cap: int,
+    llm_only: bool | None = None,
 ) -> tuple[list[str], str]:
     cap = max(1, int(cap or 0))
     combined: list[str] = []
@@ -1173,35 +1258,103 @@ def _merge_segment_query_sources(
     print(
         f"    🔍 DEBUG _combine_broll_queries ENTRÉE llm_queries: {llm_queries[:3]}"
     )
-    _consume("llm_hint", llm_queries, relax=True)
+
+    llm_only_mode = _BROLL_LLM_ONLY if llm_only is None else bool(llm_only)
+
+    llm_prefill: list[str] = []
+    if llm_queries:
+        llm_prefill = _relaxed_normalise_terms(llm_queries, cap)
+
+    segment_tokens = _tokenise_terms([segment_text])
+    llm_tokens = _tokenise_terms(llm_prefill)
+
+    if llm_only_mode and llm_prefill:
+        for term in llm_prefill:
+            if len(combined) >= cap:
+                break
+            normalised = re.sub(r"\s+", " ", term.strip())
+            if not normalised or normalised in seen:
+                continue
+            seen.add(normalised)
+            combined.append(normalised)
+        if combined:
+            primary_source = "llm_hint"
+            print(
+                "    🔍 DEBUG _combine_broll_queries APRÈS _consume (llm_only), "
+                f"combined={combined[:3] if combined else 'VIDE'}"
+            )
+            debug_preview = combined[:cap][:5]
+            print(
+                f"    🔍 DEBUG _combine_broll_queries SORTIE: {debug_preview}"
+            )
+            return combined[:cap], primary_source
+
+    brief_pool: list[str] = []
+    brief_pool.extend(brief_keywords or [])
+    brief_pool.extend(brief_queries or [])
+    brief_pool = _filter_terms_for_segment(
+        brief_pool,
+        segment_tokens=segment_tokens,
+        llm_tokens=llm_tokens,
+        allow_when_empty=True,
+    )
+
+    filtered_segment_keywords = _filter_terms_for_segment(
+        segment_keywords,
+        segment_tokens=segment_tokens,
+        llm_tokens=llm_tokens,
+        allow_when_empty=not llm_prefill,
+    )
+
+    filtered_selector_keywords = _filter_terms_for_segment(
+        selector_keywords,
+        segment_tokens=segment_tokens,
+        llm_tokens=llm_tokens,
+        allow_when_empty=False,
+    )
+
+    contextual_sources = 0
+    if brief_pool:
+        contextual_sources += 1
+    if filtered_segment_keywords:
+        contextual_sources += 1
+    if filtered_selector_keywords:
+        contextual_sources += 1
+
+    llm_backfill: list[str] = []
+    if llm_prefill:
+        reserve_slots = min(contextual_sources, max(0, cap - 1))
+        llm_initial_cap = max(1, cap - reserve_slots)
+        llm_initial_terms = llm_prefill[:llm_initial_cap]
+        llm_backfill = llm_prefill[llm_initial_cap:]
+        _consume("llm_hint", llm_initial_terms, relax=True)
     print(
         "    🔍 DEBUG _combine_broll_queries APRÈS _consume, "
         f"combined={combined[:3] if combined else 'VIDE'}"
     )
-    brief_pool: list[str] = []
-    brief_pool.extend(brief_keywords or [])
-    brief_pool.extend(brief_queries or [])
     _consume("segment_brief", brief_pool)
 
-    if not combined:
-        if _consume("segment_keywords", segment_keywords):
-            pass
-    if not combined:
-        _consume("selector_keywords", selector_keywords)
+    if len(combined) < cap:
+        _consume("segment_keywords", filtered_segment_keywords)
+    if len(combined) < cap:
+        _consume("selector_keywords", filtered_selector_keywords)
     if not combined:
         seed_queries = _load_seed_queries()
         _consume("seed_queries", seed_queries)
 
-    if not combined:
+    if len(combined) < cap:
         fallback_terms = _build_transcript_fallback_terms(
             segment_text,
-            segment_keywords,
+            filtered_segment_keywords,
             limit=cap,
         )
         _consume("transcript_fallback", fallback_terms, relax=True)
 
     if not combined:
         _consume("transcript_fallback", ["stock footage"], relax=True)
+
+    if len(combined) < cap and llm_backfill:
+        _consume("llm_hint", llm_backfill, relax=True)
 
     if primary_source == "none" and combined:
         primary_source = "transcript_fallback"
@@ -2177,6 +2330,25 @@ class VideoProcessor:
                 if isinstance(raw_source, str) and raw_source.strip():
                     hint_source = raw_source.strip()
 
+            fallback_hint = hint_source in _FALLBACK_HINT_SOURCES if hint_source else False
+            json_segment_queries: List[str] = []
+            json_segment_source: Optional[str] = None
+            if (
+                _BROLL_SEGMENT_JSON
+                and (not hint_terms or fallback_hint)
+                and isinstance(getattr(segment, "text", None), str)
+            ):
+                segment_text_value = getattr(segment, "text", "") or ""
+                if len(segment_text_value.strip()) >= _SEGMENT_JSON_MIN_CHARS:
+                    try:
+                        json_candidates = generate_segment_queries(segment_text_value)
+                    except Exception:
+                        json_candidates = []
+                    else:
+                        json_segment_queries = _dedupe_queries(json_candidates, cap=query_cap)
+                        if json_segment_queries:
+                            json_segment_source = "llm_segment_json"
+
             raw_segment_keywords = self._derive_segment_keywords(segment, broll_keywords)
             segment_keywords = _dedupe_queries(raw_segment_keywords, cap=query_cap)
 
@@ -2185,14 +2357,29 @@ class VideoProcessor:
             except Exception:
                 brief_queries, brief_keywords = [], []
 
+            llm_query_candidates: List[str] = []
+            if json_segment_queries:
+                llm_query_candidates.extend(json_segment_queries)
+            if hint_terms and hint_source and hint_source not in _FALLBACK_HINT_SOURCES:
+                for term in hint_terms:
+                    if term not in llm_query_candidates:
+                        llm_query_candidates.append(term)
+            if not llm_query_candidates:
+                llm_query_candidates = list(base_llm_queries)
+            else:
+                for candidate in base_llm_queries:
+                    if candidate not in llm_query_candidates:
+                        llm_query_candidates.append(candidate)
+
             final_queries, query_source = _merge_segment_query_sources(
                 segment_text=getattr(segment, "text", "") or "",
-                llm_queries=base_llm_queries,
+                llm_queries=llm_query_candidates,
                 brief_queries=brief_queries,
                 brief_keywords=brief_keywords,
                 segment_keywords=segment_keywords,
                 selector_keywords=selector_keywords,
                 cap=query_cap,
+                llm_only=_BROLL_LLM_ONLY,
             )
 
             try:
@@ -2212,8 +2399,34 @@ class VideoProcessor:
                 else:
                     query_source = 'transcript_fallback'
 
-            if hint_terms:
-                queries = hint_terms
+            if hint_terms and hint_source and hint_source not in _FALLBACK_HINT_SOURCES:
+                queries = hint_terms[:max(1, query_cap)]
+                query_source = hint_source or 'llm_hint'
+                try:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
+                        queries,
+                        query_source,
+                    )
+                except Exception:
+                    pass
+            elif json_segment_queries:
+                queries = json_segment_queries[:max(1, query_cap)]
+                query_source = json_segment_source or 'llm_segment_json'
+                try:
+                    logger.info(
+                        "[BROLL][LLM] segment=%.2f-%.2f queries=%s (source=%s)",
+                        float(getattr(segment, 'start', 0.0) or 0.0),
+                        float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
+                        queries,
+                        query_source,
+                    )
+                except Exception:
+                    pass
+            elif hint_terms:
+                queries = hint_terms[:max(1, query_cap)]
                 query_source = hint_source or 'llm_hint'
                 try:
                     logger.info(

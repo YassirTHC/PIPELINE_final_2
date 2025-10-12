@@ -174,7 +174,8 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases
     queries_event = logged_queries[0]
 
     assert queries_event["source"] == "segment_brief"
-    assert queries_event["queries"] == expected_phrases
+    assert queries_event["queries"][: len(expected_phrases)] == expected_phrases
+    assert set(expected_phrases).issubset(queries_event["queries"])
     banned_tokens = {"person discussing", "doctor", "stethoscope", "professional", "buffer", "signal"}
     for phrase in queries_event["queries"]:
         assert not any(banned in phrase for banned in banned_tokens)
@@ -182,7 +183,7 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases
 
     decision_events = [payload for payload in decisions if payload.get("segment_idx") == 0]
     assert decision_events, "expected per-segment decision"
-    assert decision_events[0]["queries"] == expected_phrases
+    assert decision_events[0]["queries"][: len(expected_phrases)] == expected_phrases
 
 
 def test_dedupe_queries_drop_abstract_tokens():
@@ -202,6 +203,156 @@ def test_dedupe_queries_drop_abstract_tokens():
         assert "professional" not in phrase
         assert "buffer" not in phrase
         assert "signal" not in phrase
+
+
+def test_metadata_queries_leave_room_for_contextual_terms():
+    llm_terms = [
+        "self reward process",
+        "intrinsic motivation focus",
+        "positive outcome path",
+        "personal achievement drive",
+    ]
+    segment_keywords = [
+        "runner tying shoes",
+        "starting blocks preparation",
+    ]
+    selector_keywords = [
+        "athlete preparing",
+    ]
+
+    merged, source = video_processor._merge_segment_query_sources(
+        segment_text="Runner ties shoes before sprint",
+        llm_queries=llm_terms,
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=segment_keywords,
+        selector_keywords=selector_keywords,
+        cap=4,
+    )
+
+    assert len(merged) == 4
+    assert source in {"llm_hint", "segment_brief", "segment_keywords", "selector_keywords"}
+
+    llm_term_set = set(llm_terms)
+    contextual_terms = [term for term in merged if term not in llm_term_set]
+    assert contextual_terms, "expected contextual keywords to fill reserved slots"
+    assert any("runner" in term or "athlete" in term for term in contextual_terms)
+
+
+def test_llm_only_flag_prefers_llm_terms():
+    merged, source = video_processor._merge_segment_query_sources(
+        segment_text="Context about habits",
+        llm_queries=[
+            "Vision Board Inspiration",
+            "Morning Routine Focus",
+            "Habit Tracking Journal",
+        ],
+        brief_queries=["process focus"],
+        brief_keywords=["daily routine"],
+        segment_keywords=["desk journaling at"],
+        selector_keywords=["runner tying shoes"],
+        cap=3,
+        llm_only=True,
+    )
+
+    assert merged == [
+        "vision board inspiration",
+        "morning routine focus",
+        "habit tracking journal",
+    ][:3]
+    assert source == "llm_hint"
+
+
+def test_llm_only_flag_falls_back_when_llm_empty():
+    merged, source = video_processor._merge_segment_query_sources(
+        segment_text="Context about resilience",
+        llm_queries=[],
+        brief_queries=["focus breathing"],
+        brief_keywords=[],
+        segment_keywords=["athlete training"],
+        selector_keywords=["stadium lights"],
+        cap=3,
+        llm_only=True,
+    )
+
+    assert merged, "expected fallback queries when llm list empty"
+    assert any("athlete" in term for term in merged)
+    assert source in {"segment_brief", "segment_keywords", "selector_keywords", "seed_queries", "transcript_fallback"}
+
+
+def test_selector_terms_filtered_when_off_topic():
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="Motivation boost through internal rewards",
+        llm_queries=[
+            "intrinsic motivation focus",
+            "reward system process",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["internal motivation"],
+        selector_keywords=["desk journaling at", "runner tying shoes"],
+        cap=4,
+    )
+
+    assert all("desk" not in term for term in merged)
+    assert all("runner" not in term for term in merged)
+    assert any("motivation" in term for term in merged)
+
+
+def test_segment_keywords_filtered_without_overlap():
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="Motivation boost through internal rewards",
+        llm_queries=[
+            "intrinsic motivation focus",
+            "reward system process",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["desk typing at", "journal desk session"],
+        selector_keywords=[],
+        cap=4,
+    )
+
+    assert merged, "expected llm queries to remain"
+    assert all("desk" not in term for term in merged)
+
+
+def test_selector_filter_threshold_can_be_relaxed(monkeypatch):
+    monkeypatch.setattr(video_processor, "_BROLL_MIN_SHARED_TOKENS", 0)
+
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="Motivation boost through internal rewards",
+        llm_queries=[
+            "intrinsic motivation focus",
+            "reward system process",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["internal motivation"],
+        selector_keywords=["desk journaling at", "runner tying shoes"],
+        cap=4,
+    )
+
+    assert any("desk" in term for term in merged)
+    assert any("runner" in term for term in merged)
+
+
+def test_selector_terms_retained_when_overlapping_transcript():
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="The runner ties shoes before the sprint and focuses on discipline",
+        llm_queries=[
+            "discipline motivation",
+            "race preparation focus",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["runner sprint preparation"],
+        selector_keywords=["runner tying shoes", "city skyline night"],
+        cap=4,
+    )
+
+    assert any("runner" in term for term in merged)
+    assert all("city" not in term for term in merged)
 
 
 def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
@@ -418,3 +569,82 @@ def test_metadata_fallback_logging_and_events(monkeypatch, caplog, core_event_lo
     events = [json.loads(line) for line in core_event_log.read_text(encoding="utf-8").splitlines() if line.strip()]
     candidate_events = [event for event in events if event.get("event") == "broll_candidate_evaluated"]
     assert candidate_events, "expected at least one candidate evaluation event in JSONL log"
+
+
+def test_segment_json_queries_override_metadata_fallback(monkeypatch):
+    memory_logger = MemoryLogger()
+
+    class FallbackLLM:
+        def generate_hints_for_segment(self, *_args, **_kwargs):
+            return {
+                "queries": ["generic fallback term"],
+                "source": "metadata_keywords_fallback",
+            }
+
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", DummyOrchestrator)
+    DummyOrchestrator.instances = []
+
+    processor = video_processor.VideoProcessor.__new__(video_processor.VideoProcessor)
+    processor._pipeline_config = SimpleNamespace(
+        fetcher=SimpleNamespace(),
+        selection=SimpleNamespace(min_score=-1.0),
+        timeboxing=SimpleNamespace(fetch_rank_ms=0, request_timeout_s=0),
+    )
+    processor._dyn_context = {"language": "en", "segment_briefs": []}
+    processor._selector_keywords = []
+    processor._core_last_run_used = False
+    processor._llm_service = FallbackLLM()
+
+    def fake_event_logger(self):
+        return memory_logger
+
+    processor._broll_event_logger = memory_logger
+    processor._get_broll_event_logger = MethodType(fake_event_logger, processor)
+    processor._derive_segment_keywords = MethodType(lambda self, *_: [], processor)
+    processor._rank_candidate = MethodType(lambda self, *_args, **_kwargs: 0.0, processor)
+
+    targeted_queries = [
+        "runner celebrating finish",
+        "journal habit tracker",
+        "victory dance celebration",
+    ]
+    monkeypatch.setattr(
+        video_processor,
+        "generate_segment_queries",
+        lambda *_args, **_kwargs: targeted_queries,
+        raising=False,
+    )
+
+    segment = SimpleNamespace(
+        start=0.0,
+        end=4.0,
+        text="Celebrate every small win to reinforce your motivation",
+    )
+
+    processor._insert_brolls_pipeline_core(
+        [segment],
+        [],
+        subtitles=None,
+        input_path=SimpleNamespace(name="clip.mp4"),
+    )
+
+    assert DummyOrchestrator.instances, "expected orchestrator to be constructed"
+    fetch_calls = DummyOrchestrator.instances[0].fetch_calls
+    assert fetch_calls, "expected orchestrator fetch to be invoked"
+    queries_used, seg_idx, *_ = fetch_calls[0]
+    assert seg_idx == 0
+    expected = video_processor._dedupe_queries(
+        targeted_queries,
+        cap=video_processor.SEGMENT_REFINEMENT_MAX_TERMS,
+    )
+    assert queries_used == expected
+
+    logged_queries = [
+        event
+        for event in memory_logger.events
+        if event.get("event") == "broll_segment_queries" and event.get("segment") == 0
+    ]
+    assert logged_queries, "expected queries event"
+    queries_event = logged_queries[0]
+    assert queries_event["source"] == "llm_segment_json"
+    assert queries_event["queries"] == expected
