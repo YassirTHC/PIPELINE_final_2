@@ -78,6 +78,87 @@ def test_non_empty_keywords(monkeypatch):
     assert result["broll_keywords"][0] == "modern office"
 
 
+def test_secondary_prompt_recovers_summary(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
+    monkeypatch.delenv("PIPELINE_LLM_DISABLE_HASHTAGS", raising=False)
+    monkeypatch.setenv("PIPELINE_LLM_DISABLE_HASHTAGS", "0")
+
+    keywords_payload = {
+        "broll_keywords": [
+            "reward journal writing",
+            "personal milestone tracker",
+            "focused breathing practice",
+            "motivational vision board",
+            "celebration fist pump",
+            "goal progress checklist",
+            "calm morning planning",
+            "intrinsic motivation walk",
+        ],
+        "queries": [
+            "personal motivation focus",
+            "self reward routine",
+            "intrinsic drive habits",
+            "goal celebration moment",
+            "progress tracking journal",
+            "mindful reward ritual",
+            "achievement reflection time",
+            "positive reinforcement habit",
+        ],
+    }
+
+    def fake_generate(prompt: str, **kwargs):
+        raw = json.loads(json.dumps(keywords_payload))
+        return raw, raw, len(json.dumps(raw))
+
+    fallback_payload = {
+        "title": "Intrinsic Motivation Momentum",
+        "description": "Build unstoppable discipline by celebrating every personal win.",
+        "hashtags": [
+            "#motivation",
+            "#selfgrowth",
+            "#productivity",
+            "#mindset",
+            "#success",
+            "#habits",
+        ],
+        "broll_keywords": [
+            "fallback reward moment",
+            "fallback goal focus",
+            "fallback journal writing",
+            "fallback mindset reset",
+            "fallback celebration smile",
+            "fallback planning shot",
+            "fallback reflection desk",
+            "fallback sunrise walk",
+        ],
+        "queries": [
+            "fallback reward focus",
+            "fallback self discipline",
+            "fallback motivation habit",
+            "fallback progress ritual",
+            "fallback success mindset",
+            "fallback positive journey",
+            "fallback goal tracker",
+            "fallback achievement focus",
+        ],
+    }
+
+    def fake_json(prompt: str, **kwargs):
+        return json.loads(json.dumps(fallback_payload))
+
+    monkeypatch.setattr(llm_service, "_ollama_generate_json", fake_generate)
+    monkeypatch.setattr(llm_service, "_ollama_json", fake_json)
+
+    transcript = "Celebrating small wins keeps internal motivation strong and builds powerful habits over time."
+    result = llm_service.generate_metadata_as_json(transcript)
+
+    assert result["title"] == fallback_payload["title"]
+    assert result["description"] == fallback_payload["description"]
+    assert result["hashtags"][: len(fallback_payload["hashtags"])] == fallback_payload["hashtags"]
+    assert result["queries"] == keywords_payload["queries"]
+    assert result["broll_keywords"] == keywords_payload["broll_keywords"]
+
+
 def test_generate_hints_for_segment_integrates(monkeypatch):
     monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
 

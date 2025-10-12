@@ -1173,7 +1173,23 @@ def _merge_segment_query_sources(
     print(
         f"    🔍 DEBUG _combine_broll_queries ENTRÉE llm_queries: {llm_queries[:3]}"
     )
-    _consume("llm_hint", llm_queries, relax=True)
+
+    contextual_sources = 0
+    if brief_queries or brief_keywords:
+        contextual_sources += 1
+    if segment_keywords:
+        contextual_sources += 1
+    if selector_keywords:
+        contextual_sources += 1
+
+    llm_backfill: list[str] = []
+    if llm_queries:
+        llm_prefill = _relaxed_normalise_terms(llm_queries, cap)
+        reserve_slots = min(contextual_sources, max(0, cap - 1))
+        llm_initial_cap = max(1, cap - reserve_slots)
+        llm_initial_terms = llm_prefill[:llm_initial_cap]
+        llm_backfill = llm_prefill[llm_initial_cap:]
+        _consume("llm_hint", llm_initial_terms, relax=True)
     print(
         "    🔍 DEBUG _combine_broll_queries APRÈS _consume, "
         f"combined={combined[:3] if combined else 'VIDE'}"
@@ -1183,16 +1199,15 @@ def _merge_segment_query_sources(
     brief_pool.extend(brief_queries or [])
     _consume("segment_brief", brief_pool)
 
-    if not combined:
-        if _consume("segment_keywords", segment_keywords):
-            pass
-    if not combined:
+    if len(combined) < cap:
+        _consume("segment_keywords", segment_keywords)
+    if len(combined) < cap:
         _consume("selector_keywords", selector_keywords)
     if not combined:
         seed_queries = _load_seed_queries()
         _consume("seed_queries", seed_queries)
 
-    if not combined:
+    if len(combined) < cap:
         fallback_terms = _build_transcript_fallback_terms(
             segment_text,
             segment_keywords,
@@ -1202,6 +1217,9 @@ def _merge_segment_query_sources(
 
     if not combined:
         _consume("transcript_fallback", ["stock footage"], relax=True)
+
+    if len(combined) < cap and llm_backfill:
+        _consume("llm_hint", llm_backfill, relax=True)
 
     if primary_source == "none" and combined:
         primary_source = "transcript_fallback"
