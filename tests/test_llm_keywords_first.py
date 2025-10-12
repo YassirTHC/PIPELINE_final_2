@@ -45,10 +45,27 @@ import video_processor
 
 def test_keywords_prompt_schema():
     prompt = llm_service._build_keywords_prompt("Example transcript", "en")
-    assert "Return ONLY a JSON object with keys: title (string), description (string), queries (array of 8-12 short search queries in en), broll_keywords (array of 8-12 short visual noun phrases in en)." in prompt
-    assert "broll_keywords" in prompt
-    assert "queries" in prompt
+    assert "Return ONLY one JSON object with keys: broll_keywords, queries." in prompt
+    assert "broll_keywords: 8-12 visual noun phrases" in prompt
+    assert "queries: 8-12 short, filmable search queries" in prompt
     assert "hashtags" not in prompt.lower()
+
+
+def test_concretize_queries_rewrites_broad_terms():
+    raw_terms = ["Hands grasping energy", "Self reward action"]
+    concretized = llm_service._concretize_queries(raw_terms)
+    lowered = [term.lower() for term in concretized]
+    assert lowered, "expected concretized queries"
+    assert "hands grasping energy" not in lowered
+    assert any("hands" in term for term in lowered)
+    assert any("reward" in term or "celebr" in term for term in lowered)
+
+
+def test_json_metadata_prompt_mentions_viral_requirements():
+    prompt = llm_service._build_json_metadata_prompt("Segment sur la motivation et la discipline")
+    assert "style TikTok" in prompt
+    assert "emojis" in prompt
+    assert "tableau de 8 à 12 requêtes" in prompt
 
 
 def test_non_empty_keywords(monkeypatch):
@@ -78,6 +95,139 @@ def test_non_empty_keywords(monkeypatch):
     assert result["broll_keywords"][0] == "modern office"
 
 
+def test_secondary_prompt_recovers_summary(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
+    monkeypatch.delenv("PIPELINE_LLM_DISABLE_HASHTAGS", raising=False)
+    monkeypatch.setenv("PIPELINE_LLM_DISABLE_HASHTAGS", "0")
+
+    keywords_payload = {
+        "broll_keywords": [
+            "reward journal writing",
+            "personal milestone tracker",
+            "focused breathing practice",
+            "motivational vision board",
+            "celebration fist pump",
+            "goal progress checklist",
+            "calm morning planning",
+            "intrinsic motivation walk",
+        ],
+        "queries": [
+            "personal motivation focus",
+            "self reward routine",
+            "intrinsic drive habits",
+            "goal celebration moment",
+            "progress tracking journal",
+            "mindful reward ritual",
+            "achievement reflection time",
+            "positive reinforcement habit",
+        ],
+    }
+
+    def fake_generate(prompt: str, **kwargs):
+        raw = json.loads(json.dumps(keywords_payload))
+        return raw, raw, len(json.dumps(raw))
+
+    fallback_payload = {
+        "title": "Intrinsic Motivation Momentum",
+        "description": "Build unstoppable discipline by celebrating every personal win.",
+        "hashtags": [
+            "#motivation",
+            "#selfgrowth",
+            "#productivity",
+            "#mindset",
+            "#success",
+            "#habits",
+        ],
+        "broll_keywords": [
+            "fallback reward moment",
+            "fallback goal focus",
+            "fallback journal writing",
+            "fallback mindset reset",
+            "fallback celebration smile",
+            "fallback planning shot",
+            "fallback reflection desk",
+            "fallback sunrise walk",
+        ],
+        "queries": [
+            "fallback reward focus",
+            "fallback self discipline",
+            "fallback motivation habit",
+            "fallback progress ritual",
+            "fallback success mindset",
+            "fallback positive journey",
+            "fallback goal tracker",
+            "fallback achievement focus",
+        ],
+    }
+
+    def fake_json(prompt: str, **kwargs):
+        return json.loads(json.dumps(fallback_payload))
+
+    monkeypatch.setattr(llm_service, "_ollama_generate_json", fake_generate)
+    monkeypatch.setattr(llm_service, "_ollama_json", fake_json)
+
+    transcript = "Celebrating small wins keeps internal motivation strong and builds powerful habits over time."
+    result = llm_service.generate_metadata_as_json(transcript)
+
+    assert result["title"] == fallback_payload["title"]
+    assert result["description"] == fallback_payload["description"]
+    assert result["hashtags"][: len(fallback_payload["hashtags"])] == fallback_payload["hashtags"]
+    assert result["queries"] == keywords_payload["queries"]
+    assert result["broll_keywords"] == keywords_payload["broll_keywords"]
+
+
+def test_keywords_first_failure_falls_back_to_rich_prompt(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
+
+    def failing_generate(*_args, **_kwargs):
+        raise RuntimeError("timeout")
+
+    fallback_payload = {
+        "title": "Viral Discipline Hack",
+        "description": "Reward your grind with mini wins ✨ Keep momentum high!",
+        "hashtags": [
+            "#motivation",
+            "#discipline",
+            "#grindmode",
+            "#selfgrowth",
+            "#successmindset",
+            "#goalcrusher",
+        ],
+        "broll_keywords": [
+            "motivated runner",
+            "victory fist pump",
+            "habit tracker journal",
+            "focus breathing shot",
+            "goal board closeup",
+            "sunrise training",
+            "celebration smile",
+            "progress checklist",
+        ],
+        "queries": [
+            "runner celebrating finish",
+            "writing habit journal",
+            "morning focus routine",
+            "success celebration moment",
+            "discipline motivation shot",
+            "goal tracker closeup",
+            "motivational pep talk",
+            "victory celebration steps",
+        ],
+    }
+
+    monkeypatch.setattr(llm_service, "_ollama_generate_json", failing_generate)
+    monkeypatch.setattr(llm_service, "_ollama_json", lambda *_args, **_kwargs: fallback_payload)
+
+    transcript = "Keep rewarding your effort to stay motivated and unstoppable."
+    result = llm_service.generate_metadata_as_json(transcript)
+
+    assert result["title"] == fallback_payload["title"]
+    assert result["description"] == fallback_payload["description"]
+    assert result["hashtags"][:6] == fallback_payload["hashtags"]
+    assert result["queries"][:8] == fallback_payload["queries"][:8]
+    assert result["broll_keywords"][:8] == fallback_payload["broll_keywords"][:8]
+
+
 def test_generate_hints_for_segment_integrates(monkeypatch):
     monkeypatch.setenv("PIPELINE_LLM_KEYWORDS_FIRST", "1")
 
@@ -104,18 +254,21 @@ def test_generate_hints_for_segment_integrates(monkeypatch):
 
     captured = {}
 
-    def fake_call_llm(self, prompt: str, max_tokens: int = 192):
-        captured["prompt"] = prompt
-        return json.dumps(
-            {
-                "title": "Segment Title",
-                "description": "Segment Description",
-                "queries": expected_queries,
-                "broll_keywords": expected_keywords,
-            }
-        )
+    def fake_segment_json(self, snippet: str, timeout_s=None, num_predict=None):
+        captured["snippet"] = snippet
+        return {
+            "title": "Segment Title",
+            "description": "Segment Description",
+            "queries": expected_queries,
+            "broll_keywords": expected_keywords,
+        }
 
-    monkeypatch.setattr(llm_service.LLMMetadataGeneratorService, "_call_llm", fake_call_llm, raising=False)
+    monkeypatch.setattr(
+        llm_service.LLMMetadataGeneratorService,
+        "_segment_llm_json",
+        fake_segment_json,
+        raising=False,
+    )
 
     service = llm_service.LLMMetadataGeneratorService(reuse_shared=False)
     result = service.generate_hints_for_segment(
@@ -124,8 +277,7 @@ def test_generate_hints_for_segment_integrates(monkeypatch):
         10.0,
     )
 
-    assert captured["prompt"].count("title (string)") == 1
-    assert "hashtags" not in captured["prompt"].lower()
+    assert "marketing analytics" in captured["snippet"]
     assert result["title"] == "Segment Title"
     assert result["description"] == "Segment Description"
     assert result["queries"] == expected_queries
