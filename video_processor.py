@@ -1170,7 +1170,14 @@ def _merge_segment_query_sources(
             added = True
         return added
 
+    print(
+        f"    🔍 DEBUG _combine_broll_queries ENTRÉE llm_queries: {llm_queries[:3]}"
+    )
     _consume("llm_hint", llm_queries, relax=True)
+    print(
+        "    🔍 DEBUG _combine_broll_queries APRÈS _consume, "
+        f"combined={combined[:3] if combined else 'VIDE'}"
+    )
     brief_pool: list[str] = []
     brief_pool.extend(brief_keywords or [])
     brief_pool.extend(brief_queries or [])
@@ -1199,7 +1206,10 @@ def _merge_segment_query_sources(
     if primary_source == "none" and combined:
         primary_source = "transcript_fallback"
 
-    return combined[:cap], primary_source
+    out = (combined[:cap], primary_source)
+    debug_preview = out[0][:5] if out and isinstance(out[0], list) else out
+    print(f"    🔍 DEBUG _combine_broll_queries SORTIE: {debug_preview}")
+    return out
 
 def _choose_dynamic_domain(dyn: dict):
     """Pick the best domain from LLM dynamic context.
