@@ -708,8 +708,14 @@ def _sanitize_queries(
         candidate = _polish_query_phrase(candidate)
         if not candidate:
             continue
+        if candidate in _BANNED_QUERY_PHRASES:
+            continue
         words = candidate.split()
         if len(words) < min_words or len(words) > max_words:
+            continue
+        if all(word in _STOPWORDS_EN for word in words):
+            continue
+        if any(word in _GENERIC_TERMS for word in words):
             continue
         key = candidate.lower()
         if not key or key in seen:
