@@ -7,6 +7,7 @@ import importlib.util
 import json
 import logging
 import math
+import os
 import re
 import sys
 import hashlib
@@ -1512,6 +1513,18 @@ def _llm_int(_env_key: str, attr: str, default: int, *, minimum: int) -> int:
 
 
 def _llm_bool(*_env_keys: str, attr: str, default: bool) -> bool:
+    for key in _env_keys:
+        try:
+            raw = os.getenv(key)
+        except Exception:
+            raw = None
+        if raw is None:
+            continue
+        lowered = raw.strip().lower()
+        if lowered in {"1", "true", "t", "yes", "y", "on"}:
+            return True
+        if lowered in {"0", "false", "f", "no", "n", "off", ""}:
+            return False
     llm = _llm_settings_obj()
     if llm is not None:
         try:
@@ -1958,14 +1971,15 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
 
     video_reference = f"Video ID: {video_id}\n" if video_id else ""
     return (
-        "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
+        "Tu es un expert des métadonnées virales pour vidéos courtes (TikTok, Reels, Shorts).\n"
         "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
-        "  \"title\": chaîne accrocheuse en langue source,\n"
-        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
-        "  \"hashtags\": tableau de 5 hashtags pertinents sans doublons,\n"
-        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels concrets,\n"
-        "  \"queries\": tableau de 4 à 8 requêtes de recherche prêtes pour des banques d’images/vidéos.\n"
-        "N'ajoute aucune explication hors JSON.\n\n"
+        "  \"title\": slogan ultra-accrocheur (≤60 caractères) en langue source, style TikTok, avec un hook immédiat,\n"
+        "  \"description\": 2 phrases dynamiques style TikTok avec emojis et appel à l’action positif,\n"
+        "  \"hashtags\": tableau de 6 hashtags viraux pertinents sans doublons ni répétitions de dièse,\n"
+        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite,\n"
+        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll.\n"
+        "Respecte strictement la langue source et n'ajoute aucune explication hors JSON.\n"
+        "Assure-toi que chaque mot-clé et requête colle à ce qui se passe dans la transcription au moment présent.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
 
@@ -4969,6 +4983,51 @@ def generate_metadata_as_json(
         except Exception:
             raw_length = 0
 
+    if error is not None and use_keywords_prompt:
+        try:
+            logger.warning(
+                "[LLM] Keywords-first metadata failed, retrying with rich prompt",
+                extra={
+                    "model": model_name,
+                    "duration_s": round(duration, 3),
+                    "transcript_length": len(cleaned_transcript),
+                    "error": str(error),
+                },
+            )
+            fallback_prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+            fallback_raw_payload = _ollama_json(
+                fallback_prompt,
+                model=model_name,
+                timeout_override=timeout_override,
+            )
+            try:
+                raw_length = (
+                    len(json.dumps(fallback_raw_payload, ensure_ascii=False))
+                    if fallback_raw_payload
+                    else 0
+                )
+            except Exception:
+                raw_length = 0
+            if isinstance(fallback_raw_payload, dict):
+                parsed_payload = fallback_raw_payload
+            else:
+                coerced = _coerce_ollama_json(fallback_raw_payload)
+                parsed_payload = coerced if isinstance(coerced, dict) else {}
+            raw_payload = fallback_raw_payload
+            error = None
+            use_keywords_prompt = False
+        except Exception as fallback_exc:
+            logger.warning(
+                "[LLM] Rich metadata prompt retry failed",
+                extra={
+                    "model": model_name,
+                    "duration_s": round(duration, 3),
+                    "transcript_length": len(cleaned_transcript),
+                    "error": str(fallback_exc),
+                },
+            )
+            error = fallback_exc
+
     if error is not None:
         failure = _empty_metadata_payload()
         failure["raw_response_length"] = 0
@@ -5263,6 +5322,9 @@ def generate_metadata_as_json(
     hashtags = list(result.get("hashtags") or [])
     broll_keywords = list(result.get("broll_keywords") or [])
     queries = list(result.get("queries") or [])
+    result["hashtags"] = list(hashtags)
+    result["broll_keywords"] = list(broll_keywords)
+    result["queries"] = list(queries)
     title_default = not result["title"] or result["title"] == defaults_title
     description_default = not result["description"] or result["description"] == defaults_description
 

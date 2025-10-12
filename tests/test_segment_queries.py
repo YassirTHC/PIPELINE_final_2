@@ -174,7 +174,8 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases
     queries_event = logged_queries[0]
 
     assert queries_event["source"] == "segment_brief"
-    assert queries_event["queries"] == expected_phrases
+    assert queries_event["queries"][: len(expected_phrases)] == expected_phrases
+    assert set(expected_phrases).issubset(queries_event["queries"])
     banned_tokens = {"person discussing", "doctor", "stethoscope", "professional", "buffer", "signal"}
     for phrase in queries_event["queries"]:
         assert not any(banned in phrase for banned in banned_tokens)
@@ -182,7 +183,7 @@ def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases
 
     decision_events = [payload for payload in decisions if payload.get("segment_idx") == 0]
     assert decision_events, "expected per-segment decision"
-    assert decision_events[0]["queries"] == expected_phrases
+    assert decision_events[0]["queries"][: len(expected_phrases)] == expected_phrases
 
 
 def test_dedupe_queries_drop_abstract_tokens():
@@ -296,6 +297,24 @@ def test_selector_terms_filtered_when_off_topic():
     assert all("desk" not in term for term in merged)
     assert all("runner" not in term for term in merged)
     assert any("motivation" in term for term in merged)
+
+
+def test_segment_keywords_filtered_without_overlap():
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="Motivation boost through internal rewards",
+        llm_queries=[
+            "intrinsic motivation focus",
+            "reward system process",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["desk typing at", "journal desk session"],
+        selector_keywords=[],
+        cap=4,
+    )
+
+    assert merged, "expected llm queries to remain"
+    assert all("desk" not in term for term in merged)
 
 
 def test_selector_filter_threshold_can_be_relaxed(monkeypatch):
@@ -550,3 +569,82 @@ def test_metadata_fallback_logging_and_events(monkeypatch, caplog, core_event_lo
     events = [json.loads(line) for line in core_event_log.read_text(encoding="utf-8").splitlines() if line.strip()]
     candidate_events = [event for event in events if event.get("event") == "broll_candidate_evaluated"]
     assert candidate_events, "expected at least one candidate evaluation event in JSONL log"
+
+
+def test_segment_json_queries_override_metadata_fallback(monkeypatch):
+    memory_logger = MemoryLogger()
+
+    class FallbackLLM:
+        def generate_hints_for_segment(self, *_args, **_kwargs):
+            return {
+                "queries": ["generic fallback term"],
+                "source": "metadata_keywords_fallback",
+            }
+
+    monkeypatch.setattr(video_processor, "FetcherOrchestrator", DummyOrchestrator)
+    DummyOrchestrator.instances = []
+
+    processor = video_processor.VideoProcessor.__new__(video_processor.VideoProcessor)
+    processor._pipeline_config = SimpleNamespace(
+        fetcher=SimpleNamespace(),
+        selection=SimpleNamespace(min_score=-1.0),
+        timeboxing=SimpleNamespace(fetch_rank_ms=0, request_timeout_s=0),
+    )
+    processor._dyn_context = {"language": "en", "segment_briefs": []}
+    processor._selector_keywords = []
+    processor._core_last_run_used = False
+    processor._llm_service = FallbackLLM()
+
+    def fake_event_logger(self):
+        return memory_logger
+
+    processor._broll_event_logger = memory_logger
+    processor._get_broll_event_logger = MethodType(fake_event_logger, processor)
+    processor._derive_segment_keywords = MethodType(lambda self, *_: [], processor)
+    processor._rank_candidate = MethodType(lambda self, *_args, **_kwargs: 0.0, processor)
+
+    targeted_queries = [
+        "runner celebrating finish",
+        "journal habit tracker",
+        "victory dance celebration",
+    ]
+    monkeypatch.setattr(
+        video_processor,
+        "generate_segment_queries",
+        lambda *_args, **_kwargs: targeted_queries,
+        raising=False,
+    )
+
+    segment = SimpleNamespace(
+        start=0.0,
+        end=4.0,
+        text="Celebrate every small win to reinforce your motivation",
+    )
+
+    processor._insert_brolls_pipeline_core(
+        [segment],
+        [],
+        subtitles=None,
+        input_path=SimpleNamespace(name="clip.mp4"),
+    )
+
+    assert DummyOrchestrator.instances, "expected orchestrator to be constructed"
+    fetch_calls = DummyOrchestrator.instances[0].fetch_calls
+    assert fetch_calls, "expected orchestrator fetch to be invoked"
+    queries_used, seg_idx, *_ = fetch_calls[0]
+    assert seg_idx == 0
+    expected = video_processor._dedupe_queries(
+        targeted_queries,
+        cap=video_processor.SEGMENT_REFINEMENT_MAX_TERMS,
+    )
+    assert queries_used == expected
+
+    logged_queries = [
+        event
+        for event in memory_logger.events
+        if event.get("event") == "broll_segment_queries" and event.get("segment") == 0
+    ]
+    assert logged_queries, "expected queries event"
+    queries_event = logged_queries[0]
+    assert queries_event["source"] == "llm_segment_json"
+    assert queries_event["queries"] == expected
