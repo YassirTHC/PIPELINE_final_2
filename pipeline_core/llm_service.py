@@ -411,6 +411,10 @@ BANNED_GENERIC = {
     "very",
     "just",
     "really",
+    "show",
+    "shows",
+    "showing",
+    "displaying",
 }
 
 BANNED_PROVIDER_NOISE = {
@@ -536,7 +540,7 @@ _NEGATIVE_QUERY_TERMS: Set[str] = {
 _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
     (
         re.compile(r"\binternal rewards?\b", flags=re.IGNORECASE),
-        ("journaling at desk", "smiling after workout", "deep breath at window"),
+        ("reward journal writing", "celebration fist pump", "deep breath at window"),
     ),
     (
         re.compile(r"\bmindset shifts?\b|\bconceptual mapping\b", flags=re.IGNORECASE),
@@ -548,27 +552,70 @@ _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
     ),
     (
         re.compile(r"\benergy\b|\benergised\b|\benergized\b", flags=re.IGNORECASE),
-        ("city night traffic", "powerlines closeup", "spark plug closeup"),
+        ("sunrise training run", "powerlines closeup", "spark plug closeup"),
     ),
     (
         re.compile(r"\badrenaline\b|\bintensit(?:y|ies)\b|\bfocus\b", flags=re.IGNORECASE),
-        ("runner tying shoes", "boxing training", "eyes closeup focus"),
+        ("focused eyes closeup", "steady breathing exercise", "boxing training"),
     ),
 )
 
 _CONCEPT_FALLBACKS: Tuple[str, ...] = (
-    "typing at desk",
-    "whiteboard sketching",
-    "team huddle meeting",
-    "city street walking",
+    "goal planner journal",
+    "motivation quote wall",
+    "focus breathing exercise",
+    "sunrise training run",
 )
 
 _DEFAULT_CONCRETE_QUERIES: Tuple[str, ...] = (
-    "typing at desk",
-    "whiteboard planning",
-    "runner tying shoes",
-    "city night traffic",
+    "goal planner journal",
+    "motivational quote wall",
+    "celebration fist pump",
+    "sunrise training run",
 )
+
+_TRAILING_QUERY_STOPWORDS: Tuple[str, ...] = (
+    "at",
+    "in",
+    "on",
+    "to",
+    "for",
+    "with",
+    "of",
+    "the",
+    "a",
+    "an",
+)
+
+_REMOVABLE_QUERY_TOKENS: Tuple[str, ...] = (
+    "showing",
+    "displaying",
+    "being",
+    "doing",
+    "having",
+)
+
+
+def _polish_query_phrase(text: str) -> str:
+    """Strip filler tokens and trailing stopwords from a candidate query."""
+
+    if not text:
+        return ""
+
+    tokens = [token for token in str(text).split() if token]
+    if not tokens:
+        return ""
+
+    core: List[str] = []
+    for token in tokens:
+        if token in _REMOVABLE_QUERY_TOKENS:
+            continue
+        core.append(token)
+
+    while core and core[-1] in _TRAILING_QUERY_STOPWORDS:
+        core.pop()
+
+    return " ".join(core)
 
 _ABSTRACT_HINTS: Tuple[str, ...] = (
     "process",
@@ -595,23 +642,33 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
             continue
         filtered_tokens = [token for token in base.split() if token and token not in _NEGATIVE_QUERY_TERMS]
         filtered = " ".join(filtered_tokens).strip()
-        target = filtered or base
+        target = _polish_query_phrase(filtered or base)
+        if not target:
+            continue
+        tokens = target.split()
+        if len(tokens) >= 2 and not all(token in _ABSTRACT_HINTS for token in tokens):
+            if target not in seen:
+                concrete.append(target)
+                seen.add(target)
+            continue
         matched = False
         for pattern, replacements in _CONCRETIZE_RULES:
             if pattern.search(target):
                 for replacement in replacements[:2]:
-                    if replacement not in seen:
-                        concrete.append(replacement)
-                        seen.add(replacement)
+                    polished = _polish_query_phrase(replacement)
+                    if polished and polished not in seen:
+                        concrete.append(polished)
+                        seen.add(polished)
                 matched = True
                 break
         if matched:
             continue
         if any(hint in target for hint in _ABSTRACT_HINTS):
             for replacement in _CONCEPT_FALLBACKS[:2]:
-                if replacement not in seen:
-                    concrete.append(replacement)
-                    seen.add(replacement)
+                polished = _polish_query_phrase(replacement)
+                if polished and polished not in seen:
+                    concrete.append(polished)
+                    seen.add(polished)
             continue
         if target and target not in seen:
             concrete.append(target)
@@ -619,9 +676,10 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
 
     if not concrete:
         for replacement in _DEFAULT_CONCRETE_QUERIES:
-            if replacement not in seen:
-                concrete.append(replacement)
-                seen.add(replacement)
+            polished = _polish_query_phrase(replacement)
+            if polished and polished not in seen:
+                concrete.append(polished)
+                seen.add(polished)
     return concrete
 
 
@@ -641,7 +699,8 @@ def _sanitize_queries(
     seen: Set[str] = set()
     for raw in queries or []:
         candidate = remove_blocklisted_tokens(str(raw or ''), RX_BANNED)
-        candidate = re.sub(r'\s+', ' ', candidate).strip()
+        candidate = re.sub(r'\s+', ' ', candidate).strip().lower()
+        candidate = _polish_query_phrase(candidate)
         if not candidate:
             continue
         words = candidate.split()
@@ -660,8 +719,9 @@ SEGMENT_JSON_PROMPT = (
     "You are a JSON API. Return ONLY one JSON object with keys: broll_keywords, queries. "
     "broll_keywords: 8–12 visual noun phrases (2–3 words), concrete and shootable. "
     "queries: 8–12 short, filmable search queries (2–4 words), provider-friendly. "
-    "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, "
-    "stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
+    "Make every query a tangible subject or action (people, hands, props, places). "
+    "Never end queries with filler like 'at', 'in', 'with', 'of'. Do not use words such as 'showing', 'displaying', 'scene', 'shot'. "
+    "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
     "Segment transcript:\n{segment_text}"
 )
 
@@ -2623,7 +2683,7 @@ _ACTION_HINTS = {
     "working",
 }
 
-_DEFAULT_ACTION = "showing"
+_DEFAULT_ACTION = "practicing"
 
 
 _STOPWORDS_EN = {
