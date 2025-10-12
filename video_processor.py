@@ -2185,7 +2185,7 @@ class VideoProcessor:
             except Exception:
                 brief_queries, brief_keywords = [], []
 
-            queries, query_source = _merge_segment_query_sources(
+            final_queries, query_source = _merge_segment_query_sources(
                 segment_text=getattr(segment, "text", "") or "",
                 llm_queries=base_llm_queries,
                 brief_queries=brief_queries,
@@ -2194,6 +2194,15 @@ class VideoProcessor:
                 selector_keywords=selector_keywords,
                 cap=query_cap,
             )
+
+            try:
+                print(
+                    f"    🔍 DEBUG final_queries REÇUES: {final_queries[:5]}"
+                )
+            except Exception:
+                pass
+
+            queries = final_queries
 
             if query_source == 'llm_hint':
                 if brief_queries:
