@@ -5160,6 +5160,112 @@ def generate_metadata_as_json(
         "llm_status": "ok",
     }
 
+    defaults_title = defaults["title"]
+    defaults_description = defaults["description"]
+    title_missing = not result["title"] or result["title"] == defaults_title
+    description_missing = not result["description"] or result["description"] == defaults_description
+
+    secondary_prompt_used = False
+    if use_keywords_prompt and (title_missing or description_missing):
+        secondary_prompt_used = True
+        logger.info(
+            "[LLM] Keywords-first payload missing summary fields, triggering secondary prompt",
+            extra={
+                "model": model_name,
+                "duration_s": round(duration, 3),
+                "transcript_length": len(cleaned_transcript),
+                "keywords_prompt": use_keywords_prompt,
+            },
+        )
+        fallback_raw_length: Optional[int] = None
+        try:
+            fallback_prompt = _build_json_metadata_prompt(cleaned_transcript, video_id=video_id)
+            fallback_raw_payload = _ollama_json(
+                fallback_prompt,
+                model=model_name,
+                timeout_override=timeout_override,
+            )
+            try:
+                fallback_raw_length = (
+                    len(json.dumps(fallback_raw_payload, ensure_ascii=False)) if fallback_raw_payload else 0
+                )
+            except Exception:
+                fallback_raw_length = 0
+
+            if isinstance(fallback_raw_payload, dict):
+                fallback_section: Dict[str, Any] = fallback_raw_payload
+            else:
+                coerced = _coerce_ollama_json(fallback_raw_payload)
+                fallback_section = coerced if isinstance(coerced, dict) else {}
+
+            for key in ("metadata", "result", "data"):
+                candidate = fallback_section.get(key) if isinstance(fallback_section, dict) else None
+                if isinstance(candidate, dict):
+                    fallback_section = candidate
+            if not isinstance(fallback_section, dict):
+                fallback_section = {}
+
+            fallback_seed = {
+                "title": fallback_section.get("title"),
+                "description": fallback_section.get("description"),
+                "hashtags": fallback_section.get("hashtags"),
+                "broll_keywords": fallback_section.get("broll_keywords")
+                or fallback_section.get("brollKeywords")
+                or fallback_section.get("keywords"),
+                "queries": fallback_section.get("queries"),
+            }
+            fallback_normalised = _normalise_metadata_output(
+                fallback_seed,
+                fallback_trunc=fallback_trunc,
+                transcript=cleaned_transcript,
+            )
+
+            fallback_title = fallback_normalised.get("title") or _normalise_string(
+                fallback_section.get("title", "")
+            )
+            fallback_description = fallback_normalised.get("description") or _normalise_string(
+                fallback_section.get("description", "")
+            )
+            fallback_hashtags = list(fallback_normalised.get("hashtags") or [])
+            fallback_broll = list(fallback_normalised.get("broll_keywords") or [])
+            fallback_queries = list(fallback_normalised.get("queries") or [])
+
+            if title_missing and fallback_title and fallback_title != defaults_title:
+                result["title"] = fallback_title
+                title_missing = False
+            if description_missing and fallback_description and fallback_description != defaults_description:
+                result["description"] = fallback_description
+                description_missing = False
+            if fallback_hashtags:
+                result["hashtags"] = fallback_hashtags[:MAX_HASHTAGS]
+            if keywords_fallback and fallback_broll:
+                result["broll_keywords"] = fallback_broll[:MAX_METADATA_TERMS]
+                keywords_fallback = False
+            if queries_fallback and fallback_queries:
+                result["queries"] = fallback_queries[:MAX_METADATA_TERMS]
+                queries_fallback = False
+            if fallback_raw_length is not None:
+                existing_len = result.get("raw_response_length") or 0
+                if fallback_raw_length > existing_len:
+                    result["raw_response_length"] = fallback_raw_length
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "[LLM] Secondary metadata prompt failed",
+                extra={
+                    "model": model_name,
+                    "duration_s": round(duration, 3),
+                    "transcript_length": len(cleaned_transcript),
+                    "keywords_prompt": use_keywords_prompt,
+                    "error": str(exc),
+                },
+            )
+
+    hashtags = list(result.get("hashtags") or [])
+    broll_keywords = list(result.get("broll_keywords") or [])
+    queries = list(result.get("queries") or [])
+    title_default = not result["title"] or result["title"] == defaults_title
+    description_default = not result["description"] or result["description"] == defaults_description
+
     logger.info(
         "[LLM] JSON metadata generated",
         extra={
@@ -5172,6 +5278,9 @@ def generate_metadata_as_json(
             "queries_fallback": queries_fallback,
             "keywords_fallback": keywords_fallback,
             "keywords_prompt": use_keywords_prompt,
+            "secondary_prompt": secondary_prompt_used,
+            "title_default": title_default,
+            "description_default": description_default,
         },
     )
 

@@ -204,6 +204,40 @@ def test_dedupe_queries_drop_abstract_tokens():
         assert "signal" not in phrase
 
 
+def test_metadata_queries_leave_room_for_contextual_terms():
+    llm_terms = [
+        "self reward process",
+        "intrinsic motivation focus",
+        "positive outcome path",
+        "personal achievement drive",
+    ]
+    segment_keywords = [
+        "runner tying shoes",
+        "starting blocks preparation",
+    ]
+    selector_keywords = [
+        "athlete preparing",
+    ]
+
+    merged, source = video_processor._merge_segment_query_sources(
+        segment_text="Runner ties shoes before sprint",
+        llm_queries=llm_terms,
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=segment_keywords,
+        selector_keywords=selector_keywords,
+        cap=4,
+    )
+
+    assert len(merged) == 4
+    assert source in {"llm_hint", "segment_brief", "segment_keywords", "selector_keywords"}
+
+    llm_term_set = set(llm_terms)
+    contextual_terms = [term for term in merged if term not in llm_term_set]
+    assert contextual_terms, "expected contextual keywords to fill reserved slots"
+    assert any("runner" in term or "athlete" in term for term in contextual_terms)
+
+
 def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
     memory_logger = MemoryLogger()
 
