@@ -17,4 +17,11 @@ Pour valider que l'intégration LLM et les dépendances optionnelles fonctionnen
 pytest tests/test_llm_optional_integration.py tests/test_llm_service_fallback.py tests/test_run_pipeline_env.py
 ```
 
+Une commande équivalente est désormais encapsulée dans l'outil utilitaire suivant, qui permet aussi de lister la commande exacte ou d'ajouter des arguments Pytest personnalisés :
+
+```bash
+python -m tools.llm_env_check --list   # afficher la commande
+python -m tools.llm_env_check -- -k optional  # exécuter avec des filtres Pytest
+```
+
 Cette commande rejoue les cas où `utils.pipeline_integration` est indisponible, vérifie le repli du service LLM et s'assure que le bootstrap du pipeline n'échoue pas à cause d'importations facultatives manquantes. Si tout passe, vous pouvez considérer que la régression d'import est résolue.
