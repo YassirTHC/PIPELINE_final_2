@@ -40,6 +40,7 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Sequence
 
 
@@ -378,7 +379,42 @@ def _render_provider_limit_lines(snapshot: dict[str, Any]) -> list[str]:
     return lines
 
 
-def _run_broll_diagnostic(repo_root: Path, settings: Settings) -> int:
+def _fallback_fetch_settings() -> Settings:
+    """Build a minimal settings object for diagnostics when config loading fails."""
+
+    fetch = SimpleNamespace(
+        providers=["pixabay", "pexels"],
+        max_per_keyword=6,
+        allow_images=True,
+        allow_videos=True,
+        timeout_s=8.0,
+        provider_limits={},
+        api_keys={},
+    )
+    return SimpleNamespace(fetch=fetch)  # type: ignore[return-value]
+
+
+def _resolve_settings_for_diag(settings: Optional[Settings]) -> Settings:
+    """Resolve a usable Settings object for diagnostics."""
+
+    if settings is not None:
+        return settings
+    try:
+        resolved = get_settings()
+    except Exception:
+        resolved = None
+    if resolved is None:
+        try:
+            resolved = load_settings()
+        except Exception:
+            resolved = None
+    if resolved is None:
+        resolved = _fallback_fetch_settings()
+    return resolved
+
+
+def _run_broll_diagnostic(repo_root: Path, settings: Optional[Settings] = None) -> int:
+    settings = _resolve_settings_for_diag(settings)
     try:
         import json
     except ImportError as exc:

@@ -191,6 +191,14 @@ def _should_block_streaming() -> Tuple[bool, Optional[str]]:
     return False, None
 
 
+def _clear_stream_block() -> None:
+    """Release the forced non-streaming guard."""
+
+    global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
+    _STREAM_BLOCKED = False
+    _STREAM_BLOCK_REASON = None
+
+
 def _note_stream_failure(reason: str) -> None:
     global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
     cleaned = (reason or "stream_err").strip() or "stream_err"
@@ -213,9 +221,7 @@ def _current_llm_path() -> Tuple[str, Optional[str]]:
 
 def _reset_stream_state_for_tests() -> None:
     _record_llm_path("segment_stream", None)
-    global _STREAM_BLOCKED, _STREAM_BLOCK_REASON
-    _STREAM_BLOCKED = False
-    _STREAM_BLOCK_REASON = None
+    _clear_stream_block()
 
 
 def _parse_stop_tokens(value: Optional[str]) -> Sequence[str]:
@@ -2177,14 +2183,18 @@ def _ollama_generate_text(
     if force_block:
         forced = _ollama_generate_sync(endpoint, model_name, short_prompt, fallback_options)
         forced_text = forced.strip()
-        _record_llm_path("segment_blocking", block_reason)
         if forced_text:
+            _record_llm_path("segment_blocking", block_reason)
             logger.info(
                 "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
                 len(forced_text),
             )
             return forced_text, "", 0, len(forced_text), 1
-        return "", "empty_payload", 0, 0, 1
+        logger.debug(
+            "[LLM] forced non-streaming fallback returned empty payload; retrying stream",
+            extra={"reason": block_reason or "stream_err"},
+        )
+        _clear_stream_block()
 
     backoffs = (0.6, 1.2, 2.4)
     raw_text = ""
