@@ -51,16 +51,6 @@ def test_keywords_prompt_schema():
     assert "hashtags" not in prompt.lower()
 
 
-def test_concretize_queries_rewrites_broad_terms():
-    raw_terms = ["Hands grasping energy", "Self reward action"]
-    concretized = llm_service._concretize_queries(raw_terms)
-    lowered = [term.lower() for term in concretized]
-    assert lowered, "expected concretized queries"
-    assert "hands grasping energy" not in lowered
-    assert any("hands" in term for term in lowered)
-    assert any("reward" in term or "celebr" in term for term in lowered)
-
-
 def test_json_metadata_prompt_mentions_viral_requirements():
     prompt = llm_service._build_json_metadata_prompt("Segment sur la motivation et la discipline")
     assert "style TikTok" in prompt

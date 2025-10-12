@@ -543,22 +543,6 @@ _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
         ("reward journal writing", "celebration fist pump", "deep breath at window"),
     ),
     (
-        re.compile(r"\bself rewards?\b|\breward system\b|\bintrinsic rewards?\b", flags=re.IGNORECASE),
-        (
-            "self reward checklist",
-            "celebrating small win",
-            "reward jar treat",
-        ),
-    ),
-    (
-        re.compile(r"\bhands (?:grasping|building|manipulating|generating|operating)\b", flags=re.IGNORECASE),
-        (
-            "hands writing journal",
-            "hands placing sticky notes",
-            "hands typing keyboard",
-        ),
-    ),
-    (
         re.compile(r"\bmindset shifts?\b|\bconceptual mapping\b", flags=re.IGNORECASE),
         ("whiteboard planning", "sticky notes wall", "drawing flowchart"),
     ),
@@ -574,14 +558,6 @@ _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
         re.compile(r"\badrenaline\b|\bintensit(?:y|ies)\b|\bfocus\b", flags=re.IGNORECASE),
         ("focused eyes closeup", "steady breathing exercise", "boxing training"),
     ),
-    (
-        re.compile(r"\bmotivation\b|\bdrive\b|\bgoal achievement\b|\bpersonal goals?\b", flags=re.IGNORECASE),
-        (
-            "motivational speaker stage",
-            "runner start line",
-            "goal planner journal",
-        ),
-    ),
 )
 
 _CONCEPT_FALLBACKS: Tuple[str, ...] = (
@@ -589,8 +565,6 @@ _CONCEPT_FALLBACKS: Tuple[str, ...] = (
     "motivation quote wall",
     "focus breathing exercise",
     "sunrise training run",
-    "motivational coach pep talk",
-    "reward checklist journal",
 )
 
 _DEFAULT_CONCRETE_QUERIES: Tuple[str, ...] = (
@@ -672,6 +646,11 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
         if not target:
             continue
         tokens = target.split()
+        if len(tokens) >= 2 and not all(token in _ABSTRACT_HINTS for token in tokens):
+            if target not in seen:
+                concrete.append(target)
+                seen.add(target)
+            continue
         matched = False
         for pattern, replacements in _CONCRETIZE_RULES:
             if pattern.search(target):
@@ -2062,8 +2041,8 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
         "  \"title\": slogan ultra-accrocheur (≤60 caractères) en langue source, style TikTok, avec un hook immédiat,\n"
         "  \"description\": 2 phrases dynamiques style TikTok avec emojis et appel à l’action positif,\n"
         "  \"hashtags\": tableau de 6 hashtags viraux pertinents sans doublons ni répétitions de dièse,\n"
-        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite, sans termes comme \"showing\" ou \"at\".\n"
-        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll, finissant toujours par un sujet/action concret (jamais \"showing\", \"scene\", \"shot\", ni préposition finale).\n"
+        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite,\n"
+        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll.\n"
         "Respecte strictement la langue source et n'ajoute aucune explication hors JSON.\n"
         "Assure-toi que chaque mot-clé et requête colle à ce qui se passe dans la transcription au moment présent.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"

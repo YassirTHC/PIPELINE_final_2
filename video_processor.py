@@ -1150,24 +1150,18 @@ def _build_transcript_fallback_terms(
     for idx in range(len(unique_tokens) - 1):
         if len(phrases) >= limit:
             break
-        first, second = unique_tokens[idx], unique_tokens[idx + 1]
-        if first in _STOPWORDS or second in _STOPWORDS:
-            continue
-        phrases.append(f"{first} {second}")
+        phrases.append(f"{unique_tokens[idx]} {unique_tokens[idx + 1]}")
 
     if len(phrases) < limit:
         for token in unique_tokens:
             if len(phrases) >= limit:
                 break
-            if token in _STOPWORDS:
-                continue
             candidate = f"{token} visuals"
-            if candidate not in phrases and token not in _STOPWORDS:
+            if candidate not in phrases:
                 phrases.append(candidate)
 
     if not phrases and unique_tokens:
-        fallback = next((t for t in unique_tokens if t not in _STOPWORDS), unique_tokens[0])
-        phrases.append(f"{fallback} visuals")
+        phrases.append(f"{unique_tokens[0]} scene")
 
     if not phrases:
         return ["stock footage"][:limit]
@@ -2422,11 +2416,7 @@ class VideoProcessor:
                 except Exception:
                     pass
             elif json_segment_queries:
-                if not queries:
-                    queries = _relaxed_normalise_terms(
-                        json_segment_queries,
-                        max(1, query_cap),
-                    )
+                queries = json_segment_queries[:max(1, query_cap)]
                 query_source = json_segment_source or 'llm_segment_json'
                 try:
                     logger.info(
