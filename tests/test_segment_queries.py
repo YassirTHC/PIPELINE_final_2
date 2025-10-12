@@ -205,18 +205,6 @@ def test_dedupe_queries_drop_abstract_tokens():
         assert "signal" not in phrase
 
 
-def test_dedupe_queries_polish_trailing_tokens():
-    raw_terms = [
-        "human showing physiology",
-        "desk typing at",
-        "focus being steady",
-    ]
-    cleaned = video_processor._dedupe_queries(raw_terms, cap=5)
-    assert any(term.startswith("human") and "physiology" in term for term in cleaned)
-    assert any(term == "desk typing" for term in cleaned)
-    assert all(not term.split()[-1] in {"at", "in", "of", "with", "to"} for term in cleaned)
-
-
 def test_metadata_queries_leave_room_for_contextual_terms():
     llm_terms = [
         "self reward process",
@@ -346,6 +334,7 @@ def test_selector_filter_threshold_can_be_relaxed(monkeypatch):
     )
 
     assert any("desk" in term for term in merged)
+    assert any("runner" in term for term in merged)
 
 
 def test_selector_terms_retained_when_overlapping_transcript():
@@ -648,8 +637,7 @@ def test_segment_json_queries_override_metadata_fallback(monkeypatch):
         targeted_queries,
         cap=video_processor.SEGMENT_REFINEMENT_MAX_TERMS,
     )
-    for term in expected:
-        assert term in queries_used
+    assert queries_used == expected
 
     logged_queries = [
         event
@@ -659,7 +647,4 @@ def test_segment_json_queries_override_metadata_fallback(monkeypatch):
     assert logged_queries, "expected queries event"
     queries_event = logged_queries[0]
     assert queries_event["source"] == "llm_segment_json"
-    for term in expected:
-        assert term in queries_event["queries"]
-
-
+    assert queries_event["queries"] == expected

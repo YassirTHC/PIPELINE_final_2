@@ -540,59 +540,7 @@ _NEGATIVE_QUERY_TERMS: Set[str] = {
 _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
     (
         re.compile(r"\binternal rewards?\b", flags=re.IGNORECASE),
-        (
-            "reward journal writing",
-            "celebration fist pump",
-            "motivated athlete celebrating",
-        ),
-    ),
-    (
-        re.compile(r"\bself rewards?\b|\breward system\b|\bintrinsic rewards?\b", flags=re.IGNORECASE),
-        (
-            "self reward checklist",
-            "celebrating small win",
-            "reward jar treat",
-        ),
-    ),
-    (
-        re.compile(r"\bresearch\b|\bscientific\b|\bstudy\b|\blaborator(?:y|ies)\b", flags=re.IGNORECASE),
-        (
-            "scientist using microscope",
-            "research team discussion",
-            "lab technician writing notes",
-        ),
-    ),
-    (
-        re.compile(r"\bhands (?:manipulating|generating) energy\b", flags=re.IGNORECASE),
-        (
-            "hands holding neon light",
-            "hands touching plasma globe",
-            "hands lifting glowing orb",
-        ),
-    ),
-    (
-        re.compile(r"\bhands (?:grasping|building|manipulating|generating|operating)\b", flags=re.IGNORECASE),
-        (
-            "hands assembling device",
-            "focus breathing exercise",
-            "motivated athlete lacing shoes",
-        ),
-    ),
-    (
-        re.compile(r"\bhands practicing\b", flags=re.IGNORECASE),
-        (
-            "hands arranging sticky notes",
-            "hands closeup detail",
-            "hands adjusting wristwatch",
-        ),
-    ),
-    (
-        re.compile(r"\bself[- ]control\b|\bcontrol focus\b|\bsteady focus\b|\bregulate\b", flags=re.IGNORECASE),
-        (
-            "person meditating indoors",
-            "deep breathing exercise",
-            "calm yoga focus",
-        ),
+        ("reward journal writing", "celebration fist pump", "deep breath at window"),
     ),
     (
         re.compile(r"\bmindset shifts?\b|\bconceptual mapping\b", flags=re.IGNORECASE),
@@ -603,52 +551,12 @@ _CONCRETIZE_RULES: Tuple[Tuple[re.Pattern[str], Tuple[str, ...]], ...] = (
         ("clock close up", "sunset sky", "hourglass closeup"),
     ),
     (
-        re.compile(r"\bdesk practicing\b|\bdesk working\b", flags=re.IGNORECASE),
-        (
-            "vision board planning",
-            "goal journal writing",
-            "laptop typing focus",
-        ),
+        re.compile(r"\benergy\b|\benergised\b|\benergized\b", flags=re.IGNORECASE),
+        ("sunrise training run", "powerlines closeup", "spark plug closeup"),
     ),
     (
-        re.compile(r"\benergy\b|\benergised\b|\benergized\b|\bnoradrenaline\b|\badrenaline\b", flags=re.IGNORECASE),
-        (
-            "athlete explosive sprint",
-            "brain neuron activity",
-            "sunrise training run",
-        ),
-    ),
-    (
-        re.compile(r"\bhuman practicing\b", flags=re.IGNORECASE),
-        (
-            "person meditating room",
-            "human breathing exercise",
-            "person stretching warmup",
-        ),
-    ),
-    (
-        re.compile(r"\bintensit(?:y|ies)\b|\bfocus\b|\bconcentration\b", flags=re.IGNORECASE),
-        (
-            "focused eyes closeup",
-            "steady breathing exercise",
-            "boxing training",
-        ),
-    ),
-    (
-        re.compile(r"\bpath\b|\bjourney\b|\btrajectory\b", flags=re.IGNORECASE),
-        (
-            "hiker on forest trail",
-            "city bridge walk",
-            "runner on track",
-        ),
-    ),
-    (
-        re.compile(r"\bmotivation\b|\bdrive\b|\bgoal achievement\b|\bpersonal goals?\b", flags=re.IGNORECASE),
-        (
-            "motivational speaker stage",
-            "runner start line",
-            "goal planner journal",
-        ),
+        re.compile(r"\badrenaline\b|\bintensit(?:y|ies)\b|\bfocus\b", flags=re.IGNORECASE),
+        ("focused eyes closeup", "steady breathing exercise", "boxing training"),
     ),
 )
 
@@ -657,15 +565,12 @@ _CONCEPT_FALLBACKS: Tuple[str, ...] = (
     "motivation quote wall",
     "focus breathing exercise",
     "sunrise training run",
-    "motivational coach pep talk",
-    "scientist using microscope",
-    "celebration fist pump",
 )
 
 _DEFAULT_CONCRETE_QUERIES: Tuple[str, ...] = (
     "goal planner journal",
     "motivational quote wall",
-    "scientist using microscope",
+    "celebration fist pump",
     "sunrise training run",
 )
 
@@ -688,20 +593,7 @@ _REMOVABLE_QUERY_TOKENS: Tuple[str, ...] = (
     "being",
     "doing",
     "having",
-    "what",
-    "they",
-    "their",
-    "them",
-    "someone",
-    "something",
 )
-
-_BANNED_QUERY_PHRASES: Set[str] = {
-    "what they",
-    "what start",
-    "first thing",
-    "occurs when",
-}
 
 
 def _polish_query_phrase(text: str) -> str:
@@ -754,6 +646,11 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
         if not target:
             continue
         tokens = target.split()
+        if len(tokens) >= 2 and not all(token in _ABSTRACT_HINTS for token in tokens):
+            if target not in seen:
+                concrete.append(target)
+                seen.add(target)
+            continue
         matched = False
         for pattern, replacements in _CONCRETIZE_RULES:
             if pattern.search(target):
@@ -833,8 +730,7 @@ SEGMENT_JSON_PROMPT = (
     "You are a JSON API. Return ONLY one JSON object with keys: broll_keywords, queries. "
     "broll_keywords: 8–12 visual noun phrases (2–3 words), concrete and shootable. "
     "queries: 8–12 short, filmable search queries (2–4 words), provider-friendly. "
-    "Make every query a tangible subject or action that mirrors the transcript (people, props, locations, lab work, training, meditation, celebrations). "
-    "Tie queries to nouns or verbs from the transcript — if it mentions research, science, energy, discipline, or control, include those exact contexts. "
+    "Make every query a tangible subject or action (people, hands, props, places). "
     "Never end queries with filler like 'at', 'in', 'with', 'of'. Do not use words such as 'showing', 'displaying', 'scene', 'shot'. "
     "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
     "Segment transcript:\n{segment_text}"
@@ -2151,8 +2047,8 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
         "  \"title\": slogan ultra-accrocheur (≤60 caractères) en langue source, style TikTok, avec un hook immédiat,\n"
         "  \"description\": 2 phrases dynamiques style TikTok avec emojis et appel à l’action positif,\n"
         "  \"hashtags\": tableau de 6 hashtags viraux pertinents sans doublons ni répétitions de dièse,\n"
-        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite, sans termes comme \"showing\" ou \"at\".\n"
-        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll, finissant toujours par un sujet/action concret (jamais \"showing\", \"scene\", \"shot\", ni préposition finale).\n"
+        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite,\n"
+        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll.\n"
         "Respecte strictement la langue source et n'ajoute aucune explication hors JSON.\n"
         "Assure-toi que chaque mot-clé et requête colle à ce qui se passe dans la transcription au moment présent.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
