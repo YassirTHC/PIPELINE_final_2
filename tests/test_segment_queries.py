@@ -238,6 +238,104 @@ def test_metadata_queries_leave_room_for_contextual_terms():
     assert any("runner" in term or "athlete" in term for term in contextual_terms)
 
 
+def test_llm_only_flag_prefers_llm_terms():
+    merged, source = video_processor._merge_segment_query_sources(
+        segment_text="Context about habits",
+        llm_queries=[
+            "Vision Board Inspiration",
+            "Morning Routine Focus",
+            "Habit Tracking Journal",
+        ],
+        brief_queries=["process focus"],
+        brief_keywords=["daily routine"],
+        segment_keywords=["desk journaling at"],
+        selector_keywords=["runner tying shoes"],
+        cap=3,
+        llm_only=True,
+    )
+
+    assert merged == [
+        "vision board inspiration",
+        "morning routine focus",
+        "habit tracking journal",
+    ][:3]
+    assert source == "llm_hint"
+
+
+def test_llm_only_flag_falls_back_when_llm_empty():
+    merged, source = video_processor._merge_segment_query_sources(
+        segment_text="Context about resilience",
+        llm_queries=[],
+        brief_queries=["focus breathing"],
+        brief_keywords=[],
+        segment_keywords=["athlete training"],
+        selector_keywords=["stadium lights"],
+        cap=3,
+        llm_only=True,
+    )
+
+    assert merged, "expected fallback queries when llm list empty"
+    assert any("athlete" in term for term in merged)
+    assert source in {"segment_brief", "segment_keywords", "selector_keywords", "seed_queries", "transcript_fallback"}
+
+
+def test_selector_terms_filtered_when_off_topic():
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="Motivation boost through internal rewards",
+        llm_queries=[
+            "intrinsic motivation focus",
+            "reward system process",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["internal motivation"],
+        selector_keywords=["desk journaling at", "runner tying shoes"],
+        cap=4,
+    )
+
+    assert all("desk" not in term for term in merged)
+    assert all("runner" not in term for term in merged)
+    assert any("motivation" in term for term in merged)
+
+
+def test_selector_filter_threshold_can_be_relaxed(monkeypatch):
+    monkeypatch.setattr(video_processor, "_BROLL_MIN_SHARED_TOKENS", 0)
+
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="Motivation boost through internal rewards",
+        llm_queries=[
+            "intrinsic motivation focus",
+            "reward system process",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["internal motivation"],
+        selector_keywords=["desk journaling at", "runner tying shoes"],
+        cap=4,
+    )
+
+    assert any("desk" in term for term in merged)
+    assert any("runner" in term for term in merged)
+
+
+def test_selector_terms_retained_when_overlapping_transcript():
+    merged, _ = video_processor._merge_segment_query_sources(
+        segment_text="The runner ties shoes before the sprint and focuses on discipline",
+        llm_queries=[
+            "discipline motivation",
+            "race preparation focus",
+        ],
+        brief_queries=[],
+        brief_keywords=[],
+        segment_keywords=["runner sprint preparation"],
+        selector_keywords=["runner tying shoes", "city skyline night"],
+        cap=4,
+    )
+
+    assert any("runner" in term for term in merged)
+    assert all("city" not in term for term in merged)
+
+
 def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
     memory_logger = MemoryLogger()
 

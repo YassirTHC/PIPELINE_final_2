@@ -27,7 +27,7 @@ import subprocess
 import shlex
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO
+from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO, Iterable
 from collections import Counter
 from dataclasses import dataclass
 
@@ -739,6 +739,22 @@ except ImportError:  # pragma: no cover - test environments may stub partial API
 # Ã°Å¸Å¡â‚¬ NOUVEAU: Cache global pour ÃƒÂ©viter le rechargement des modÃƒÂ¨les
 _MODEL_CACHE = {}
 
+_TRUEISH = {"1", "true", "t", "yes", "y", "on"}
+
+
+def _env_truthy(name: str, *, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in _TRUEISH
+
+
+_BROLL_LLM_ONLY = _env_truthy("PIPELINE_BROLL_LLM_ONLY")
+_BROLL_MIN_SHARED_TOKENS = max(
+    0,
+    int(os.getenv("PIPELINE_BROLL_MIN_SHARED_TOKENS", "1") or 0),
+)
+
 # --- Dynamic LLM context toggle (default: on)
 ENABLE_DYNAMIC_CONTEXT = os.getenv("ENABLE_DYNAMIC_CONTEXT", "true").lower() not in {"0","false","no"}
 
@@ -1123,6 +1139,47 @@ def _build_transcript_fallback_terms(
     return phrases[:limit]
 
 
+def _tokenise_terms(values: Iterable[str]) -> set[str]:
+    tokens: set[str] = set()
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        for token in re.findall(r"[a-zA-Z]{4,}", value.lower()):
+            tokens.add(token)
+    return tokens
+
+
+def _filter_terms_for_segment(
+    terms: Sequence[str],
+    *,
+    segment_tokens: set[str],
+    llm_tokens: set[str],
+    allow_when_empty: bool,
+) -> list[str]:
+    if not terms:
+        return []
+
+    min_shared = max(0, int(_BROLL_MIN_SHARED_TOKENS))
+    filtered: list[str] = []
+    for term in terms:
+        if not isinstance(term, str):
+            continue
+        term_tokens = _tokenise_terms([term])
+        if min_shared == 0:
+            filtered.append(term)
+            continue
+
+        segment_overlap = term_tokens & segment_tokens
+        llm_overlap = term_tokens & llm_tokens
+        if len(segment_overlap) >= min_shared or len(llm_overlap) >= min_shared:
+            filtered.append(term)
+
+    if filtered:
+        return filtered
+
+    return list(terms) if allow_when_empty else []
+
+
 def _merge_segment_query_sources(
     *,
     segment_text: str,
@@ -1132,6 +1189,7 @@ def _merge_segment_query_sources(
     segment_keywords: Sequence[str],
     selector_keywords: Sequence[str],
     cap: int,
+    llm_only: bool | None = None,
 ) -> tuple[list[str], str]:
     cap = max(1, int(cap or 0))
     combined: list[str] = []
@@ -1174,6 +1232,36 @@ def _merge_segment_query_sources(
         f"    🔍 DEBUG _combine_broll_queries ENTRÉE llm_queries: {llm_queries[:3]}"
     )
 
+    llm_only_mode = _BROLL_LLM_ONLY if llm_only is None else bool(llm_only)
+
+    llm_prefill: list[str] = []
+    if llm_queries:
+        llm_prefill = _relaxed_normalise_terms(llm_queries, cap)
+
+    segment_tokens = _tokenise_terms([segment_text, *segment_keywords])
+    llm_tokens = _tokenise_terms(llm_prefill)
+
+    if llm_only_mode and llm_prefill:
+        for term in llm_prefill:
+            if len(combined) >= cap:
+                break
+            normalised = re.sub(r"\s+", " ", term.strip())
+            if not normalised or normalised in seen:
+                continue
+            seen.add(normalised)
+            combined.append(normalised)
+        if combined:
+            primary_source = "llm_hint"
+            print(
+                "    🔍 DEBUG _combine_broll_queries APRÈS _consume (llm_only), "
+                f"combined={combined[:3] if combined else 'VIDE'}"
+            )
+            debug_preview = combined[:cap][:5]
+            print(
+                f"    🔍 DEBUG _combine_broll_queries SORTIE: {debug_preview}"
+            )
+            return combined[:cap], primary_source
+
     contextual_sources = 0
     if brief_queries or brief_keywords:
         contextual_sources += 1
@@ -1183,8 +1271,7 @@ def _merge_segment_query_sources(
         contextual_sources += 1
 
     llm_backfill: list[str] = []
-    if llm_queries:
-        llm_prefill = _relaxed_normalise_terms(llm_queries, cap)
+    if llm_prefill:
         reserve_slots = min(contextual_sources, max(0, cap - 1))
         llm_initial_cap = max(1, cap - reserve_slots)
         llm_initial_terms = llm_prefill[:llm_initial_cap]
@@ -1197,12 +1284,24 @@ def _merge_segment_query_sources(
     brief_pool: list[str] = []
     brief_pool.extend(brief_keywords or [])
     brief_pool.extend(brief_queries or [])
+    brief_pool = _filter_terms_for_segment(
+        brief_pool,
+        segment_tokens=segment_tokens,
+        llm_tokens=llm_tokens,
+        allow_when_empty=True,
+    )
     _consume("segment_brief", brief_pool)
 
     if len(combined) < cap:
         _consume("segment_keywords", segment_keywords)
     if len(combined) < cap:
-        _consume("selector_keywords", selector_keywords)
+        filtered_selector = _filter_terms_for_segment(
+            selector_keywords,
+            segment_tokens=segment_tokens,
+            llm_tokens=llm_tokens,
+            allow_when_empty=False,
+        )
+        _consume("selector_keywords", filtered_selector)
     if not combined:
         seed_queries = _load_seed_queries()
         _consume("seed_queries", seed_queries)
@@ -2211,6 +2310,7 @@ class VideoProcessor:
                 segment_keywords=segment_keywords,
                 selector_keywords=selector_keywords,
                 cap=query_cap,
+                llm_only=_BROLL_LLM_ONLY,
             )
 
             try:
