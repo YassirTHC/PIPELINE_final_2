@@ -76,8 +76,20 @@ def _load_integration_factory(initial_fast_tests: bool):
     spec_pi = importlib.util.spec_from_file_location('utils.pipeline_integration', UTILS_DIR / 'pipeline_integration.py')
     if spec_pi and spec_pi.loader:
         _module_pi = importlib.util.module_from_spec(spec_pi)
-        spec_pi.loader.exec_module(_module_pi)
-        return _module_pi.create_pipeline_integration
+        try:
+            spec_pi.loader.exec_module(_module_pi)
+        except ModuleNotFoundError as exc:
+            missing = getattr(exc, "name", None) or str(exc)
+            logging.getLogger(__name__).warning(
+                "[LLM] Optional pipeline integration disabled (missing dependency: %s)",
+                missing,
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[LLM] Optional pipeline integration disabled (import error)",
+            )
+        else:
+            return _module_pi.create_pipeline_integration
 
     def _fallback_stub(config=None):  # type: ignore[override]
         return object()
