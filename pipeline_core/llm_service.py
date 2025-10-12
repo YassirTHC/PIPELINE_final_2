@@ -663,6 +663,11 @@ def _concretize_queries(values: Sequence[str]) -> List[str]:
                 break
         if matched:
             continue
+        if len(tokens) >= 2 and not all(token in _ABSTRACT_HINTS for token in tokens):
+            if target not in seen:
+                concrete.append(target)
+                seen.add(target)
+            continue
         if any(hint in target for hint in _ABSTRACT_HINTS):
             for replacement in _CONCEPT_FALLBACKS[:2]:
                 polished = _polish_query_phrase(replacement)

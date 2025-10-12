@@ -1138,10 +1138,13 @@ def _build_transcript_fallback_terms(
         cleaned = token.replace("_", " ").strip()
         if len(cleaned) < 3:
             continue
-        if cleaned in seen_tokens:
+        lowered = cleaned.lower()
+        if lowered in _STOPWORDS:
             continue
-        seen_tokens.add(cleaned)
-        unique_tokens.append(cleaned)
+        if lowered in seen_tokens:
+            continue
+        seen_tokens.add(lowered)
+        unique_tokens.append(lowered)
 
     phrases: list[str] = []
     for idx in range(len(unique_tokens) - 1):

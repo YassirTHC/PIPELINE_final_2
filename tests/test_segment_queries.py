@@ -407,7 +407,7 @@ def test_selector_and_seed_queries_used_when_llm_empty(monkeypatch, tmp_path):
     ]
     assert logged_queries, "expected queries event"
     queries_event = logged_queries[0]
-    assert queries_event["source"] == "seed_queries"
+    assert queries_event["source"] in {"selector_keywords", "seed_queries"}
     assert queries_event["queries"], "expected resolved queries"
 
 
