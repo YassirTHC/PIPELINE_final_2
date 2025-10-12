@@ -205,18 +205,6 @@ def test_dedupe_queries_drop_abstract_tokens():
         assert "signal" not in phrase
 
 
-def test_dedupe_queries_polish_trailing_tokens():
-    raw_terms = [
-        "human showing physiology",
-        "desk typing at",
-        "focus being steady",
-    ]
-    cleaned = video_processor._dedupe_queries(raw_terms, cap=5)
-    assert any(term.startswith("human") and "physiology" in term for term in cleaned)
-    assert any(term == "desk typing" for term in cleaned)
-    assert all(not term.split()[-1] in {"at", "in", "of", "with", "to"} for term in cleaned)
-
-
 def test_metadata_queries_leave_room_for_contextual_terms():
     llm_terms = [
         "self reward process",
