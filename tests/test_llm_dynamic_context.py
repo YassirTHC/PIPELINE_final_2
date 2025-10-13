@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
 
 import pytest
 
@@ -14,9 +14,9 @@ from pipeline_core.llm_service import (
 
 
 class DummyService(LLMMetadataGeneratorService):
-    def __init__(self, payload: str):
+    def __init__(self, payloads: Sequence[str]):
         super().__init__(reuse_shared=False)
-        self._payload = payload
+        self._payloads = list(payloads)
 
     def _complete_text(
         self,
@@ -25,27 +25,38 @@ class DummyService(LLMMetadataGeneratorService):
         max_tokens: int = 800,
         purpose: str = "generic",
     ) -> str:  # type: ignore[override]
-        return self._payload
+        if not self._payloads:
+            raise AssertionError("unexpected _complete_text call")
+        return self._payloads.pop(0)
 
 
 def test_dynamic_context_normalisation():
-    payload = json.dumps(
+    domain_payload = json.dumps(
         {
             "detected_domains": [{"name": "Neuro_Science", "confidence": 0.87}],
             "language": "EN",
+            "summary": "Dopamine motivation",
+        }
+    )
+    keyword_payload = json.dumps(
+        {
             "keywords": [
                 "DOPAMINE_boost",
                 "focus and clarity",
                 "clarity when they concentrate",
             ],
             "synonyms": {"DOPAMINE_boost": ["dopamine surge", "chemical boost"]},
+        }
+    )
+    queries_payload = json.dumps(
+        {
             "search_queries": ["brain focus when shot", "they and act"],
             "segment_briefs": [
                 {"segment_index": "0", "keywords": ["Neural_Pathway"], "queries": ["brain first"]}
             ],
         }
     )
-    service = DummyService(payload)
+    service = DummyService([domain_payload, keyword_payload, queries_payload])
     result = service.generate_dynamic_context("Dopamine keeps you motivated")
     assert result["detected_domains"][0]["name"] == "neuro science"
     assert result["keywords"] == [
@@ -87,6 +98,10 @@ def test_dynamic_stream_error_propagates_reason(monkeypatch, caplog):
         return DummyResponse([error_line])
 
     monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    monkeypatch.setattr(llm_module, "_ollama_generate_sync", lambda *args, **kwargs: "")
+    monkeypatch.setattr(llm_module, "_should_block_streaming", lambda: (False, None))
+    llm_module._STREAM_BLOCKED = False
+    llm_module._STREAM_BLOCK_REASON = None
 
     caplog.clear()
     with caplog.at_level(logging.WARNING, logger="pipeline_core.llm_service"):
@@ -272,7 +287,7 @@ def test_force_english_terms_when_language_en():
             "search_queries": ["plan de récompense", "augmentation de durée"],
         }
     )
-    service = DummyService(payload)
+    service = DummyService([payload, payload, payload])
     result = service.generate_dynamic_context("Une transcription en anglais implicite")
     assert "reward" in result["keywords"]
     assert "duration" in result["keywords"]
@@ -287,7 +302,7 @@ def test_force_english_terms_handles_accented_sequences():
             "search_queries": ["adrénaline récompense contrôle processus"],
         }
     )
-    service = DummyService(payload)
+    service = DummyService([payload, payload, payload])
     result = service.generate_dynamic_context("Adrénaline récompense contrôle")
     assert result["keywords"] == ["adrenaline reward control"]
     assert result["search_queries"] == ["adrenaline reward control process"]
