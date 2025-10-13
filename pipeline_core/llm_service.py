@@ -628,13 +628,87 @@ _ABSTRACT_HINTS: Tuple[str, ...] = (
 )
 
 
-def _concretize_queries(values: Sequence[str]) -> List[str]:
+def _expand_term_field(value: Any) -> List[str]:
+    """Flatten comma/pipe/semicolon separated term fields into a list of strings."""
+
+    terms: List[str] = []
+
+    if value is None:
+        return terms
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return terms
+        # Attempt to decode JSON arrays embedded in strings before splitting.
+        try:
+            parsed = json.loads(stripped)
+        except Exception:
+            parsed = None
+        if isinstance(parsed, (list, tuple)):
+            for item in parsed:
+                terms.extend(_expand_term_field(item))
+            return terms
+        if isinstance(parsed, dict):
+            for item in parsed.values():
+                terms.extend(_expand_term_field(item))
+            return terms
+        for piece in re.split(r"[\n,;\|/]+", stripped):
+            cleaned = piece.strip()
+            if cleaned:
+                terms.append(cleaned)
+        return terms
+
+    if isinstance(value, dict):
+        for item in value.values():
+            terms.extend(_expand_term_field(item))
+        return terms
+
+    if isinstance(value, (list, tuple, set, frozenset)):
+        for item in value:
+            terms.extend(_expand_term_field(item))
+        return terms
+
+    if isinstance(value, (bytes, bytearray)):
+        try:
+            decoded = value.decode('utf-8', errors='ignore')
+        except Exception:
+            decoded = ''
+        decoded = decoded.strip()
+        if decoded:
+            terms.append(decoded)
+        return terms
+
+    if isinstance(value, bool):
+        return terms
+
+    if isinstance(value, (int, float)):
+        text_value = str(value).strip()
+        if text_value:
+            terms.append(text_value)
+        return terms
+
+    try:
+        iterator = list(value)
+    except TypeError:
+        fallback = str(value).strip()
+        if fallback:
+            terms.append(fallback)
+        return terms
+
+    for item in iterator:
+        terms.extend(_expand_term_field(item))
+
+    return terms
+
+
+def _concretize_queries(values: Any) -> List[str]:
     """Map abstract LLM queries to concrete, filmable prompts."""
 
     concrete: List[str] = []
     seen: Set[str] = set()
 
-    for raw in values or []:
+    for raw in _normalise_string_list(list(_expand_term_field(values))):
         if raw is None:
             continue
         base = str(raw).strip().lower()
@@ -4524,18 +4598,30 @@ class LLMMetadataGeneratorService:
             payload = parsed_payload if isinstance(parsed_payload, dict) else {}
             if payload:
                 return payload
+            if isinstance(parsed_payload, list):
+                for item in parsed_payload:
+                    if isinstance(item, dict) and item:
+                        return item
             if isinstance(raw_payload, dict):
                 candidates: List[Any] = []
                 for key in ("response", "content", "data", "message", "result"):
                     value = raw_payload.get(key)
                     if isinstance(value, dict) and value:
                         return value
+                    if isinstance(value, list):
+                        for item in value:
+                            if isinstance(item, dict) and item:
+                                return item
                     if isinstance(value, str) and value.strip():
                         candidates.append(value)
                 for candidate in candidates:
                     parsed = _coerce_ollama_json(candidate)
                     if isinstance(parsed, dict) and parsed:
                         return parsed
+                    if isinstance(parsed, list):
+                        for item in parsed:
+                            if isinstance(item, dict) and item:
+                                return item
             return payload if isinstance(payload, dict) else {}
 
         attempts: List[int] = [base_predict]
@@ -4573,12 +4659,52 @@ class LLMMetadataGeneratorService:
                     return None
                 continue
 
-            keywords = _sanitize_queries(
-                payload.get("broll_keywords") or payload.get("brollKeywords") or [],
-                max_words=3,
+            keyword_sources: List[Any] = []
+            for key in (
+                "broll_keywords",
+                "brollKeywords",
+                "keywords",
+                "visual_keywords",
+                "visualKeywords",
+            ):
+                value = payload.get(key)
+                if value is not None:
+                    keyword_sources.extend(_expand_term_field(value))
+            if not keyword_sources:
+                briefs = payload.get("segment_briefs") or payload.get("segmentBriefs")
+                if isinstance(briefs, list):
+                    for brief in briefs:
+                        if isinstance(brief, dict):
+                            keyword_sources.extend(_expand_term_field(brief.get("keywords")))
+
+            query_sources: List[Any] = []
+            for key in (
+                "queries",
+                "segment_queries",
+                "segmentQueries",
+                "visual_queries",
+                "visualQueries",
+                "search_queries",
+                "searchQueries",
+                "queries_text",
+                "queriesText",
+            ):
+                value = payload.get(key)
+                if value is not None:
+                    query_sources.extend(_expand_term_field(value))
+            if not query_sources:
+                briefs = payload.get("segment_briefs") or payload.get("segmentBriefs")
+                if isinstance(briefs, list):
+                    for brief in briefs:
+                        if isinstance(brief, dict):
+                            query_sources.extend(_expand_term_field(brief.get("queries")))
+                            query_sources.extend(_expand_term_field(brief.get("visuals")))
+
+            keywords = _sanitize_queries(keyword_sources, max_words=3, max_len=12)
+            queries = _sanitize_queries(
+                _concretize_queries(query_sources),
                 max_len=12,
             )
-            queries = _sanitize_queries(_concretize_queries(payload.get("queries") or []), max_len=12)
 
             if keywords or queries:
                 return {"broll_keywords": keywords, "queries": queries}

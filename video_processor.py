@@ -65,6 +65,21 @@ def _is_basic_latin_char(ch: str) -> bool:
     return False
 
 
+def _candidate_used_before(candidate: Any, used_urls: Set[str]) -> bool:
+    """Return ``True`` when ``candidate`` references a URL that was already picked."""
+
+    url = getattr(candidate, 'url', None)
+    return isinstance(url, str) and url in used_urls
+
+
+def _remember_selected_candidate(used_urls: Set[str], candidate: Any) -> None:
+    """Record the URL of ``candidate`` so future segments can avoid reusing it."""
+
+    url = getattr(candidate, 'url', None)
+    if isinstance(url, str) and url:
+        used_urls.add(url)
+
+
 def _split_basic_latin_runs(text: str, *, keep: Set[str] | None = None) -> List[str]:
     allowed_extras = keep if keep is not None else _DEFAULT_TOKEN_KEEP
     buffer: List[str] = []
@@ -2669,6 +2684,7 @@ class VideoProcessor:
         total_latency_ms = 0
         segments_with_queries = 0
         forced_keep_consumed = 0
+        previously_used_urls: Set[str] = set()
         raw_forced_keep_budget = getattr(selection_cfg, 'forced_keep_budget', None)
         if isinstance(raw_forced_keep_budget, int):
             forced_keep_remaining: Optional[int] = max(0, raw_forced_keep_budget)
@@ -3053,9 +3069,14 @@ class VideoProcessor:
 
             for candidate in unique_candidates:
                 score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
-                passes_filters, filter_reason = orchestrator.evaluate_candidate_filters(
-                    candidate, filters, seg_duration
-                )
+                candidate_url = getattr(candidate, 'url', None)
+                if _candidate_used_before(candidate, previously_used_urls):
+                    passes_filters = False
+                    filter_reason = 'duplicate_url_prior_segment'
+                else:
+                    passes_filters, filter_reason = orchestrator.evaluate_candidate_filters(
+                        candidate, filters, seg_duration
+                    )
                 orientation, duration_val = self._summarize_candidate_media(candidate)
                 record: Dict[str, Any] = {
                     'candidate': candidate,
@@ -3229,6 +3250,7 @@ class VideoProcessor:
                     selected_durations.append(float(duration_val))
                 elif seg_duration > 0:
                     selected_durations.append(float(seg_duration))
+                _remember_selected_candidate(previously_used_urls, best_candidate)
                 # Append to selection report
                 try:
                     if report is not None:
