@@ -2482,11 +2482,62 @@ class VideoProcessor:
         log_file = meta_dir / 'broll_pipeline_events.jsonl'
         self._broll_event_logger: Optional[JsonlLogger] = JsonlLogger(log_file)
         self._broll_env_logged = False
+        try:
+            settings = get_settings()
+        except Exception:
+            settings = None
+        llm_settings = getattr(settings, "llm", None)
+        cooldown = 0.0
+        jitter = 0.0
+        if llm_settings is not None:
+            try:
+                cooldown = max(0.0, float(getattr(llm_settings, "request_cooldown_s", 0.0)))
+            except Exception:
+                cooldown = 0.0
+            try:
+                jitter = max(0.0, float(getattr(llm_settings, "request_cooldown_jitter_s", 0.0)))
+            except Exception:
+                jitter = 0.0
+        if os.getenv("FAST_TESTS") == "1":
+            cooldown = 0.0
+            jitter = 0.0
+        self._llm_request_cooldown_s = cooldown
+        self._llm_request_cooldown_jitter_s = jitter
+        self._llm_next_request_ready = 0.0
+        self._llm_throttle_notice_emitted = False
 
     def get_last_broll_insert_count(self) -> int:
         """Return the number of B-roll clips inserted during the last run."""
 
         return getattr(self, "_last_broll_insert_count", 0)
+
+    def _throttle_llm_requests(self) -> None:
+        """Sleep if necessary so LLM requests respect the configured cooldown."""
+
+        cooldown = max(0.0, float(getattr(self, "_llm_request_cooldown_s", 0.0)))
+        if cooldown <= 0.0:
+            return
+        jitter = max(0.0, float(getattr(self, "_llm_request_cooldown_jitter_s", 0.0)))
+        if not getattr(self, "_llm_throttle_notice_emitted", False):
+            if jitter > 0.0:
+                logger.info(
+                    "[LLM] applying request cooldown: base %.2fs (+0–%.2fs jitter)",
+                    cooldown,
+                    jitter,
+                )
+            else:
+                logger.info("[LLM] applying request cooldown: base %.2fs", cooldown)
+            self._llm_throttle_notice_emitted = True
+        now = time.monotonic()
+        ready_at = max(0.0, float(getattr(self, "_llm_next_request_ready", 0.0)))
+        wait = max(0.0, ready_at - now)
+        if wait > 0.0:
+            time.sleep(wait)
+            now = time.monotonic()
+        delay = cooldown
+        if jitter > 0.0:
+            delay += random.uniform(0.0, jitter)
+        self._llm_next_request_ready = now + delay
 
     def _setup_directories(self):
         """CrÃƒÂ©e les dossiers nÃƒÂ©cessaires"""
@@ -2907,6 +2958,7 @@ class VideoProcessor:
             hint_source: Optional[str] = None
             raw_hint_items: List[str] = []
             if getattr(self, "_llm_service", None):
+                self._throttle_llm_requests()
                 try:
                     llm_hints = self._llm_service.generate_hints_for_segment(
                         segment.text,
@@ -5372,6 +5424,7 @@ class VideoProcessor:
             return _run_heuristics()
 
         try:
+            self._throttle_llm_requests()
             print(f"    Ã°Å¸Å¡â‚¬ [LLM INDUSTRIEL] GÃƒÂ©nÃƒÂ©ration de mÃƒÂ©tadonnÃƒÂ©es pour {len(full_text)} caractÃƒÂ¨res")
 
             meta = generate_metadata_as_json(
@@ -5472,6 +5525,7 @@ class VideoProcessor:
 
             if ENABLE_DYNAMIC_CONTEXT and getattr(self, "_llm_service", None):
                 try:
+                    self._throttle_llm_requests()
                     dyn_context = self._llm_service.generate_dynamic_context(transcript_text_full)
                 except DynamicCompletionError as exc:
                     dyn_context = exc.payload or {}
