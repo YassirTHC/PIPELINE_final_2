@@ -1,0 +1,22 @@
+@font-face {
+  font-family: 'Montserrat-ExtraBold';
+  /* Référence une police copiée à l’exécution si disponible */
+  src: url('resources/Montserrat-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+}
+.word {
+  font-family: 'Montserrat-ExtraBold', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  font-size: 24px;
+  color: #DDDDDD;
+  font-weight: 800;
+  text-shadow:
+    -2px -2px 0 #000,
+     2px -2px 0 #000,
+    -2px  2px 0 #000,
+     2px  2px 0 #000,
+     3px  3px 5px rgba(0,0,0,0.5);
+  padding: 3px 5px;
+}
+.word-being-narrated { color: #FFD400; }  /* mot prononcé */
+.word-already-narrated { color: #FFFFFF; }/* mot passé */

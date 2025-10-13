@@ -75,6 +75,9 @@ BROLL_FETCH_MAX_PER_KEYWORD=8
   échec explicite lorsque les réponses LLM ne sont pas disponibles ou jugées insuffisantes.
   - L'ancien drapeau `PIPELINE_DISABLE_TFIDF_FALLBACK` reste pris en charge pour compatibilité mais émet désormais un
     avertissement de dépréciation ; migrez vers le nouveau nom dès que possible.
+- `VP_SUBTITLES_ENGINE` : sélectionne le moteur de rendu des sous-titres (`hormozi` par défaut ou `pycaps`). Lorsque
+  `pycaps` est activé, l'injection d'emojis interne est automatiquement désactivée et les ressources PyCaps sont
+  préparées à l'exécution.
 
 ##  Utilisation
 
@@ -88,6 +91,7 @@ python video_converter_gui.py
 
 ```bash
 python video_processor.py --video input/votre_video.mp4 --output output/
+python video_processor.py --video input/votre_video.mp4 --subtitles-engine pycaps
 ```
 
 ### Script de Lancement Windows

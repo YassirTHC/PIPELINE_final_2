@@ -168,6 +168,7 @@ class BrollSettings:
 @dataclass(slots=True)
 class SubtitleSettings:
     font_path: Optional[str]
+    engine: str = "hormozi"
     font: Optional[str] = None
     font_size: int = 96
     subtitle_safe_margin_px: int = 220
@@ -245,6 +246,7 @@ class Settings:
             },
             "subtitles": {
                 "font_path": self.subtitles.font_path,
+                "engine": self.subtitles.engine,
                 "font": self.subtitles.font,
                 "font_size": self.subtitles.font_size,
                 "subtitle_safe_margin_px": self.subtitles.subtitle_safe_margin_px,
@@ -594,8 +596,16 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         minimum=0,
     )
 
+    raw_engine = _env(env, "VP_SUBTITLES_ENGINE")
+    engine = _clean_text(raw_engine or "hormozi").lower() or "hormozi"
+    if engine not in {"hormozi", "pycaps"}:
+        engine = "hormozi"
+    if engine == "pycaps":
+        enable_emojis = False
+
     return SubtitleSettings(
         font_path=resolved_font,
+        engine=engine,
         font=font_name,
         font_size=font_size,
         subtitle_safe_margin_px=safe_margin,

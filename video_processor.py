@@ -38,6 +38,7 @@ from video_pipeline.config import (
     log_effective_settings,
     set_settings,
 )
+from subtitle_engines.pycaps_engine import ensure_template_assets, render_with_pycaps
 import types
 import gc
 import re
@@ -78,6 +79,151 @@ def _split_basic_latin_runs(text: str, *, keep: Set[str] | None = None) -> List[
         runs.append(''.join(buffer))
     return runs
 
+
+def _render_subtitles_with_hormozi(
+    input_video_path: str,
+    subtitles: List[Dict],
+    output_video_path: str,
+    *,
+    brand_kit: str,
+    subtitle_settings,
+    span_style_map: Optional[Dict[str, Dict[str, object]]] = None,
+) -> None:
+    from hormozi_subtitles import add_hormozi_subtitles
+
+    kwargs: Dict[str, object] = {
+        "brand_kit": brand_kit,
+        "subtitle_settings": subtitle_settings,
+    }
+    if span_style_map:
+        kwargs["span_style_map"] = span_style_map
+
+    add_hormozi_subtitles(input_video_path, subtitles, output_video_path, **kwargs)
+
+
+def render_subtitles_router(
+    input_video_path: Path | str,
+    subtitles: List[Dict],
+    output_video_path: Path | str,
+    *,
+    template_dir: Path | str | None = None,
+) -> None:
+    """Dispatch subtitle rendering to the configured engine."""
+
+    settings = get_settings()
+    subtitle_settings = getattr(settings, "subtitles", None)
+    engine = (getattr(subtitle_settings, "engine", "hormozi") or "hormozi").lower()
+    template_root = Path(template_dir) if template_dir is not None else PROJECT_ROOT / 'assets' / 'subtitles' / 'pycaps'
+
+    input_path = Path(input_video_path)
+    output_path = Path(output_video_path)
+
+    if engine == "pycaps":
+        if subtitle_settings is not None:
+            subtitle_settings.enable_emojis = False
+        logger.info("INFO:[Subtitles] Engine=pycaps (Hormozi disabled)")
+        try:
+            ensure_template_assets(template_root)
+            render_with_pycaps(
+                subtitles,
+                str(output_path),
+                str(template_root),
+                input_video_path=str(input_path),
+            )
+        except Exception as exc:
+            print(f"  ⚠️ Erreur rendu PyCaps: {exc}")
+        return
+
+    logger.info("INFO:[Subtitles] Engine=hormozi")
+    span_style_map = {
+        # Business & Croissance
+        "croissance": {"color": "#39FF14", "bold": True, "emoji": "Ã°Å¸â€œË†"},
+        "growth": {"color": "#39FF14", "bold": True, "emoji": "Ã°Å¸â€œË†"},
+        "opportunitÃƒÂ©": {"color": "#FFD700", "bold": True, "emoji": "Ã¯Â¿Â½Ã¯Â¿Â½"},
+        "opportunite": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€â€˜"},
+        "innovation": {"color": "#00E5FF", "emoji": "Ã¢Å¡Â¡"},
+        "idÃƒÂ©e": {"color": "#00E5FF", "emoji": "Ã°Å¸â€™Â¡"},
+        "idee": {"color": "#00E5FF", "emoji": "Ã°Å¸â€™Â¡"},
+        "stratÃƒÂ©gie": {"color": "#FF73FA", "emoji": "Ã°Å¸Â§Â­"},
+        "strategie": {"color": "#FF73FA", "emoji": "Ã°Å¸Â§Â­"},
+        "plan": {"color": "#FF73FA", "emoji": "Ã°Å¸â€”ÂºÃ¯Â¸Â"},
+        # Argent & Finance
+        "argent": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
+        "money": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
+        "cash": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
+        "investissement": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€œÅ "},
+        "investissements": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€œÅ "},
+        "revenu": {"color": "#8AFF00", "emoji": "Ã°Å¸ÂÂ¦"},
+        "revenus": {"color": "#8AFF00", "emoji": "Ã°Å¸ÂÂ¦"},
+        "profit": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
+        "profits": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
+        "perte": {"color": "#FF3131", "emoji": "Ã°Å¸â€œâ€°"},
+        "pertes": {"color": "#FF3131", "emoji": "Ã°Å¸â€œâ€°"},
+        "ÃƒÂ©chec": {"color": "#FF3131", "emoji": "Ã¢ÂÅ’"},
+        "echec": {"color": "#FF3131", "emoji": "Ã¢ÂÅ’"},
+        "budget": {"color": "#FFD700", "emoji": "Ã°Å¸Â§Â¾"},
+        "gestion": {"color": "#FFD700", "emoji": "Ã°Å¸Âªâ„¢"},
+        "roi": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€œË†"},
+        "chiffre": {"color": "#FFD700", "emoji": "Ã°Å¸â€™Â°"},
+        "ca": {"color": "#FFD700", "emoji": "Ã°Å¸â€™Â°"},
+        # Relation & Client
+        "client": {"color": "#00E5FF", "underline": True, "emoji": "Ã°Å¸Â¤Â"},
+        "clients": {"color": "#00E5FF", "underline": True, "emoji": "Ã°Å¸Â¤Â"},
+        "collaboration": {"color": "#00E5FF", "emoji": "Ã°Å¸Â«Â±Ã°Å¸ÂÂ¼Ã¢â‚¬ÂÃ°Å¸Â«Â²Ã°Å¸ÂÂ½"},
+        "collaborations": {"color": "#00E5FF", "emoji": "Ã°Å¸Â«Â±Ã°Å¸ÂÂ¼Ã¢â‚¬ÂÃ°Å¸Â«Â²Ã°Å¸ÂÂ½"},
+        "communautÃƒÂ©": {"color": "#39FF14", "emoji": "Ã°Å¸Å’Â"},
+        "communaute": {"color": "#39FF14", "emoji": "Ã°Å¸Å’Â"},
+        "confiance": {"color": "#00E5FF", "emoji": "Ã°Å¸â€â€™"},
+        "vente": {"color": "#FF73FA", "emoji": "Ã°Å¸â€ºâ€™"},
+        "ventes": {"color": "#FF73FA", "emoji": "Ã°Å¸â€ºâ€™"},
+        "deal": {"color": "#FF73FA", "emoji": "Ã°Å¸â€œÂ¦"},
+        "deals": {"color": "#FF73FA", "emoji": "Ã°Å¸â€œÂ¦"},
+        "prospect": {"color": "#00E5FF", "emoji": "Ã°Å¸Â¤Â"},
+        "prospects": {"color": "#00E5FF", "emoji": "Ã°Å¸Â¤Â"},
+        "contrat": {"color": "#FF73FA", "emoji": "Ã°Å¸â€œâ€¹"},
+        # Motivation & SuccÃƒÂ¨s
+        "succÃƒÂ¨s": {"color": "#39FF14", "italic": True, "emoji": "Ã°Å¸Ââ€ "},
+        "succes": {"color": "#39FF14", "italic": True, "emoji": "Ã°Å¸Ââ€ "},
+        "motivation": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸â€Â¥"},
+        "ÃƒÂ©nergie": {"color": "#FF73FA", "emoji": "Ã¢Å¡Â¡"},
+        "energie": {"color": "#FF73FA", "emoji": "Ã¢Å¡Â¡"},
+        "victoire": {"color": "#39FF14", "emoji": "Ã°Å¸Å½Â¯"},
+        "discipline": {"color": "#FFD700", "emoji": "Ã¢ÂÂ³"},
+        "viral": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸Å¡â‚¬"},
+        "viralitÃƒÂ©": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸Å’Â"},
+        "viralite": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸Å’Â"},
+        "impact": {"color": "#FF73FA", "emoji": "Ã°Å¸â€™Â¥"},
+        "explose": {"color": "#FF73FA", "emoji": "Ã°Å¸â€™Â¥"},
+        "explosion": {"color": "#FF73FA", "emoji": "Ã°Å¸â€™Â¥"},
+        # Risque & Erreurs
+        "erreur": {"color": "#FF3131", "emoji": "Ã¢Å¡Â Ã¯Â¸Â"},
+        "erreurs": {"color": "#FF3131", "emoji": "Ã¢Å¡Â Ã¯Â¸Â"},
+        "warning": {"color": "#FF3131", "emoji": "Ã¢Å¡Â Ã¯Â¸Â"},
+        "obstacle": {"color": "#FF3131", "emoji": "Ã°Å¸Â§Â±"},
+        "obstacles": {"color": "#FF3131", "emoji": "Ã°Å¸Â§Â±"},
+        "solution": {"color": "#00E5FF", "emoji": "Ã°Å¸â€Â§"},
+        "solutions": {"color": "#00E5FF", "emoji": "Ã°Å¸â€Â§"},
+        "leÃƒÂ§on": {"color": "#00E5FF", "emoji": "Ã°Å¸â€œÅ¡"},
+        "lecon": {"color": "#00E5FF", "emoji": "Ã°Å¸â€œÅ¡"},
+        "apprentissage": {"color": "#00E5FF", "emoji": "Ã°Å¸Â§Â "},
+        "problÃƒÂ¨me": {"color": "#FF3131", "emoji": "Ã°Å¸â€ºâ€˜"},
+        "probleme": {"color": "#FF3131", "emoji": "Ã°Å¸â€ºâ€˜"},
+    }
+
+    if subtitle_settings is not None and not getattr(subtitle_settings, "enable_emojis", True):
+        span_style_map = None
+
+    try:
+        _render_subtitles_with_hormozi(
+            str(input_path),
+            subtitles,
+            str(output_path),
+            brand_kit=getattr(Config, 'BRAND_KIT_ID', 'default'),
+            subtitle_settings=subtitle_settings,
+            span_style_map=span_style_map,
+        )
+    except Exception as exc:
+        print(f"  ❗ Erreur ajout sous-titres Hormozi: {exc}")
 
 try:
     from pipeline_core.llm_service import generate_metadata_as_json
@@ -1492,7 +1638,6 @@ from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 from moviepy.video.fx.all import crop
 from tqdm import tqdm  # NEW: console progress
 import re # NEW: for caption/hashtag generation
-from hormozi_subtitles import add_hormozi_subtitles
 
 
 def _format_srt_timestamp(total_seconds: float) -> str:
@@ -4246,89 +4391,12 @@ class VideoProcessor:
         subtitled_out_dir = per_clip_dir
         subtitled_out_dir.mkdir(parents=True, exist_ok=True)
         final_subtitled_path = subtitled_out_dir / 'final_subtitled.mp4'
-        try:
-            span_style_map = {
-                # Business & Croissance
-                "croissance": {"color": "#39FF14", "bold": True, "emoji": "Ã°Å¸â€œË†"},
-                "growth": {"color": "#39FF14", "bold": True, "emoji": "Ã°Å¸â€œË†"},
-                "opportunitÃƒÂ©": {"color": "#FFD700", "bold": True, "emoji": "Ã¯Â¿Â½Ã¯Â¿Â½"},
-                "opportunite": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€â€˜"},
-                "innovation": {"color": "#00E5FF", "emoji": "Ã¢Å¡Â¡"},
-                "idÃƒÂ©e": {"color": "#00E5FF", "emoji": "Ã°Å¸â€™Â¡"},
-                "idee": {"color": "#00E5FF", "emoji": "Ã°Å¸â€™Â¡"},
-                "stratÃƒÂ©gie": {"color": "#FF73FA", "emoji": "Ã°Å¸Â§Â­"},
-                "strategie": {"color": "#FF73FA", "emoji": "Ã°Å¸Â§Â­"},
-                "plan": {"color": "#FF73FA", "emoji": "Ã°Å¸â€”ÂºÃ¯Â¸Â"},
-                # Argent & Finance
-                "argent": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
-                "money": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
-                "cash": {"color": "#FFD700", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
-                "investissement": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€œÅ "},
-                "investissements": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€œÅ "},
-                "revenu": {"color": "#8AFF00", "emoji": "Ã°Å¸ÂÂ¦"},
-                "revenus": {"color": "#8AFF00", "emoji": "Ã°Å¸ÂÂ¦"},
-                "profit": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
-                "profits": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€™Â°"},
-                "perte": {"color": "#FF3131", "emoji": "Ã°Å¸â€œâ€°"},
-                "pertes": {"color": "#FF3131", "emoji": "Ã°Å¸â€œâ€°"},
-                "ÃƒÂ©chec": {"color": "#FF3131", "emoji": "Ã¢ÂÅ’"},
-                "echec": {"color": "#FF3131", "emoji": "Ã¢ÂÅ’"},
-                "budget": {"color": "#FFD700", "emoji": "Ã°Å¸Â§Â¾"},
-                "gestion": {"color": "#FFD700", "emoji": "Ã°Å¸Âªâ„¢"},
-                "roi": {"color": "#8AFF00", "bold": True, "emoji": "Ã°Å¸â€œË†"},
-                "chiffre": {"color": "#FFD700", "emoji": "Ã°Å¸â€™Â°"},
-                "ca": {"color": "#FFD700", "emoji": "Ã°Å¸â€™Â°"},
-                # Relation & Client
-                "client": {"color": "#00E5FF", "underline": True, "emoji": "Ã°Å¸Â¤Â"},
-                "clients": {"color": "#00E5FF", "underline": True, "emoji": "Ã°Å¸Â¤Â"},
-                "collaboration": {"color": "#00E5FF", "emoji": "Ã°Å¸Â«Â±Ã°Å¸ÂÂ¼Ã¢â‚¬ÂÃ°Å¸Â«Â²Ã°Å¸ÂÂ½"},
-                "collaborations": {"color": "#00E5FF", "emoji": "Ã°Å¸Â«Â±Ã°Å¸ÂÂ¼Ã¢â‚¬ÂÃ°Å¸Â«Â²Ã°Å¸ÂÂ½"},
-                "communautÃƒÂ©": {"color": "#39FF14", "emoji": "Ã°Å¸Å’Â"},
-                "communaute": {"color": "#39FF14", "emoji": "Ã°Å¸Å’Â"},
-                "confiance": {"color": "#00E5FF", "emoji": "Ã°Å¸â€â€™"},
-                "vente": {"color": "#FF73FA", "emoji": "Ã°Å¸â€ºâ€™"},
-                "ventes": {"color": "#FF73FA", "emoji": "Ã°Å¸â€ºâ€™"},
-                "deal": {"color": "#FF73FA", "emoji": "Ã°Å¸â€œÂ¦"},
-                "deals": {"color": "#FF73FA", "emoji": "Ã°Å¸â€œÂ¦"},
-                "prospect": {"color": "#00E5FF", "emoji": "Ã°Å¸Â¤Â"},
-                "prospects": {"color": "#00E5FF", "emoji": "Ã°Å¸Â¤Â"},
-                "contrat": {"color": "#FF73FA", "emoji": "Ã°Å¸â€œâ€¹"},
-                # Motivation & SuccÃƒÂ¨s
-                "succÃƒÂ¨s": {"color": "#39FF14", "italic": True, "emoji": "Ã°Å¸Ââ€ "},
-                "succes": {"color": "#39FF14", "italic": True, "emoji": "Ã°Å¸Ââ€ "},
-                "motivation": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸â€Â¥"},
-                "ÃƒÂ©nergie": {"color": "#FF73FA", "emoji": "Ã¢Å¡Â¡"},
-                "energie": {"color": "#FF73FA", "emoji": "Ã¢Å¡Â¡"},
-                "victoire": {"color": "#39FF14", "emoji": "Ã°Å¸Å½Â¯"},
-                "discipline": {"color": "#FFD700", "emoji": "Ã¢ÂÂ³"},
-                "viral": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸Å¡â‚¬"},
-                "viralitÃƒÂ©": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸Å’Â"},
-                "viralite": {"color": "#FF73FA", "bold": True, "emoji": "Ã°Å¸Å’Â"},
-                "impact": {"color": "#FF73FA", "emoji": "Ã°Å¸â€™Â¥"},
-                "explose": {"color": "#FF73FA", "emoji": "Ã°Å¸â€™Â¥"},
-                "explosion": {"color": "#FF73FA", "emoji": "Ã°Å¸â€™Â¥"},
-                # Risque & Erreurs
-                "erreur": {"color": "#FF3131", "emoji": "Ã¢Å¡Â Ã¯Â¸Â"},
-                "erreurs": {"color": "#FF3131", "emoji": "Ã¢Å¡Â Ã¯Â¸Â"},
-                "warning": {"color": "#FF3131", "emoji": "Ã¢Å¡Â Ã¯Â¸Â"},
-                "obstacle": {"color": "#FF3131", "emoji": "Ã°Å¸Â§Â±"},
-                "obstacles": {"color": "#FF3131", "emoji": "Ã°Å¸Â§Â±"},
-                "solution": {"color": "#00E5FF", "emoji": "Ã°Å¸â€Â§"},
-                "solutions": {"color": "#00E5FF", "emoji": "Ã°Å¸â€Â§"},
-                "leÃƒÂ§on": {"color": "#00E5FF", "emoji": "Ã°Å¸â€œÅ¡"},
-                "lecon": {"color": "#00E5FF", "emoji": "Ã°Å¸â€œÅ¡"},
-                "apprentissage": {"color": "#00E5FF", "emoji": "Ã°Å¸Â§Â "},
-                "problÃƒÂ¨me": {"color": "#FF3131", "emoji": "Ã°Å¸â€ºâ€˜"},
-                "probleme": {"color": "#FF3131", "emoji": "Ã°Å¸â€ºâ€˜"},
-            }
-            add_hormozi_subtitles(
-                str(with_broll_path), subtitles, str(final_subtitled_path),
-                brand_kit=getattr(Config, 'BRAND_KIT_ID', 'default'),
-                span_style_map=span_style_map
-            )
-        except Exception as e:
-            print(f"  Ã¢ÂÅ’ Erreur ajout sous-titres Hormozi: {e}")
-            # Pas de retour anticipÃƒÂ©: continuer export simple
+        render_subtitles_router(
+            with_broll_path,
+            subtitles,
+            final_subtitled_path,
+            template_dir=PROJECT_ROOT / 'assets' / 'subtitles' / 'pycaps',
+        )
         
         # Export final accumulÃƒÂ© dans output/final/ et sous-titrÃƒÂ© (burn-in) dans output/subtitled/
         final_dir = Config.OUTPUT_FOLDER / 'final'
@@ -6981,6 +7049,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument('--llm-provider', help='Override LLM provider (ollama, lmstudio, openai, etc.).')
     parser.add_argument('--llm-model-text', help='Override the dedicated text generation model.')
     parser.add_argument('--llm-model-json', help='Override the JSON metadata model used for planning.')
+    parser.add_argument('--subtitles-engine', choices=['hormozi', 'pycaps'], help='Override subtitles rendering engine.')
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     settings = get_settings()
@@ -6990,6 +7059,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         model_text=args.llm_model_text,
         model_json=args.llm_model_json,
     )
+    if args.subtitles_engine:
+        engine_override = (args.subtitles_engine or '').lower()
+        subtitles_settings = getattr(settings, 'subtitles', None)
+        if subtitles_settings is not None:
+            subtitles_settings.engine = engine_override
+            if engine_override == 'pycaps':
+                subtitles_settings.enable_emojis = False
     set_settings(settings)
 
     if args.llm_provider:
@@ -6998,6 +7074,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         os.environ['PIPELINE_LLM_MODEL_TEXT'] = settings.llm.model_text
     if args.llm_model_json:
         os.environ['PIPELINE_LLM_MODEL_JSON'] = settings.llm.model_json
+    if args.subtitles_engine:
+        os.environ['VP_SUBTITLES_ENGINE'] = engine_override
 
     log_effective_settings(settings)
 
