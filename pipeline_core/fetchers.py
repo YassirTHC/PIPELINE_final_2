@@ -276,6 +276,7 @@ class FetcherOrchestrator:
             start = time.perf_counter()
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.parallel_requests or 1) as pool:
                 futures = []
+                scheduled_jobs: set[tuple[str, str]] = set()
                 for provider_conf in providers:
                     if (
                         not self.config.allow_videos
@@ -289,8 +290,24 @@ class FetcherOrchestrator:
                     ):
                         continue
                     for query in queries:
+                        normalized_query = _normalize_query_text(query)
+                        if not normalized_query:
+                            continue
+                        job_key = (
+                            str(getattr(provider_conf, 'name', '') or '').strip().lower(),
+                            normalized_query.casefold(),
+                        )
+                        if job_key in scheduled_jobs:
+                            continue
+                        scheduled_jobs.add(job_key)
                         futures.append(
-                            pool.submit(self._run_provider_fetch, provider_conf, query, filters, segment_timeout_s)
+                            pool.submit(
+                                self._run_provider_fetch,
+                                provider_conf,
+                                normalized_query,
+                                filters,
+                                segment_timeout_s,
+                            )
                         )
 
                 timeout_s = max(self.config.request_timeout_s, 0.1)
@@ -628,15 +645,29 @@ class FetcherOrchestrator:
     ) -> List[RemoteAssetCandidate]:
         fallback_candidates: List[RemoteAssetCandidate] = []
         attempted_queries: List[str] = []
+        seen_queries: set[str] = set()
         for query in queries[:3]:
             clean_query = _normalize_query_text(query)
             if not clean_query:
                 continue
+            key = clean_query.casefold()
+            if key in seen_queries:
+                continue
+            seen_queries.add(key)
             attempted_queries.append(clean_query)
             try:
                 candidates = self._fetch_from_pixabay(clean_query, limit)
             except Exception:
                 candidates = []
+            if not candidates:
+                self._log_event(
+                    {
+                        'event': 'fallback_query_zero',
+                        'provider': 'pixabay',
+                        'query': clean_query,
+                    }
+                )
+                self._logger.info("[fetch] pixabay fallback query '%s' returned 0 results", clean_query)
             if candidates:
                 fallback_candidates.extend(candidates)
             if len(fallback_candidates) >= limit:
@@ -731,6 +762,14 @@ class FetcherOrchestrator:
                 'count': len(candidates),
             }
         )
+        if not candidates:
+            self._logger.info("[fetch] provider=pexels query='%s' yielded 0 results", query)
+        else:
+            self._logger.debug(
+                "[fetch] provider=pexels query='%s' candidates=%d",
+                query,
+                len(candidates),
+            )
         return candidates
 
 
@@ -809,6 +848,14 @@ class FetcherOrchestrator:
                 'count': len(candidates),
             }
         )
+        if not candidates:
+            self._logger.info("[fetch] provider=pixabay query='%s' yielded 0 results", query)
+        else:
+            self._logger.debug(
+                "[fetch] provider=pixabay query='%s' candidates=%d",
+                query,
+                len(candidates),
+            )
         return candidates
 
     # ------------------------------------------------------------------

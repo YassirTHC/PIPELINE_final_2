@@ -160,9 +160,9 @@ class FetchSettings:
 
 @dataclass(slots=True)
 class BrollSettings:
-    min_start_s: float = 1.0
+    min_start_s: float = 0.5
     min_gap_s: float = 0.5
-    no_repeat_s: float = 6.0
+    no_repeat_s: float = 4.0
 
 
 @dataclass(slots=True)
