@@ -164,7 +164,7 @@ class BrollConfig:
         self.max_broll_ratio = 0.40  # 🚀 AUGMENTÉ: 20% → 40% pour couvrir toute la vidéo
         self.min_broll_clip_s = 2.0  # Durée correcte
         self.max_broll_clip_s = 4.0  # Durée standard
-        self.min_gap_between_broll_s = 2.5  # 📱 ATTENTION CURVE: 3.0s → 2.5s pour maintenir l'engagement constant
+        self.min_gap_between_broll_s = 0.5  # Intervalle réduit pour enchaîner plus rapidement les B-rolls
         
         # Sélection intelligente avec LLM
         self.enable_llm_reranking = True  # ACTIVÉ pour qualité maximale B-roll

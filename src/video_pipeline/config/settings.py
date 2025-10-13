@@ -161,8 +161,8 @@ class FetchSettings:
 @dataclass(slots=True)
 class BrollSettings:
     min_start_s: float = 1.0
-    min_gap_s: float = 1.0
-    no_repeat_s: float = 4.0
+    min_gap_s: float = 0.5
+    no_repeat_s: float = 6.0
 
 
 @dataclass(slots=True)
@@ -451,13 +451,13 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
 def _broll_settings(env: Optional[Mapping[str, str]]) -> BrollSettings:
     return BrollSettings(
         min_start_s=_coerce_float(
-            _env(env, "PIPELINE_BROLL_MIN_START_SECONDS", "2.0"),
-            2.0,
+            _env(env, "PIPELINE_BROLL_MIN_START_SECONDS", "1.0"),
+            1.0,
             minimum=0.0,
         ),
         min_gap_s=_coerce_float(
-            _env(env, "PIPELINE_BROLL_MIN_GAP_S", "1.0"),
-            1.5,
+            _env(env, "PIPELINE_BROLL_MIN_GAP_S", "0.5"),
+            0.5,
             minimum=0.0,
         ),
         no_repeat_s=_coerce_float(
