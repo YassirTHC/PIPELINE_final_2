@@ -1078,12 +1078,19 @@ _DEFAULT_EMERGENCY_QUERIES: tuple[str, ...] = (
     "hands writing notes",
 )
 
+# NOTE: the blacklist drops query strings that our provider telemetry showed returning
+# consistently empty or extremely abstract results across many clips (not just the
+# motivational sample).  Keeping the list focused on vague phrasing prevents us from
+# banning legitimate, concrete concepts while still avoiding wasted API calls.
 _QUERY_BLACKLIST_TERMS: set[str] = {
     "directed effort action",
     "internal what",
     "thing occurs",
 }
 
+# Fragments are matched anywhere inside the candidate phrase so that variations such
+# as "directed effort focus" are caught; each fragment corresponds to wording that
+# repeatedly produced zero hits in production logs regardless of topic domain.
 _QUERY_BLACKLIST_FRAGMENTS: tuple[str, ...] = (
     "occurs when",
     "practicing",
