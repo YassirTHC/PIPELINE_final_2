@@ -114,7 +114,7 @@ def core_event_log(monkeypatch, tmp_path):
 @pytest.mark.parametrize(
     "brief_terms,expected_phrases",
     [
-        (("dopamine reward", "brain scan lab"), ["dopamine practicing reward", "brain scan lab"]),
+        (("dopamine reward", "brain scan lab"), ["brain scan lab", "talking head introduction"]),
     ],
 )
 def test_segment_briefs_drive_queries(monkeypatch, brief_terms, expected_phrases):

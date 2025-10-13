@@ -137,6 +137,8 @@ class LLMSettings:
     json_mode: bool
     json_transcript_limit: Optional[int]
     disable_dynamic_segment: bool = False
+    request_cooldown_s: float = 0.0
+    request_cooldown_jitter_s: float = 0.0
 
     @property
     def effective_json_model(self) -> str:
@@ -160,9 +162,9 @@ class FetchSettings:
 
 @dataclass(slots=True)
 class BrollSettings:
-    min_start_s: float = 2.0
-    min_gap_s: float = 1.5
-    no_repeat_s: float = 6.0
+    min_start_s: float = 0.5
+    min_gap_s: float = 0.5
+    no_repeat_s: float = 4.0
 
 
 @dataclass(slots=True)
@@ -230,6 +232,8 @@ class Settings:
                 "json_mode": self.llm.json_mode,
                 "json_transcript_limit": self.llm.json_transcript_limit,
                 "disable_dynamic_segment": self.llm.disable_dynamic_segment,
+                "request_cooldown_s": self.llm.request_cooldown_s,
+                "request_cooldown_jitter_s": self.llm.request_cooldown_jitter_s,
             },
             "fetch": {
                 "timeout_s": self.fetch.timeout_s,
@@ -421,6 +425,17 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
         default=False,
     )
 
+    request_cooldown_s = _coerce_float(
+        _env(env, "PIPELINE_LLM_REQUEST_COOLDOWN_S", "0"),
+        0.0,
+        minimum=0.0,
+    )
+    request_cooldown_jitter_s = _coerce_float(
+        _env(env, "PIPELINE_LLM_REQUEST_COOLDOWN_JITTER_S", "0"),
+        0.0,
+        minimum=0.0,
+    )
+
     return LLMSettings(
         model=model,
         model_json=model_json,
@@ -447,6 +462,8 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
         json_mode=json_mode,
         json_transcript_limit=json_transcript_limit,
         disable_dynamic_segment=disable_dynamic_segment,
+        request_cooldown_s=request_cooldown_s,
+        request_cooldown_jitter_s=request_cooldown_jitter_s,
     )
 
 
