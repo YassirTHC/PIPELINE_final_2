@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import sys
@@ -183,11 +184,19 @@ def test_process_single_clip_smoke(tmp_path, monkeypatch, video_processor_module
 
     monkeypatch.setattr(video_processor.VideoProcessor, "_unique_path", fake_unique_path)
 
-    def fake_add_subtitles(input_path, subtitles, output_path, **kwargs):
+    def fake_render_hormozi(
+        input_path,
+        subtitles,
+        output_path,
+        *,
+        brand_kit,
+        subtitle_settings,
+        span_style_map=None,
+    ):
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_bytes(b"data")
 
-    monkeypatch.setattr(video_processor, "add_hormozi_subtitles", fake_add_subtitles)
+    monkeypatch.setattr(video_processor, "_render_subtitles_with_hormozi", fake_render_hormozi)
 
     class DummyVideoClip:
         duration = 1.0
@@ -486,6 +495,12 @@ def test_core_pipeline_materializes_and_renders(monkeypatch, tmp_path, video_pro
 
     input_clip = tmp_path / "input.mp4"
     input_clip.write_bytes(b"base")
+
+    settings_override = copy.deepcopy(module.get_settings())
+    settings_override.broll.min_start_s = 0.0
+    settings_override.broll.min_gap_s = 0.0
+    settings_override.broll.no_repeat_s = 0.0
+    monkeypatch.setattr(module, "get_settings", lambda: settings_override)
 
     inserted_count, rendered_path, meta = processor._insert_brolls_pipeline_core(
         [types.SimpleNamespace(start=0.0, end=2.0, text="hello world")],

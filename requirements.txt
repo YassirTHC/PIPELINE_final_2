@@ -16,6 +16,7 @@ pillow>=11.0.0
 imageio>=2.37.0
 imageio-ffmpeg>=0.6.0
 tqdm>=4.67.0
+pycaps
 
 # IA et machine learning
 torch>=2.8.0

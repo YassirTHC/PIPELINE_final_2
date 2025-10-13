@@ -34,3 +34,10 @@ _meta_debug.json
 diagnostic_broll.json
 last_pipeline_run.txt
 *.backup*
+
+# PyCaps runtime assets
+assets/subtitles/pycaps/resources/
+*.ttf
+*.otf
+*.woff
+*.woff2
