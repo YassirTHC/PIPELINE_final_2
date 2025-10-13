@@ -1,8 +1,10 @@
 """Integration helpers for the optional PyCaps subtitle engine."""
 from __future__ import annotations
 
+import importlib
 import json
 import logging
+import pkgutil
 import shutil
 import tempfile
 from pathlib import Path
@@ -128,9 +130,45 @@ def to_pycaps_input(segments: Sequence[Mapping[str, Any]] | None) -> Dict[str, A
 
 
 def _load_pycaps_loader():  # pragma: no cover - exercised via render_with_pycaps
-    from pycaps.pipeline import JsonConfigLoader
+    """Locate PyCaps JsonConfigLoader across possible layouts."""
 
-    return JsonConfigLoader
+    try:
+        from pycaps.pipeline import JsonConfigLoader  # type: ignore
+
+        logger.info("[PyCaps] Using layout A: pycaps.pipeline.JsonConfigLoader")
+        return JsonConfigLoader
+    except ModuleNotFoundError:
+        pass
+
+    try:
+        import pycaps  # type: ignore  # noqa: F401
+
+        JsonConfigLoader = getattr(pycaps, "JsonConfigLoader")
+        logger.info("[PyCaps] Using layout B: pycaps.JsonConfigLoader")
+        return JsonConfigLoader  # type: ignore
+    except Exception:
+        pass
+
+    import pycaps  # type: ignore
+
+    for module in pkgutil.iter_modules(getattr(pycaps, "__path__", [])):
+        try:
+            mod = importlib.import_module(f"pycaps.{module.name}")
+        except Exception:
+            continue
+
+        if hasattr(mod, "JsonConfigLoader"):
+            JsonConfigLoader = getattr(mod, "JsonConfigLoader")
+            logger.info(
+                "[PyCaps] Using layout C: pycaps.%s.JsonConfigLoader", module.name
+            )
+            return JsonConfigLoader  # type: ignore
+
+    raise RuntimeError(
+        "PyCaps import error: 'JsonConfigLoader' introuvable dans pycaps. "
+        "Installe la version GitHub (ou mets à jour la lib) : "
+        "pip install --no-cache-dir git+https://github.com/francozanardi/pycaps"
+    )
 
 
 def render_with_pycaps(
@@ -152,9 +190,12 @@ def render_with_pycaps(
     try:
         JsonConfigLoader = _load_pycaps_loader()
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on runtime env
-        raise RuntimeError("PyCaps is not installed. Install it with `pip install pycaps`.") from exc
+        raise RuntimeError(
+            "PyCaps is not installed in this interpreter. "
+            "Active venv311 puis `pip install pycaps`."
+        ) from exc
     except Exception as exc:  # pragma: no cover - defensive
-        raise RuntimeError(f"Unable to import PyCaps: {exc}") from exc
+        raise RuntimeError(f"Unable to import/use PyCaps: {exc}") from exc
 
     builder = JsonConfigLoader(str(template_path)).load(False)
     builder.with_input_video(str(input_video_path))
@@ -179,7 +220,10 @@ def render_with_pycaps(
         try:
             pipeline.run()
         except ModuleNotFoundError as exc:  # pragma: no cover - depends on optional deps
-            raise RuntimeError("PyCaps is not installed. Install it with `pip install pycaps`.") from exc
+            raise RuntimeError(
+                "PyCaps is not installed in this interpreter. "
+                "Active venv311 puis `pip install pycaps`."
+            ) from exc
         except Exception as exc:
             raise RuntimeError(f"PyCaps rendering failed: {exc}") from exc
         finally:
