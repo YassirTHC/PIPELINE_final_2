@@ -472,6 +472,52 @@ def test_llm_hint_queries_bypass_merge(monkeypatch):
     assert queries_event["queries"] == expected_queries
 
 
+def test_emergency_queries_provide_diversity():
+    base_kwargs = {
+        "segment_text": "Generic motivational talk about achieving goals and mindset.",
+        "llm_queries": [],
+        "brief_queries": [],
+        "brief_keywords": [],
+        "segment_keywords": [],
+        "selector_keywords": [],
+        "cap": 3,
+    }
+
+    merged_intro, source_intro = video_processor._merge_segment_query_sources(
+        **base_kwargs,
+        segment_index=0,
+    )
+    merged_middle, source_middle = video_processor._merge_segment_query_sources(
+        **base_kwargs,
+        segment_index=5,
+    )
+
+    assert merged_intro and merged_middle
+    assert merged_intro != merged_middle
+    assert source_intro == "emergency_fallback"
+    assert source_middle == "emergency_fallback"
+
+
+def test_sanitize_hashtags_filters_fragments():
+    raw_tags = [
+        "#firstthingoccurs",
+        "#thingoccurswhen",
+        "#occurswhenpeople",
+        "#motivation",
+        "#Success",
+    ]
+
+    cleaned = video_processor._sanitize_hashtags(raw_tags)
+
+    assert "#firstthingoccurs" not in cleaned
+    assert "#thingoccurswhen" not in cleaned
+    assert "#occurswhenpeople" not in cleaned
+    assert "#motivation" in cleaned
+    assert any(tag.lower() == "#success" for tag in cleaned)
+    assert all(tag.startswith("#") for tag in cleaned)
+    assert len(cleaned) >= 5
+
+
 def test_metadata_fallback_logging_and_events(monkeypatch, caplog, core_event_log, tmp_path):
     class FallbackLLM:
         def __init__(self):
