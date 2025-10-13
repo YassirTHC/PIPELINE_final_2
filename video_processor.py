@@ -787,6 +787,172 @@ ENABLE_SELECTOR_DYNAMIC_DOMAIN = os.getenv("ENABLE_SELECTOR_DYNAMIC_DOMAIN", "tr
 _ANTI_TERMS = {"people","thing","nice","background","start","generic","template","stock"}
 
 
+_EMERGENCY_SEGMENT_QUERY_MAP: dict[int, tuple[str, ...]] = {
+    0: (
+        "talking head introduction",
+        "person smiling at camera",
+        "studio intro shot",
+        "speaker adjusting microphone",
+    ),
+    1: (
+        "listener reacting positively",
+        "audience nodding",
+        "motivated viewer closeup",
+        "person taking notes",
+    ),
+    2: (
+        "hands writing notebook",
+        "goal planning journal",
+        "whiteboard planning",
+        "sticky notes brainstorming",
+    ),
+    3: (
+        "focused computer work",
+        "team collaboration desk",
+        "research on laptop",
+        "analyzing data charts",
+    ),
+    4: (
+        "celebration high five",
+        "person cheering success",
+        "confetti celebration",
+        "winner raising arms",
+    ),
+    5: (
+        "coach motivating team",
+        "speaker gesturing stage",
+        "motivational seminar",
+        "mentor guiding mentee",
+    ),
+    6: (
+        "athlete training focus",
+        "intense workout portrait",
+        "runner tying shoes",
+        "gym determination",
+    ),
+    7: (
+        "strategy planning board",
+        "team huddle planning",
+        "post it collaboration",
+        "hands arranging cards",
+    ),
+    8: (
+        "calm breathing outdoors",
+        "sunrise mindfulness",
+        "person meditating morning",
+        "slow motion motivation",
+    ),
+    9: (
+        "group celebrating goal",
+        "audience clapping",
+        "crowd cheering success",
+        "team congratulating",
+    ),
+    10: (
+        "summary whiteboard recap",
+        "mentor pointing chart",
+        "reviewing notes desk",
+        "tablet recap session",
+    ),
+    11: (
+        "outro waving goodbye",
+        "speaker thanking audience",
+        "person smiling outro",
+        "call to action text",
+    ),
+}
+
+_DOMAIN_EMERGENCY_QUERIES: dict[str, tuple[str, ...]] = {
+    "motivation": (
+        "motivational speaker stage",
+        "celebrating success moment",
+        "focused athlete sprint",
+        "positive mindset expression",
+    ),
+    "business": (
+        "team strategy meeting",
+        "coworking brainstorming",
+        "entrepreneur working late",
+        "presentation in office",
+    ),
+    "fitness": (
+        "gym workout determination",
+        "coach encouraging athlete",
+        "runner sprint start",
+        "stretching before training",
+    ),
+    "education": (
+        "teacher explaining lesson",
+        "students studying together",
+        "classroom discussion",
+        "reading in library",
+    ),
+    "finance": (
+        "analyzing finance charts",
+        "budget planning notebook",
+        "investor reviewing laptop",
+        "team discussing strategy",
+    ),
+}
+
+_DEFAULT_EMERGENCY_QUERIES: tuple[str, ...] = (
+    "person celebrating success",
+    "focused person working",
+    "smiling person camera",
+    "hands writing notes",
+)
+
+_ABSTRACT_QUERY_REPLACEMENTS: dict[str, tuple[str, ...]] = {
+    "internal reward system": (
+        "person celebrating success",
+        "brain motivation illustration",
+        "self high five moment",
+    ),
+    "self reward process": (
+        "treating yourself moment",
+        "enjoying small victory",
+        "rewarding yourself dessert",
+    ),
+    "motivation achievement focus": (
+        "determined athlete training",
+        "vision board planning",
+        "motivated entrepreneur working",
+    ),
+    "positive action outcome": (
+        "goal completed celebration",
+        "smiling success portrait",
+        "team celebrating milestone",
+    ),
+}
+
+_HASHTAG_FRAGMENT_TOKENS: set[str] = {
+    "occurs",
+    "when",
+    "people",
+    "thing",
+    "first",
+    "start",
+    "internal",
+    "linking",
+    "duration",
+    "realize",
+    "what",
+}
+
+_FALLBACK_HASHTAGS: tuple[str, ...] = (
+    "#motivation",
+    "#success",
+    "#mindset",
+    "#growth",
+    "#productivity",
+    "#inspiration",
+    "#goals",
+    "#selfimprovement",
+    "#lifestyle",
+    "#focus",
+)
+
+
 def _get_provider_names(cfg) -> List[str]:
     """Best-effort detection of enabled provider names for diagnostics."""
 
@@ -828,6 +994,134 @@ def _norm_query_term(s: str) -> str:
     except Exception:
         pass
     return s
+
+
+def _expand_visual_queries(queries: Sequence[str], *, limit: Optional[int] = None) -> list[str]:
+    """Augment abstract LLM terms with concrete visual phrasing."""
+
+    expanded: list[str] = []
+    seen: set[str] = set()
+    max_items = None if limit is None else max(0, int(limit))
+
+    for raw in queries or []:
+        if not isinstance(raw, str):
+            continue
+        normalised = _norm_query_term(raw)
+        if not normalised or normalised in seen:
+            continue
+        expanded.append(normalised)
+        seen.add(normalised)
+        replacements = _ABSTRACT_QUERY_REPLACEMENTS.get(normalised)
+        if replacements:
+            for repl in replacements:
+                cleaned = _norm_query_term(repl)
+                if not cleaned or cleaned in seen:
+                    continue
+                expanded.append(cleaned)
+                seen.add(cleaned)
+                if max_items is not None and len(expanded) >= max_items:
+                    return expanded[:max_items]
+        if max_items is not None and len(expanded) >= max_items:
+            return expanded[:max_items]
+
+    if max_items is not None:
+        return expanded[:max_items]
+    return expanded
+
+
+def _sanitize_hashtags(hashtags: Sequence[str]) -> list[str]:
+    """Clean and validate hashtags, filling with safe fallbacks when needed."""
+
+    cleaned: list[str] = []
+    seen: set[str] = set()
+
+    for raw in hashtags or []:
+        if not isinstance(raw, str):
+            continue
+        tag = raw.strip()
+        if not tag:
+            continue
+        if not tag.startswith("#"):
+            tag = "#" + tag.lstrip("#")
+        tag = re.sub(r"\s+", "", tag)
+        if len(tag) < 3 or len(tag) > 30:
+            continue
+        body = tag[1:]
+        body_lower = body.lower()
+        tokens = re.findall(r"[a-z]{2,}", body_lower)
+        if not tokens:
+            continue
+        if any(token in _HASHTAG_FRAGMENT_TOKENS for token in tokens):
+            continue
+        bad_hits = sum(1 for frag in _HASHTAG_FRAGMENT_TOKENS if frag in body_lower)
+        if bad_hits >= 2 or (bad_hits >= 1 and len(body_lower) > 14):
+            continue
+        lowered = tag.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        cleaned.append(tag)
+        if len(cleaned) >= 10:
+            break
+
+    if len(cleaned) < 5:
+        for fallback in _FALLBACK_HASHTAGS:
+            lower_fallback = fallback.lower()
+            if lower_fallback in seen:
+                continue
+            cleaned.append(fallback)
+            seen.add(lower_fallback)
+            if len(cleaned) >= 10:
+                break
+
+    return cleaned[:10]
+
+
+def _emergency_segment_queries(
+    segment_index: int | None,
+    segment_text: str,
+    *,
+    domain_name: Optional[str],
+    existing_terms: Sequence[str],
+    limit: int,
+) -> list[str]:
+    """Produce deterministic fallback queries when the LLM fails."""
+
+    cap = max(0, int(limit))
+    if cap == 0:
+        return []
+
+    seen = {_norm_query_term(term) for term in existing_terms if isinstance(term, str)}
+    seen.discard("")
+    results: list[str] = []
+
+    def _extend(candidates: Sequence[str]) -> bool:
+        for candidate in candidates:
+            normalised = _norm_query_term(candidate)
+            if not normalised or normalised in seen:
+                continue
+            results.append(normalised)
+            seen.add(normalised)
+            if len(results) >= cap:
+                return True
+        return False
+
+    if segment_index is not None:
+        templates = _EMERGENCY_SEGMENT_QUERY_MAP.get(int(segment_index))
+        if templates and _extend(templates):
+            return results[:cap]
+
+    if domain_name:
+        domain_templates = _DOMAIN_EMERGENCY_QUERIES.get(domain_name.lower())
+        if domain_templates and _extend(domain_templates):
+            return results[:cap]
+
+    transcript_terms = _build_transcript_fallback_terms(segment_text, [], limit=cap)
+    if transcript_terms and _extend(transcript_terms):
+        return results[:cap]
+
+    _extend(_DEFAULT_EMERGENCY_QUERIES)
+    return results[:cap]
 
 _CONCRETE_SUBJECT_REGEX = re.compile(r"\b(doctor|scientist|patient|brain|team|teacher|student|athlete|player|man|woman|person|robot|camera|lab|laboratory|office|family|crowd|group|hands|engineer|technician|nurse|chef|musician|artist|child|kid|baby|city|factory|computer|laptop|desk|machine)\b")
 
@@ -1220,6 +1514,8 @@ def _merge_segment_query_sources(
     selector_keywords: Sequence[str],
     cap: int,
     llm_only: bool | None = None,
+    segment_index: Optional[int] = None,
+    domain_name: Optional[str] = None,
 ) -> tuple[list[str], str]:
     cap = max(1, int(cap or 0))
     combined: list[str] = []
@@ -1344,6 +1640,17 @@ def _merge_segment_query_sources(
     if not combined:
         seed_queries = _load_seed_queries()
         _consume("seed_queries", seed_queries)
+
+    if len(combined) < cap:
+        emergency_terms = _emergency_segment_queries(
+            segment_index,
+            segment_text,
+            domain_name=domain_name,
+            existing_terms=combined,
+            limit=cap,
+        )
+        if emergency_terms:
+            _consume("emergency_fallback", emergency_terms, relax=True)
 
     if len(combined) < cap:
         fallback_terms = _build_transcript_fallback_terms(
@@ -2300,10 +2607,14 @@ class VideoProcessor:
             if base_llm_queries and llm_query_source_label is None:
                 llm_query_source_label = 'transcript_keywords'
 
+        base_llm_queries = _expand_visual_queries(base_llm_queries, limit=metadata_query_cap)
+
         try:
             selector_keywords = list(getattr(self, "_selector_keywords", []))
         except Exception:
             selector_keywords = []
+
+        domain_name, _ = _choose_dynamic_domain(dyn_ctx)
 
         for idx, segment in enumerate(segments):
             seg_duration = max(0.0, segment.end - segment.start)
@@ -2374,6 +2685,11 @@ class VideoProcessor:
                     if candidate not in llm_query_candidates:
                         llm_query_candidates.append(candidate)
 
+            llm_query_candidates = _expand_visual_queries(
+                llm_query_candidates,
+                limit=max(query_cap * 2, metadata_query_cap),
+            )
+
             final_queries, query_source = _merge_segment_query_sources(
                 segment_text=getattr(segment, "text", "") or "",
                 llm_queries=llm_query_candidates,
@@ -2383,6 +2699,8 @@ class VideoProcessor:
                 selector_keywords=selector_keywords,
                 cap=query_cap,
                 llm_only=_BROLL_LLM_ONLY,
+                segment_index=idx,
+                domain_name=domain_name,
             )
 
             try:
@@ -4754,7 +5072,7 @@ class VideoProcessor:
                 payload.update(base)
             payload['title'] = title
             payload['description'] = description
-            payload['hashtags'] = [h for h in (hashtags or []) if isinstance(h, str) and h]
+            payload['hashtags'] = _sanitize_hashtags(hashtags or [])
             payload['broll_keywords'] = [kw for kw in (broll_keywords or []) if isinstance(kw, str) and kw]
             payload['queries'] = [q for q in (queries or []) if isinstance(q, str) and q]
             payload['metadata_source'] = source_label or status
@@ -4781,7 +5099,7 @@ class VideoProcessor:
             if fallback_meta:
                 title_fb = (fallback_meta.get('title') or '').strip()
                 description_fb = (fallback_meta.get('description') or '').strip()
-                hashtags_fb = [h for h in (fallback_meta.get('hashtags') or []) if h]
+                hashtags_fb = _sanitize_hashtags(fallback_meta.get('hashtags') or [])
                 broll_keywords_fb = list(fallback_meta.get('broll_keywords') or [])
                 queries_fb = fallback_meta.get('queries') or []
 
@@ -4815,7 +5133,7 @@ class VideoProcessor:
             words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9ÃƒÂ©ÃƒÂ¨ÃƒÂ ÃƒÂ¹ÃƒÂ§ÃƒÂªÃƒÂ®ÃƒÂ´ÃƒÂ¢]+", full_text) if len(w) > 2]
             counts = Counter(words)
             common = [w for w, _ in counts.most_common(12) if w.isalpha()]
-            hashtags_h = [f"#{w}" for w in common[:12]]
+            hashtags_h = _sanitize_hashtags([f"#{w}" for w in common[:12]])
 
             # Ã°Å¸Å¡â‚¬ NOUVEAU: Mots-clÃƒÂ©s B-roll de fallback basÃƒÂ©s sur les mots communs
             broll_keywords_h = [w for w in common if len(w) > 3][:15]
@@ -4860,7 +5178,7 @@ class VideoProcessor:
 
             title = (meta.get('title') or '').strip()
             description = (meta.get('description') or '').strip()
-            hashtags = [h for h in (meta.get('hashtags') or []) if h]
+            hashtags = _sanitize_hashtags(meta.get('hashtags') or [])
             broll_keywords = meta.get('broll_keywords') or []
             queries = meta.get('queries') or []
             response_len = meta.get('raw_response_length')

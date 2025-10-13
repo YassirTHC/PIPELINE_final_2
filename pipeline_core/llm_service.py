@@ -3315,42 +3315,131 @@ def _normalise_dynamic_payload(
     }
 
 
-def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
+def _phase_limits(max_len: int) -> List[int]:
+    """Return progressive transcript lengths for phased prompts."""
+
+    attempt_limits: List[int] = []
+    for limit in (max_len, max_len // 2, max_len // 3):
+        if limit and limit > 0:
+            attempt_limits.append(min(max_len, max(limit, 350)))
+
+    seen_limits: Set[int] = set()
+    ordered_limits: List[int] = []
+    for limit in attempt_limits:
+        if limit not in seen_limits:
+            ordered_limits.append(limit)
+            seen_limits.add(limit)
+
+    if not ordered_limits:
+        ordered_limits = [max_len or 600]
+
+    return ordered_limits
+
+
+def build_dynamic_domains_prompt(transcript_text: str, *, max_len: int = 1200) -> str:
     tx = (transcript_text or "")[:max_len]
     return f"""
+PHASE: DOMAINS
 RÔLE
 Tu es planificateur B-roll pour vidéos verticales (TikTok/Shorts, 9:16).
 
 OBJECTIF
-À partir de la transcription, détecte librement le(s) domaine(s) (pas de liste fixe), puis génère :
-1) des mots-clés et phrases-clés visuelles (scènes filmables) utiles aux banques vidéos,
-2) des synonymes/variantes/termes proches pour CHAQUE mot-clé (2–4 max),
-3) des requêtes de recherche (2–4 mots, provider-friendly),
-4) des briefs segmentaires facultatifs.
+- Détecte la langue principale.
+- Identifie librement 1 à 3 domaines pertinents (pas de liste prédéfinie).
+- Résume en 1 phrase le thème visuel principal (champ "summary").
 
 CONTRAINTES
-- Zéro domaine prédéfini. Déduis librement 1–3 "detected_domains" + confidence (0–1).
-- Évite les anti-termes génériques : people, thing, nice, background, start, generic, template, stock.
-- Priorise des requêtes concrètes et filmables : « sujet_action_contexte », objets précis, lieux identifiables.
-- Fenêtres visuelles recommandées : 3–6 secondes. Format vertical.
-- Si la langue de la transcription n’est pas l’anglais, produis les requêtes en langue d’origine + anglais.
+- Score de confiance entre 0 et 1 (float).
+- Aucune sortie hors JSON.
 
 RÉPONDS UNIQUEMENT EN JSON:
 {{
-  "detected_domains": [{{"name": "...", "confidence": 0.0}}],
   "language": "fr|en|…",
-  "keywords": ["..."],
-  "synonyms": {{ "keyword": ["variante1","variante2"] }},
-  "search_queries": ["..."],
-  "segment_briefs": [
-    {{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}
-  ],
-  "notes": "pièges, anti-termes, risques"
+  "detected_domains": [{{"name": "...", "confidence": 0.0}}],
+  "summary": "phrase courte"
 }}
 
-TRANSCRIPT (tronqué à 1500–2000 caractères):
+TRANSCRIPT (tronqué):
 {tx}
 """
+
+
+def build_dynamic_keywords_prompt(
+    transcript_text: str,
+    *,
+    max_len: int = 1200,
+    language: Optional[str] = None,
+    domains: Optional[Sequence[str]] = None,
+    summary: Optional[str] = None,
+) -> str:
+    tx = (transcript_text or "")[:max_len]
+    lang = (language or "fr|en").strip()
+    domains_text = ", ".join(domains or []) or "(déduis librement)"
+    summary_text = summary or "(résume librement)"
+    return f"""
+PHASE: KEYWORDS
+LANGUE CIBLE: {lang}
+DOMAINES DETECTÉS: {domains_text}
+RÉSUMÉ VISUEL: {summary_text}
+
+OBJECTIF
+- Génère 6 à 10 mots-clés ou scènes filmables, concrets et utilisables sur Pexels/Pixabay.
+- Pour chaque mot-clé, ajoute 1 à 3 variantes/synonymes pertinents.
+- Conserve la langue détectée (ou ajoute anglais si nécessaire).
+
+RÉPONDS UNIQUEMENT EN JSON:
+{{
+  "keywords": ["..."],
+  "synonyms": {{"mot_clé": ["variante1", "variante2"]}},
+  "notes": "risques à éviter"
+}}
+
+TRANSCRIPT (tronqué):
+{tx}
+"""
+
+
+def build_dynamic_queries_prompt(
+    transcript_text: str,
+    *,
+    max_len: int = 1200,
+    language: Optional[str] = None,
+    domains: Optional[Sequence[str]] = None,
+    summary: Optional[str] = None,
+    keywords: Optional[Sequence[str]] = None,
+) -> str:
+    tx = (transcript_text or "")[:max_len]
+    lang = (language or "fr|en").strip()
+    domains_text = ", ".join(domains or []) or "(déduis librement)"
+    summary_text = summary or "(résume librement)"
+    keyword_text = ", ".join(keywords or []) or "(utilise ton analyse)"
+    return f"""
+PHASE: QUERIES
+LANGUE CIBLE: {lang}
+DOMAINES DETECTÉS: {domains_text}
+RÉSUMÉ VISUEL: {summary_text}
+MOTS-CLÉS PRINCIPAUX: {keyword_text}
+
+OBJECTIF
+- Propose 6 à 8 requêtes de recherche concrètes (2 à 4 mots, sujet+action+contexte) adaptées aux banques vidéos verticales.
+- Génère des briefs segmentaires facultatifs: window 3-6s, mots-clés/queries ciblés.
+
+RÉPONDS UNIQUEMENT EN JSON:
+{{
+  "search_queries": ["..."],
+  "segment_briefs": [{{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}],
+  "notes": "anti-termes ou risques"
+}}
+
+TRANSCRIPT (tronqué):
+{tx}
+"""
+
+
+def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
+    """Legacy single-shot prompt kept for backwards compatibility."""
+
+    return build_dynamic_queries_prompt(transcript_text, max_len=max_len)
 
 
 @dataclass(slots=True)
@@ -3398,6 +3487,11 @@ class LLMMetadataGeneratorService:
         self._metadata_cache_keywords: List[str] = []
 
         _refresh_settings_from_env()
+        if os.getenv("PIPELINE_DISABLE_TFIDF_FALLBACK") is not None:
+            logger.warning(
+                "PIPELINE_DISABLE_TFIDF_FALLBACK is deprecated; use PIPELINE_TFIDF_FALLBACK_DISABLED",
+                extra={"env": "PIPELINE_DISABLE_TFIDF_FALLBACK"},
+            )
         settings_obj: Any = _safe_get_settings()
 
         def _coerce_positive(value: Any) -> Optional[int]:
@@ -4113,119 +4207,215 @@ class LLMMetadataGeneratorService:
         return "timeout" in message or "timed out" in message
 
     def generate_dynamic_context(self, transcript_text: str, *, max_len: int = 1800) -> Dict[str, Any]:
-        """Domain detection + dynamic expansions (no hardcoded domains)."""
-        transcript = transcript_text or ''
-        attempt_limits: List[int] = []
-        for limit in (max_len, max_len // 2, max_len // 3):
-            if limit and limit > 0:
-                attempt_limits.append(min(max_len, max(limit, 350)))
+        """Domain detection + dynamic expansions using phased prompts."""
 
-        # Keep order from largest to smallest while removing duplicates
-        seen_limits = set()
-        ordered_limits: List[int] = []
-        for limit in attempt_limits:
-            if limit not in seen_limits:
-                ordered_limits.append(limit)
-                seen_limits.add(limit)
-
-        if not ordered_limits:
-            ordered_limits = [max_len or 600]
-
-        raw_payload: Dict[str, Any] = {}
+        transcript = transcript_text or ""
+        ordered_limits = _phase_limits(max_len)
+        collected: Dict[str, Any] = {}
         last_dynamic_error: Optional[DynamicCompletionError] = None
         last_reason: Optional[str] = None
-        for idx, limit in enumerate(ordered_limits, start=1):
-            prompt = build_dynamic_prompt(transcript, max_len=limit)
-            if limit >= 1400:
-                token_budget = 700
-            elif limit >= 900:
-                token_budget = 550
-            elif limit >= 600:
-                token_budget = 400
-            else:
-                token_budget = 300
-            try:
-                completion = self._complete_text(prompt, max_tokens=token_budget, purpose="dynamic")
-            except TimeoutError:
-                last_reason = "timeout"
-                logger.warning(
-                    '[LLM] dynamic context attempt %s timed out (limit=%s, tokens=%s)',
-                    idx,
-                    limit,
-                    token_budget,
-                )
-                continue
-            except DynamicCompletionError as exc:
-                last_dynamic_error = exc
-                last_reason = exc.reason
-                logger.warning(
-                    '[LLM] dynamic context attempt %s failed (limit=%s, tokens=%s, fallback_reason=%s)',
-                    idx,
-                    limit,
-                    token_budget,
-                    exc.reason,
-                )
-                continue
-            except Exception:
-                last_reason = "integration_error"
-                logger.exception('[LLM] dynamic context attempt %s failed', idx)
-                continue
 
-            parsed_reason = ""
-            if isinstance(completion, tuple):
-                raw_text = completion[0]
-                parsed_reason = completion[1] if len(completion) > 1 and isinstance(completion[1], str) else ""
-            else:
-                raw_text = completion
+        def _merge_payload(base: Dict[str, Any], payload: Dict[str, Any]) -> None:
+            if not payload:
+                return
 
-            parsed_payload: Dict[str, Any] = {}
-            if isinstance(raw_text, dict):
-                parsed_payload = raw_text
-            else:
-                parsed_payload = _safe_parse_json(raw_text)
+            for key, value in payload.items():
+                if key == "synonyms" and isinstance(value, dict):
+                    target = base.setdefault("synonyms", {})
+                    if isinstance(target, dict):
+                        for term, variants in value.items():
+                            if not isinstance(term, str):
+                                continue
+                            if not isinstance(variants, (list, tuple)):
+                                continue
+                            cleaned = [
+                                variant
+                                for variant in variants
+                                if isinstance(variant, str) and variant.strip()
+                            ]
+                            if not cleaned:
+                                continue
+                            existing = target.setdefault(term, [])
+                            if isinstance(existing, list):
+                                for variant in cleaned:
+                                    if variant not in existing:
+                                        existing.append(variant)
+                    continue
 
-            if parsed_payload:
-                raw_payload = parsed_payload
-                break
+                if key == "segment_briefs" and isinstance(value, list):
+                    base[key] = value
+                    continue
 
-            if parsed_reason:
-                last_reason = parsed_reason
-            elif isinstance(raw_text, str) and raw_text.strip():
-                last_reason = last_reason or "invalid_json"
-            elif not raw_text:
-                last_reason = last_reason or "empty_payload"
-        if not raw_payload:
-            fallback_reason = last_reason or (last_dynamic_error.reason if last_dynamic_error else "empty_payload")
-            if self._disable_tfidf_fallback:
-                reason = (fallback_reason or "unknown").strip() or "unknown"
-                raise TfidfFallbackDisabled(
-                    f"TF-IDF fallback disabled (fallback_reason={reason})"
-                )
-            logger.warning(
-                '[LLM] dynamic context fell back to TF-IDF (no structured payload, fallback_reason=%s)',
-                fallback_reason,
-                extra={
-                    'fallback_reason': fallback_reason,
-                    'stack': _capture_trimmed_stack(),
-                },
-            )
-            fallback_payload = _normalise_dynamic_payload(
-                {},
-                transcript=transcript_text or '',
+                base[key] = value
+
+        def _run_phase(
+            phase: str,
+            builder: Any,
+            *,
+            token_budget: int,
+            builder_kwargs: Dict[str, Any],
+        ) -> Optional[Dict[str, Any]]:
+            nonlocal last_dynamic_error, last_reason
+
+            phase_reason: Optional[str] = None
+            phase_dynamic_error: Optional[DynamicCompletionError] = None
+
+            for attempt_idx, limit in enumerate(ordered_limits, start=1):
+                prompt = builder(transcript, max_len=limit, **builder_kwargs)
+                try:
+                    completion = self._complete_text(prompt, max_tokens=token_budget, purpose="dynamic")
+                except TimeoutError:
+                    phase_reason = "timeout"
+                    logger.warning(
+                        '[LLM] dynamic context phase %s attempt %s timed out (limit=%s, tokens=%s)',
+                        phase,
+                        attempt_idx,
+                        limit,
+                        token_budget,
+                    )
+                    continue
+                except DynamicCompletionError as exc:
+                    phase_dynamic_error = exc
+                    phase_reason = exc.reason
+                    logger.warning(
+                        '[LLM] dynamic context phase %s attempt %s failed (limit=%s, tokens=%s, fallback_reason=%s)',
+                        phase,
+                        attempt_idx,
+                        limit,
+                        token_budget,
+                        exc.reason,
+                    )
+                    continue
+                except Exception:
+                    phase_reason = "integration_error"
+                    logger.exception('[LLM] dynamic context phase %s attempt %s failed', phase, attempt_idx)
+                    continue
+
+                parsed_reason = ""
+                if isinstance(completion, tuple):
+                    raw_text = completion[0]
+                    parsed_reason = completion[1] if len(completion) > 1 and isinstance(completion[1], str) else ""
+                else:
+                    raw_text = completion
+
+                if isinstance(raw_text, dict):
+                    parsed_payload = raw_text
+                else:
+                    parsed_payload = _safe_parse_json(raw_text)
+
+                if parsed_payload:
+                    return parsed_payload
+
+                if parsed_reason:
+                    phase_reason = parsed_reason
+                elif isinstance(raw_text, str) and raw_text.strip():
+                    phase_reason = phase_reason or "invalid_json"
+                elif not raw_text:
+                    phase_reason = phase_reason or "empty_payload"
+
+            if phase_dynamic_error is not None:
+                last_dynamic_error = phase_dynamic_error
+            if phase_reason:
+                last_reason = phase_reason
+            return None
+
+        domains_for_prompt: List[str] = []
+        summary_for_prompt: Optional[str] = None
+        language_for_prompt: Optional[str] = None
+        keywords_for_prompt: List[str] = []
+
+        domain_payload = _run_phase(
+            "domains",
+            build_dynamic_domains_prompt,
+            token_budget=320,
+            builder_kwargs={},
+        )
+        if domain_payload:
+            _merge_payload(collected, domain_payload)
+            language = domain_payload.get("language")
+            if isinstance(language, str) and language.strip():
+                language_for_prompt = language.strip()
+            summary = domain_payload.get("summary")
+            if isinstance(summary, str) and summary.strip():
+                summary_for_prompt = summary.strip()
+                collected.setdefault("summary", summary_for_prompt)
+            domains_raw = domain_payload.get("detected_domains") or []
+            extracted_domains: List[str] = []
+            if isinstance(domains_raw, list):
+                for entry in domains_raw:
+                    if isinstance(entry, dict):
+                        name = entry.get("name")
+                        if isinstance(name, str) and name.strip():
+                            extracted_domains.append(name.strip())
+            domains_for_prompt = extracted_domains
+
+        keyword_payload = _run_phase(
+            "keywords",
+            build_dynamic_keywords_prompt,
+            token_budget=360,
+            builder_kwargs={
+                "language": language_for_prompt,
+                "domains": domains_for_prompt,
+                "summary": summary_for_prompt,
+            },
+        )
+        if keyword_payload:
+            _merge_payload(collected, keyword_payload)
+            keywords_raw = keyword_payload.get("keywords")
+            if isinstance(keywords_raw, list):
+                keywords_for_prompt = [
+                    kw.strip()
+                    for kw in keywords_raw
+                    if isinstance(kw, str) and kw.strip()
+                ]
+
+        query_payload = _run_phase(
+            "queries",
+            build_dynamic_queries_prompt,
+            token_budget=360,
+            builder_kwargs={
+                "language": language_for_prompt,
+                "domains": domains_for_prompt,
+                "summary": summary_for_prompt,
+                "keywords": keywords_for_prompt,
+            },
+        )
+        if query_payload:
+            _merge_payload(collected, query_payload)
+
+        if collected:
+            fallback_reason = last_reason or "llm_missing_terms"
+            return _normalise_dynamic_payload(
+                collected,
+                transcript=transcript,
                 disable_tfidf=self._disable_tfidf_fallback,
                 fallback_reason=fallback_reason,
             )
-            if last_dynamic_error is not None:
-                last_dynamic_error.payload = fallback_payload
-                raise last_dynamic_error
-            raise DynamicCompletionError(fallback_reason, payload=fallback_payload)
 
-        return _normalise_dynamic_payload(
-            raw_payload,
-            transcript=transcript_text or '',
-            disable_tfidf=self._disable_tfidf_fallback,
-            fallback_reason=last_reason or "llm_missing_terms",
+        fallback_reason = last_reason or (last_dynamic_error.reason if last_dynamic_error else "empty_payload")
+        if self._disable_tfidf_fallback:
+            reason = (fallback_reason or "unknown").strip() or "unknown"
+            raise TfidfFallbackDisabled(
+                f"TF-IDF fallback disabled (fallback_reason={reason})"
+            )
+        logger.warning(
+            '[LLM] dynamic context fell back to TF-IDF (no structured payload, fallback_reason=%s)',
+            fallback_reason,
+            extra={
+                'fallback_reason': fallback_reason,
+                'stack': _capture_trimmed_stack(),
+            },
         )
+        fallback_payload = _normalise_dynamic_payload(
+            {},
+            transcript=transcript,
+            disable_tfidf=self._disable_tfidf_fallback,
+            fallback_reason=fallback_reason,
+        )
+        if last_dynamic_error is not None:
+            last_dynamic_error.payload = fallback_payload
+            raise last_dynamic_error
+        raise DynamicCompletionError(fallback_reason, payload=fallback_payload)
 
 
     def generate_metadata(
