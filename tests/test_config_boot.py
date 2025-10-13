@@ -36,6 +36,8 @@ def _reset_config(monkeypatch):
         "PIPELINE_LLM_NUM_CTX",
         "PIPELINE_LLM_FALLBACK_TRUNC",
         "PIPELINE_LLM_TARGET_LANG",
+        "PIPELINE_LLM_REQUEST_COOLDOWN_S",
+        "PIPELINE_LLM_REQUEST_COOLDOWN_JITTER_S",
         "PIPELINE_BROLL_MIN_START_SECONDS",
         "PIPELINE_BROLL_MIN_GAP_SECONDS",
         "PIPELINE_BROLL_NO_REPEAT_SECONDS",
@@ -113,6 +115,8 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     monkeypatch.setenv("PIPELINE_LLM_NUM_CTX", "-1")
     monkeypatch.setenv("PIPELINE_LLM_FALLBACK_TRUNC", "100")
     monkeypatch.setenv("PIPELINE_LLM_TARGET_LANG", " FR ")
+    monkeypatch.setenv("PIPELINE_LLM_REQUEST_COOLDOWN_S", "2.5")
+    monkeypatch.setenv("PIPELINE_LLM_REQUEST_COOLDOWN_JITTER_S", "-1")
     monkeypatch.setenv("PIPELINE_BROLL_MIN_START_SECONDS", "2.75")
     monkeypatch.setenv("PIPELINE_BROLL_MIN_GAP_SECONDS", "-1")
     monkeypatch.setenv("PIPELINE_BROLL_NO_REPEAT_SECONDS", "9.0")
@@ -161,6 +165,8 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     assert settings.llm.num_ctx == 1
     assert settings.llm.fallback_trunc == 100
     assert settings.llm.target_lang == "FR"
+    assert settings.llm.request_cooldown_s == pytest.approx(2.5)
+    assert settings.llm.request_cooldown_jitter_s == pytest.approx(0.0)
 
     assert settings.broll.min_start_s == pytest.approx(2.75)
     assert settings.broll.min_gap_s == pytest.approx(0.0)
