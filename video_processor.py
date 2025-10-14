@@ -134,7 +134,10 @@ def render_subtitles_router(
     output_path = Path(output_video_path)
 
     if engine == "pycaps":
+        fallback_exc: Exception | None = None
+        previous_enable_emojis: object = None
         if subtitle_settings is not None:
+            previous_enable_emojis = getattr(subtitle_settings, "enable_emojis", None)
             subtitle_settings.enable_emojis = False
         logger.info("INFO:[Subtitles] Engine=pycaps (Hormozi disabled)")
         try:
@@ -146,8 +149,20 @@ def render_subtitles_router(
                 input_video_path=str(input_path),
             )
         except Exception as exc:
+            fallback_exc = exc
             print(f"  ⚠️ Erreur rendu PyCaps: {exc}")
-        return
+        else:
+            return
+        finally:
+            if fallback_exc is not None and subtitle_settings is not None:
+                # Restore the original emoji configuration before switching engines.
+                try:
+                    subtitle_settings.enable_emojis = previous_enable_emojis
+                except Exception:
+                    pass
+
+        print("  ↩️ Retour automatique au moteur Hormozi.")
+        logger.info("INFO:[Subtitles] PyCaps unavailable, falling back to Hormozi")
 
     logger.info("INFO:[Subtitles] Engine=hormozi")
     span_style_map = {
@@ -1063,6 +1078,25 @@ _DEFAULT_EMERGENCY_QUERIES: tuple[str, ...] = (
     "hands writing notes",
 )
 
+# NOTE: the blacklist drops query strings that our provider telemetry showed returning
+# consistently empty or extremely abstract results across many clips (not just the
+# motivational sample).  Keeping the list focused on vague phrasing prevents us from
+# banning legitimate, concrete concepts while still avoiding wasted API calls.
+_QUERY_BLACKLIST_TERMS: set[str] = {
+    "directed effort action",
+    "internal what",
+    "thing occurs",
+}
+
+# Fragments are matched anywhere inside the candidate phrase so that variations such
+# as "directed effort focus" are caught; each fragment corresponds to wording that
+# repeatedly produced zero hits in production logs regardless of topic domain.
+_QUERY_BLACKLIST_FRAGMENTS: tuple[str, ...] = (
+    "occurs when",
+    "practicing",
+    "directed effort",
+)
+
 _ABSTRACT_QUERY_REPLACEMENTS: dict[str, tuple[str, ...]] = {
     "internal reward system": (
         "person celebrating success",
@@ -1316,6 +1350,12 @@ def _dedupe_queries(seq, cap: int) -> list[str]:
     for phrase in phrases:
         x = _norm_query_term(phrase)
         if len(x) < 3 or x in _ANTI_TERMS or not any(c.isalpha() for c in x):
+            continue
+        if x in _QUERY_BLACKLIST_TERMS or any(fragment in x for fragment in _QUERY_BLACKLIST_FRAGMENTS):
+            try:
+                logger.debug("[BROLL][queries] dropping blacklisted query '%s'", x)
+            except Exception:
+                pass
             continue
         tokens = [t for t in x.split() if t]
         if any(t in _ANTI_TERMS for t in tokens):
@@ -1665,6 +1705,76 @@ def _filter_terms_for_segment(
     return list(terms) if allow_when_empty else []
 
 
+def _ensure_query_subject_presence(
+    terms: Sequence[str],
+    *,
+    segment_index: Optional[int],
+    segment_text: str,
+    domain_name: Optional[str],
+    limit: int,
+) -> tuple[list[str], bool]:
+    """Normalise queries and inject deterministic fallbacks when needed."""
+
+    cap = max(1, int(limit or len(terms) or 1))
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for term in terms or []:
+        if not isinstance(term, str):
+            continue
+        norm = _norm_query_term(term)
+        if not norm or norm in seen:
+            continue
+        normalized.append(norm)
+        seen.add(norm)
+        if len(normalized) >= cap:
+            break
+
+    def _has_concrete_focus(value: str) -> bool:
+        tokens = [t for t in value.split() if t]
+        if not tokens:
+            return False
+        if touches_concrete_subject(tokens):
+            return True
+        return _has_subject(value)
+
+    fallback_used = False
+
+    if not normalized or not any(_has_concrete_focus(value) for value in normalized):
+        fallback_terms = _emergency_segment_queries(
+            segment_index,
+            segment_text,
+            domain_name=domain_name,
+            existing_terms=normalized,
+            limit=cap,
+        )
+        for fallback in fallback_terms:
+            fallback_norm = _norm_query_term(fallback)
+            if not fallback_norm or fallback_norm in seen:
+                continue
+            if len(normalized) >= cap:
+                normalized[-1] = fallback_norm
+            else:
+                normalized.append(fallback_norm)
+            seen.add(fallback_norm)
+            fallback_used = True
+            if len(normalized) >= cap:
+                break
+
+    if not normalized:
+        for fallback in _DEFAULT_EMERGENCY_QUERIES:
+            fallback_norm = _norm_query_term(fallback)
+            if not fallback_norm or fallback_norm in seen:
+                continue
+            normalized.append(fallback_norm)
+            seen.add(fallback_norm)
+            fallback_used = True
+            if len(normalized) >= cap:
+                break
+
+    return normalized[:cap], fallback_used
+
+
 def _merge_segment_query_sources(
     *,
     segment_text: str,
@@ -1830,10 +1940,20 @@ def _merge_segment_query_sources(
     if primary_source == "none" and combined:
         primary_source = "transcript_fallback"
 
-    out = (combined[:cap], primary_source)
-    debug_preview = out[0][:5] if out and isinstance(out[0], list) else out
+    final_queries, used_emergency = _ensure_query_subject_presence(
+        combined[:cap],
+        segment_index=segment_index,
+        segment_text=segment_text,
+        domain_name=domain_name,
+        limit=cap,
+    )
+
+    if used_emergency:
+        primary_source = "emergency_fallback"
+
+    debug_preview = final_queries[:5]
     print(f"    🔍 DEBUG _combine_broll_queries SORTIE: {debug_preview}")
-    return out
+    return final_queries, primary_source
 
 def _choose_dynamic_domain(dyn: dict):
     """Pick the best domain from LLM dynamic context.
@@ -2362,11 +2482,62 @@ class VideoProcessor:
         log_file = meta_dir / 'broll_pipeline_events.jsonl'
         self._broll_event_logger: Optional[JsonlLogger] = JsonlLogger(log_file)
         self._broll_env_logged = False
+        try:
+            settings = get_settings()
+        except Exception:
+            settings = None
+        llm_settings = getattr(settings, "llm", None)
+        cooldown = 0.0
+        jitter = 0.0
+        if llm_settings is not None:
+            try:
+                cooldown = max(0.0, float(getattr(llm_settings, "request_cooldown_s", 0.0)))
+            except Exception:
+                cooldown = 0.0
+            try:
+                jitter = max(0.0, float(getattr(llm_settings, "request_cooldown_jitter_s", 0.0)))
+            except Exception:
+                jitter = 0.0
+        if os.getenv("FAST_TESTS") == "1":
+            cooldown = 0.0
+            jitter = 0.0
+        self._llm_request_cooldown_s = cooldown
+        self._llm_request_cooldown_jitter_s = jitter
+        self._llm_next_request_ready = 0.0
+        self._llm_throttle_notice_emitted = False
 
     def get_last_broll_insert_count(self) -> int:
         """Return the number of B-roll clips inserted during the last run."""
 
         return getattr(self, "_last_broll_insert_count", 0)
+
+    def _throttle_llm_requests(self) -> None:
+        """Sleep if necessary so LLM requests respect the configured cooldown."""
+
+        cooldown = max(0.0, float(getattr(self, "_llm_request_cooldown_s", 0.0)))
+        if cooldown <= 0.0:
+            return
+        jitter = max(0.0, float(getattr(self, "_llm_request_cooldown_jitter_s", 0.0)))
+        if not getattr(self, "_llm_throttle_notice_emitted", False):
+            if jitter > 0.0:
+                logger.info(
+                    "[LLM] applying request cooldown: base %.2fs (+0–%.2fs jitter)",
+                    cooldown,
+                    jitter,
+                )
+            else:
+                logger.info("[LLM] applying request cooldown: base %.2fs", cooldown)
+            self._llm_throttle_notice_emitted = True
+        now = time.monotonic()
+        ready_at = max(0.0, float(getattr(self, "_llm_next_request_ready", 0.0)))
+        wait = max(0.0, ready_at - now)
+        if wait > 0.0:
+            time.sleep(wait)
+            now = time.monotonic()
+        delay = cooldown
+        if jitter > 0.0:
+            delay += random.uniform(0.0, jitter)
+        self._llm_next_request_ready = now + delay
 
     def _setup_directories(self):
         """CrÃƒÂ©e les dossiers nÃƒÂ©cessaires"""
@@ -2787,6 +2958,7 @@ class VideoProcessor:
             hint_source: Optional[str] = None
             raw_hint_items: List[str] = []
             if getattr(self, "_llm_service", None):
+                self._throttle_llm_requests()
                 try:
                     llm_hints = self._llm_service.generate_hints_for_segment(
                         segment.text,
@@ -5252,6 +5424,7 @@ class VideoProcessor:
             return _run_heuristics()
 
         try:
+            self._throttle_llm_requests()
             print(f"    Ã°Å¸Å¡â‚¬ [LLM INDUSTRIEL] GÃƒÂ©nÃƒÂ©ration de mÃƒÂ©tadonnÃƒÂ©es pour {len(full_text)} caractÃƒÂ¨res")
 
             meta = generate_metadata_as_json(
@@ -5352,6 +5525,7 @@ class VideoProcessor:
 
             if ENABLE_DYNAMIC_CONTEXT and getattr(self, "_llm_service", None):
                 try:
+                    self._throttle_llm_requests()
                     dyn_context = self._llm_service.generate_dynamic_context(transcript_text_full)
                 except DynamicCompletionError as exc:
                     dyn_context = exc.payload or {}
