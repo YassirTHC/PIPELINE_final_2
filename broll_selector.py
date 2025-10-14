@@ -1724,27 +1724,26 @@ def find_broll_matches(keywords: List[str], max_count: int = 10,
         
         # Normaliser et étendre les mots-clés
         normalized_keywords = selector.normalize_keywords(keywords)
-        expanded_keywords = selector.expand_keywords(normalized_keywords)
-        
+        expanded_keywords = selector.expand_keywords(list(normalized_keywords))
+
         # Sélectionner les B-rolls
         result = selector.select_brolls(
             keywords=expanded_keywords,
-            desired_count=max_count,
-            min_duration=min_duration,
-            max_duration=max_duration
+            desired_count=max_count
         )
-        
+
         # Convertir en format compatible
         matches = []
         for candidate in result.get('selected', []):
+            asset = candidate.get('asset', {}) if isinstance(candidate, dict) else {}
             matches.append({
-                'file_path': candidate.asset.file_path,
-                'duration': candidate.asset.duration,
-                'score': candidate.score,
-                'tags': candidate.asset.tags,
-                'source': candidate.asset.source
+                'file_path': asset.get('file_path'),
+                'duration': asset.get('duration'),
+                'score': candidate.get('score') if isinstance(candidate, dict) else None,
+                'tags': asset.get('tags'),
+                'source': asset.get('source')
             })
-        
+
         return matches
         
     except Exception as e:
