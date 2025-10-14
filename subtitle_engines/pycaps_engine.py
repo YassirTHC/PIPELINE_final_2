@@ -1,4 +1,14 @@
-"""Integration helpers for the optional PyCaps subtitle engine."""
+"""Integration helpers for the optional PyCaps subtitle engine.
+
+This module contains utilities that bridge the pipeline subtitle payload with the
+`pycaps` package. Field reports highlighted that some released wheels expose the
+``JsonConfigLoader`` symbol under different module layouts (``pycaps`` root vs
+``pycaps.pipeline``), while the original integration only attempted a single
+import path and re-raised ``ModuleNotFoundError`` as a misleading
+"PyCaps is not installed" message. The helpers below keep the more permissive
+import strategy and add runtime logging so that mismatches between the active
+interpreter and the installed package are easy to diagnose.
+"""
 from __future__ import annotations
 
 import importlib
@@ -7,6 +17,7 @@ import logging
 import pkgutil
 import shutil
 import tempfile
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
@@ -130,7 +141,13 @@ def to_pycaps_input(segments: Sequence[Mapping[str, Any]] | None) -> Dict[str, A
 
 
 def _load_pycaps_loader():  # pragma: no cover - exercised via render_with_pycaps
-    """Locate PyCaps JsonConfigLoader across possible layouts."""
+    """Locate :class:`JsonConfigLoader` across the various PyCaps layouts.
+
+    The helper tries the historical ``pycaps.pipeline`` module first, then the
+    root module, and finally iterates over every available submodule exposed by
+    the distribution. Whenever a strategy succeeds we log the selected layout to
+    simplify debugging future regressions.
+    """
 
     try:
         from pycaps.pipeline import JsonConfigLoader  # type: ignore
@@ -187,6 +204,17 @@ def render_with_pycaps(
 
     ensure_template_assets(template_base)
 
+    pycaps_module = None
+    try:
+        pycaps_module = importlib.import_module("pycaps")
+    except ModuleNotFoundError:
+        logger.warning(
+            "[PyCaps] Module introuvable dans l'environnement courant (%s)",
+            sys.executable,
+        )
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("[PyCaps] Impossible d'inspecter le module pycaps: %s", exc)
+
     try:
         JsonConfigLoader = _load_pycaps_loader()
     except ModuleNotFoundError as exc:  # pragma: no cover - depends on runtime env
@@ -196,6 +224,16 @@ def render_with_pycaps(
         ) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise RuntimeError(f"Unable to import/use PyCaps: {exc}") from exc
+
+    if pycaps_module is not None:
+        version = getattr(pycaps_module, "__version__", "unknown")
+        module_file = getattr(pycaps_module, "__file__", "<unknown>")
+        logger.info(
+            "[PyCaps] Runtime: exe=%s version=%s file=%s",
+            sys.executable,
+            version,
+            module_file,
+        )
 
     builder = JsonConfigLoader(str(template_path)).load(False)
     builder.with_input_video(str(input_video_path))
