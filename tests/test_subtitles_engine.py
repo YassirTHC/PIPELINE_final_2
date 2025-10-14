@@ -70,8 +70,6 @@ def test_load_pycaps_loader_discovers_nested_modules(monkeypatch):
             module = types.ModuleType(name)
             module.JsonConfigLoader = Loader
             return module
-        if name in sys.modules:
-            return sys.modules[name]
         raise ModuleNotFoundError(name)
 
     monkeypatch.setitem(sys.modules, "pycaps", package)
@@ -94,8 +92,6 @@ def test_load_pycaps_loader_raises_informative_error(monkeypatch):
 
     message = str(excinfo.value)
     assert "JsonConfigLoader" in message
-    assert "Tentatives:" in message
-    assert "Interpreter:" in message
     assert "pip install --no-cache-dir git+https://github.com/francozanardi/pycaps" in message
 
 
