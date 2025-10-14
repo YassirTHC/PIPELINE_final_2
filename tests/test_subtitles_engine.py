@@ -2,11 +2,101 @@ from __future__ import annotations
 
 from pathlib import Path
 import types
+import sys
+import importlib
+import pkgutil
 
 import pytest
 
 import video_processor
 from subtitle_engines import pycaps_engine
+
+
+def _clear_pycaps_modules(monkeypatch):
+    for name in list(sys.modules):
+        if name == "pycaps" or name.startswith("pycaps."):
+            monkeypatch.delitem(sys.modules, name, raising=False)
+
+
+def test_load_pycaps_loader_prefers_pipeline_layout(monkeypatch):
+    _clear_pycaps_modules(monkeypatch)
+
+    pipeline_module = types.ModuleType("pycaps.pipeline")
+
+    class Loader:
+        pass
+
+    pipeline_module.JsonConfigLoader = Loader
+
+    package = types.ModuleType("pycaps")
+    package.__path__ = []  # mark as package for import machinery
+
+    monkeypatch.setitem(sys.modules, "pycaps", package)
+    monkeypatch.setitem(sys.modules, "pycaps.pipeline", pipeline_module)
+
+    assert pycaps_engine._load_pycaps_loader() is Loader
+
+
+def test_load_pycaps_loader_supports_root_layout(monkeypatch):
+    _clear_pycaps_modules(monkeypatch)
+
+    class Loader:
+        pass
+
+    package = types.ModuleType("pycaps")
+    package.JsonConfigLoader = Loader
+    package.__path__ = []
+
+    monkeypatch.setitem(sys.modules, "pycaps", package)
+
+    assert pycaps_engine._load_pycaps_loader() is Loader
+
+
+def test_load_pycaps_loader_discovers_nested_modules(monkeypatch):
+    _clear_pycaps_modules(monkeypatch)
+
+    package = types.ModuleType("pycaps")
+    package.__path__ = ["<pycaps>"]
+
+    class Loader:
+        pass
+
+    def fake_iter_modules(path):
+        assert list(path) == ["<pycaps>"]
+        yield pkgutil.ModuleInfo(None, "alt_layout", False)
+
+    def fake_import(name):
+        if name == "pycaps.alt_layout":
+            module = types.ModuleType(name)
+            module.JsonConfigLoader = Loader
+            return module
+        if name in sys.modules:
+            return sys.modules[name]
+        raise ModuleNotFoundError(name)
+
+    monkeypatch.setitem(sys.modules, "pycaps", package)
+    monkeypatch.setattr(pkgutil, "iter_modules", fake_iter_modules)
+    monkeypatch.setattr(importlib, "import_module", fake_import)
+
+    assert pycaps_engine._load_pycaps_loader() is Loader
+
+
+def test_load_pycaps_loader_raises_informative_error(monkeypatch):
+    _clear_pycaps_modules(monkeypatch)
+
+    package = types.ModuleType("pycaps")
+    package.__path__ = []
+
+    monkeypatch.setitem(sys.modules, "pycaps", package)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        pycaps_engine._load_pycaps_loader()
+
+    message = str(excinfo.value)
+    assert "JsonConfigLoader" in message
+    assert "Tentatives:" in message
+    assert "Interpreter:" in message
+    assert "pip install --no-cache-dir git+https://github.com/francozanardi/pycaps" in message
 
 
 def test_router_uses_pycaps_when_engine_selected(monkeypatch, tmp_path):
