@@ -160,7 +160,6 @@ def _load_pycaps_loader():
     """Locate :class:`JsonConfigLoader` across the various PyCaps layouts."""
 
     attempt_errors: list[str] = []
-    pycaps_package: Any | None = None
 
     def _record_failure(label: str, exc: BaseException | str) -> None:
         if isinstance(exc, BaseException):
@@ -168,33 +167,29 @@ def _load_pycaps_loader():
         else:
             attempt_errors.append(f"{label}: {exc}")
 
-    def _try_module(module_name: str, label: str) -> Any | None:
-        """Import ``module_name`` and return its ``JsonConfigLoader`` if present."""
-
-        try:
-            module = importlib.import_module(module_name)
-        except ModuleNotFoundError as exc:
-            _record_failure(label, exc)
-            return None
-        except Exception as exc:  # pragma: no cover - defensive
-            _record_failure(label, exc)
-            return None
-
+    def _extract_loader(module: Any, label: str):
         loader = getattr(module, "JsonConfigLoader", None)
-        if loader is None:
-            _record_failure(label, "JsonConfigLoader attribute missing")
-            return None
-
-        logger.info("[PyCaps] Using layout %s", label)
-        _log_runtime_metadata(module)
-        return loader
+        if loader is not None:
+            logger.info("[PyCaps] Using layout %s", label)
+            _log_runtime_metadata(module)
+            return loader
+        _record_failure(label, "JsonConfigLoader attribute missing")
+        return None
 
     # Layout A: historical pycaps.pipeline export
-    loader = _try_module("pycaps.pipeline", "A: pycaps.pipeline.JsonConfigLoader")
-    if loader is not None:
-        return loader
+    try:
+        pipeline_module = importlib.import_module("pycaps.pipeline")
+    except ModuleNotFoundError as exc:
+        _record_failure("pycaps.pipeline", exc)
+    except Exception as exc:  # pragma: no cover - defensive
+        _record_failure("pycaps.pipeline", exc)
+    else:
+        loader = _extract_loader(pipeline_module, "A: pycaps.pipeline.JsonConfigLoader")
+        if loader:
+            return loader
 
     # Layout B: loader on the root package
+    pycaps_package: Any | None = None
     try:
         pycaps_package = importlib.import_module("pycaps")
     except ModuleNotFoundError as exc:
@@ -202,22 +197,24 @@ def _load_pycaps_loader():
     except Exception as exc:  # pragma: no cover - defensive
         _record_failure("pycaps", exc)
     else:
-        loader = getattr(pycaps_package, "JsonConfigLoader", None)
-        if loader is not None:
-            logger.info("[PyCaps] Using layout B: pycaps.JsonConfigLoader")
-            _log_runtime_metadata(pycaps_package)
+        loader = _extract_loader(pycaps_package, "B: pycaps.JsonConfigLoader")
+        if loader:
             return loader
-
-        _record_failure("B: pycaps.JsonConfigLoader", "JsonConfigLoader attribute missing")
 
         # Layout C: scan nested modules inside the distribution
         package_path = getattr(pycaps_package, "__path__", [])
         for module in pkgutil.iter_modules(package_path):
             module_name = f"pycaps.{module.name}"
-            loader = _try_module(
-                module_name, f"C: {module_name}.JsonConfigLoader"
+            try:
+                candidate = importlib.import_module(module_name)
+            except Exception as exc:  # pragma: no cover - defensive
+                _record_failure(module_name, exc)
+                continue
+
+            loader = _extract_loader(
+                candidate, f"C: {module_name}.JsonConfigLoader"
             )
-            if loader is not None:
+            if loader:
                 return loader
 
     interpreter = sys.executable or "<unknown>"
