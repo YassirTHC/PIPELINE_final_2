@@ -4,6 +4,28 @@
 
 **Vous aviez raison !** L'intégration du LLM aurait dû être simple, mais elle a été **sur-ingénieurisée** et a introduit des erreurs au lieu d'améliorer le système.
 
+## ✅ Ce que nous avons diagnostiqué pour le LLM et les B-rolls
+
+- **Génération LLM instable** : les prompts actuels produisent parfois des réponses vides ou trop abstraites, ce qui déclenche les heuristiques de secours et casse la continuité des segments.
+- **Sanitisation quasi absente** : les requêtes LLM passent sans filtres stricts, d'où des doublons, des termes vagues (`"internal motivation visuals"`) et des listes trop courtes.
+- **Règles temporelles rigides** : dès que le rappel chute, les seuils globaux rejettent en masse les candidats, accentuant la dépendance aux fallbacks.
+- **Manque de métriques** : difficile de voir rapidement les taux de fallback, les rejets par timing ou la longueur des requêtes nettoyées.
+
+## 🛠️ Ce que nous avons déjà corrigé ou préparé
+
+- **Plan de prompts revu** : un nouveau cahier des charges précise des requêtes filmables (2 à 4 mots) et bannit les termes abstraits ; les paramètres d'inférence recommandés sont documentés pour limiter les dérives du modèle.
+- **Sanitizer dédié prêt à intégrer** : spécifications pour un module `query_sanitizer` qui filtre, déduplique et complète automatiquement jusqu'à 3 requêtes par segment.
+- **Stratégie de fallback positionnel** : définition d'un mapping statique segment → requêtes d'urgence afin de garantir une couverture minimale même en cas de panne LLM.
+- **Temporalité adaptable** : introduction d'un mode "low recall" qui allège les contraintes quand le volume de candidats est trop faible.
+- **Traçabilité renforcée** : ajout dans le plan d'implémentation de compteurs pour les métriques clés (fallbacks, rejets, scores moyens) afin de piloter les futures itérations.
+
+## 🔄 Ce qu'il reste à déployer côté code
+
+- Implémenter le nouveau prompt dans `pipeline_core/llm_service.py` et brancher les paramètres d'inférence.
+- Ajouter le module de sanitisation et connecter les fallbacks d'urgence avant la phase de fetch.
+- Activer les profils temporels adaptatifs dans `broll_selector.apply_timing_rules`.
+- Étendre les logs/metrics pour suivre l'effet de ces changements au fil des runs.
+
 ## 🎯 **Ce qui aurait dû se passer (Simple) :**
 
 ```
