@@ -130,12 +130,12 @@ class LLMSettings:
     num_ctx: int
     fallback_trunc: int
     force_non_stream: bool
-    keywords_first: bool
-    disable_hashtags: bool
-    target_lang: str
-    json_prompt: Optional[str]
-    json_mode: bool
-    json_transcript_limit: Optional[int]
+    keywords_first: bool = True
+    disable_hashtags: bool = False
+    target_lang: str = "en"
+    json_prompt: Optional[str] = None
+    json_mode: bool = False
+    json_transcript_limit: Optional[int] = None
     disable_dynamic_segment: bool = False
     request_cooldown_s: float = 0.0
     request_cooldown_jitter_s: float = 0.0
