@@ -185,7 +185,7 @@ def _load_pycaps_loader():
         _record_failure("pycaps.pipeline", exc)
     else:
         loader = _extract_loader(pipeline_module, "A: pycaps.pipeline.JsonConfigLoader")
-        if loader is not None:
+        if loader:
             return loader
 
     # Layout B: loader on the root package
@@ -198,7 +198,7 @@ def _load_pycaps_loader():
         _record_failure("pycaps", exc)
     else:
         loader = _extract_loader(pycaps_package, "B: pycaps.JsonConfigLoader")
-        if loader is not None:
+        if loader:
             return loader
 
         # Layout C: scan nested modules inside the distribution
@@ -214,7 +214,7 @@ def _load_pycaps_loader():
             loader = _extract_loader(
                 candidate, f"C: {module_name}.JsonConfigLoader"
             )
-            if loader is not None:
+            if loader:
                 return loader
 
     interpreter = sys.executable or "<unknown>"
