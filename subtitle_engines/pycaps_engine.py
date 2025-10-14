@@ -140,49 +140,92 @@ def to_pycaps_input(segments: Sequence[Mapping[str, Any]] | None) -> Dict[str, A
     return {"segments": document_segments}
 
 
-def _load_pycaps_loader():  # pragma: no cover - exercised via render_with_pycaps
-    """Locate :class:`JsonConfigLoader` across the various PyCaps layouts.
+def _log_runtime_metadata(source_module: Any) -> None:
+    """Emit diagnostic information about the active PyCaps installation."""
 
-    The helper tries the historical ``pycaps.pipeline`` module first, then the
-    root module, and finally iterates over every available submodule exposed by
-    the distribution. Whenever a strategy succeeds we log the selected layout to
-    simplify debugging future regressions.
-    """
+    pycaps_module = sys.modules.get("pycaps")
+    module_for_metadata = pycaps_module or source_module
+    version = getattr(pycaps_module, "__version__", None) if pycaps_module else None
+    location = getattr(module_for_metadata, "__file__", "<unknown>")
 
+    logger.info(
+        "[PyCaps] Runtime info: interpreter=%s, version=%s, module_file=%s",
+        sys.executable,
+        version or "unknown",
+        location,
+    )
+
+
+def _load_pycaps_loader():
+    """Locate :class:`JsonConfigLoader` across the various PyCaps layouts."""
+
+    attempt_errors: list[str] = []
+
+    def _record_failure(label: str, exc: BaseException | str) -> None:
+        if isinstance(exc, BaseException):
+            attempt_errors.append(f"{label}: {exc}")
+        else:
+            attempt_errors.append(f"{label}: {exc}")
+
+    def _extract_loader(module: Any, label: str):
+        loader = getattr(module, "JsonConfigLoader", None)
+        if loader is not None:
+            logger.info("[PyCaps] Using layout %s", label)
+            _log_runtime_metadata(module)
+            return loader
+        _record_failure(label, "JsonConfigLoader attribute missing")
+        return None
+
+    # Layout A: historical pycaps.pipeline export
     try:
-        from pycaps.pipeline import JsonConfigLoader  # type: ignore
+        pipeline_module = importlib.import_module("pycaps.pipeline")
+    except ModuleNotFoundError as exc:
+        _record_failure("pycaps.pipeline", exc)
+    except Exception as exc:  # pragma: no cover - defensive
+        _record_failure("pycaps.pipeline", exc)
+    else:
+        loader = _extract_loader(pipeline_module, "A: pycaps.pipeline.JsonConfigLoader")
+        if loader is not None:
+            return loader
 
-        logger.info("[PyCaps] Using layout A: pycaps.pipeline.JsonConfigLoader")
-        return JsonConfigLoader
-    except ModuleNotFoundError:
-        pass
-
+    # Layout B: loader on the root package
+    pycaps_package: Any | None = None
     try:
-        import pycaps  # type: ignore  # noqa: F401
+        pycaps_package = importlib.import_module("pycaps")
+    except ModuleNotFoundError as exc:
+        _record_failure("pycaps", exc)
+    except Exception as exc:  # pragma: no cover - defensive
+        _record_failure("pycaps", exc)
+    else:
+        loader = _extract_loader(pycaps_package, "B: pycaps.JsonConfigLoader")
+        if loader is not None:
+            return loader
 
-        JsonConfigLoader = getattr(pycaps, "JsonConfigLoader")
-        logger.info("[PyCaps] Using layout B: pycaps.JsonConfigLoader")
-        return JsonConfigLoader  # type: ignore
-    except Exception:
-        pass
+        # Layout C: scan nested modules inside the distribution
+        package_path = getattr(pycaps_package, "__path__", [])
+        for module in pkgutil.iter_modules(package_path):
+            module_name = f"pycaps.{module.name}"
+            try:
+                candidate = importlib.import_module(module_name)
+            except Exception as exc:  # pragma: no cover - defensive
+                _record_failure(module_name, exc)
+                continue
 
-    import pycaps  # type: ignore
-
-    for module in pkgutil.iter_modules(getattr(pycaps, "__path__", [])):
-        try:
-            mod = importlib.import_module(f"pycaps.{module.name}")
-        except Exception:
-            continue
-
-        if hasattr(mod, "JsonConfigLoader"):
-            JsonConfigLoader = getattr(mod, "JsonConfigLoader")
-            logger.info(
-                "[PyCaps] Using layout C: pycaps.%s.JsonConfigLoader", module.name
+            loader = _extract_loader(
+                candidate, f"C: {module_name}.JsonConfigLoader"
             )
-            return JsonConfigLoader  # type: ignore
+            if loader is not None:
+                return loader
+
+    interpreter = sys.executable or "<unknown>"
+    version = getattr(pycaps_package, "__version__", "unavailable") if pycaps_package else "unavailable"
+    module_file = getattr(pycaps_package, "__file__", "unavailable") if pycaps_package else "unavailable"
+    attempts = "; ".join(attempt_errors) if attempt_errors else "none"
 
     raise RuntimeError(
         "PyCaps import error: 'JsonConfigLoader' introuvable dans pycaps. "
+        f"Tentatives: {attempts}. "
+        f"Interpreter: {interpreter}. Version: {version}. Module: {module_file}. "
         "Installe la version GitHub (ou mets à jour la lib) : "
         "pip install --no-cache-dir git+https://github.com/francozanardi/pycaps"
     )
