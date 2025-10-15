@@ -3,10 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-try:
-    from moviepy import ColorClip  # type: ignore[attr-defined]
-except ImportError:  # pragma: no cover - fallback for MoviePy 1.x
-    from moviepy.video.VideoClip import ColorClip  # type: ignore[attr-defined]
+from moviepy import ColorClip
 
 from subtitle_engines import pycaps_engine
 

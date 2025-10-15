@@ -15,14 +15,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-try:  # MoviePy>=2 exports core classes from the top-level package
-    from moviepy import ColorClip, CompositeVideoClip, TextClip, VideoFileClip  # type: ignore[attr-defined]
-except ImportError:  # pragma: no cover - fallback for MoviePy 1.x
-    from moviepy.video.VideoClip import ColorClip, TextClip  # type: ignore[attr-defined]
-    from moviepy.video.compositing.CompositeVideoClip import (  # type: ignore[attr-defined]
-        CompositeVideoClip,
-    )
-    from moviepy.video.io.VideoFileClip import VideoFileClip  # type: ignore[attr-defined]
+from moviepy import ColorClip, CompositeVideoClip, TextClip, VideoFileClip
 
 
 logger = logging.getLogger(__name__)
