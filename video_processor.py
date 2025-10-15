@@ -2076,7 +2076,7 @@ except ImportError as e:
     _register_dependency_status(f"Ã¢Å¡Â Ã¯Â¸Â SÃƒÂ©lecteur B-roll gÃƒÂ©nÃƒÂ©rique non disponible: {e}")
     _register_dependency_status("   Ã°Å¸â€â€ž Utilisation du systÃƒÂ¨me de scoring existant")
 
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 from moviepy.video.fx.all import crop
 from tqdm import tqdm  # NEW: console progress
 import re # NEW: for caption/hashtag generation

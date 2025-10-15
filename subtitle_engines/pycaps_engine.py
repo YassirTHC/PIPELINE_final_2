@@ -189,14 +189,21 @@ def _load_pycaps_loader():
             return loader
 
     # Layout B: loader on the root package
+    imported_package: Any | None = None
     pycaps_package: Any | None = None
     try:
-        pycaps_package = importlib.import_module("pycaps")
+        imported_package = importlib.import_module("pycaps")
     except ModuleNotFoundError as exc:
         _record_failure("pycaps", exc)
     except Exception as exc:  # pragma: no cover - defensive
         _record_failure("pycaps", exc)
     else:
+        pycaps_package = imported_package
+
+    if pycaps_package is None:
+        pycaps_package = sys.modules.get("pycaps")
+
+    if pycaps_package is not None:
         loader = _extract_loader(pycaps_package, "B: pycaps.JsonConfigLoader")
         if loader:
             return loader
