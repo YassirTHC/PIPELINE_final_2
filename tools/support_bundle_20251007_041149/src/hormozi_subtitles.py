@@ -7,7 +7,7 @@ Intégration: SmartColorSystem + ContextualEmojiSystem
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-import moviepy.editor as mp
+import moviepy as mp
 import os
 import re
 import requests

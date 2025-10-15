@@ -1,152 +1,131 @@
 from __future__ import annotations
 
 from pathlib import Path
-import types
-import sys
-import importlib
-import pkgutil
+from types import SimpleNamespace
 
-import pytest
+try:
+    from moviepy import ColorClip  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover - fallback for MoviePy 1.x
+    from moviepy.video.VideoClip import ColorClip  # type: ignore[attr-defined]
 
-import video_processor
 from subtitle_engines import pycaps_engine
 
 
-def _clear_pycaps_modules(monkeypatch):
-    for name in list(sys.modules):
-        if name == "pycaps" or name.startswith("pycaps."):
-            monkeypatch.delitem(sys.modules, name, raising=False)
+def test_to_pycaps_input_normalises_segments():
+    segments = [
+        {
+            "text": "Hello world",
+            "start": 0.0,
+            "end": 1.5,
+            "words": [
+                {"text": "Hello", "start": 0.0, "end": 0.6},
+                {"text": "world", "start": 0.6, "end": 1.2},
+            ],
+        }
+    ]
+
+    payload = pycaps_engine.to_pycaps_input(segments)
+    assert "segments" in payload
+    assert len(payload["segments"]) == 1
+
+    segment = payload["segments"][0]
+    assert segment["text"] == "Hello world"
+    assert segment["start"] == 0.0
+    assert segment["end"] > segment["start"]
+    assert len(segment["words"]) == 2
+    assert segment["words"][0]["text"] == "Hello"
+    assert segment["words"][0]["end"] > segment["words"][0]["start"]
 
 
-def test_load_pycaps_loader_prefers_pipeline_layout(monkeypatch):
-    _clear_pycaps_modules(monkeypatch)
-
-    pipeline_module = types.ModuleType("pycaps.pipeline")
-
-    class Loader:
-        pass
-
-    pipeline_module.JsonConfigLoader = Loader
-
-    package = types.ModuleType("pycaps")
-    package.__path__ = []  # mark as package for import machinery
-
-    monkeypatch.setitem(sys.modules, "pycaps", package)
-    monkeypatch.setitem(sys.modules, "pycaps.pipeline", pipeline_module)
-
-    assert pycaps_engine._load_pycaps_loader() is Loader
-
-
-def test_load_pycaps_loader_supports_root_layout(monkeypatch):
-    _clear_pycaps_modules(monkeypatch)
-
-    class Loader:
-        pass
-
-    package = types.ModuleType("pycaps")
-    package.JsonConfigLoader = Loader
-    package.__path__ = []
-
-    monkeypatch.setitem(sys.modules, "pycaps", package)
-
-    assert pycaps_engine._load_pycaps_loader() is Loader
-
-
-def test_load_pycaps_loader_discovers_nested_modules(monkeypatch):
-    _clear_pycaps_modules(monkeypatch)
-
-    package = types.ModuleType("pycaps")
-    package.__path__ = ["<pycaps>"]
-
-    class Loader:
-        pass
-
-    def fake_iter_modules(path):
-        assert list(path) == ["<pycaps>"]
-        yield pkgutil.ModuleInfo(None, "alt_layout", False)
-
-    def fake_import(name):
-        if name == "pycaps.alt_layout":
-            module = types.ModuleType(name)
-            module.JsonConfigLoader = Loader
-            return module
-        raise ModuleNotFoundError(name)
-
-    monkeypatch.setitem(sys.modules, "pycaps", package)
-    monkeypatch.setattr(pkgutil, "iter_modules", fake_iter_modules)
-    monkeypatch.setattr(importlib, "import_module", fake_import)
-
-    assert pycaps_engine._load_pycaps_loader() is Loader
+def _dummy_settings() -> SimpleNamespace:
+    subtitles = SimpleNamespace(
+        font_path=None,
+        engine="pycaps",
+        font="Arial-Bold",
+        font_size=64,
+        theme="hormozi",
+        primary_color="#FFFFFF",
+        secondary_color="#FFAA33",
+        stroke_color="#000000",
+        subtitle_safe_margin_px=200,
+        keyword_background=False,
+        stroke_px=4,
+        shadow_opacity=0.4,
+        shadow_offset=2,
+        shadow_color="#000000",
+        background_color="#000000",
+        background_opacity=0.25,
+        margin_bottom_pct=0.12,
+        max_lines=3,
+        max_chars_per_line=26,
+        uppercase_keywords=True,
+        uppercase_min_length=5,
+        highlight_scale=1.08,
+        enable_emojis=False,
+        emoji_target_per_10=5,
+        emoji_min_gap_groups=2,
+        emoji_max_per_segment=3,
+        emoji_no_context_fallback="",
+        hero_emoji_enable=True,
+        hero_emoji_max_per_segment=1,
+    )
+    return SimpleNamespace(subtitles=subtitles)
 
 
-def test_load_pycaps_loader_raises_informative_error(monkeypatch):
-    _clear_pycaps_modules(monkeypatch)
+def test_render_with_pycaps_creates_video(monkeypatch, tmp_path):
+    input_path = tmp_path / "input.mp4"
+    clip = ColorClip(size=(320, 568), color=(12, 34, 56), duration=1.6)
+    clip.write_videofile(
+        str(input_path),
+        fps=24,
+        codec="libx264",
+        audio=False,
+        logger=None,
+    )
+    clip.close()
 
-    package = types.ModuleType("pycaps")
-    package.__path__ = []
-
-    monkeypatch.setitem(sys.modules, "pycaps", package)
-
-    with pytest.raises(RuntimeError) as excinfo:
-        pycaps_engine._load_pycaps_loader()
-
-    message = str(excinfo.value)
-    assert "JsonConfigLoader" in message
-    assert "pip install --no-cache-dir git+https://github.com/francozanardi/pycaps" in message
-
-
-def test_router_uses_pycaps_when_engine_selected(monkeypatch, tmp_path):
-    segments = [{"text": "hello", "start": 0.0, "end": 1.0}]
-    template_dir = tmp_path / "tmpl"
+    output_path = tmp_path / "output.mp4"
+    template_dir = tmp_path / "templates"
     template_dir.mkdir()
-    (template_dir / "pycaps.template.json").write_text("{}", encoding="utf-8")
 
-    settings = types.SimpleNamespace(subtitles=types.SimpleNamespace(engine="pycaps", enable_emojis=True))
-    monkeypatch.setattr(video_processor, "get_settings", lambda: settings)
+    segments = [
+        {
+            "text": "Build momentum fast",
+            "start": 0.2,
+            "end": 1.0,
+            "words": [
+                {"text": "Build", "start": 0.2, "end": 0.45},
+                {"text": "momentum", "start": 0.45, "end": 0.8},
+                {"text": "fast", "start": 0.8, "end": 1.0},
+            ],
+        },
+        {
+            "text": "Consistency beats intensity every single time when you are launching.",
+            "start": 1.0,
+            "end": 1.55,
+        },
+    ]
 
-    recorded: dict[str, str] = {}
+    monkeypatch.setattr(pycaps_engine, "get_settings", lambda: _dummy_settings())
 
-    def fake_render(subs, output_video_path, template_path, *, input_video_path):
-        recorded["output"] = output_video_path
-        recorded["template"] = template_path
-        recorded["input"] = input_video_path
+    recorded = {}
 
-    monkeypatch.setattr(video_processor, "ensure_template_assets", lambda *_: None)
-    monkeypatch.setattr(video_processor, "render_with_pycaps", fake_render)
+    def fake_render(input_video: str, segments, output_path: str, style, **options):
+        Path(output_path).write_bytes(b"ok")
+        recorded["segments"] = segments
+        recorded["style"] = style
+        recorded["options"] = options
+        return output_path
 
-    def fail_hormozi(*args, **kwargs):
-        raise AssertionError("Hormozi disabled")
+    monkeypatch.setattr(pycaps_engine, "render_subtitles_over_video", fake_render)
 
-    monkeypatch.setattr(video_processor, "_render_subtitles_with_hormozi", fail_hormozi)
-
-    video_processor.render_subtitles_router(
-        tmp_path / "input.mp4",
+    result_path = pycaps_engine.render_with_pycaps(
         segments,
-        tmp_path / "output.mp4",
+        output_video_path=output_path,
         template_dir=template_dir,
+        input_video_path=input_path,
     )
 
-    assert recorded["input"].endswith("input.mp4")
-    assert recorded["output"].endswith("output.mp4")
-    assert settings.subtitles.enable_emojis is False
-
-
-def test_render_with_pycaps_missing_dependency(monkeypatch, tmp_path):
-    template_dir = tmp_path / "pycaps"
-    template_dir.mkdir()
-    (template_dir / "pycaps.template.json").write_text("{}", encoding="utf-8")
-
-    def fail_loader():
-        raise ModuleNotFoundError("pycaps not installed")
-
-    monkeypatch.setattr(pycaps_engine, "_load_pycaps_loader", fail_loader)
-
-    with pytest.raises(RuntimeError) as excinfo:
-        pycaps_engine.render_with_pycaps(
-            [],
-            tmp_path / "out.mp4",
-            template_dir,
-            input_video_path=tmp_path / "src.mp4",
-        )
-
-    assert "pip install pycaps" in str(excinfo.value)
+    assert Path(result_path).exists()
+    assert Path(result_path).stat().st_size > 0
+    assert recorded["segments"][0]["text"] == "Build momentum fast"
