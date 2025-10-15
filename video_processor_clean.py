@@ -35,7 +35,7 @@ except ImportError as e:
     print(f"⚠️ Sélecteur B-roll générique non disponible: {e}")
     print("   🔄 Utilisation du système de scoring existant")
 
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 from tqdm import tqdm  # NEW: console progress
 import re # NEW: for caption/hashtag generation
 from hormozi_subtitles import add_hormozi_subtitles
@@ -1331,7 +1331,7 @@ class VideoProcessor:
             from src.pipeline.renderer import render_video  # type: ignore
             from src.pipeline.transcription import TranscriptSegment  # type: ignore
             
-            from moviepy.editor import VideoFileClip as _VFC
+            from moviepy import VideoFileClip as _VFC
             # Optionnel: indexation FAISS/CLIP
             try:
                 from src.pipeline.indexer import build_index  # type: ignore

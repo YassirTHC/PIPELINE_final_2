@@ -167,7 +167,23 @@ def _install_moviepy_stub() -> None:
 
     class _DummyClip:  # pragma: no cover - shim
         def __init__(self, *args, **kwargs):
-            pass
+            fontsize = kwargs.get("fontsize")
+            if fontsize:
+                text = ""
+                if args:
+                    text = str(args[0])
+                elif "text" in kwargs:
+                    text = str(kwargs.get("text") or "")
+                width = max(1, int(max(len(text), 1) * float(fontsize) * 0.6))
+                height = max(1, int(float(fontsize) * 1.2))
+                self.w = width
+                self.h = height
+                self.size = kwargs.get("size", (self.w, self.h))
+            else:
+                self.w = kwargs.get("w", 1080)
+                self.h = kwargs.get("h", 1920)
+                self.size = kwargs.get("size", (self.w, self.h))
+            self.duration = kwargs.get("duration", 1.0)
 
         def write_videofile(self, *args, **kwargs):
             return None
@@ -196,6 +212,9 @@ def _install_moviepy_stub() -> None:
         def resize(self, *args, **kwargs):
             return self
 
+        def set_opacity(self, *args, **kwargs):
+            return self
+
         def close(self):
             return None
 
@@ -208,10 +227,15 @@ def _install_moviepy_stub() -> None:
     editor.VideoFileClip = _DummyClip
     editor.AudioFileClip = _DummyClip
     editor.TextClip = _DummyClip
-    editor.CompositeVideoClip = lambda clips, **kwargs: _DummyClip()
-    editor.ColorClip = lambda size, color=(0, 0, 0): _DummyClip()
+    editor.CompositeVideoClip = lambda clips, **kwargs: _DummyClip(**kwargs)
+    editor.ColorClip = lambda *args, **kwargs: _DummyClip(*args, **kwargs)
 
     moviepy.editor = editor
+    moviepy.VideoFileClip = _DummyClip
+    moviepy.AudioFileClip = _DummyClip
+    moviepy.TextClip = _DummyClip
+    moviepy.CompositeVideoClip = lambda clips, **kwargs: _DummyClip(**kwargs)
+    moviepy.ColorClip = lambda *args, **kwargs: _DummyClip(*args, **kwargs)
 
     video_module = types.ModuleType("moviepy.video")
     fx_module = types.ModuleType("moviepy.video.fx")

@@ -36,6 +36,9 @@ if "moviepy.editor" not in sys.modules:
     editor_stub.VideoFileClip = _ClipStub
     editor_stub.TextClip = _ClipStub
     editor_stub.CompositeVideoClip = _ClipStub
+    moviepy_module.VideoFileClip = _ClipStub
+    moviepy_module.TextClip = _ClipStub
+    moviepy_module.CompositeVideoClip = _ClipStub
     moviepy_module.editor = editor_stub
     sys.modules["moviepy"] = moviepy_module
     sys.modules["moviepy.editor"] = editor_stub
@@ -53,9 +56,9 @@ def test_keywords_prompt_schema():
 
 def test_json_metadata_prompt_mentions_viral_requirements():
     prompt = llm_service._build_json_metadata_prompt("Segment sur la motivation et la discipline")
-    assert "style TikTok" in prompt
-    assert "emojis" in prompt
-    assert "tableau de 8 à 12 requêtes" in prompt
+    assert "Answer strictly in English." in prompt
+    assert "Return ONLY one JSON object with the exact keys" in prompt
+    assert "ultra-hook headline" in prompt
 
 
 def test_non_empty_keywords(monkeypatch):
