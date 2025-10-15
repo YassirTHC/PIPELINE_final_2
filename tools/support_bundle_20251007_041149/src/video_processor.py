@@ -1309,7 +1309,7 @@ except ImportError as e:
     _register_dependency_status(f"âš ï¸ SÃ©lecteur B-roll gÃ©nÃ©rique non disponible: {e}")
     _register_dependency_status("   ðŸ”„ Utilisation du systÃ¨me de scoring existant")
 
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 from moviepy.video.fx.all import crop
 from tqdm import tqdm  # NEW: console progress
 import re # NEW: for caption/hashtag generation
@@ -4794,7 +4794,7 @@ class VideoProcessor:
                 from src.pipeline.renderer import render_video  # type: ignore
                 from src.pipeline.transcription import TranscriptSegment  # type: ignore
 
-                from moviepy.editor import VideoFileClip as _VFC
+                from moviepy import VideoFileClip as _VFC
                 # Optionnel: indexation FAISS/CLIP
                 try:
                     from src.pipeline.indexer import build_index  # type: ignore

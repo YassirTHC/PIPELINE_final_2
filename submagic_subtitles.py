@@ -12,7 +12,7 @@ import numpy as np
 from typing import List, Dict, Tuple, Optional, Union
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from moviepy.editor import *
+from moviepy import *
 import json
 
 # Configuration Submagic
@@ -829,7 +829,7 @@ def diagnose_video_issue(video_path: str) -> Dict:
             
             # Essayer de lire la durée avec moviepy
             try:
-                from moviepy.editor import VideoFileClip
+                from moviepy import VideoFileClip
                 with VideoFileClip(str(video_file)) as clip:
                     diagnosis['duration'] = round(clip.duration, 1)
                     if clip.duration < 1:

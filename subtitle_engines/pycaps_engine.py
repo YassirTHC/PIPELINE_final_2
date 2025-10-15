@@ -1,25 +1,21 @@
-"""Integration helpers for the optional PyCaps subtitle engine.
+"""Integration helpers for the local kinetic caption renderer."""
 
-This module contains utilities that bridge the pipeline subtitle payload with the
-`pycaps` package. Field reports highlighted that some released wheels expose the
-``JsonConfigLoader`` symbol under different module layouts (``pycaps`` root vs
-``pycaps.pipeline``), while the original integration only attempted a single
-import path and re-raised ``ModuleNotFoundError`` as a misleading
-"PyCaps is not installed" message. The helpers below keep the more permissive
-import strategy and add runtime logging so that mismatches between the active
-interpreter and the installed package are easy to diagnose.
-"""
 from __future__ import annotations
 
-import importlib
 import json
 import logging
-import pkgutil
+import os
 import shutil
-import tempfile
-import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Sequence
+from typing import Any, Dict, Mapping, Sequence
+
+from .pycaps_renderer import CaptionStyle, THEME_PRESETS, render_subtitles_over_video
+
+try:  # pragma: no cover - optional dependency during tests
+    from video_pipeline.config import get_settings
+except Exception:  # pragma: no cover - defensive import
+    get_settings = None  # type: ignore[assignment]
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,41 +23,23 @@ _PYCAPS_TEMPLATE_FILENAME = "pycaps.template.json"
 
 
 def ensure_template_assets(template_dir: str | Path) -> None:
-    """Ensure runtime resources expected by the PyCaps template are available.
-
-    Parameters
-    ----------
-    template_dir:
-        Directory that contains the PyCaps template JSON and CSS files.
-    """
+    """Ensure the template directory contains the bundled fonts."""
 
     base_dir = Path(template_dir)
     resources_dir = base_dir / "resources"
     try:
         resources_dir.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        # If we cannot create the directory we simply skip the copy. The CSS will
-        # fall back to system fonts.
+    except Exception:  # pragma: no cover - filesystem best effort
         return
 
     repo_root = Path(__file__).resolve().parents[1]
-    source_font = repo_root / "assets" / "fonts" / "Montserrat-ExtraBold.ttf"
+    bundled_font = repo_root / "assets" / "fonts" / "Montserrat-ExtraBold.ttf"
     target_font = resources_dir / "Montserrat-ExtraBold.ttf"
-
-    if source_font.exists() and not target_font.exists():
+    if bundled_font.exists() and not target_font.exists():
         try:
-            shutil.copyfile(source_font, target_font)
-            logger.debug("Copied Montserrat font to %s", target_font)
-        except Exception as exc:  # pragma: no cover - best effort copy
-            logger.debug("Unable to copy Montserrat font: %s", exc)
-
-
-def _time_fragment(start: float, end: float) -> Dict[str, float]:
-    return {"start": float(start), "end": float(end)}
-
-
-def _empty_layout() -> Dict[str, Dict[str, int]]:
-    return {"position": {"x": 0, "y": 0}, "size": {"width": 0, "height": 0}}
+            shutil.copyfile(bundled_font, target_font)
+        except Exception:  # pragma: no cover - filesystem best effort
+            logger.debug("[PyCaps] Unable to copy bundled font", exc_info=True)
 
 
 def _coerce_float(value: Any, default: float = 0.0) -> float:
@@ -71,171 +49,120 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
         return float(default)
 
 
+def _coerce_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
 def to_pycaps_input(segments: Sequence[Mapping[str, Any]] | None) -> Dict[str, Any]:
-    """Transform pipeline subtitle segments into the JSON format expected by PyCaps."""
+    """Normalise the pipeline subtitle payload for the local renderer."""
 
     if not segments:
         return {"segments": []}
 
-    document_segments: List[Dict[str, Any]] = []
-
+    normalised: list[dict[str, Any]] = []
     for segment in segments:
-        seg_start = _coerce_float(segment.get("start"), 0.0)
-        seg_end = _coerce_float(segment.get("end"), seg_start)
-        seg_text = str(segment.get("text", "")).strip()
+        start = _coerce_float(segment.get("start"), 0.0)
+        end = _coerce_float(segment.get("end"), start)
+        if end <= start:
+            end = start + 0.08
+        text = _coerce_text(segment.get("text"))
 
-        words_payload: List[Dict[str, Any]] = []
+        words_payload: list[dict[str, Any]] = []
         words = segment.get("words")
-        if isinstance(words, Iterable):
+        if isinstance(words, Sequence):
             for word in words:
-                text = str(getattr(word, "get", lambda k, d=None: word[k])("text", "") or "").strip()
-                if not text:
+                word_text = _coerce_text(getattr(word, "text", None) if not isinstance(word, Mapping) else word.get("text"))
+                if not word_text:
                     continue
-                start = _coerce_float(word.get("start", seg_start), seg_start)
-                end = _coerce_float(word.get("end", start), start)
-                words_payload.append(
-                    {
-                        "clips": [],
-                        "text": text,
-                        "semantic_tags": [],
-                        "structure_tags": [],
-                        "max_layout": _empty_layout(),
-                        "time": _time_fragment(start, end),
-                    }
+                word_start = _coerce_float(
+                    getattr(word, "start", None) if not isinstance(word, Mapping) else word.get("start"),
+                    start,
                 )
-        if not words_payload and seg_text:
-            words_payload.append(
-                {
-                    "clips": [],
-                    "text": seg_text,
-                    "semantic_tags": [],
-                    "structure_tags": [],
-                    "max_layout": _empty_layout(),
-                    "time": _time_fragment(seg_start, seg_end),
-                }
-            )
+                word_end = _coerce_float(
+                    getattr(word, "end", None) if not isinstance(word, Mapping) else word.get("end"),
+                    word_start,
+                )
+                if word_end <= word_start:
+                    word_end = word_start + max(0.02, (end - start) / 8)
+                words_payload.append({"text": word_text, "start": word_start, "end": word_end})
 
-        if not words_payload:
-            continue
-
-        line_start = min(item["time"]["start"] for item in words_payload)
-        line_end = max(item["time"]["end"] for item in words_payload)
-
-        line = {
-            "words": words_payload,
-            "structure_tags": [],
-            "max_layout": _empty_layout(),
-            "time": _time_fragment(line_start, line_end),
-        }
-
-        document_segments.append(
+        normalised.append(
             {
-                "lines": [line],
-                "structure_tags": [],
-                "max_layout": _empty_layout(),
-                "time": _time_fragment(seg_start, seg_end),
+                "start": start,
+                "end": end,
+                "text": text,
+                "words": words_payload,
             }
         )
 
-    return {"segments": document_segments}
+    return {"segments": normalised}
 
 
-def _log_runtime_metadata(source_module: Any) -> None:
-    """Emit diagnostic information about the active PyCaps installation."""
-
-    pycaps_module = sys.modules.get("pycaps")
-    module_for_metadata = pycaps_module or source_module
-    version = getattr(pycaps_module, "__version__", None) if pycaps_module else None
-    location = getattr(module_for_metadata, "__file__", "<unknown>")
-
-    logger.info(
-        "[PyCaps] Runtime info: interpreter=%s, version=%s, module_file=%s",
-        sys.executable,
-        version or "unknown",
-        location,
-    )
+def _env_bool(key: str, default: bool) -> bool:
+    raw = os.getenv(key)
+    if raw is None:
+        return default
+    lowered = raw.strip().lower()
+    if lowered in {"1", "true", "yes", "on"}:
+        return True
+    if lowered in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
-def _load_pycaps_loader():
-    """Locate :class:`JsonConfigLoader` across the various PyCaps layouts."""
-
-    attempt_errors: list[str] = []
-
-    def _record_failure(label: str, exc: BaseException | str) -> None:
-        if isinstance(exc, BaseException):
-            attempt_errors.append(f"{label}: {exc}")
-        else:
-            attempt_errors.append(f"{label}: {exc}")
-
-    def _extract_loader(module: Any, label: str):
-        loader = getattr(module, "JsonConfigLoader", None)
-        if loader is not None:
-            logger.info("[PyCaps] Using layout %s", label)
-            _log_runtime_metadata(module)
-            return loader
-        _record_failure(label, "JsonConfigLoader attribute missing")
+def _resolve_subtitle_settings() -> Any:
+    if get_settings is None:  # pragma: no cover - optional dependency
         return None
-
-    # Layout A: historical pycaps.pipeline export
     try:
-        pipeline_module = importlib.import_module("pycaps.pipeline")
-    except ModuleNotFoundError as exc:
-        _record_failure("pycaps.pipeline", exc)
-    except Exception as exc:  # pragma: no cover - defensive
-        _record_failure("pycaps.pipeline", exc)
+        settings = get_settings()
+    except Exception:  # pragma: no cover - defensive logging
+        logger.debug("[PyCaps] Unable to load settings", exc_info=True)
+        return None
+    return getattr(settings, "subtitles", None)
+
+
+def _style_from_settings(sub_settings: Any) -> tuple[CaptionStyle, Dict[str, Any]]:
+    theme = "hormozi"
+    overrides: Dict[str, Any] = {}
+
+    if sub_settings is not None:
+        theme = (_coerce_text(getattr(sub_settings, "theme", "")) or "hormozi").lower()
+        overrides = {
+            "font": getattr(sub_settings, "font_path", None) or getattr(sub_settings, "font", None) or "Arial-Bold",
+            "fontsize": int(getattr(sub_settings, "font_size", 74) or 74),
+            "primary_color": _coerce_text(getattr(sub_settings, "primary_color", "")) or "#FFFFFF",
+            "secondary_color": _coerce_text(getattr(sub_settings, "secondary_color", "")) or "#FBC531",
+            "stroke_color": _coerce_text(getattr(sub_settings, "stroke_color", "")) or "#000000",
+            "stroke_width": int(getattr(sub_settings, "stroke_px", 4) or 4),
+            "shadow_color": _coerce_text(getattr(sub_settings, "shadow_color", "")) or "#000000",
+            "shadow_opacity": float(getattr(sub_settings, "shadow_opacity", 0.45) or 0.45),
+            "background_color": _coerce_text(getattr(sub_settings, "background_color", "")) or "#000000",
+            "background_opacity": float(getattr(sub_settings, "background_opacity", 0.35) or 0.35),
+            "margin_bottom_pct": float(getattr(sub_settings, "margin_bottom_pct", 0.12) or 0.12),
+            "max_lines": int(getattr(sub_settings, "max_lines", 3) or 3),
+            "max_chars_per_line": int(getattr(sub_settings, "max_chars_per_line", 24) or 24),
+            "uppercase_keywords": bool(getattr(sub_settings, "uppercase_keywords", True)),
+            "uppercase_min_length": int(getattr(sub_settings, "uppercase_min_length", 6) or 6),
+            "highlight_scale": float(getattr(sub_settings, "highlight_scale", 1.08) or 1.08),
+        }
+        allow_emojis = bool(getattr(sub_settings, "enable_emojis", False))
     else:
-        loader = _extract_loader(pipeline_module, "A: pycaps.pipeline.JsonConfigLoader")
-        if loader:
-            return loader
+        allow_emojis = False
 
-    # Layout B: loader on the root package
-    imported_package: Any | None = None
-    pycaps_package: Any | None = None
-    try:
-        imported_package = importlib.import_module("pycaps")
-    except ModuleNotFoundError as exc:
-        _record_failure("pycaps", exc)
-    except Exception as exc:  # pragma: no cover - defensive
-        _record_failure("pycaps", exc)
-    else:
-        pycaps_package = imported_package
+    preset = THEME_PRESETS.get(theme, THEME_PRESETS["hormozi"])
+    style = preset.with_overrides(**overrides)
+    allow_emojis = _env_bool("VP_SUBTITLES_EMOJIS", allow_emojis)
+    style = style.with_overrides(allow_emojis=allow_emojis)
 
-    if pycaps_package is None:
-        pycaps_package = sys.modules.get("pycaps")
-
-    if pycaps_package is not None:
-        loader = _extract_loader(pycaps_package, "B: pycaps.JsonConfigLoader")
-        if loader:
-            return loader
-
-        # Layout C: scan nested modules inside the distribution
-        package_path = getattr(pycaps_package, "__path__", [])
-        for module in pkgutil.iter_modules(package_path):
-            module_name = f"pycaps.{module.name}"
-            try:
-                candidate = importlib.import_module(module_name)
-            except Exception as exc:  # pragma: no cover - defensive
-                _record_failure(module_name, exc)
-                continue
-
-            loader = _extract_loader(
-                candidate, f"C: {module_name}.JsonConfigLoader"
-            )
-            if loader:
-                return loader
-
-    interpreter = sys.executable or "<unknown>"
-    version = getattr(pycaps_package, "__version__", "unavailable") if pycaps_package else "unavailable"
-    module_file = getattr(pycaps_package, "__file__", "unavailable") if pycaps_package else "unavailable"
-    attempts = "; ".join(attempt_errors) if attempt_errors else "none"
-
-    raise RuntimeError(
-        "PyCaps import error: 'JsonConfigLoader' introuvable dans pycaps. "
-        f"Tentatives: {attempts}. "
-        f"Interpreter: {interpreter}. Version: {version}. Module: {module_file}. "
-        "Installe la version GitHub (ou mets à jour la lib) : "
-        "pip install --no-cache-dir git+https://github.com/francozanardi/pycaps"
-    )
+    options: Dict[str, Any] = {
+        "theme": theme,
+        "codec": "libx264",
+        "audio_codec": "aac",
+        "threads": int(os.getenv("VP_SUBTITLES_THREADS", "4") or 4),
+    }
+    return style, options
 
 
 def render_with_pycaps(
@@ -244,78 +171,38 @@ def render_with_pycaps(
     template_dir: str | Path,
     *,
     input_video_path: str | Path,
-) -> None:
-    """Render subtitles using the PyCaps engine."""
+) -> str:
+    """Render subtitles using the bundled kinetic caption renderer."""
 
     template_base = Path(template_dir)
-    template_path = template_base / _PYCAPS_TEMPLATE_FILENAME
-    if not template_path.exists():
-        raise FileNotFoundError(f"PyCaps template not found: {template_path}")
-
+    template_base.mkdir(parents=True, exist_ok=True)
     ensure_template_assets(template_base)
 
-    pycaps_module = None
-    try:
-        pycaps_module = importlib.import_module("pycaps")
-    except ModuleNotFoundError:
-        logger.warning(
-            "[PyCaps] Module introuvable dans l'environnement courant (%s)",
-            sys.executable,
-        )
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("[PyCaps] Impossible d'inspecter le module pycaps: %s", exc)
-
-    try:
-        JsonConfigLoader = _load_pycaps_loader()
-    except ModuleNotFoundError as exc:  # pragma: no cover - depends on runtime env
-        raise RuntimeError(
-            "PyCaps is not installed in this interpreter. "
-            "Active venv311 puis `pip install pycaps`."
-        ) from exc
-    except Exception as exc:  # pragma: no cover - defensive
-        raise RuntimeError(f"Unable to import/use PyCaps: {exc}") from exc
-
-    if pycaps_module is not None:
-        version = getattr(pycaps_module, "__version__", "unknown")
-        module_file = getattr(pycaps_module, "__file__", "<unknown>")
-        logger.info(
-            "[PyCaps] Runtime: exe=%s version=%s file=%s",
-            sys.executable,
-            version,
-            module_file,
-        )
-
-    builder = JsonConfigLoader(str(template_path)).load(False)
-    builder.with_input_video(str(input_video_path))
-
-    output_path = Path(output_video_path)
-    if output_path.exists():
+    template_path = template_base / _PYCAPS_TEMPLATE_FILENAME
+    if not template_path.exists():
         try:
-            output_path.unlink()
-        except Exception:
-            pass
-    builder.with_output_video(str(output_path))
+            template_path.write_text(json.dumps({"version": 1}), encoding="utf-8")
+        except Exception:  # pragma: no cover - best effort placeholder
+            logger.debug("[PyCaps] Unable to create template placeholder", exc_info=True)
 
-    subtitle_payload = to_pycaps_input(segments)
+    payload = to_pycaps_input(segments)
+    subtitle_segments = payload["segments"]
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        data_path = Path(tmpdir) / "subtitles.json"
-        data_path.write_text(json.dumps(subtitle_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        builder.with_subtitle_data_path(str(data_path))
-        builder.should_save_subtitle_data(False)
+    subtitle_settings = _resolve_subtitle_settings()
+    style, options = _style_from_settings(subtitle_settings)
 
-        pipeline = builder.build()
-        try:
-            pipeline.run()
-        except ModuleNotFoundError as exc:  # pragma: no cover - depends on optional deps
-            raise RuntimeError(
-                "PyCaps is not installed in this interpreter. "
-                "Active venv311 puis `pip install pycaps`."
-            ) from exc
-        except Exception as exc:
-            raise RuntimeError(f"PyCaps rendering failed: {exc}") from exc
-        finally:
-            try:
-                pipeline.close()
-            except Exception:
-                pass
+    logger.info("[PyCaps] Using pycaps renderer (local)")
+    try:
+        return render_subtitles_over_video(
+            input_video=str(input_video_path),
+            segments=subtitle_segments,
+            output_path=str(output_video_path),
+            style=style,
+            **options,
+        )
+    except Exception as exc:
+        raise RuntimeError(f"Local PyCaps rendering failed: {exc}") from exc
+
+
+__all__ = ["ensure_template_assets", "render_with_pycaps", "to_pycaps_input"]
+

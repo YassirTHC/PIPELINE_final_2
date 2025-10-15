@@ -170,13 +170,27 @@ class BrollSettings:
 @dataclass(slots=True)
 class SubtitleSettings:
     font_path: Optional[str]
+    engine: str = "hormozi"
     font: Optional[str] = None
     font_size: int = 96
+    theme: str = "hormozi"
+    primary_color: str = "#FFFFFF"
+    secondary_color: str = "#FBC531"
+    stroke_color: str = "#000000"
     subtitle_safe_margin_px: int = 220
     keyword_background: bool = False
     stroke_px: int = 6
     shadow_opacity: float = 0.35
     shadow_offset: int = 3
+    shadow_color: str = "#000000"
+    background_color: str = "#000000"
+    background_opacity: float = 0.35
+    margin_bottom_pct: float = 0.12
+    max_lines: int = 3
+    max_chars_per_line: int = 24
+    uppercase_keywords: bool = True
+    uppercase_min_length: int = 6
+    highlight_scale: float = 1.08
     enable_emojis: bool = True
     emoji_target_per_10: int = 5
     emoji_min_gap_groups: int = 2
@@ -249,14 +263,28 @@ class Settings:
             },
             "subtitles": {
                 "font_path": self.subtitles.font_path,
+                "engine": self.subtitles.engine,
                 "font": self.subtitles.font,
                 "font_size": self.subtitles.font_size,
+                "theme": self.subtitles.theme,
+                "primary_color": self.subtitles.primary_color,
+                "secondary_color": self.subtitles.secondary_color,
+                "stroke_color": self.subtitles.stroke_color,
                 "subtitle_safe_margin_px": self.subtitles.subtitle_safe_margin_px,
                 "keyword_background": self.subtitles.keyword_background,
                 "enable_emojis": self.subtitles.enable_emojis,
                 "stroke_px": self.subtitles.stroke_px,
                 "shadow_opacity": self.subtitles.shadow_opacity,
                 "shadow_offset": self.subtitles.shadow_offset,
+                "shadow_color": self.subtitles.shadow_color,
+                "background_color": self.subtitles.background_color,
+                "background_opacity": self.subtitles.background_opacity,
+                "margin_bottom_pct": self.subtitles.margin_bottom_pct,
+                "max_lines": self.subtitles.max_lines,
+                "max_chars_per_line": self.subtitles.max_chars_per_line,
+                "uppercase_keywords": self.subtitles.uppercase_keywords,
+                "uppercase_min_length": self.subtitles.uppercase_min_length,
+                "highlight_scale": self.subtitles.highlight_scale,
                 "emoji_target_per_10": self.subtitles.emoji_target_per_10,
                 "emoji_min_gap_groups": self.subtitles.emoji_min_gap_groups,
                 "emoji_max_per_segment": self.subtitles.emoji_max_per_segment,
@@ -399,7 +427,11 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
         "PIPELINE_LLM_DISABLE_HASHTAGS",
         default=False,
     )
-    target_lang = _clean_text(_env(env, "PIPELINE_LLM_TARGET_LANG", "en") or "en")
+    target_lang = _clean_text(
+        _env(env, "VP_LLM_LANG")
+        or _env(env, "PIPELINE_LLM_TARGET_LANG", "en")
+        or "en"
+    ) or "en"
     json_prompt = _clean_text(_env(env, "PIPELINE_LLM_JSON_PROMPT") or "") or None
     json_mode = _resolve_bool_env(
         env,
@@ -543,6 +575,27 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
 
     font_name = _env_preferred("PIPELINE_SUBTITLE_FONT", "PIPELINE_SUB_FONT")
 
+    theme = _clean_text(
+        _env_preferred(
+            "VP_SUBTITLES_THEME",
+            "PIPELINE_SUBTITLE_THEME",
+            "PIPELINE_SUB_THEME",
+        )
+        or "hormozi"
+    ).lower() or "hormozi"
+    primary_color = _clean_text(
+        _env_preferred("VP_SUBTITLES_PRIMARY_COLOR", "PIPELINE_SUBTITLE_PRIMARY_COLOR")
+        or "#FFFFFF"
+    ) or "#FFFFFF"
+    secondary_color = _clean_text(
+        _env_preferred("VP_SUBTITLES_SECONDARY_COLOR", "PIPELINE_SUBTITLE_SECONDARY_COLOR")
+        or "#FBC531"
+    ) or "#FBC531"
+    stroke_color = _clean_text(
+        _env_preferred("VP_SUBTITLES_STROKE_COLOR", "PIPELINE_SUBTITLE_STROKE_COLOR")
+        or "#000000"
+    ) or "#000000"
+
     font_size = _coerce_int(
         _env_preferred("PIPELINE_SUBTITLE_FONT_SIZE", "PIPELINE_SUB_FONT_SIZE"),
         96,
@@ -565,6 +618,9 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         "PIPELINE_SUB_ENABLE_EMOJIS",
         default=True,
     )
+    vp_emojis = _env(env, "VP_SUBTITLES_EMOJIS")
+    if vp_emojis is not None:
+        enable_emojis = _coerce_bool(vp_emojis, default=enable_emojis)
     stroke_px = _coerce_int(
         _env_preferred("PIPELINE_SUBTITLE_STROKE_PX", "PIPELINE_SUB_STROKE_PX"),
         6,
@@ -579,6 +635,50 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         _env_preferred("PIPELINE_SUBTITLE_SHADOW_OFFSET", "PIPELINE_SUB_SHADOW_OFFSET"),
         3,
         minimum=0,
+    )
+    shadow_color = _clean_text(
+        _env_preferred("VP_SUBTITLES_SHADOW_COLOR", "PIPELINE_SUBTITLE_SHADOW_COLOR")
+        or "#000000"
+    ) or "#000000"
+    background_color = _clean_text(
+        _env_preferred("VP_SUBTITLES_BG_COLOR", "PIPELINE_SUBTITLE_BG_COLOR")
+        or "#000000"
+    ) or "#000000"
+    background_opacity = _coerce_float(
+        _env_preferred("VP_SUBTITLES_BG_ALPHA", "PIPELINE_SUBTITLE_BG_ALPHA"),
+        0.35,
+        minimum=0.0,
+    )
+    margin_bottom_pct = _coerce_float(
+        _env_preferred("VP_SUBTITLES_MARGIN_BOTTOM_PCT", "PIPELINE_SUBTITLE_MARGIN_BOTTOM_PCT"),
+        0.12,
+        minimum=0.0,
+    )
+    max_lines = _coerce_int(
+        _env_preferred("VP_SUBTITLES_MAX_LINES", "PIPELINE_SUBTITLE_MAX_LINES"),
+        3,
+        minimum=1,
+    )
+    max_chars_per_line = _coerce_int(
+        _env_preferred("VP_SUBTITLES_MAX_CHARS_PER_LINE", "PIPELINE_SUBTITLE_MAX_CHARS_PER_LINE"),
+        24,
+        minimum=8,
+    )
+    uppercase_keywords = _resolve_bool_env(
+        env,
+        "VP_SUBTITLES_UPPERCASE_KEYWORDS",
+        "PIPELINE_SUBTITLE_UPPERCASE_KEYWORDS",
+        default=True,
+    )
+    uppercase_min_length = _coerce_int(
+        _env_preferred("VP_SUBTITLES_UPPERCASE_MIN_LEN", "PIPELINE_SUBTITLE_UPPERCASE_MIN_LEN"),
+        6,
+        minimum=2,
+    )
+    highlight_scale = _coerce_float(
+        _env_preferred("VP_SUBTITLES_HIGHLIGHT_SCALE", "PIPELINE_SUBTITLE_HIGHLIGHT_SCALE"),
+        1.08,
+        minimum=1.0,
     )
     emoji_target = _coerce_int(
         _env_preferred("PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10", "PIPELINE_SUB_EMOJI_TARGET_PER_10"),
@@ -611,15 +711,36 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         minimum=0,
     )
 
+    raw_engine = _env(env, "VP_SUBTITLES_ENGINE")
+    engine = _clean_text(raw_engine or "hormozi").lower() or "hormozi"
+    if engine not in {"hormozi", "pycaps"}:
+        engine = "hormozi"
+    if engine == "pycaps" and vp_emojis is None:
+        enable_emojis = False
+
     return SubtitleSettings(
         font_path=resolved_font,
+        engine=engine,
         font=font_name,
         font_size=font_size,
+        theme=theme,
+        primary_color=primary_color,
+        secondary_color=secondary_color,
+        stroke_color=stroke_color,
         subtitle_safe_margin_px=safe_margin,
         keyword_background=keyword_background,
         stroke_px=stroke_px,
         shadow_opacity=shadow_opacity,
         shadow_offset=shadow_offset,
+        shadow_color=shadow_color,
+        background_color=background_color,
+        background_opacity=background_opacity,
+        margin_bottom_pct=margin_bottom_pct,
+        max_lines=max_lines,
+        max_chars_per_line=max_chars_per_line,
+        uppercase_keywords=uppercase_keywords,
+        uppercase_min_length=uppercase_min_length,
+        highlight_scale=highlight_scale,
         enable_emojis=enable_emojis,
         emoji_target_per_10=emoji_target,
         emoji_min_gap_groups=emoji_min_gap,

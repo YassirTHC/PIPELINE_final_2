@@ -156,6 +156,14 @@ _SHARED: LLMMetadataGeneratorService | None = None
 
 _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
 
+_BANNED_QUERY_PHRASES = {
+    "stock footage",
+    "b roll",
+    "b-roll",
+    "generic clip",
+    "placeholder",
+}
+
 _LAST_METADATA_KEYWORDS: Dict[str, Any] = {"values": [], "updated_at": 0.0}
 _LAST_METADATA_QUERIES: Dict[str, Any] = {"values": [], "updated_at": 0.0}
 
@@ -2083,6 +2091,7 @@ def _build_keywords_prompt(transcript_snippet: str, target_lang: str) -> str:
     snippet = (transcript_snippet or "").strip()
     language = (target_lang or "en").strip().lower() or "en"
     return (
+        "Answer strictly in English.\n"
         "You are a JSON API for segment-level B-roll planning.\n"
         f"Use {language} language for every field.\n"
         "Return ONLY one JSON object with keys: broll_keywords, queries. No prose, no markdown.\n"
@@ -2116,15 +2125,16 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
 
     video_reference = f"Video ID: {video_id}\n" if video_id else ""
     return (
-        "Tu es un expert des métadonnées virales pour vidéos courtes (TikTok, Reels, Shorts).\n"
-        "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
-        "  \"title\": slogan ultra-accrocheur (≤60 caractères) en langue source, style TikTok, avec un hook immédiat,\n"
-        "  \"description\": 2 phrases dynamiques style TikTok avec emojis et appel à l’action positif,\n"
-        "  \"hashtags\": tableau de 6 hashtags viraux pertinents sans doublons ni répétitions de dièse,\n"
-        "  \"broll_keywords\": tableau de 8 à 12 mots-clés visuels concrets (2-3 mots) alignés avec la scène décrite,\n"
-        "  \"queries\": tableau de 8 à 12 requêtes de recherche précises (2-4 mots) prêtes pour des API vidéo/B-roll.\n"
-        "Respecte strictement la langue source et n'ajoute aucune explication hors JSON.\n"
-        "Assure-toi que chaque mot-clé et requête colle à ce qui se passe dans la transcription au moment présent.\n\n"
+        "Answer strictly in English.\n"
+        "You are a viral short-form video metadata expert for TikTok, Reels and Shorts.\n"
+        "Return ONLY one JSON object with the exact keys below (no markdown, no prose):\n"
+        "  \"title\": ultra-hook headline (<=60 characters) in English with immediate intrigue,\n"
+        "  \"description\": two energetic sentences in English with emojis and a positive call to action,\n"
+        "  \"hashtags\": array of 6 relevant viral hashtags without duplicates or leading # repetition,\n"
+        "  \"broll_keywords\": array of 8-12 concrete visual noun phrases (2-3 words) matching the transcript moment,\n"
+        "  \"queries\": array of 8-12 precise search queries (2-4 words) ready for stock video/B-roll APIs.\n"
+        "Keep every string in fluent English and do not include explanations outside the JSON object.\n"
+        "Ensure keywords and queries align with the current transcript context.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
 

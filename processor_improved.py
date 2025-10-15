@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import whisper
 import requests
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 import numpy as np
 import cv2
 import mediapipe as mp
