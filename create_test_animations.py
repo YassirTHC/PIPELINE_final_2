@@ -6,7 +6,7 @@ Crée des animations de test pour le dossier animations_assets
 import sys
 sys.path.append('.')
 from pathlib import Path
-from moviepy import ColorClip, TextClip, CompositeVideoClip
+from moviepy.editor import ColorClip, TextClip, CompositeVideoClip
 import numpy as np
 
 def create_glow_animation(text: str, filename: str, color: tuple = (255, 255, 0)):

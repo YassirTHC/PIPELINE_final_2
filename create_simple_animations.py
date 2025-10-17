@@ -6,7 +6,7 @@ Crée des animations simples pour le dossier animations_assets
 import sys
 sys.path.append('.')
 from pathlib import Path
-from moviepy import ColorClip, CompositeVideoClip
+from moviepy.editor import ColorClip, CompositeVideoClip
 import numpy as np
 
 def create_simple_glow_animation(filename: str, color: tuple = (255, 255, 0)):

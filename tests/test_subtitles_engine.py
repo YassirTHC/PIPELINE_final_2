@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from moviepy import ColorClip
+from moviepy.editor import ColorClip
 
 from subtitle_engines import pycaps_engine
 

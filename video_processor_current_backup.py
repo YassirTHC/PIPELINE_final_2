@@ -968,7 +968,14 @@ except ImportError as e:
 
     print("   🔄 Utilisation du système de scoring existant")
 
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
+try:
+    from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+except Exception:
+    from moviepy.editor import VideoFileClip, CompositeVideoClip
+    try:
+        from moviepy.editor import TextClip  # type: ignore
+    except Exception:
+        TextClip = None  # type: ignore[assignment]
 
 from tqdm import tqdm  # NEW: console progress
 
@@ -5367,7 +5374,7 @@ class VideoProcessor:
 
             
 
-            from moviepy import VideoFileClip as _VFC
+            from moviepy.editor import VideoFileClip as _VFC
 
             # Optionnel: indexation FAISS/CLIP
 
@@ -9194,4 +9201,3 @@ def main(argv: Optional[Sequence[str]] = None, *, return_result: bool = False) -
 if __name__ == '__main__':
 
     raise SystemExit(main())
-

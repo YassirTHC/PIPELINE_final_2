@@ -21,7 +21,7 @@ def analyze_video_frames():
         return False
     
     try:
-        from moviepy import VideoFileClip
+        from moviepy.editor import VideoFileClip
         
         video = VideoFileClip(str(video_path))
         print(f"📹 Vidéo: {video.size}, {video.duration:.1f}s")
@@ -100,7 +100,7 @@ def test_emoji_rendering_comparison():
     # 2. Extraire du texte de la vraie vidéo
     print("\n2️⃣ EXTRACTION TEXTE VIDÉO:")
     try:
-        from moviepy import VideoFileClip
+        from moviepy.editor import VideoFileClip
         
         video_path = Path("output/subtitled/reframed_131_tiktok_subs.mp4")
         video = VideoFileClip(str(video_path))

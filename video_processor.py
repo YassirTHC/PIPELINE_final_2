@@ -497,6 +497,19 @@ def format_broll_completion_banner(
 
     return False, "    Ã¢Å¡Â Ã¯Â¸Â Aucun B-roll insÃƒÂ©rÃƒÂ©; retour ÃƒÂ  la vidÃƒÂ©o d'origine"
 
+SELECTION_METRICS_PATH = PROJECT_ROOT / "output" / "meta" / "selection_metrics.jsonl"
+
+
+def log_segment_metrics(payload: Dict[str, Any]) -> None:
+    try:
+        SELECTION_METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with SELECTION_METRICS_PATH.open("a", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+            handle.write("\n")
+    except Exception:
+        logger.debug("[BROLL][metrics] unable to write segment metrics", exc_info=True)
+
+
 SEEN_URLS: Set[str] = set()
 SEEN_PHASHES: List[int] = []
 SEEN_IDENTIFIERS: Set[str] = set()
@@ -583,6 +596,8 @@ def _apply_broll_invariants_to_core_entries(
         min_start_s=settings.broll.min_start_s,
         min_gap_s=settings.broll.min_gap_s,
         no_repeat_s=settings.broll.no_repeat_s,
+        max_gap_s=getattr(settings.broll, "max_gap_s", None),
+        target_total=getattr(settings.broll, "target_total", None),
     )
 
     key_counts: Counter[Tuple[float, float, str, int]] = Counter(
@@ -687,6 +702,37 @@ def dedupe_by_phash(candidates):
         setattr(candidate, '_phash', phash)
         unique.append(candidate)
     return unique, hits
+
+
+def _recent_asset_distances(
+    selected_assets: Sequence[Dict[str, Any]],
+    current_segment: int,
+    window: int,
+) -> Dict[str, int]:
+    if window <= 0 or not selected_assets:
+        return {}
+    distances: Dict[str, int] = {}
+    for asset in reversed(selected_assets):
+        if not isinstance(asset, dict):
+            continue
+        try:
+            seg_idx = int(asset.get('segment'))
+        except Exception:
+            continue
+        gap = current_segment - seg_idx
+        if gap <= 0 or gap > window:
+            continue
+        candidate = asset.get('candidate')
+        identifier = None
+        if candidate is not None:
+            identifier = getattr(candidate, 'identifier', None)
+            if not identifier:
+                identifier = getattr(candidate, 'url', None)
+        if not identifier:
+            identifier = asset.get('url')
+        if identifier and identifier not in distances:
+            distances[str(identifier)] = int(gap)
+    return distances
 
 
 def enforce_broll_schedule_rules(plan, *, min_duration: float = 1.8, min_gap: float = 1.5):
@@ -853,6 +899,7 @@ try:
 except Exception:  # pragma: no cover - optional in stubbed environments
     PipelineConfigBundle = None  # type: ignore[assignment]
 from pipeline_core.fetchers import FetcherOrchestrator
+from pipeline_core.selection import mmr_rerank
 from pipeline_core.dedupe import compute_phash, hamming_distance
 from pipeline_core.logging import JsonlLogger, log_broll_decision
 try:
@@ -2076,8 +2123,32 @@ except ImportError as e:
     _register_dependency_status(f"Ã¢Å¡Â Ã¯Â¸Â SÃƒÂ©lecteur B-roll gÃƒÂ©nÃƒÂ©rique non disponible: {e}")
     _register_dependency_status("   Ã°Å¸â€â€ž Utilisation du systÃƒÂ¨me de scoring existant")
 
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
-from moviepy.video.fx.all import crop
+try:
+    from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+except Exception:
+    from moviepy.editor import VideoFileClip, CompositeVideoClip
+    try:
+        from moviepy.editor import TextClip  # type: ignore
+    except Exception:
+        TextClip = None  # type: ignore[assignment]
+
+try:
+    from moviepy.video.fx.all import crop as _moviepy_crop  # type: ignore[attr-defined]
+except ImportError:
+    try:
+        from moviepy.video.fx.Crop import Crop as _MoviePyCropEffect  # MoviePy >= 2.1
+    except ImportError as exc:  # pragma: no cover - hard dependency
+        raise ImportError("MoviePy crop effect is not available") from exc
+
+    def crop(clip, *args, **kwargs):  # type: ignore[override]
+        """Compatibility wrapper around the MoviePy Crop effect."""
+
+        if args:
+            raise TypeError("crop() compatibility wrapper only accepts keyword arguments")
+        return _MoviePyCropEffect(**kwargs).apply(clip)
+
+else:
+    crop = _moviepy_crop
 from tqdm import tqdm  # NEW: console progress
 import re # NEW: for caption/hashtag generation
 
@@ -2749,6 +2820,11 @@ class VideoProcessor:
         SEEN_URLS.clear()
         SEEN_PHASHES.clear()
         SEEN_IDENTIFIERS.clear()
+        try:
+            if SELECTION_METRICS_PATH.exists():
+                SELECTION_METRICS_PATH.unlink()
+        except Exception:
+            logger.debug("[BROLL][metrics] unable to reset metrics file", exc_info=True)
         self._core_last_run_used = True
         self._last_broll_insert_count = 0
         self._core_last_timeline: List[CoreTimelineEntry] = []
@@ -2757,6 +2833,14 @@ class VideoProcessor:
         config_bundle = self._pipeline_config
         orchestrator = FetcherOrchestrator(config_bundle.fetcher)
         selection_cfg = config_bundle.selection
+        # Relax selection guard-rails to avoid forced-keep fallbacks in low-supply runs.
+        try:
+            selection_cfg.min_score = float(getattr(selection_cfg, "min_score", 0.0) or 0.0)
+        except Exception:
+            selection_cfg.min_score = 0.0
+        selection_cfg.min_score = max(0.0, min(selection_cfg.min_score, 0.18))
+        selection_cfg.allow_forced_keep = False
+        selection_cfg.forced_keep_budget = 0
         timeboxing_cfg = config_bundle.timeboxing
         event_logger = self._get_broll_event_logger()
         event_logger.log(
@@ -2841,6 +2925,19 @@ class VideoProcessor:
             self._last_broll_insert_count = 0
             return 0, None
 
+        try:
+            runtime_settings = get_settings()
+        except Exception:
+            runtime_settings = None
+
+        selection_settings = getattr(runtime_settings, "broll_selection", None) if runtime_settings else None
+        diversity_settings = getattr(runtime_settings, "broll_diversity", None) if runtime_settings else None
+        early_stop_settings = getattr(runtime_settings, "broll_early_stop", None) if runtime_settings else None
+        backfill_settings = getattr(runtime_settings, "broll_backfill", None) if runtime_settings else None
+        scheduler_settings = getattr(runtime_settings, "scheduler_tuning", None) if runtime_settings else None
+
+        segment_metrics: Dict[int, Dict[str, Any]] = {}
+
         fetch_timeout = max((timeboxing_cfg.fetch_rank_ms or 0) / 1000.0, 0.0)
 
         selected_assets: List[Dict[str, Any]] = []
@@ -2856,6 +2953,11 @@ class VideoProcessor:
         segments_with_queries = 0
         forced_keep_consumed = 0
         previously_used_urls: Set[str] = set()
+        try:
+            settings_snapshot = get_settings()
+            target_total = getattr(getattr(settings_snapshot, 'broll', None), 'target_total', None)
+        except Exception:
+            target_total = None
         raw_forced_keep_budget = getattr(selection_cfg, 'forced_keep_budget', None)
         if isinstance(raw_forced_keep_budget, int):
             forced_keep_remaining: Optional[int] = max(0, raw_forced_keep_budget)
@@ -3131,6 +3233,20 @@ class VideoProcessor:
                     pass
 
             if not queries:
+                empty_metrics = {
+                    "segment_id": idx,
+                    "candidates_total": 0,
+                    "shortlisted_after_topk": 0,
+                    "mmr_selected": 0,
+                    "dropped_by_mmr": 0,
+                    "repeat_penalties_applied": 0,
+                    "early_stop_triggered": False,
+                    "backfill_used": False,
+                    "max_gap_relaxed": False,
+                    "selected": False,
+                    "coverage_after": 0.0,
+                }
+                log_segment_metrics(empty_metrics)
                 log_broll_decision(
                     event_logger,
                     segment_idx=idx,
@@ -3231,6 +3347,21 @@ class VideoProcessor:
             total_url_dedup_hits += url_hits
             total_phash_dedup_hits += phash_hits
 
+            metrics_entry = {
+                "segment_id": idx,
+                "candidates_total": len(candidates),
+                "shortlisted_after_topk": len(unique_candidates),
+                "mmr_selected": 0,
+                "dropped_by_mmr": 0,
+                "repeat_penalties_applied": 0,
+                "early_stop_triggered": False,
+                "backfill_used": False,
+                "max_gap_relaxed": False,
+                "selected": False,
+                "coverage_after": 0.0,
+            }
+            segment_metrics[idx] = metrics_entry
+
             best_candidate = None
             best_score = -1.0
             best_provider = None
@@ -3243,8 +3374,12 @@ class VideoProcessor:
                 score = self._rank_candidate(segment.text, candidate, selection_cfg, seg_duration)
                 candidate_url = getattr(candidate, 'url', None)
                 if _candidate_used_before(candidate, previously_used_urls):
-                    passes_filters = False
-                    filter_reason = 'duplicate_url_prior_segment'
+                    if target_total is not None and len(selected_assets) < target_total:
+                        passes_filters = True
+                        filter_reason = None
+                    else:
+                        passes_filters = False
+                        filter_reason = 'duplicate_url_prior_segment'
                 else:
                     passes_filters, filter_reason = orchestrator.evaluate_candidate_filters(
                         candidate, filters, seg_duration
@@ -3265,12 +3400,12 @@ class VideoProcessor:
                     filter_pass_records.append(record)
 
             eligible_records = [rec for rec in filter_pass_records if not rec['below_threshold']]
-            best_record = None
-            fallback_record = None
-            if eligible_records:
-                best_record = max(eligible_records, key=lambda rec: rec['score'])
-            elif filter_pass_records:
+            best_record: Optional[Dict[str, Any]] = None
+            fallback_record: Optional[Dict[str, Any]] = None
+            if filter_pass_records:
                 fallback_record = max(filter_pass_records, key=lambda rec: rec['score'])
+
+            if not eligible_records and fallback_record is not None:
                 if forced_keep_allowed and (forced_keep_remaining is None or forced_keep_remaining > 0):
                     best_record = fallback_record
                     forced_keep = True
@@ -3300,10 +3435,93 @@ class VideoProcessor:
                     except Exception:
                         pass
 
+            mmr_records: List[Dict[str, Any]] = []
+            mmr_stats: Dict[str, Any] = {"repeat_penalties": 0, "dropped": 0}
+            if eligible_records:
+                if diversity_settings and getattr(diversity_settings, "enable_mmr", False):
+                    repeat_window = int(getattr(diversity_settings, "repeat_window", 2) or 0)
+                    recent_assets = _recent_asset_distances(selected_assets, idx, repeat_window)
+                    budget_for_mmr = len(eligible_records)
+                    if selection_settings is not None:
+                        try:
+                            budget_for_mmr = min(
+                                budget_for_mmr,
+                                int(getattr(selection_settings, "k_max_per_query", budget_for_mmr) or budget_for_mmr),
+                            )
+                        except Exception:
+                            pass
+                    budget_for_mmr = max(1, budget_for_mmr)
+                    mmr_records, mmr_stats = mmr_rerank(
+                        eligible_records,
+                        alpha=float(getattr(diversity_settings, "mmr_alpha", 0.7) or 0.7),
+                        max_candidates=budget_for_mmr,
+                        recent_assets=recent_assets,
+                        repeat_penalty=float(getattr(diversity_settings, "repeat_penalty", 0.25) or 0.25),
+                        repeat_window=repeat_window,
+                    )
+                else:
+                    mmr_records = list(eligible_records)
+
+                metrics_entry["mmr_selected"] = len(mmr_records)
+                metrics_entry["dropped_by_mmr"] = max(0, len(eligible_records) - len(mmr_records))
+                metrics_entry["repeat_penalties_applied"] = int(mmr_stats.get("repeat_penalties", 0))
+
+                early_stop_triggered = False
+                if early_stop_settings and getattr(early_stop_settings, "enable", False):
+                    required = max(1, int(getattr(early_stop_settings, "min_selected_before_stop", 1) or 1))
+                    if len(mmr_records) >= required:
+                        early_stop_triggered = True
+                metrics_entry["early_stop_triggered"] = early_stop_triggered
+
+                if mmr_records:
+                    best_record = mmr_records[0]
+                elif fallback_record is not None and not forced_keep:
+                    best_record = fallback_record
+            else:
+                metrics_entry["mmr_selected"] = metrics_entry.get("mmr_selected", 0)
+                metrics_entry["dropped_by_mmr"] = metrics_entry.get("dropped_by_mmr", 0)
+                metrics_entry["repeat_penalties_applied"] = metrics_entry.get("repeat_penalties_applied", 0)
+                metrics_entry["early_stop_triggered"] = metrics_entry.get("early_stop_triggered", False)
+
             if best_record:
                 best_candidate = best_record['candidate']
                 best_score = best_record['score']
                 best_provider = getattr(best_candidate, 'provider', None)
+
+            if best_candidate is None and backfill_settings and getattr(backfill_settings, "enable", False):
+                backfill_candidate = self._attempt_backfill_segment(
+                    orchestrator=orchestrator,
+                    segment_index=idx,
+                    seg_duration=seg_duration,
+                    filters=filters,
+                    backfill_cfg=backfill_settings,
+                )
+                if backfill_candidate is not None:
+                    metrics_entry["backfill_used"] = True
+                    best_candidate = backfill_candidate
+                    best_score = getattr(backfill_candidate, 'provider_score', 0.0)
+                    best_provider = getattr(best_candidate, 'provider', None)
+                    best_record = {
+                        'candidate': backfill_candidate,
+                        'provider': best_provider,
+                        'score': best_score,
+                        'duration_s': getattr(backfill_candidate, 'duration', None),
+                        'orientation': None,
+                        'filter_reason': None,
+                        'passes_filters': True,
+                        'below_threshold': False,
+                    }
+                    candidate_records.append(best_record)
+                    filter_pass_records.append(best_record)
+
+            metrics_entry["selected"] = bool(best_candidate)
+            if best_candidate is not None and not getattr(best_candidate, "asset_id", None):
+                identifier = getattr(best_candidate, "identifier", None) or getattr(best_candidate, "url", None)
+                if identifier:
+                    try:
+                        setattr(best_candidate, "asset_id", identifier)
+                    except Exception:
+                        pass
 
             reject_reason_counts: Counter[str] = Counter()
             candidate_summary: List[Dict[str, Any]] = []
@@ -3462,6 +3680,13 @@ class VideoProcessor:
                 queries=queries,
             )
 
+            metrics_entry = segment_metrics.get(idx)
+            if metrics_entry is not None:
+                metrics_entry["selected"] = bool(best_candidate)
+                metrics_entry["coverage_after"] = 1.0 if best_candidate else 0.0
+                metrics_entry["max_gap_relaxed"] = bool(metrics_entry.get("backfill_used"))
+                log_segment_metrics(metrics_entry)
+
         # Add effective domain fields to the summary line for easy scraping
         provider_status = {}
         try:
@@ -3541,6 +3766,12 @@ class VideoProcessor:
                 logger.warning('[BROLL] unable to prepare core download dir: %s', exc)
                 download_dir = None
 
+            try:
+                pipeline_settings = get_settings()
+                broll_settings = getattr(pipeline_settings, "broll", None)
+            except Exception:
+                broll_settings = None
+
             for order, asset in enumerate(selected_assets):
                 candidate = asset.get('candidate') if isinstance(asset, dict) else None
                 if not candidate or download_dir is None:
@@ -3563,10 +3794,53 @@ class VideoProcessor:
                     continue
 
                 start = float(asset.get('start', 0.0) or 0.0)
-                end = float(asset.get('end', start) or start)
-                duration = getattr(candidate, 'duration', None)
-                if isinstance(duration, (int, float)) and duration > 0:
-                    end = min(end, start + float(duration)) if end > start else start + float(duration)
+                segment_window_end = float(asset.get('end', start) or start)
+
+                initial_lead = None
+                first_window_max = None
+                min_duration = None
+                max_duration = None
+                if broll_settings is not None:
+                    initial_lead = float(getattr(broll_settings, "initial_lead_s", broll_settings.min_start_s))
+                    first_window_max = float(getattr(broll_settings, "first_window_max_s", initial_lead))
+                    min_duration = max(0.0, float(getattr(broll_settings, "min_duration_s", 0.0)))
+                    max_duration = max(
+                        min_duration,
+                        float(getattr(broll_settings, "max_duration_s", max(2.0, min_duration))),
+                    )
+
+                if segment_idx == 0 and first_window_max is not None and segment_window_end > start:
+                    adjusted_start = max(start, initial_lead if initial_lead is not None else start)
+                    adjusted_start = min(adjusted_start, first_window_max)
+                    start = min(adjusted_start, segment_window_end)
+
+                duration_hint = getattr(candidate, 'duration', None)
+                duration_value: Optional[float]
+                if isinstance(duration_hint, (int, float)) and float(duration_hint) > 0:
+                    duration_value = float(duration_hint)
+                else:
+                    duration_value = None
+
+                window_available = max(0.0, segment_window_end - start)
+                effective_duration = duration_value if duration_value is not None else window_available
+
+                if broll_settings is not None:
+                    if effective_duration <= 0.0:
+                        effective_duration = min_duration or 0.0
+                    if max_duration is not None:
+                        effective_duration = min(effective_duration, max_duration)
+                    if min_duration is not None:
+                        effective_duration = max(effective_duration, min_duration)
+                    if window_available > 0.0:
+                        effective_duration = min(effective_duration, window_available)
+                    if (min_duration or 0.0) > 0.0 and effective_duration < (min_duration or 0.0):
+                        if window_available >= (min_duration or 0.0):
+                            effective_duration = min(window_available, max_duration or window_available)
+                        else:
+                            continue
+                end = start + effective_duration if effective_duration > 0.0 else start
+                if segment_window_end > start:
+                    end = min(end, segment_window_end)
                 if end <= start:
                     continue
 
@@ -4501,6 +4775,39 @@ class VideoProcessor:
 
         return orientation, duration_s
 
+    def _attempt_backfill_segment(
+        self,
+        *,
+        orchestrator: FetcherOrchestrator,
+        segment_index: int,
+        seg_duration: float,
+        filters: Optional[dict],
+        backfill_cfg,
+    ):
+        neutral_queries = getattr(backfill_cfg, "neutral_queries", ())
+        mini_topk = max(1, int(getattr(backfill_cfg, "mini_topk", 1) or 1))
+        for query in neutral_queries:
+            if not query:
+                continue
+            try:
+                candidates = orchestrator.fetch_candidates(
+                    [query],
+                    segment_index=segment_index,
+                    duration_hint=seg_duration,
+                    filters=filters,
+                )
+            except Exception:
+                continue
+            if not candidates:
+                continue
+            unique_candidates, _ = dedupe_by_url(candidates)
+            unique_candidates, _ = dedupe_by_phash(unique_candidates)
+            if not unique_candidates:
+                continue
+            unique_candidates = unique_candidates[:mini_topk]
+            return unique_candidates[0]
+        return None
+
     def _rank_candidate(self, segment_text: str, candidate, selection_cfg, segment_duration: float) -> float:
         base_score = self._estimate_candidate_score(candidate, selection_cfg, segment_duration)
         title = (getattr(candidate, 'title', '') or '').lower()
@@ -4792,7 +5099,7 @@ class VideoProcessor:
             
             clip = video.subclip(start_time, end_time)
             output_path = Config.CLIPS_FOLDER / f"clip_{i+1:02d}.mp4"
-            clip.write_videofile(str(output_path), verbose=False, logger=None)
+            clip.write_videofile(str(output_path), logger=None)
         
         video.close()
         logger.info(f"Ã¢Å“â€¦ {segments} clips gÃƒÂ©nÃƒÂ©rÃƒÂ©s")
@@ -5239,7 +5546,7 @@ class VideoProcessor:
                 final_height = final_height - 1 if final_height > 1 else final_height + 1
             
             return cv2.resize(cropped, (final_width, final_height), interpolation=cv2.INTER_LANCZOS4)
-        reframed = video.fl_image(crop_frame)
+        reframed = video.image_transform(crop_frame)
         output_path = Config.TEMP_FOLDER / f"reframed_{clip_path.name}"
         try:
             # Prefer AMD AMF hardware encoder on this system; boost quality slightly with QP=18
@@ -5248,7 +5555,6 @@ class VideoProcessor:
                 fps=fps,
                 codec='h264_nvenc',
                 audio_codec='aac',
-                verbose=False,
                 logger=None,
                 preset=None,
                 ffmpeg_params=['-rc','vbr','-cq','19','-b:v','0','-maxrate','0','-pix_fmt','yuv420p','-movflags','+faststart']
@@ -5260,7 +5566,6 @@ class VideoProcessor:
                 fps=fps,
                 codec='libx264',
                 audio_codec='aac',
-                verbose=False,
                 logger=None,
                 preset='medium',
                 ffmpeg_params=['-pix_fmt','yuv420p','-movflags','+faststart','-crf','20']
@@ -5670,7 +5975,7 @@ class VideoProcessor:
                 from src.pipeline.renderer import render_video  # type: ignore
                 from src.pipeline.transcription import TranscriptSegment  # type: ignore
 
-                from moviepy import VideoFileClip as _VFC
+                from moviepy.editor import VideoFileClip as _VFC
                 # Optionnel: indexation FAISS/CLIP
                 try:
                     from src.pipeline.indexer import build_index  # type: ignore
@@ -7642,12 +7947,3 @@ if __name__ == '__main__':
         sys.exit(0)
     _vp_maybe_utf8_console()
     raise SystemExit(main())
-
-
-
-
-
-
-
-
-

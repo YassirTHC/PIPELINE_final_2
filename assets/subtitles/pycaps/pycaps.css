@@ -1,0 +1,45 @@
+@font-face {
+    font-family: 'Montserrat ExtraBold';
+    src: url('Montserrat-ExtraBold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 800;
+}
+
+@font-face {
+    font-family: 'Montserrat Bold';
+    src: url('Montserrat-Bold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 700;
+}
+
+.line {
+    display: inline-block;
+    padding: 18px 30px;
+    border-radius: 28px;
+    background-color: #101218;
+    border: 2px solid #f7aa2d;
+}
+
+.word {
+    display: inline-block;
+    margin-right: 8px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 58px;
+    color: #ffffff;
+}
+
+.word:last-child {
+    margin-right: 0;
+}
+
+.word-not-narrated-yet {
+    color: #c2cae2;
+}
+
+.word-being-narrated {
+    color: #f7aa2d;
+}
+
+.word-already-narrated {
+    color: #ffffff;
+}

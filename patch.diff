@@ -1,51 +1,14 @@
 *** Begin Patch
-*** Update File: pipeline_core/configuration.py
+*** Update File: video_processor.py
 @@
--from dataclasses import dataclass, field
--from pathlib import Path
--from typing import Iterable, List, Optional, Sequence
--
--from config import Config
--
--
--TRUE_SET = {\"1\", \"true\", \"t\", \"yes\", \"y\", \"on\"}
--FALSE_SET = {\"0\", \"false\", \"f\", \"no\", \"n\", \"off\"}
-+from dataclasses import dataclass, field
-+from pathlib import Path
-+from typing import Iterable, List, Optional, Sequence
-+
-+from config import Config
-+
-+
-+TRUE_SET = {\"1\", \"true\", \"t\", \"yes\", \"y\", \"on\"}
-+FALSE_SET = {\"0\", \"false\", \"f\", \"no\", \"n\", \"off\"}
-@@
--def _split_csv(raw: Optional[str]) -> list[str]:
-+def _split_csv(raw: Optional[str]) -> list[str]:
-@@
--def _coerce_positive_float(value: Optional[str | float], default: float) -> float:
-+def _coerce_positive_float(value: Optional[str | float], default: float) -> float:
-@@
- def _default_max_segments_in_flight() -> int:
-     return _coerce_positive_int(os.getenv(\"PIPELINE_MAX_SEGMENTS_IN_FLIGHT\"), 1)
-+
-+
-+def _env_default_bool(name: str, default: bool) -> bool:
-+    raw = os.getenv(name)
-+    parsed = _env_to_bool(raw, default=default)
-+    return default if parsed is None else parsed
-+
-+
-+def _env_default_float(name: str, default: float) -> float:
-+    raw = os.getenv(name)
-+    if raw is None:
-+        return default
-+    try:
-+        return float(str(raw).strip())
-+    except (TypeError, ValueError):
-+        return default
-+
-+
-+PREFER_LANDSCAPE_DEFAULT = _env_default_bool(\"SELECTION_PREFER_LANDSCAPE\", False)
-+MIN_SCORE_DEFAULT = _env_default_float(\"SELECTION_MIN_SCORE\", 0.25)
+         total_latency_ms = 0
+         segments_with_queries = 0
+         forced_keep_consumed = 0
+         previously_used_urls: Set[str] = set()
++        try:
++            settings_snapshot = get_settings()
++            target_total = getattr(getattr(settings_snapshot, 'broll', None), 'target_total', None)
++        except Exception:
++            target_total = None
+         raw_forced_keep_budget = getattr(selection_cfg, 'forced_keep_budget', None)
 *** End Patch

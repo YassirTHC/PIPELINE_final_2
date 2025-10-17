@@ -1,0 +1,4 @@
+[submodule "vendor/pycaps_new"]
+	path = vendor/pycaps_new
+	url = https://github.com/<ORG_OU_COMPTE>/<REPO_PYCAPS>.git
+	branch = main

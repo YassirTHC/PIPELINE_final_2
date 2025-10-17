@@ -51,7 +51,7 @@ def debug_emoji_frames():
     # 2. Tester les clips MoviePy
     print("\n2️⃣ TEST CLIP MOVIEPY:")
     try:
-        from moviepy import ImageClip, CompositeVideoClip, ColorClip
+        from moviepy.editor import ImageClip, CompositeVideoClip, ColorClip
         
         # Créer un clip à partir de notre frame emoji
         emoji_clip = ImageClip(frame, duration=2.0)
@@ -75,7 +75,7 @@ def debug_emoji_frames():
     # 3. Test export simple
     print("\n3️⃣ TEST EXPORT SIMPLE:")
     try:
-        from moviepy import ImageClip
+        from moviepy.editor import ImageClip
         
         # Créer une vidéo test très simple
         test_clip = ImageClip(frame, duration=1.0)
@@ -95,7 +95,7 @@ def debug_emoji_frames():
             print(f"✅ Export réussi: {size} bytes")
             
             # Recharger et vérifier
-            from moviepy import VideoFileClip
+            from moviepy.editor import VideoFileClip
             reloaded = VideoFileClip(test_output)
             reloaded_frame = reloaded.get_frame(0)
             reloaded_pixels = np.sum(reloaded_frame > 0)
@@ -139,7 +139,7 @@ def check_actual_video():
     print(f"📹 Vidéo analysée: {latest_video.name}")
     
     try:
-        from moviepy import VideoFileClip
+        from moviepy.editor import VideoFileClip
         
         video = VideoFileClip(str(latest_video))
         
