@@ -47,3 +47,4 @@ debug/
 *.log
 *.tmp
 *.DS_Store
+debug/
