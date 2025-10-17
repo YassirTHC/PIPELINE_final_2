@@ -2355,12 +2355,12 @@ def _ollama_generate_text(
         if forced_text:
             _record_llm_path("segment_blocking", block_reason)
             logger.info(
-                "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
+                "[LLM] dynamic text completion (non-stream) ok, len=%d",
                 len(forced_text),
             )
             return forced_text, "", 0, len(forced_text), 1
         logger.debug(
-            "[LLM] forced non-streaming fallback returned empty payload; retrying stream",
+            "[LLM] forced non-streaming path returned empty payload; retrying stream",
             extra={"reason": block_reason or "stream_err"},
         )
         _clear_stream_block()
@@ -2469,7 +2469,7 @@ def _ollama_generate_text(
                         _note_stream_failure("stream_err")
                         _record_llm_path("segment_blocking", "stream_err")
                         logger.info(
-                            "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
+                            "[LLM] dynamic text completion (non-stream) ok, len=%d",
                             len(fallback_text),
                         )
                         return fallback_text, "", chunk_count, len(fallback_text), attempts_used
@@ -2540,7 +2540,7 @@ def _ollama_generate_text(
     _record_llm_path("segment_blocking", fallback_reason)
     if fallback_text:
         logger.info(
-            "[LLM] dynamic text completion (non-streaming fallback) ok, len=%d",
+            "[LLM] dynamic text completion (non-stream) ok, len=%d",
             len(fallback_text),
         )
         return fallback_text, (reason or ""), chunk_count, len(fallback_text), attempts_used

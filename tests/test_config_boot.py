@@ -119,7 +119,38 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     monkeypatch.setenv("PIPELINE_LLM_REQUEST_COOLDOWN_JITTER_S", "-1")
     monkeypatch.setenv("PIPELINE_BROLL_MIN_START_SECONDS", "2.75")
     monkeypatch.setenv("PIPELINE_BROLL_MIN_GAP_SECONDS", "-1")
+    monkeypatch.setenv("PIPELINE_BROLL_MAX_GAP_SECONDS", "3.5")
     monkeypatch.setenv("PIPELINE_BROLL_NO_REPEAT_SECONDS", "9.0")
+    monkeypatch.setenv("PIPELINE_BROLL_MIN_DURATION_SECONDS", "0.9")
+    monkeypatch.setenv("PIPELINE_BROLL_MAX_DURATION_SECONDS", "1.8")
+    monkeypatch.setenv("PIPELINE_BROLL_INITIAL_LEAD_SECONDS", "0.8")
+    monkeypatch.setenv("PIPELINE_BROLL_FIRST_WINDOW_MAX_SECONDS", "1.4")
+    monkeypatch.setenv("PIPELINE_BROLL_TARGET_TOTAL", "14")
+    monkeypatch.setenv("BROLL_SELECTION_ENABLE_ADAPTIVE_TOPK", "true")
+    monkeypatch.setenv("BROLL_SELECTION_ELBOW_DROP_PCT", "0.2")
+    monkeypatch.setenv("BROLL_SELECTION_MIN_RATIO_VS_BEST", "0.9")
+    monkeypatch.setenv("BROLL_SELECTION_K_MAX_PER_QUERY", "5")
+    monkeypatch.setenv("BROLL_SELECTION_K_MAX_GENERIC", "3")
+    monkeypatch.setenv("BROLL_SELECTION_K_SEG_MAX", "12")
+    monkeypatch.setenv("BROLL_SELECTION_GENERIC_VARIANTS", "typing on laptop,walking outdoors")
+    monkeypatch.setenv("BROLL_DIVERSITY_ENABLE_MMR", "1")
+    monkeypatch.setenv("BROLL_DIVERSITY_MMR_ALPHA", "0.65")
+    monkeypatch.setenv("BROLL_DIVERSITY_REPEAT_PENALTY", "0.3")
+    monkeypatch.setenv("BROLL_DIVERSITY_REPEAT_WINDOW", "3")
+    monkeypatch.setenv("BROLL_EARLY_STOP_ENABLE", "1")
+    monkeypatch.setenv("BROLL_EARLY_STOP_MIN_SELECTED", "2")
+    monkeypatch.setenv("BROLL_BACKFILL_ENABLE", "1")
+    monkeypatch.setenv("BROLL_BACKFILL_LOCAL_MAX_GAP_MULTIPLIER", "1.3")
+    monkeypatch.setenv("BROLL_BACKFILL_SHORT_INSERT_MIN_S", "0.9")
+    monkeypatch.setenv("BROLL_BACKFILL_SHORT_INSERT_MAX_S", "1.1")
+    monkeypatch.setenv("BROLL_BACKFILL_MINI_TOPK", "4")
+    monkeypatch.setenv("BROLL_BACKFILL_NEUTRAL_QUERIES", "typing on laptop,city street broll")
+    monkeypatch.setenv("SCHEDULER_TUNING_ENABLE_LOCAL_RELAX", "1")
+    monkeypatch.setenv("SCHEDULER_TUNING_LOCAL_GAP_MULTIPLIER", "1.25")
+    monkeypatch.setenv("SCHEDULER_TUNING_MICRO_INSERT_MIN_S", "0.9")
+    monkeypatch.setenv("SCHEDULER_TUNING_MICRO_INSERT_MAX_S", "1.3")
+    monkeypatch.setenv("SCHEDULER_TUNING_COVERAGE_TARGET", "0.85")
+    monkeypatch.setenv("SCHEDULER_TUNING_KEYWORD_ALIGN_SLACK_S", "0.6")
     monkeypatch.setenv("PIPELINE_FETCH_TIMEOUT_S", "-9.5")
     monkeypatch.setenv("BROLL_FETCH_MAX_PER_KEYWORD", "0")
     monkeypatch.setenv("FETCH_MAX", "12")
@@ -169,8 +200,45 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     assert settings.llm.request_cooldown_jitter_s == pytest.approx(0.0)
 
     assert settings.broll.min_start_s == pytest.approx(2.75)
-    assert settings.broll.min_gap_s == pytest.approx(0.0)
+    assert settings.broll.min_gap_s == pytest.approx(1.5)
+    assert settings.broll.max_gap_s == pytest.approx(3.5)
     assert settings.broll.no_repeat_s == pytest.approx(9.0)
+    assert settings.broll.min_duration_s == pytest.approx(0.9)
+    assert settings.broll.max_duration_s == pytest.approx(1.8)
+    assert settings.broll.initial_lead_s == pytest.approx(0.8)
+    assert settings.broll.first_window_max_s == pytest.approx(1.4)
+    assert settings.broll.target_total == 14
+    assert settings.broll_selection.enable_adaptive_topk is True
+    assert settings.broll_selection.elbow_drop_pct == pytest.approx(0.2)
+    assert settings.broll_selection.min_ratio_vs_best == pytest.approx(0.9)
+    assert settings.broll_selection.k_max_per_query == 5
+    assert settings.broll_selection.k_max_per_query_generic == 3
+    assert settings.broll_selection.k_seg_max == 12
+    assert tuple(settings.broll_selection.generic_query_variants) == (
+        "typing on laptop",
+        "walking outdoors",
+    )
+    assert settings.broll_diversity.enable_mmr is True
+    assert settings.broll_diversity.mmr_alpha == pytest.approx(0.65)
+    assert settings.broll_diversity.repeat_penalty == pytest.approx(0.3)
+    assert settings.broll_diversity.repeat_window == 3
+    assert settings.broll_early_stop.enable is True
+    assert settings.broll_early_stop.min_selected_before_stop == 2
+    assert settings.broll_backfill.enable is True
+    assert settings.broll_backfill.local_max_gap_multiplier == pytest.approx(1.3)
+    assert settings.broll_backfill.short_insert_min_s == pytest.approx(0.9)
+    assert settings.broll_backfill.short_insert_max_s == pytest.approx(1.1)
+    assert settings.broll_backfill.mini_topk == 4
+    assert tuple(settings.broll_backfill.neutral_queries) == (
+        "typing on laptop",
+        "city street broll",
+    )
+    assert settings.scheduler_tuning.enable_local_relax is True
+    assert settings.scheduler_tuning.local_gap_multiplier == pytest.approx(1.25)
+    assert settings.scheduler_tuning.micro_insert_min_s == pytest.approx(0.9)
+    assert settings.scheduler_tuning.micro_insert_max_s == pytest.approx(1.3)
+    assert settings.scheduler_tuning.coverage_target == pytest.approx(0.85)
+    assert settings.scheduler_tuning.keyword_align_slack_s == pytest.approx(0.6)
 
     assert settings.fetch.timeout_s == pytest.approx(0.0)
     assert settings.fetch.max_per_keyword == 1
@@ -268,4 +336,3 @@ def test_config_boot_effective_models_use_defaults(monkeypatch):
     assert payload["llm"]["model_json"] == "qwen-main"
     assert payload["llm"]["model_text"] == "qwen-main"
     assert Path(payload["paths"]["output_dir"]).name == "output"
-

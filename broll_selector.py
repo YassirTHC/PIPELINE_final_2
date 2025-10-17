@@ -688,7 +688,7 @@ class BrollSelector:
                         try:
                             if filename.endswith(('.mp4', '.mov', '.avi', '.mkv')):
                                 # Test d'ouverture rapide avec MoviePy
-                                from moviepy import VideoFileClip
+                                from moviepy.editor import VideoFileClip
                                 with VideoFileClip(str(file_path)) as test_clip:
                                     # Vérifier que la durée est cohérente
                                     if test_clip.duration <= 0 or test_clip.duration > 300:  # Max 5 minutes
@@ -804,7 +804,7 @@ class BrollSelector:
                         try:
                             if filename.endswith(('.mp4', '.mov', '.avi', '.mkv')):
                                 # Test d'ouverture rapide avec MoviePy
-                                from moviepy import VideoFileClip
+                                from moviepy.editor import VideoFileClip
                                 with VideoFileClip(str(file_path)) as test_clip:
                                     # Vérifier que la durée est cohérente
                                     if test_clip.duration <= 0 or test_clip.duration > 300:  # Max 5 minutes

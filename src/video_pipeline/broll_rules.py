@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 def _log(message: str) -> None:
@@ -26,20 +27,17 @@ def enforce_broll_schedule_rules(
     *,
     min_start_s: float,
     min_gap_s: float,
-    no_repeat_s: float
+    no_repeat_s: float,
+    max_gap_s: Optional[float] = None,
+    target_total: Optional[int] = None,
 ) -> List[BrollClip]:
     """
-    Applique 3 invariants:
-      1) Aucun B-roll avant `min_start_s`
-      2) Espace minimal `min_gap_s` entre la fin du prÃ©cÃ©dent et le dÃ©but du suivant
-      3) Anti-rÃ©pÃ©tition: mÃªme asset interdit dans une fenÃªtre `no_repeat_s`
-    StratÃ©gie: tri par (start, duration), filtrage en un passage.
+    Apply scheduling invariants on the proposed B-roll clips.
     """
     if not clips:
         return []
 
-    # Normalisation/tri dÃ©terministe
-    clips = [
+    normalized = [
         BrollClip(
             start_s=max(0.0, float(c.start_s)),
             end_s=max(float(c.start_s), float(c.end_s)),
@@ -48,42 +46,58 @@ def enforce_broll_schedule_rules(
         )
         for c in clips
     ]
-    clips.sort(key=lambda c: (c.start_s, _duration(c)))
+    normalized.sort(key=lambda c: (c.start_s, _duration(c)))
 
     kept: List[BrollClip] = []
     last_end: float = float("-inf")
     last_by_asset: Dict[str, float] = {}
 
-    min_start_s = float(min_start_s)
-    min_gap_s = float(min_gap_s)
-    no_repeat_s = float(no_repeat_s)
+    min_start = float(min_start_s)
+    min_gap = float(min_gap_s)
+    no_repeat = float(no_repeat_s)
+    max_gap = float(max_gap_s) if max_gap_s is not None else None
+    target_cap = int(target_total) if target_total not in (None, 0) else None
 
-    for c in clips:
-        # (1) Hook initial
-        if c.start_s < min_start_s:
+    for clip in normalized:
+        if clip.start_s < min_start:
             _log(
-                f"[BROLL] skip: too-early (<min_start) start={c.start_s:.2f}s asset={c.asset_id}"
+                f"[BROLL] skip: too-early (<min_start) start={clip.start_s:.2f}s asset={clip.asset_id}"
             )
             continue
 
-        # (2) Gap minimal
-        if kept and (c.start_s - last_end) < min_gap_s:
+        gap_from_prev_end = float("inf") if not kept else clip.start_s - last_end
+        if kept and gap_from_prev_end < min_gap:
             _log(
-                f"[BROLL] skip: too-close (<min_gap) start={c.start_s:.2f}s asset={c.asset_id}"
+                f"[BROLL] skip: too-close (<min_gap) start={clip.start_s:.2f}s asset={clip.asset_id}"
             )
             continue
 
-        # (3) Anti-repeat sur fenÃªtre temporelle
-        prev_t = last_by_asset.get(c.asset_id)
-        if prev_t is not None and (c.start_s - prev_t) < no_repeat_s:
-            _log(
-                f"[BROLL] skip: repeated (<no_repeat) start={c.start_s:.2f}s asset={c.asset_id}"
-            )
-            continue
+        prev_usage = last_by_asset.get(clip.asset_id)
+        repeated = prev_usage is not None and (clip.start_s - prev_usage) < no_repeat
+        if repeated:
+            if target_cap is not None and len(kept) < target_cap:
+                _log(
+                    f"[BROLL] keep: repeated asset allowed to reach target start={clip.start_s:.2f}s asset={clip.asset_id}"
+                )
+            else:
+                _log(
+                    f"[BROLL] skip: repeated (<no_repeat) start={clip.start_s:.2f}s asset={clip.asset_id}"
+                )
+                continue
 
-        kept.append(c)
-        last_end = c.end_s
-        last_by_asset[c.asset_id] = c.start_s
+        kept.append(clip)
+        if (
+            max_gap is not None
+            and kept
+            and last_end != float("-inf")
+            and gap_from_prev_end > max_gap
+        ):
+            _log(
+                f"[BROLL] gap-warning (>max_gap) gap={gap_from_prev_end:.2f}s asset={clip.asset_id}"
+            )
+
+        last_end = clip.end_s
+        last_by_asset[clip.asset_id] = clip.start_s
 
     return kept
 
@@ -91,25 +105,30 @@ def enforce_broll_schedule_rules(
 # --- SAFE PRINT OVERRIDE (appended for pytest capture robustness) ---
 try:
     from video_pipeline.utils.console import safe_print as __safe_print
+
     def _log(message: str) -> None:
         try:
             __safe_print(message)
         except Exception:
-            # never raise from logging
             pass
+
 except Exception:
-    # last resort: best-effort write to a real stream if present, swallow otherwise
+
     def _log(message: str) -> None:
         try:
             import sys
+
             stream = getattr(sys, "__stdout__", None) or getattr(sys, "stdout", None)
             if stream:
                 text = str(message) if message is not None else ""
                 if text and not text.endswith("\n"):
                     text += "\n"
                 stream.write(text)
-                try: stream.flush()
-                except Exception: pass
+                try:
+                    stream.flush()
+                except Exception:
+                    pass
         except Exception:
             pass
+
 # --- END OVERRIDE ---

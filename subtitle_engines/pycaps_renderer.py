@@ -15,7 +15,17 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-from moviepy import ColorClip, CompositeVideoClip, TextClip, VideoFileClip
+# Import MoviePy depuis l'API stable
+try:
+    from moviepy.editor import ColorClip, CompositeVideoClip, TextClip, VideoFileClip
+except Exception:  # compat éventuelle avec environnements atypiques
+    # Dégradé minimal : certains environnements n’exposent pas TextClip si ImageMagick n’est pas configuré.
+    # On importe au moins ce dont on a besoin pour PyCaps; TextClip sera importé à l’usage si nécessaire.
+    from moviepy.editor import ColorClip, CompositeVideoClip, VideoFileClip
+    try:
+        from moviepy.editor import TextClip  # lazy compat : ne crashe pas si indisponible
+    except Exception:
+        TextClip = None
 
 
 logger = logging.getLogger(__name__)
@@ -60,6 +70,18 @@ def _color_to_rgb(color: str) -> Tuple[int, int, int]:
 _EMOJI_PATTERN = re.compile(r"[\U0001F300-\U0001FAFF\U00002700-\U000027BF]")
 
 
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
+def _estimate_char_limit(font_size: float, ratio: float, video_width: int) -> int:
+    if video_width <= 0:
+        return max(8, int(font_size * 1.6))
+    effective_width = max(32.0, video_width * _clamp(ratio, 0.2, 0.95))
+    approx_char_width = max(1.0, font_size * 0.55)
+    return max(8, int(effective_width / approx_char_width))
+
+
 @dataclass(slots=True)
 class CaptionStyle:
     """Kinetic caption styling hints consumed by :func:`render_subtitles_over_video`."""
@@ -83,6 +105,11 @@ class CaptionStyle:
     uppercase_min_length: int = 6
     highlight_scale: float = 1.08
     allow_emojis: bool = False
+    line_height: float = 1.1
+    max_line_width_ratio: float = 0.9
+    box_padding_px: Optional[int] = None
+    min_font_size: int = 24
+    max_font_size: Optional[int] = None
 
     def with_overrides(self, **overrides: Any) -> "CaptionStyle":
         """Return a new style with the provided overrides applied."""
@@ -128,6 +155,40 @@ THEME_PRESETS: Dict[str, CaptionStyle] = {
         max_chars_per_line=24,
     ),
 }
+
+
+def _responsive_base_style(style: CaptionStyle, video_size: Tuple[int, int]) -> CaptionStyle:
+    width, height = video_size
+    if height <= 0:
+        return style
+
+    min_font = max(20, getattr(style, "min_font_size", 24))
+    max_font = getattr(style, "max_font_size", None)
+    baseline = int(round(height * 0.035))
+    if max_font is not None:
+        target_font = int(_clamp(baseline, min_font, max_font))
+    else:
+        target_font = int(_clamp(baseline, min_font, 42))
+
+    box_padding = int(round(target_font * 0.60))
+    ratio = 0.78
+    margin_bottom_pct = _clamp(0.06, 0.03, 0.18)
+    char_limit = max(style.max_chars_per_line, _estimate_char_limit(target_font, ratio, width))
+
+    return style.with_overrides(
+        fontsize=target_font,
+        max_lines=2,
+        line_height=1.15,
+        max_line_width_ratio=ratio,
+        margin_bottom_pct=margin_bottom_pct,
+        box_padding_px=box_padding,
+        stroke_width=2,
+        shadow_offset=(0, 2),
+        shadow_opacity=0.65,
+        background_opacity=0.35,
+        max_chars_per_line=char_limit,
+        min_font_size=min_font,
+    )
 
 
 @dataclass(slots=True)
@@ -210,12 +271,17 @@ def _build_word_timings(
     return timings
 
 
-def _wrap_words(words: Sequence[WordTiming], style: CaptionStyle) -> List[List[WordTiming]]:
+def _wrap_words(words: Sequence[WordTiming], style: CaptionStyle, video_width: int) -> List[List[WordTiming]]:
     if not words:
         return []
 
-    max_chars = max(8, style.max_chars_per_line)
     max_lines = max(1, style.max_lines)
+    ratio = max(0.2, min(0.95, getattr(style, "max_line_width_ratio", 0.9)))
+    approx_char_width = max(1.0, style.fontsize * 0.55)
+    dynamic_limit = int((video_width * ratio) / approx_char_width) if video_width > 0 else 0
+    if dynamic_limit <= 0:
+        dynamic_limit = style.max_chars_per_line
+    max_chars = max(8, min(style.max_chars_per_line, dynamic_limit))
 
     lines: List[List[WordTiming]] = []
     current: List[WordTiming] = []
@@ -225,15 +291,10 @@ def _wrap_words(words: Sequence[WordTiming], style: CaptionStyle) -> List[List[W
         display = word.display_text
         length = len(display)
         projected = length if not current else current_len + 1 + length
-        if current and projected > max_chars and len(lines) + 1 < max_lines:
+        if current and projected > max_chars:
             lines.append(current)
             current = [word]
             current_len = length
-            continue
-
-        if len(lines) + 1 == max_lines:
-            current.append(word)
-            current_len = projected
             continue
 
         current.append(word)
@@ -242,14 +303,61 @@ def _wrap_words(words: Sequence[WordTiming], style: CaptionStyle) -> List[List[W
     if current:
         lines.append(current)
 
-    # If we exceeded max lines, merge leftovers into the last line.
-    if len(lines) > max_lines:
-        merged: List[WordTiming] = []
-        for line in lines[max_lines - 1 :]:
-            merged.extend(line)
-        lines = lines[: max_lines - 1] + [merged]
-
     return lines
+
+
+def _fit_segment_style(
+    words: Sequence[WordTiming],
+    base_style: CaptionStyle,
+    video_width: int,
+) -> Tuple[CaptionStyle, List[List[WordTiming]]]:
+    ratio_candidates = []
+    initial_ratio = getattr(base_style, "max_line_width_ratio", 0.78)
+    ratio_candidates.append(_clamp(initial_ratio, 0.2, 0.9))
+    for fallback_ratio in (0.72, 0.68):
+        if fallback_ratio not in ratio_candidates:
+            ratio_candidates.append(fallback_ratio)
+
+    min_font = max(12, getattr(base_style, "min_font_size", 24))
+    max_font = max(min_font, getattr(base_style, "fontsize", 64))
+
+    for ratio in ratio_candidates:
+        font_size = max_font
+        while font_size >= min_font:
+            char_limit = _estimate_char_limit(font_size, ratio, video_width)
+            trial = base_style.with_overrides(
+                fontsize=int(font_size),
+                max_line_width_ratio=ratio,
+                max_chars_per_line=max(base_style.max_chars_per_line, char_limit),
+            )
+            wrapped = _wrap_words(words, trial, video_width)
+            if len(wrapped) <= trial.max_lines:
+                return trial, wrapped
+            font_size -= 2
+
+    # Final fallback: clamp to minimum font and merge overflow into last line
+    fallback_ratio = ratio_candidates[-1]
+    fallback_font = int(min_font)
+    fallback_char_limit = _estimate_char_limit(fallback_font, fallback_ratio, video_width)
+    fallback_style = base_style.with_overrides(
+        fontsize=fallback_font,
+        max_line_width_ratio=fallback_ratio,
+        max_chars_per_line=max(base_style.max_chars_per_line, fallback_char_limit),
+    )
+    wrapped_words = _wrap_words(words, fallback_style, video_width)
+    max_lines = max(1, fallback_style.max_lines)
+    if len(wrapped_words) > max_lines:
+        head = list(wrapped_words[: max_lines - 1]) if max_lines > 1 else []
+        tail_words: List[WordTiming] = []
+        for line in wrapped_words[max_lines - 1 :]:
+            tail_words.extend(line)
+        if tail_words:
+            if max_lines > 1:
+                head.append(tail_words)
+            else:
+                head = [tail_words]
+        wrapped_words = head
+    return fallback_style, wrapped_words
 
 
 def _text_clip(
@@ -292,11 +400,12 @@ def _compose_segment_clips(
 ) -> List[TextClip]:
     width, height = video_size
     duration = max(segment_end - segment_start, 0.08)
-    line_spacing = style.fontsize * 1.1
+    line_spacing = style.fontsize * (style.line_height if style.line_height else 1.1)
     bottom_margin = max(0.02, min(0.3, style.margin_bottom_pct)) * height
     total_height = len(words_by_line) * line_spacing
     base_y = height - bottom_margin - total_height
     space_width = _space_width(style)
+    max_line_width = width * _clamp(getattr(style, "max_line_width_ratio", 0.9), 0.2, 0.95)
 
     overlays: List[TextClip] = []
 
@@ -308,14 +417,21 @@ def _compose_segment_clips(
         base_clip = _text_clip(line_text, style=style, color=style.primary_color)
         line_width = float(base_clip.w or width * 0.8)
         line_height = float(base_clip.h or style.fontsize)
+        scale_factor = 1.0
+        if max_line_width > 0 and line_width > max_line_width:
+            scale_factor = max_line_width / line_width
+            base_clip = base_clip.resize(scale_factor)
+            line_width = float(base_clip.w or max_line_width)
+            line_height = float(base_clip.h or style.fontsize * scale_factor)
         x_start = (width - line_width) / 2
         y_pos = base_y + line_index * line_spacing
 
         layer_clips: List[Any] = []
 
         if style.background_opacity > 0:
-            padding_w = max(20, style.fontsize * 0.4)
-            padding_h = max(12, style.fontsize * 0.25)
+            padding = style.box_padding_px if style.box_padding_px is not None else None
+            padding_w = (padding if padding is not None else max(20, style.fontsize * 0.4)) * scale_factor
+            padding_h = (padding if padding is not None else max(12, style.fontsize * 0.25)) * scale_factor
             bg_size = (
                 int(line_width + padding_w * 2),
                 int(line_height + padding_h * 2),
@@ -353,12 +469,13 @@ def _compose_segment_clips(
         total_word_width = 0.0
         for word in line_words:
             metric_clip = _text_clip(word.display_text, style=style)
-            width_value = float(metric_clip.w or 0.0)
+            width_value = float(metric_clip.w or 0.0) * scale_factor
             metrics.append((word, width_value))
             total_word_width += width_value
             metric_clip.close()
 
-        total_word_width += space_width * max(0, len(line_words) - 1)
+        spaced_gap = space_width * scale_factor
+        total_word_width += spaced_gap * max(0, len(line_words) - 1)
         scale = 1.0
         if total_word_width > 0:
             scale = line_width / total_word_width
@@ -366,10 +483,9 @@ def _compose_segment_clips(
         cursor = x_start
         for idx, (word, measured_width) in enumerate(metrics):
             width_word = measured_width * scale if measured_width > 0 else style.fontsize * scale
-
             highlight_clip = _text_clip(word.display_text, style=style, color=style.secondary_color)
             highlight_duration = max(0.05, word.end - word.start)
-            highlight_clip = highlight_clip.resize(style.highlight_scale)
+            highlight_clip = highlight_clip.resize(style.highlight_scale * scale_factor)
             highlight_clip = highlight_clip.set_start(word.start).set_duration(highlight_duration)
             highlight_clip = highlight_clip.set_position(
                 (
@@ -381,7 +497,7 @@ def _compose_segment_clips(
 
             cursor += width_word
             if idx < len(line_words) - 1:
-                cursor += space_width * scale
+                cursor += spaced_gap * scale
 
     return overlays
 
@@ -397,6 +513,7 @@ def render_subtitles_over_video(
 
     video_path = Path(input_video)
     output = Path(output_path)
+    responsive_enabled = bool(options.pop("responsive", False))
     if style is None:
         theme = str(options.get("theme", "hormozi")).lower() or "hormozi"
         style = THEME_PRESETS.get(theme, THEME_PRESETS["hormozi"])
@@ -411,6 +528,7 @@ def render_subtitles_over_video(
         "stroke_width",
         "shadow_color",
         "shadow_opacity",
+        "shadow_offset",
         "background_color",
         "background_opacity",
         "margin_bottom_pct",
@@ -420,6 +538,11 @@ def render_subtitles_over_video(
         "uppercase_min_length",
         "highlight_scale",
         "allow_emojis",
+        "line_height",
+        "max_line_width_ratio",
+        "box_padding_px",
+        "min_font_size",
+        "max_font_size",
     ):
         if key in options and options[key] is not None:
             style_overrides[key] = options[key]
@@ -434,21 +557,42 @@ def render_subtitles_over_video(
         raise RuntimeError(f"Unable to open video for subtitle rendering: {exc}") from exc
 
     try:
+        base_style = style
+        if responsive_enabled:
+            base_style = _responsive_base_style(style, video.size)
+
+        video_width = int(video.size[0] if isinstance(video.size, tuple) and video.size else 0)
+
         for segment in segments:
-            word_timings = _build_word_timings(segment, style=style)
+            word_timings = _build_word_timings(segment, style=base_style)
             if not word_timings:
                 continue
             seg_start, seg_end = _ensure_duration(
                 segment.get("start", 0.0), segment.get("end", 0.0)
             )
-            lines = _wrap_words(word_timings, style)
+            if responsive_enabled:
+                segment_style, lines = _fit_segment_style(word_timings, base_style, video_width)
+            else:
+                segment_style = base_style
+                lines = _wrap_words(word_timings, segment_style, video_width)
+                if len(lines) > segment_style.max_lines:
+                    max_lines = max(1, segment_style.max_lines)
+                    merged_tail: List[WordTiming] = []
+                    for line in lines[max_lines - 1 :]:
+                        merged_tail.extend(line)
+                    lines = lines[: max_lines - 1]
+                    if merged_tail:
+                        if max_lines > 1:
+                            lines.append(merged_tail)
+                        else:
+                            lines = [merged_tail]
             overlays.extend(
                 _compose_segment_clips(
                     video_size=video.size,
                     words_by_line=lines,
                     segment_start=seg_start,
                     segment_end=seg_end,
-                    style=style,
+                    style=segment_style,
                 )
             )
 
@@ -462,7 +606,6 @@ def render_subtitles_over_video(
                 threads=int(options.get("threads", 4)),
                 preset=options.get("preset", "medium"),
                 ffmpeg_params=["-movflags", "+faststart"],
-                verbose=False,
                 logger=None,
             )
             return str(output)
@@ -478,7 +621,6 @@ def render_subtitles_over_video(
             remove_temp=True,
             ffmpeg_params=["-movflags", "+faststart"],
             preset=options.get("preset", "medium"),
-            verbose=False,
             logger=None,
         )
         composite.close()
@@ -494,4 +636,3 @@ def render_subtitles_over_video(
 
 
 __all__ = ["CaptionStyle", "render_subtitles_over_video", "THEME_PRESETS"]
-

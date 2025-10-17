@@ -1,4 +1,4 @@
-﻿"""Strongly typed configuration loader for the video pipeline."""
+"""Strongly typed configuration loader for the video pipeline."""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,7 @@ import os
 from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, Tuple
 
 
 _TRUE_VALUES = {"1", "true", "t", "yes", "y", "on"}
@@ -162,9 +162,69 @@ class FetchSettings:
 
 @dataclass(slots=True)
 class BrollSettings:
-    min_start_s: float = 0.5
-    min_gap_s: float = 0.5
+    min_start_s: float = 0.7
+    min_gap_s: float = 1.5
+    max_gap_s: float = 4.0
     no_repeat_s: float = 4.0
+    min_duration_s: float = 0.8
+    max_duration_s: float = 2.0
+    initial_lead_s: float = 0.7
+    first_window_max_s: float = 1.5
+    target_total: int = 12
+
+
+@dataclass(slots=True)
+class BrollSelectionSettings:
+    enable_adaptive_topk: bool = False
+    elbow_drop_pct: float = 0.15
+    min_ratio_vs_best: float = 0.85
+    k_max_per_query: int = 6
+    k_max_per_query_generic: int = 4
+    k_seg_max: int = 18
+    generic_query_variants: Tuple[str, ...] = (
+        "typing on laptop",
+        "walking outdoors",
+        "whiteboard sketch",
+    )
+
+
+@dataclass(slots=True)
+class BrollDiversitySettings:
+    enable_mmr: bool = False
+    mmr_alpha: float = 0.7
+    repeat_penalty: float = 0.25
+    repeat_window: int = 2
+
+
+@dataclass(slots=True)
+class BrollEarlyStopSettings:
+    enable: bool = False
+    min_selected_before_stop: int = 1
+
+
+@dataclass(slots=True)
+class BrollBackfillSettings:
+    enable: bool = False
+    local_max_gap_multiplier: float = 1.2
+    short_insert_min_s: float = 0.8
+    short_insert_max_s: float = 1.2
+    neutral_queries: Tuple[str, ...] = (
+        "typing on laptop",
+        "city street broll",
+        "reaction close-up",
+        "whiteboard sketch",
+    )
+    mini_topk: int = 3
+
+
+@dataclass(slots=True)
+class SchedulerTuningSettings:
+    enable_local_relax: bool = False
+    local_gap_multiplier: float = 1.2
+    micro_insert_min_s: float = 0.8
+    micro_insert_max_s: float = 1.2
+    coverage_target: float = 0.8
+    keyword_align_slack_s: float = 0.7
 
 
 @dataclass(slots=True)
@@ -192,6 +252,7 @@ class SubtitleSettings:
     uppercase_min_length: int = 6
     highlight_scale: float = 1.08
     enable_emojis: bool = True
+    responsive_mode: bool = False
     emoji_target_per_10: int = 5
     emoji_min_gap_groups: int = 2
     emoji_max_per_segment: int = 3
@@ -212,6 +273,11 @@ class Settings:
     llm: LLMSettings
     fetch: FetchSettings
     broll: BrollSettings
+    broll_selection: BrollSelectionSettings
+    broll_diversity: BrollDiversitySettings
+    broll_early_stop: BrollEarlyStopSettings
+    broll_backfill: BrollBackfillSettings
+    scheduler_tuning: SchedulerTuningSettings
     subtitles: SubtitleSettings
 
     def to_log_payload(self) -> Dict[str, object]:
@@ -259,7 +325,48 @@ class Settings:
             "broll": {
                 "min_start_s": self.broll.min_start_s,
                 "min_gap_s": self.broll.min_gap_s,
+                "max_gap_s": getattr(self.broll, "max_gap_s", None),
                 "no_repeat_s": self.broll.no_repeat_s,
+                "min_duration_s": getattr(self.broll, "min_duration_s", None),
+                "max_duration_s": getattr(self.broll, "max_duration_s", None),
+                "initial_lead_s": getattr(self.broll, "initial_lead_s", None),
+                "first_window_max_s": getattr(self.broll, "first_window_max_s", None),
+                "target_total": getattr(self.broll, "target_total", None),
+            },
+            "broll_selection": {
+                "enable_adaptive_topk": self.broll_selection.enable_adaptive_topk,
+                "elbow_drop_pct": self.broll_selection.elbow_drop_pct,
+                "min_ratio_vs_best": self.broll_selection.min_ratio_vs_best,
+                "k_max_per_query": self.broll_selection.k_max_per_query,
+                "k_max_per_query_generic": self.broll_selection.k_max_per_query_generic,
+                "k_seg_max": self.broll_selection.k_seg_max,
+                "generic_query_variants": list(self.broll_selection.generic_query_variants),
+            },
+            "broll_diversity": {
+                "enable_mmr": self.broll_diversity.enable_mmr,
+                "mmr_alpha": self.broll_diversity.mmr_alpha,
+                "repeat_penalty": self.broll_diversity.repeat_penalty,
+                "repeat_window": self.broll_diversity.repeat_window,
+            },
+            "broll_early_stop": {
+                "enable": self.broll_early_stop.enable,
+                "min_selected_before_stop": self.broll_early_stop.min_selected_before_stop,
+            },
+            "broll_backfill": {
+                "enable": self.broll_backfill.enable,
+                "local_max_gap_multiplier": self.broll_backfill.local_max_gap_multiplier,
+                "short_insert_min_s": self.broll_backfill.short_insert_min_s,
+                "short_insert_max_s": self.broll_backfill.short_insert_max_s,
+                "mini_topk": self.broll_backfill.mini_topk,
+                "neutral_queries": list(self.broll_backfill.neutral_queries),
+            },
+            "scheduler_tuning": {
+                "enable_local_relax": self.scheduler_tuning.enable_local_relax,
+                "local_gap_multiplier": self.scheduler_tuning.local_gap_multiplier,
+                "micro_insert_min_s": self.scheduler_tuning.micro_insert_min_s,
+                "micro_insert_max_s": self.scheduler_tuning.micro_insert_max_s,
+                "coverage_target": self.scheduler_tuning.coverage_target,
+                "keyword_align_slack_s": self.scheduler_tuning.keyword_align_slack_s,
             },
             "subtitles": {
                 "font_path": self.subtitles.font_path,
@@ -498,22 +605,243 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
 
 
 def _broll_settings(env: Optional[Mapping[str, str]]) -> BrollSettings:
+    min_start = _coerce_float(
+        _env(env, "PIPELINE_BROLL_MIN_START_SECONDS", "0.7"),
+        0.7,
+        minimum=0.0,
+    )
+    min_gap = _coerce_float(
+        _env(env, "PIPELINE_BROLL_MIN_GAP_SECONDS", "1.5"),
+        1.5,
+        minimum=1.5,
+    )
+    max_gap = _coerce_float(
+        _env(env, "PIPELINE_BROLL_MAX_GAP_SECONDS", "4.0"),
+        4.0,
+        minimum=0.0,
+    )
+    no_repeat = _coerce_float(
+        _env(env, "PIPELINE_BROLL_NO_REPEAT_SECONDS", "4.0"),
+        4.0,
+        minimum=0.0,
+    )
+    min_duration = _coerce_float(
+        _env(env, "PIPELINE_BROLL_MIN_DURATION_SECONDS", "0.8"),
+        0.8,
+        minimum=0.0,
+    )
+    max_duration = _coerce_float(
+        _env(env, "PIPELINE_BROLL_MAX_DURATION_SECONDS", "2.0"),
+        2.0,
+        minimum=0.0,
+    )
+    if max_duration <= 0.0 or max_duration < min_duration:
+        max_duration = max(min_duration, 0.1)
+    initial_lead = _coerce_float(
+        _env(env, "PIPELINE_BROLL_INITIAL_LEAD_SECONDS", "0.7"),
+        0.7,
+        minimum=0.0,
+    )
+    first_window_max = _coerce_float(
+        _env(env, "PIPELINE_BROLL_FIRST_WINDOW_MAX_SECONDS", "1.5"),
+        1.5,
+        minimum=0.0,
+    )
+    if first_window_max < initial_lead:
+        first_window_max = initial_lead
+    target_total = _coerce_int(
+        _env(env, "PIPELINE_BROLL_TARGET_TOTAL", "12"),
+        12,
+        minimum=0,
+    )
+
     return BrollSettings(
-        min_start_s=_coerce_float(
-            _env(env, "PIPELINE_BROLL_MIN_START_SECONDS", "2.0"),
-            2.0,
-            minimum=0.0,
-        ),
-        min_gap_s=_coerce_float(
-            _env(env, "PIPELINE_BROLL_MIN_GAP_SECONDS", "1.5"),
-            1.5,
-            minimum=0.0,
-        ),
-        no_repeat_s=_coerce_float(
-            _env(env, "PIPELINE_BROLL_NO_REPEAT_SECONDS", "6.0"),
-            6.0,
-            minimum=0.0,
-        ),
+        min_start_s=min_start,
+        min_gap_s=min_gap,
+        max_gap_s=max_gap,
+        no_repeat_s=no_repeat,
+        min_duration_s=min_duration,
+        max_duration_s=max_duration,
+        initial_lead_s=initial_lead,
+        first_window_max_s=first_window_max,
+        target_total=target_total,
+    )
+
+
+def _broll_selection_settings(env: Optional[Mapping[str, str]]) -> BrollSelectionSettings:
+    defaults = BrollSelectionSettings()
+    enable = _resolve_bool_env(
+        env,
+        "BROLL_SELECTION_ENABLE_ADAPTIVE_TOPK",
+        "BROLL_ENABLE_ADAPTIVE_TOPK",
+        default=defaults.enable_adaptive_topk,
+    )
+    elbow = _coerce_float(
+        _env(env, "BROLL_SELECTION_ELBOW_DROP_PCT"),
+        defaults.elbow_drop_pct,
+        minimum=0.0,
+    )
+    ratio = _coerce_float(
+        _env(env, "BROLL_SELECTION_MIN_RATIO_VS_BEST"),
+        defaults.min_ratio_vs_best,
+        minimum=0.0,
+    )
+    k_max = _coerce_int(
+        _env(env, "BROLL_SELECTION_K_MAX_PER_QUERY"),
+        defaults.k_max_per_query,
+        minimum=1,
+    )
+    k_max_generic = _coerce_int(
+        _env(env, "BROLL_SELECTION_K_MAX_GENERIC"),
+        defaults.k_max_per_query_generic,
+        minimum=1,
+    )
+    k_seg = _coerce_int(
+        _env(env, "BROLL_SELECTION_K_SEG_MAX"),
+        defaults.k_seg_max,
+        minimum=1,
+    )
+    raw_variants = _split_csv(_env(env, "BROLL_SELECTION_GENERIC_VARIANTS"))
+    variants = tuple(v.strip() for v in raw_variants if v.strip()) or defaults.generic_query_variants
+    return BrollSelectionSettings(
+        enable_adaptive_topk=enable,
+        elbow_drop_pct=elbow,
+        min_ratio_vs_best=ratio,
+        k_max_per_query=k_max,
+        k_max_per_query_generic=k_max_generic,
+        k_seg_max=k_seg,
+        generic_query_variants=variants,
+    )
+
+
+def _broll_diversity_settings(env: Optional[Mapping[str, str]]) -> BrollDiversitySettings:
+    defaults = BrollDiversitySettings()
+    enable = _resolve_bool_env(
+        env,
+        "BROLL_DIVERSITY_ENABLE_MMR",
+        "BROLL_ENABLE_MMR",
+        default=defaults.enable_mmr,
+    )
+    alpha = _coerce_float(
+        _env(env, "BROLL_DIVERSITY_MMR_ALPHA"),
+        defaults.mmr_alpha,
+        minimum=0.0,
+    )
+    penalty = _coerce_float(
+        _env(env, "BROLL_DIVERSITY_REPEAT_PENALTY"),
+        defaults.repeat_penalty,
+        minimum=0.0,
+    )
+    window = _coerce_int(
+        _env(env, "BROLL_DIVERSITY_REPEAT_WINDOW"),
+        defaults.repeat_window,
+        minimum=0,
+    )
+    return BrollDiversitySettings(
+        enable_mmr=enable,
+        mmr_alpha=alpha,
+        repeat_penalty=penalty,
+        repeat_window=window,
+    )
+
+
+def _broll_early_stop_settings(env: Optional[Mapping[str, str]]) -> BrollEarlyStopSettings:
+    defaults = BrollEarlyStopSettings()
+    enable = _resolve_bool_env(
+        env,
+        "BROLL_EARLY_STOP_ENABLE",
+        default=defaults.enable,
+    )
+    min_selected = _coerce_int(
+        _env(env, "BROLL_EARLY_STOP_MIN_SELECTED"),
+        defaults.min_selected_before_stop,
+        minimum=0,
+    )
+    return BrollEarlyStopSettings(
+        enable=enable,
+        min_selected_before_stop=min_selected,
+    )
+
+
+def _broll_backfill_settings(env: Optional[Mapping[str, str]]) -> BrollBackfillSettings:
+    defaults = BrollBackfillSettings()
+    enable = _resolve_bool_env(
+        env,
+        "BROLL_BACKFILL_ENABLE",
+        default=defaults.enable,
+    )
+    gap_multiplier = _coerce_float(
+        _env(env, "BROLL_BACKFILL_LOCAL_MAX_GAP_MULTIPLIER"),
+        defaults.local_max_gap_multiplier,
+        minimum=1.0,
+    )
+    short_min = _coerce_float(
+        _env(env, "BROLL_BACKFILL_SHORT_INSERT_MIN_S"),
+        defaults.short_insert_min_s,
+        minimum=0.0,
+    )
+    short_max = _coerce_float(
+        _env(env, "BROLL_BACKFILL_SHORT_INSERT_MAX_S"),
+        defaults.short_insert_max_s,
+        minimum=short_min,
+    )
+    mini_topk = _coerce_int(
+        _env(env, "BROLL_BACKFILL_MINI_TOPK"),
+        defaults.mini_topk,
+        minimum=1,
+    )
+    neutral_raw = _split_csv(_env(env, "BROLL_BACKFILL_NEUTRAL_QUERIES"))
+    neutral_queries = tuple(q.strip() for q in neutral_raw if q.strip()) or defaults.neutral_queries
+    return BrollBackfillSettings(
+        enable=enable,
+        local_max_gap_multiplier=gap_multiplier,
+        short_insert_min_s=short_min,
+        short_insert_max_s=short_max,
+        neutral_queries=neutral_queries,
+        mini_topk=mini_topk,
+    )
+
+
+def _scheduler_tuning_settings(env: Optional[Mapping[str, str]]) -> SchedulerTuningSettings:
+    defaults = SchedulerTuningSettings()
+    enable = _resolve_bool_env(
+        env,
+        "SCHEDULER_TUNING_ENABLE_LOCAL_RELAX",
+        "BROLL_SCHEDULER_ENABLE_LOCAL_RELAX",
+        default=defaults.enable_local_relax,
+    )
+    gap_multiplier = _coerce_float(
+        _env(env, "SCHEDULER_TUNING_LOCAL_GAP_MULTIPLIER"),
+        defaults.local_gap_multiplier,
+        minimum=1.0,
+    )
+    micro_min = _coerce_float(
+        _env(env, "SCHEDULER_TUNING_MICRO_INSERT_MIN_S"),
+        defaults.micro_insert_min_s,
+        minimum=0.0,
+    )
+    micro_max = _coerce_float(
+        _env(env, "SCHEDULER_TUNING_MICRO_INSERT_MAX_S"),
+        defaults.micro_insert_max_s,
+        minimum=micro_min,
+    )
+    coverage_target = _coerce_float(
+        _env(env, "SCHEDULER_TUNING_COVERAGE_TARGET"),
+        defaults.coverage_target,
+        minimum=0.0,
+    )
+    keyword_slack = _coerce_float(
+        _env(env, "SCHEDULER_TUNING_KEYWORD_ALIGN_SLACK_S"),
+        defaults.keyword_align_slack_s,
+        minimum=0.0,
+    )
+    return SchedulerTuningSettings(
+        enable_local_relax=enable,
+        local_gap_multiplier=gap_multiplier,
+        micro_insert_min_s=micro_min,
+        micro_insert_max_s=micro_max,
+        coverage_target=coverage_target,
+        keyword_align_slack_s=keyword_slack,
     )
 
 
@@ -565,6 +893,13 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
                 break
         except OSError:
             continue
+
+    if resolved_font is None:
+        fallback_candidate = assets_dir / "Montserrat-ExtraBold.ttf"
+        try:
+            resolved_font = str(fallback_candidate.resolve())
+        except OSError:
+            resolved_font = str(fallback_candidate)
 
     def _env_preferred(*keys: str) -> Optional[str]:
         for key in keys:
@@ -680,6 +1015,12 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         1.08,
         minimum=1.0,
     )
+    responsive_mode = _resolve_bool_env(
+        env,
+        "VP_SUBTITLES_RESPONSIVE",
+        "PIPELINE_SUBTITLE_RESPONSIVE",
+        default=False,
+    )
     emoji_target = _coerce_int(
         _env_preferred("PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10", "PIPELINE_SUB_EMOJI_TARGET_PER_10"),
         5,
@@ -748,6 +1089,7 @@ def _subtitle_settings(env: Optional[Mapping[str, str]]) -> SubtitleSettings:
         emoji_no_context_fallback=emoji_fallback,
         hero_emoji_enable=hero_enable,
         hero_emoji_max_per_segment=hero_max,
+        responsive_mode=responsive_mode,
     )
 
 
@@ -809,6 +1151,11 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
     llm = _llm_settings(env)
     fetch = _fetch_settings(env)
     broll = _broll_settings(env)
+    broll_selection = _broll_selection_settings(env)
+    broll_diversity = _broll_diversity_settings(env)
+    broll_early_stop = _broll_early_stop_settings(env)
+    broll_backfill = _broll_backfill_settings(env)
+    scheduler_tuning = _scheduler_tuning_settings(env)
     subtitles = _subtitle_settings(env)
 
     tfidf_disabled = _tfidf_disabled(env)
@@ -835,6 +1182,11 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         llm=llm,
         fetch=fetch,
         broll=broll,
+        broll_selection=broll_selection,
+        broll_diversity=broll_diversity,
+        broll_early_stop=broll_early_stop,
+        broll_backfill=broll_backfill,
+        scheduler_tuning=scheduler_tuning,
         subtitles=subtitles,
     )
 
@@ -901,5 +1253,3 @@ def reset_startup_log_for_tests() -> None:
     global _STARTUP_LOG_EMITTED
     with _CACHE_LOCK:
         _STARTUP_LOG_EMITTED = False
-
-

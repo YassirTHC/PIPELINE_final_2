@@ -8,7 +8,7 @@ import re
 import numpy as np
 from typing import List, Dict, Optional
 from pathlib import Path
-from moviepy import *
+from moviepy.editor import *
 
 class SubmagicNativeConfig:
     """Configuration pour TextClip natifs"""

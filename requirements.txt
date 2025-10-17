@@ -3,7 +3,7 @@
 
 # DÃ©pendances principales
 numpy>=2.2.0
-moviepy>=1.0.3
+moviepy>=1.0.3,<2.0
 opencv-python>=4.12.0
 openai-whisper>=1.1.0
 
@@ -14,7 +14,7 @@ customtkinter>=5.2.0
 # Traitement vidÃ©o et audio
 pillow>=11.0.0
 imageio>=2.37.0
-imageio-ffmpeg>=0.6.0
+imageio-ffmpeg>=0.4.9
 tqdm>=4.67.0
 pycaps
 

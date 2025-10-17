@@ -5,6 +5,7 @@ import concurrent.futures
 import json
 import logging
 import os
+import re
 import threading
 import time
 import urllib.parse
@@ -15,6 +16,11 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pipeline_core.configuration import FetcherOrchestratorConfig
+
+try:  # pragma: no cover - settings layer optional in tests
+    from video_pipeline.config import get_settings  # type: ignore
+except Exception:  # pragma: no cover - defensive
+    get_settings = None  # type: ignore[assignment]
 
 if os.environ.get('BROLL_FORCE_IPV4', '0') == '1':
     try:
@@ -164,13 +170,52 @@ class RemoteAssetCandidate:
     title: str
     identifier: str
     tags: Sequence[str]
+    source_query: str = ""
+    provider_score: float = 0.0
     _phash: Optional[str] = field(default=None, init=False, repr=False)
+
+    def _identity_key(self):
+        """
+        Immutable, stable key for hashing/equality.
+        Priority: provider + asset_id/id when available, otherwise URL.
+        """
+        pid = getattr(self, "asset_id", None) or getattr(self, "id", None) or getattr(self, "url", None)
+        return (getattr(self, "provider", None), pid)
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self._identity_key() == other._identity_key()
+
+    def __hash__(self):
+        # IMPORTANT: ne pas inclure de champs mutables (scores, metadata dict, etc.)
+        return hash(self._identity_key())
+
+
+_GENERIC_QUERY_PATTERN = re.compile(r"\bperson\s*focused\b", re.IGNORECASE)
+_KEEP_PHRASES: Tuple[str, ...] = (
+    "brain activity visualization",
+    "neural firing close-up",
+    "typing on laptop in cafe",
+    "walking outdoors",
+    "whiteboard sketch",
+)
 
 
 def _normalize_query_text(value: object) -> str:
     if not isinstance(value, str):
         return ""
-    collapsed = " ".join(value.split())
+    text = value.strip().lower()
+    if not text:
+        return ""
+    for phrase in _KEEP_PHRASES:
+        guard = phrase.replace(" ", "_")
+        text = text.replace(phrase, guard)
+    text = re.sub(r"[^\w\s\-]", " ", text)
+    collapsed = " ".join(text.split())
+    for phrase in _KEEP_PHRASES:
+        guard = phrase.replace(" ", "_")
+        collapsed = collapsed.replace(guard, phrase)
     return collapsed.strip()
 
 
@@ -206,6 +251,30 @@ class FetcherOrchestrator:
         self.config = config or FetcherOrchestratorConfig.from_environment()
         self._event_logger = event_logger
         self._logger = logging.getLogger(__name__)
+        self._selection_settings = self._resolve_selection_settings()
+        if (
+            self._selection_settings is not None
+            and getattr(self._selection_settings, "generic_query_variants", None)
+        ):
+            try:
+                generic_variants: Tuple[str, ...] = tuple(
+                    self._selection_settings.generic_query_variants  # type: ignore[attr-defined]
+                )
+            except Exception:
+                generic_variants = ()
+        else:
+            generic_variants = ()
+        self._generic_variants: Tuple[str, ...] = generic_variants
+        self._adaptive_metrics: Dict[str, Any] = {}
+
+    def _resolve_selection_settings(self) -> Optional[Any]:
+        if get_settings is None:
+            return None
+        try:
+            settings_snapshot = get_settings()
+        except Exception:
+            return None
+        return getattr(settings_snapshot, "broll_selection", None)
 
     def fetch_candidates(
         self,
@@ -524,7 +593,15 @@ class FetcherOrchestrator:
 
         if scored:
             scored.sort(key=lambda item: item[0], reverse=True)
-            processed = [entry[4] for entry in scored]
+            processed = []
+            for total_score, _duration_score, _portrait_bonus, _provider_score, candidate in scored:
+                try:
+                    candidate.provider_score = float(total_score)
+                except Exception:
+                    candidate.provider_score = float(total_score)
+                processed.append(candidate)
+
+        processed = self._apply_adaptive_topk(processed)
 
         provider_counts: Dict[str, int] = {}
         for provider_conf in providers:
@@ -750,6 +827,7 @@ class FetcherOrchestrator:
                     title=str(item.get('user', {}).get('name', '')),
                     identifier=str(item.get('id', '')),
                     tags=[t.get('title', '') for t in item.get('tags', []) if t.get('title')],
+                    source_query=query,
                 )
             )
         latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -836,6 +914,7 @@ class FetcherOrchestrator:
                     title=item.get('user', ''),
                     identifier=str(item.get('id', '')),
                     tags=[tag.strip() for tag in (item.get('tags', '') or '').split(',') if tag.strip()],
+                    source_query=query,
                 )
             )
         latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -858,6 +937,77 @@ class FetcherOrchestrator:
             )
         return candidates
 
+    def _apply_adaptive_topk(
+        self,
+        candidates: List[RemoteAssetCandidate],
+    ) -> List[RemoteAssetCandidate]:
+        cfg = self._selection_settings
+        if not cfg or not getattr(cfg, "enable_adaptive_topk", False) or not candidates:
+            return candidates
+
+        groups: Dict[Tuple[str, str], List[RemoteAssetCandidate]] = {}
+        order: List[Tuple[str, str]] = []
+        for cand in candidates:
+            provider_token = (getattr(cand, "provider", "") or "").strip().lower()
+            query_token = (cand.source_query or "").strip().lower()
+            key = (provider_token, query_token)
+            if key not in groups:
+                groups[key] = []
+                order.append(key)
+            groups[key].append(cand)
+
+        kept: List[RemoteAssetCandidate] = []
+        dropped = 0
+        for key in order:
+            group = groups.get(key, [])
+            group.sort(key=lambda item: getattr(item, "provider_score", 0.0), reverse=True)
+            if not group:
+                continue
+
+            best_score = getattr(group[0], "provider_score", 0.0) or 0.0
+            raw_query = group[0].source_query or ""
+            limit = getattr(cfg, "k_max_per_query", 6)
+            if raw_query and _GENERIC_QUERY_PATTERN.search(raw_query):
+                limit = getattr(cfg, "k_max_per_query_generic", limit)
+            limit = max(1, int(limit))
+
+            per_group_kept = 0
+            for idx, candidate in enumerate(group):
+                if per_group_kept >= limit:
+                    dropped += len(group) - idx
+                    break
+                current_score = getattr(candidate, "provider_score", 0.0) or 0.0
+                if idx > 0 and best_score > 0.0:
+                    drop_pct = (best_score - current_score) / best_score
+                    if drop_pct > getattr(cfg, "elbow_drop_pct", 0.15) + 1e-9:
+                        dropped += len(group) - idx
+                        break
+                    ratio = current_score / best_score if best_score else 0.0
+                    if ratio < getattr(cfg, "min_ratio_vs_best", 0.85) - 1e-9:
+                        dropped += len(group) - idx
+                        break
+                kept.append(candidate)
+                per_group_kept += 1
+
+        max_total = getattr(cfg, "k_seg_max", 0) or 0
+        if max_total > 0 and len(kept) > max_total:
+            dropped += len(kept) - max_total
+            kept = kept[:max_total]
+
+        if dropped:
+            try:
+                self._log_event(
+                    {
+                        "event": "adaptive_topk_prune",
+                        "requested": len(candidates),
+                        "kept": len(kept),
+                        "dropped": dropped,
+                    }
+                )
+            except Exception:
+                pass
+        return kept
+
     # ------------------------------------------------------------------
     # Utilities
     # ------------------------------------------------------------------
@@ -877,6 +1027,14 @@ class FetcherOrchestrator:
             candidates.append(primary)
         candidates.extend(deduped_keywords)
         queries = _normalize_query_list(candidates)
+
+        expanded: List[str] = []
+        for query in queries:
+            expanded.append(query)
+            if _GENERIC_QUERY_PATTERN.search(query) and self._generic_variants:
+                expanded.extend(self._generic_variants)
+
+        queries = _normalize_query_list(expanded)
         return queries[:4]
 
     def evaluate_candidate_filters(
@@ -967,19 +1125,3 @@ def _emit_event(payload: Dict[str, Any]) -> None:
                 handle.write(serialized + "\n")
     except Exception:
         logging.getLogger(__name__).debug('[fetcher] failed to emit event', exc_info=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
