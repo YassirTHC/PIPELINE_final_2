@@ -5546,7 +5546,7 @@ class VideoProcessor:
                 final_height = final_height - 1 if final_height > 1 else final_height + 1
             
             return cv2.resize(cropped, (final_width, final_height), interpolation=cv2.INTER_LANCZOS4)
-        reframed = video.image_transform(crop_frame)
+        reframed = video.fl_image(crop_frame)
         output_path = Config.TEMP_FOLDER / f"reframed_{clip_path.name}"
         try:
             # Prefer AMD AMF hardware encoder on this system; boost quality slightly with QP=18
