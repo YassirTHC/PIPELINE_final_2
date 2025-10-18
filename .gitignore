@@ -41,12 +41,4 @@ assets/subtitles/pycaps/resources/
 *.otf
 *.woff
 *.woff2
-.gitmodules.bak
-debug/
-*.mp4
-*.log
-*.tmp
-*.DS_Store
-debug/
-/NUL
-debug/
+vendor/
