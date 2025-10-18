@@ -45,3 +45,6 @@ vendor/
 
 # Allow Hype preset font
 !assets/subtitles/pycaps/styles/Hype/resources/komika.ttf
+
+# Allow Hype preset font
+!assets/subtitles/pycaps/styles/Hype/resources/komika.ttf
