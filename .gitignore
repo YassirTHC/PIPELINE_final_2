@@ -42,3 +42,6 @@ assets/subtitles/pycaps/resources/
 *.woff
 *.woff2
 vendor/
+
+# Allow Hype preset font
+!assets/subtitles/pycaps/styles/Hype/resources/komika.ttf
