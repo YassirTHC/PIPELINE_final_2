@@ -1,6 +1,8 @@
 @font-face {
     font-family: 'Komika Axis';
-    src: url('komika.ttf') format('truetype');
+    src: url('resources/komika.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
 }
 
 .word {
@@ -8,8 +10,8 @@
     font-size: 24px;
     color: #DDDDDD;
     font-weight: 800;
-    text-shadow: 
-        -2px -2px 0 #000,  
+    text-shadow:
+        -2px -2px 0 #000,
          2px -2px 0 #000,
         -2px  2px 0 #000,
          2px  2px 0 #000,
@@ -17,10 +19,5 @@
     padding: 3px 5px;
 }
 
-.word-being-narrated {
-    color: #FFFF00;
-}
-
-.word-already-narrated {
-    color: #FFFFFF;
-}
+.word-being-narrated { color: #FFFF00; }
+.word-already-narrated { color: #FFFFFF; }
