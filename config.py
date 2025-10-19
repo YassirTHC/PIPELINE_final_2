@@ -1,4 +1,4 @@
-import os
+﻿import os
 import warnings
 from pathlib import Path
 
@@ -12,15 +12,20 @@ warnings.warn(
 
 
 def get_settings():
-    """Return the shared typed settings instance."""
+    """Return the shared typed settings instance (with env overrides)."""
+    settings = _typed_get_settings()
+    try:
+        _apply_env_overrides(settings)
+    except Exception:
+        # si un override casse, on garde la conf d'origine
+        pass
+    return settings
 
-    return _typed_get_settings()
-
-# Configuration principale pour compatibilité avec le pipeline
+# Configuration principale pour compatibilitÃ© avec le pipeline
 class Config:
     """Configuration principale du pipeline"""
 
-    # Modèles Whisper
+    # ModÃ¨les Whisper
     WHISPER_MODEL = "base"
     
     # Dossiers principaux
@@ -45,7 +50,7 @@ class Config:
 
 
 class AdvancedConfig:
-    """Configuration avancée du pipeline"""
+    """Configuration avancÃ©e du pipeline"""
     
     # Dossiers
     BASE_DIR = Path(__file__).parent
@@ -54,23 +59,23 @@ class AdvancedConfig:
     TEMP_FOLDER = BASE_DIR / "temp"
     SCRIPTS_FOLDER = BASE_DIR / "scripts"
     
-    # Résolutions par plateforme
+    # RÃ©solutions par plateforme
     PLATFORMS = {
         "tiktok": {"width": 1080, "height": 1920, "fps": 30},
         "instagram": {"width": 1080, "height": 1920, "fps": 30},
         "youtube_shorts": {"width": 1080, "height": 1920, "fps": 60},
     }
     
-    # Paramètres Whisper
+    # ParamÃ¨tres Whisper
     WHISPER_MODELS = {
-        "tiny": "Très rapide, précision moyenne",
-        "base": "Bon compromis vitesse/précision", 
-        "small": "Précision élevée, plus lent",
-        "medium": "Très précis, assez lent",
-        "large": "Maximum de précision, très lent"
+        "tiny": "TrÃ¨s rapide, prÃ©cision moyenne",
+        "base": "Bon compromis vitesse/prÃ©cision", 
+        "small": "PrÃ©cision Ã©levÃ©e, plus lent",
+        "medium": "TrÃ¨s prÃ©cis, assez lent",
+        "large": "Maximum de prÃ©cision, trÃ¨s lent"
     }
     
-    # Styles de sous-titres prédéfinis
+    # Styles de sous-titres prÃ©dÃ©finis
     SUBTITLE_STYLES = {
         "classic": {
             "fontsize": 60,
@@ -95,7 +100,7 @@ class AdvancedConfig:
         }
     }
     
-    # Paramètres de qualité d'export
+    # ParamÃ¨tres de qualitÃ© d'export
     EXPORT_PRESETS = {
         "high_quality": {
             "codec": "libx264",
@@ -136,16 +141,16 @@ class AdvancedConfig:
         }
 
 
-# Configuration B-roll pour compatibilité avec le pipeline
+# Configuration B-roll pour compatibilitÃ© avec le pipeline
 class BrollConfig:
-    """Configuration B-roll pour compatibilité avec le pipeline intelligent"""
+    """Configuration B-roll pour compatibilitÃ© avec le pipeline intelligent"""
     
     def __init__(self, input_video: str, output_video: str, broll_library: str, **kwargs):
         self.input_video = input_video
         self.output_video = output_video
         self.broll_library = broll_library
         
-        # Paramètres hérités pour compatibilité
+        # ParamÃ¨tres hÃ©ritÃ©s pour compatibilitÃ©
         self.srt_path = kwargs.get('srt_path')
         self.subtitle_font = kwargs.get('subtitle_font')
         self.subtitle_font_size = kwargs.get('subtitle_font_size', 72)
@@ -158,42 +163,42 @@ class BrollConfig:
         self.emoji_inject_rate = kwargs.get('emoji_inject_rate', 0.2)
         self.emoji_overlay_only = kwargs.get('emoji_overlay_only', False)
         
-        # === ÉQUILIBRE INTELLIGENT : VITESSE + QUALITÉ ===
+        # === Ã‰QUILIBRE INTELLIGENT : VITESSE + QUALITÃ‰ ===
         
-        # B-roll selection (optimisée mais de qualité)
-        self.max_broll_ratio = 0.40  # 🚀 AUGMENTÉ: 20% → 40% pour couvrir toute la vidéo
-        self.min_broll_clip_s = 2.0  # Durée correcte
-        self.max_broll_clip_s = 4.0  # Durée standard
-        self.min_gap_between_broll_s = 0.5  # Intervalle réduit pour enchaîner plus rapidement les B-rolls
+        # B-roll selection (optimisÃ©e mais de qualitÃ©)
+        self.max_broll_ratio = 0.40  # ðŸš€ AUGMENTÃ‰: 20% â†’ 40% pour couvrir toute la vidÃ©o
+        self.min_broll_clip_s = 2.0  # DurÃ©e correcte
+        self.max_broll_clip_s = 4.0  # DurÃ©e standard
+        self.min_gap_between_broll_s = 0.5  # Intervalle rÃ©duit pour enchaÃ®ner plus rapidement les B-rolls
         
-        # Sélection intelligente avec LLM
-        self.enable_llm_reranking = True  # ACTIVÉ pour qualité maximale B-roll
-        self.max_broll_insertions = 10  # 🚀 AUGMENTÉ: 6 → 10 pour plus de B-rolls
-        self.fast_broll_search = False  # Recherche complète pour pertinence
-        self.skip_similarity_check = False  # Garder vérifications qualité
+        # SÃ©lection intelligente avec LLM
+        self.enable_llm_reranking = True  # ACTIVÃ‰ pour qualitÃ© maximale B-roll
+        self.max_broll_insertions = 10  # ðŸš€ AUGMENTÃ‰: 6 â†’ 10 pour plus de B-rolls
+        self.fast_broll_search = False  # Recherche complÃ¨te pour pertinence
+        self.skip_similarity_check = False  # Garder vÃ©rifications qualitÃ©
         
-        # Traitement vidéo intelligent (vitesse sans perte qualité)
-        self.target_width = 1080  # Retour qualité HD pour meilleur rendu
+        # Traitement vidÃ©o intelligent (vitesse sans perte qualitÃ©)
+        self.target_width = 1080  # Retour qualitÃ© HD pour meilleur rendu
         self.target_height = 1920  # Format 9:16 standard
-        self.ffmpeg_preset = "fast"  # Compromis vitesse/qualité (vs ultrafast)
-        self.crf = 23  # Meilleure qualité (vs 28)
+        self.ffmpeg_preset = "fast"  # Compromis vitesse/qualitÃ© (vs ultrafast)
+        self.crf = 23  # Meilleure qualitÃ© (vs 28)
         
-        # Audio/analyse optimisée (garder l'essentiel)
-        self.skip_audio_analysis = False  # RÉACTIVÉ pour placement intelligent
-        self.simple_scene_detection = False  # Détection complète pour qualité
-        self.fast_mode = False  # Mode complet pour qualité
+        # Audio/analyse optimisÃ©e (garder l'essentiel)
+        self.skip_audio_analysis = False  # RÃ‰ACTIVÃ‰ pour placement intelligent
+        self.simple_scene_detection = False  # DÃ©tection complÃ¨te pour qualitÃ©
+        self.fast_mode = False  # Mode complet pour qualitÃ©
         
-        # === OPTIMISATIONS VIRALITÉ ===
+        # === OPTIMISATIONS VIRALITÃ‰ ===
         
-        # Qualité B-roll pour engagement
-        self.force_broll_diversity = True  # Diversité pour intérêt
+        # QualitÃ© B-roll pour engagement
+        self.force_broll_diversity = True  # DiversitÃ© pour intÃ©rÃªt
         self.smart_cropping = True  # Cadrage intelligent
-        self.min_duration_threshold_s = 1.5  # 🚀 RÉDUIT: 2.5s → 1.5s pour plus de B-rolls
-        self.diversity_penalty = 0.3  # 🧠 RÉDUIT: 0.7 → 0.3 car LLM génère des mots-clés pertinents
+        self.min_duration_threshold_s = 1.5  # ðŸš€ RÃ‰DUIT: 2.5s â†’ 1.5s pour plus de B-rolls
+        self.diversity_penalty = 0.3  # ðŸ§  RÃ‰DUIT: 0.7 â†’ 0.3 car LLM gÃ©nÃ¨re des mots-clÃ©s pertinents
         
-        # 🧠 NOUVEAU: Analyse émotionnelle pour synchronisation
-        self.enable_emotional_mapping = True  # Synchroniser B-rolls avec émotion du discours
-        self.emotion_intensity_threshold = 0.6  # Seuil d'intensité émotionnelle
+        # ðŸ§  NOUVEAU: Analyse Ã©motionnelle pour synchronisation
+        self.enable_emotional_mapping = True  # Synchroniser B-rolls avec Ã©motion du discours
+        self.emotion_intensity_threshold = 0.6  # Seuil d'intensitÃ© Ã©motionnelle
         self.emotion_broll_mapping = {
             'excitement': ['energetic', 'dynamic', 'fast-paced'],
             'calm': ['peaceful', 'serene', 'slow-motion'],
@@ -202,35 +207,35 @@ class BrollConfig:
             'serious': ['professional', 'focused', 'intense']
         }
         
-        # 🧠 CORRECTION TikTok: Micro-moments désactivés pour durées optimales
-        self.enable_micro_moments = False  # ❌ Désactivé: B-rolls courts nuisent à l'engagement TikTok
-        self.micro_moment_duration = 1.5  # Si réactivé: durée minimale 1.5s pour TikTok
-        self.micro_moment_frequency = 0.1  # Si réactivé: seulement 10% de micro-moments
-        self.micro_moment_intensity = 0.8  # Intensité visuelle élevée pour micro-moments
+        # ðŸ§  CORRECTION TikTok: Micro-moments dÃ©sactivÃ©s pour durÃ©es optimales
+        self.enable_micro_moments = False  # âŒ DÃ©sactivÃ©: B-rolls courts nuisent Ã  l'engagement TikTok
+        self.micro_moment_duration = 1.5  # Si rÃ©activÃ©: durÃ©e minimale 1.5s pour TikTok
+        self.micro_moment_frequency = 0.1  # Si rÃ©activÃ©: seulement 10% de micro-moments
+        self.micro_moment_intensity = 0.8  # IntensitÃ© visuelle Ã©levÃ©e pour micro-moments
         
         # Style viral
-        self.emoji_style = "colorful"  # Emojis colorés activés
+        self.emoji_style = "colorful"  # Emojis colorÃ©s activÃ©s
         self.dynamic_transitions = True  # Transitions fluides
         
-        # === NOUVEAU : OPTIMISATIONS EXTRÊMES ===
+        # === NOUVEAU : OPTIMISATIONS EXTRÃŠMES ===
         
-        # Cache et mémoire
-        self.enable_broll_cache = True  # Cache des résultats
-        self.preload_popular_brolls = True  # Précharger les plus utilisés
-        self.parallel_processing = True  # Traitement parallèle
+        # Cache et mÃ©moire
+        self.enable_broll_cache = True  # Cache des rÃ©sultats
+        self.preload_popular_brolls = True  # PrÃ©charger les plus utilisÃ©s
+        self.parallel_processing = True  # Traitement parallÃ¨le
         
-        # Recherche de qualité avec LLM
-        self.max_search_results = 25  # Plus de résultats pour meilleur choix
-        self.quick_match_threshold = 0.6  # Seuil élevé pour qualité
+        # Recherche de qualitÃ© avec LLM
+        self.max_search_results = 25  # Plus de rÃ©sultats pour meilleur choix
+        self.quick_match_threshold = 0.6  # Seuil Ã©levÃ© pour qualitÃ©
         self.skip_complex_scoring = False  # Scoring complet pour pertinence
         
-        # Export optimisé
+        # Export optimisÃ©
         self.use_hardware_encoding = True  # GPU si disponible
-        self.optimize_for_streaming = True  # Optimisé upload
-        self.skip_quality_checks = True  # Ignorer vérifications finales 
+        self.optimize_for_streaming = True  # OptimisÃ© upload
+        self.skip_quality_checks = True  # Ignorer vÃ©rifications finales 
         
-        # Paramètres avancés pour compatibilité complète
-        self.no_broll_before_s = kwargs.get('no_broll_before_s', 0.8)  # 🧠 HOOK PATTERN: 1.5s → 0.8s pour capturer l'attention immédiatement
+        # ParamÃ¨tres avancÃ©s pour compatibilitÃ© complÃ¨te
+        self.no_broll_before_s = kwargs.get('no_broll_before_s', 0.8)  # ðŸ§  HOOK PATTERN: 1.5s â†’ 0.8s pour capturer l'attention immÃ©diatement
         self.min_keywords_for_broll = kwargs.get('min_keywords_for_broll', 2)
         self.pad_with_blur = kwargs.get('pad_with_blur', True)
         self.threads = kwargs.get('threads', 0)
@@ -271,4 +276,251 @@ else:
         self.crossfade_duration_s = kwargs.get('crossfade_duration_s', 0.2)
         self.occlude_main_under_broll = kwargs.get('occlude_main_under_broll', True)
 
+
+
+def _apply_env_overrides(settings):
+    """
+    Applique des overrides simples depuis des variables d'environnement
+    (compatible objets pydantic/dataclass et dicts).
+    """
+    import os
+    from collections.abc import Mapping
+
+    def _is_mapping(x): return isinstance(x, Mapping)
+    def _hasattr(ns, name): 
+        try: return hasattr(ns, name)
+        except Exception: return False
+
+    def _get(ns, name, default=None):
+        if _is_mapping(ns):
+            return ns.get(name, default)
+        return getattr(ns, name, default)
+
+    def _set(ns, name, value):
+        if _is_mapping(ns):
+            ns[name] = value
+        else:
+            try:
+                setattr(ns, name, value)
+            except Exception:
+                # Pydantic v2: model fields peuvent nÃ©cessiter object.model_copy(update=...)
+                if hasattr(ns, "model_copy"):
+                    new = ns.model_copy(update={name: value})
+                    # essayer de remettre sur le parent si connu
+                    return new
+        return ns
+
+    def _ensure_dict_field(ns, name):
+        cur = _get(ns, name)
+        if cur is None:
+            cur = {}
+            _set(ns, name, cur)
+        return cur
+
+    # --- FETCH ---
+    fetch = settings.fetch
+
+    val = os.getenv("FETCH_TIMEOUT_S")
+    if val:
+        try: _set(fetch, "timeout_s", float(val))
+        except Exception: pass
+
+    val = os.getenv("FETCH_PROVIDER_LIMITS__PEXELS")
+    if val:
+        try:
+            v = int(val)
+            provider_limits = _ensure_dict_field(fetch, "provider_limits")
+            provider_limits["pexels"] = v
+        except Exception:
+            pass
+
+    val = os.getenv("FETCH_ALLOW_IMAGES")
+    if val is not None:
+        try: _set(fetch, "allow_images", bool(int(val)))
+        except Exception: pass
+
+    val = os.getenv("FETCH_ALLOW_VIDEOS")
+    if val is not None:
+        try: _set(fetch, "allow_videos", bool(int(val)))
+        except Exception: pass
+
+    # --- BROLL diversity / selection / backfill ---
+    bd = settings.broll_diversity
+    val = os.getenv("BROLL_DIVERSITY_ENABLE_MMR")
+    if val is not None:
+        try: _set(bd, "enable_mmr", bool(int(val)))
+        except Exception: pass
+    val = os.getenv("BROLL_DIVERSITY_REPEAT_PENALTY")
+    if val:
+        try: _set(bd, "repeat_penalty", float(val))
+        except Exception: pass
+    val = os.getenv("BROLL_DIVERSITY_REPEAT_WINDOW")
+    if val:
+        try: _set(bd, "repeat_window", int(val))
+        except Exception: pass
+
+    bs = settings.broll_selection
+    val = os.getenv("BROLL_SELECTION_ENABLE_ADAPTIVE_TOPK")
+    if val is not None:
+        try: _set(bs, "enable_adaptive_topk", bool(int(val)))
+        except Exception: pass
+
+    bf = settings.broll_backfill
+    val = os.getenv("BROLL_BACKFILL_ENABLE")
+    if val is not None:
+        try: _set(bf, "enable", bool(int(val)))
+        except Exception: pass
+    val = os.getenv("BROLL_BACKFILL_LOCAL_MAX_GAP_MULTIPLIER")
+    if val:
+        try: _set(bf, "local_max_gap_multiplier", float(val))
+        except Exception: pass
+
+    st = settings.scheduler_tuning
+    val = os.getenv("SCHEDULER_TUNING_ENABLE_LOCAL_RELAX")
+    if val is not None:
+        try: _set(st, "enable_local_relax", bool(int(val)))
+        except Exception: pass
+    val = os.getenv("SCHEDULER_TUNING_MICRO_INSERT_MIN_S")
+    if val:
+        try: _set(st, "micro_insert_min_s", float(val))
+        except Exception: pass
+    val = os.getenv("SCHEDULER_TUNING_MICRO_INSERT_MAX_S")
+    if val:
+        try: _set(st, "micro_insert_max_s", float(val))
+        except Exception: pass
+
+    llm = settings.llm
+    for key in ("LLM_DISABLE_DYNAMIC_SEGMENT", "LLM__DISABLE_DYNAMIC_SEGMENT"):
+        val = os.getenv(key)
+        if val is not None:
+            try: _set(llm, "disable_dynamic_segment", bool(int(val)))
+            except Exception: pass
+
+
+
+def _apply_env_overrides(settings):
+    """
+    Applique des overrides simples depuis des variables d'environnement
+    (compatible objets pydantic/dataclass et dicts).
+    Exemples attendus :
+      FETCH_PROVIDER_LIMITS__PEXELS=6
+      FETCH_TIMEOUT_S=12.0
+      BROLL_DIVERSITY_REPEAT_PENALTY=0.45
+      BROLL_DIVERSITY_REPEAT_WINDOW=4
+      BROLL_SELECTION_ENABLE_ADAPTIVE_TOPK=1
+      BROLL_BACKFILL_ENABLE=1
+      SCHEDULER_TUNING_ENABLE_LOCAL_RELAX=1
+      SCHEDULER_TUNING_MICRO_INSERT_MIN_S=0.8
+      SCHEDULER_TUNING_MICRO_INSERT_MAX_S=1.2
+      LLM_DISABLE_DYNAMIC_SEGMENT=0  (ou LLM__DISABLE_DYNAMIC_SEGMENT=0)
+    """
+    import os
+    from collections.abc import Mapping
+
+    def _is_mapping(x): return isinstance(x, Mapping)
+
+    def _get(ns, name, default=None):
+        if _is_mapping(ns):
+            return ns.get(name, default)
+        return getattr(ns, name, default)
+
+    def _set(ns, name, value):
+        if _is_mapping(ns):
+            ns[name] = value
+        else:
+            try:
+                setattr(ns, name, value)
+            except Exception:
+                # Pydantic v2: si gelé, on tente une copie avec update
+                if hasattr(ns, "model_copy"):
+                    new = ns.model_copy(update={name: value})
+                    # on **retourne** le nouvel objet au caller pour qu'il le replace si besoin
+                    return new
+        return ns
+
+    def _ensure_dict_field(ns, name):
+        cur = _get(ns, name)
+        if cur is None:
+            cur = {}
+            _set(ns, name, cur)
+        return cur
+
+    # --- FETCH ---
+    fetch = settings.fetch
+
+    val = os.getenv("FETCH_TIMEOUT_S")
+    if val:
+        try: _set(fetch, "timeout_s", float(val))
+        except Exception: pass
+
+    val = os.getenv("FETCH_PROVIDER_LIMITS__PEXELS")
+    if val:
+        try:
+            v = int(val)
+            provider_limits = _ensure_dict_field(fetch, "provider_limits")
+            provider_limits["pexels"] = v
+        except Exception:
+            pass
+
+    val = os.getenv("FETCH_ALLOW_IMAGES")
+    if val is not None:
+        try: _set(fetch, "allow_images", bool(int(val)))
+        except Exception: pass
+
+    val = os.getenv("FETCH_ALLOW_VIDEOS")
+    if val is not None:
+        try: _set(fetch, "allow_videos", bool(int(val)))
+        except Exception: pass
+
+    # --- BROLL diversity / selection / backfill ---
+    bd = settings.broll_diversity
+    val = os.getenv("BROLL_DIVERSITY_ENABLE_MMR")
+    if val is not None:
+        try: _set(bd, "enable_mmr", bool(int(val)))
+        except Exception: pass
+    val = os.getenv("BROLL_DIVERSITY_REPEAT_PENALTY")
+    if val:
+        try: _set(bd, "repeat_penalty", float(val))
+        except Exception: pass
+    val = os.getenv("BROLL_DIVERSITY_REPEAT_WINDOW")
+    if val:
+        try: _set(bd, "repeat_window", int(val))
+        except Exception: pass
+
+    bs = settings.broll_selection
+    val = os.getenv("BROLL_SELECTION_ENABLE_ADAPTIVE_TOPK")
+    if val is not None:
+        try: _set(bs, "enable_adaptive_topk", bool(int(val)))
+        except Exception: pass
+
+    bf = settings.broll_backfill
+    val = os.getenv("BROLL_BACKFILL_ENABLE")
+    if val is not None:
+        try: _set(bf, "enable", bool(int(val)))
+        except Exception: pass
+    val = os.getenv("BROLL_BACKFILL_LOCAL_MAX_GAP_MULTIPLIER")
+    if val:
+        try: _set(bf, "local_max_gap_multiplier", float(val))
+        except Exception: pass
+
+    st = settings.scheduler_tuning
+    val = os.getenv("SCHEDULER_TUNING_ENABLE_LOCAL_RELAX")
+    if val is not None:
+        try: _set(st, "enable_local_relax", bool(int(val)))
+        except Exception: pass
+    val = os.getenv("SCHEDULER_TUNING_MICRO_INSERT_MIN_S")
+    if val:
+        try: _set(st, "micro_insert_min_s", float(val))
+        except Exception: pass
+    val = os.getenv("SCHEDULER_TUNING_MICRO_INSERT_MAX_S")
+    if val:
+        try: _set(st, "micro_insert_max_s", float(val))
+        except Exception: pass
+
+    llm = settings.llm
+    for key in ("LLM_DISABLE_DYNAMIC_SEGMENT", "LLM__DISABLE_DYNAMIC_SEGMENT"):
+        val = os.getenv(key)
+        if val is not None:
+            try: _set(llm, "disable_dynamic_segment", bool(int(val)))
+            except Exception: pass
 
