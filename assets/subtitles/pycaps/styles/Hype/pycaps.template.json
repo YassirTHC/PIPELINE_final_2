@@ -1,5 +1,5 @@
 {
-  "css": "styles.css",
+  "css": "pycaps.css",
   "resources": "resources",
   "layout": {
     "max_width_ratio": 0.85,
@@ -17,7 +17,20 @@
     { "type": "animate_segment_emojis" }
   ],
   "animations": [
-    { "type": "narrate_by_words" },
-    { "type": "wipe_in_segment", "duration": 0.30 }
+    {
+      "type": "zoom_in_primitive",
+      "when": "narration-starts",
+      "what": "word",
+      "duration": 0.28,
+      "delay": 0.0,
+      "overshoot": { "amount": 0.08, "peak_at": 0.55 }
+    },
+    {
+      "type": "fade_in_primitive",
+      "when": "narration-starts",
+      "what": "segment",
+      "duration": 0.24,
+      "delay": 0.0
+    }
   ]
 }

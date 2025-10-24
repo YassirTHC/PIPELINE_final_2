@@ -48,3 +48,15 @@ vendor/
 
 # Allow Hype preset font
 !assets/subtitles/pycaps/styles/Hype/resources/komika.ttf
+
+# local backups & artifacts
+*.bak
+*.patch
+output/
+temp/
+*.mp4
+assets/sounds/*.wav
+assets/sounds/*.mp3
+.video_pipeline_cache/
+__pycache__/
+*.pyc

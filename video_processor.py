@@ -18,6 +18,11 @@ sys.path.insert(1, str(PROJECT_ROOT / 'src'))
 sys.path.insert(1, str(PROJECT_ROOT / 'AI-B-roll'))
 sys.path.insert(2, str(PROJECT_ROOT / 'AI-B-roll' / 'src'))
 
+_DEFAULT_PYCAPS_TEMPLATE_ROOT = PROJECT_ROOT / 'assets' / 'subtitles' / 'pycaps'
+_PYCAPS_STYLE_DIRS = {
+    "hype": _DEFAULT_PYCAPS_TEMPLATE_ROOT / 'styles' / 'Hype',
+}
+
 if 'utils' in sys.modules:
     del sys.modules['utils']
 
@@ -26,10 +31,11 @@ import concurrent.futures
 import subprocess
 import shlex
 import time
+import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Sequence, Set, Tuple, TextIO, Iterable
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from video_pipeline.broll_rules import BrollClip, enforce_broll_schedule_rules as _enforce_broll_schedule_rules_v2
 from video_pipeline.config import (
@@ -39,6 +45,15 @@ from video_pipeline.config import (
     set_settings,
 )
 from subtitle_engines.pycaps_engine import ensure_template_assets, render_with_pycaps
+from smart_reframe import SmartReframeConfig, smart_reframe_broll
+try:  # moviepy is optional during tests
+    from moviepy.editor import AudioFileClip, CompositeAudioClip, VideoFileClip
+    from moviepy.video.fx import all as vfx  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    AudioFileClip = None  # type: ignore
+    CompositeAudioClip = None  # type: ignore
+    VideoFileClip = None  # type: ignore
+    vfx = None  # type: ignore
 import types
 import gc
 import re
@@ -78,6 +93,28 @@ def _remember_selected_candidate(used_urls: Set[str], candidate: Any) -> None:
     url = getattr(candidate, 'url', None)
     if isinstance(url, str) and url:
         used_urls.add(url)
+
+def _resolve_pycaps_template_dir(
+    *,
+    style: Optional[str],
+    override: Optional[Path],
+) -> Path:
+    """Return the template directory that should be used for PyCaps rendering."""
+
+    if override is not None:
+        return Path(override)
+
+    style_key = (style or "").strip().lower()
+    mapped_dir = _PYCAPS_STYLE_DIRS.get(style_key)
+    if mapped_dir is not None:
+        if mapped_dir.exists():
+            return mapped_dir
+        # Warn once per run if the expected assets are missing; PyCaps will fall back afterwards.
+        try:
+            logger.warning("[SUBTITLES] Requested style '%s' but template assets missing at %s", style_key, mapped_dir)
+        except Exception:
+            pass
+    return _DEFAULT_PYCAPS_TEMPLATE_ROOT
 
 
 def _split_basic_latin_runs(text: str, *, keep: Set[str] | None = None) -> List[str]:
@@ -128,7 +165,13 @@ def render_subtitles_router(
     settings = get_settings()
     subtitle_settings = getattr(settings, "subtitles", None)
     engine = (getattr(subtitle_settings, "engine", "hormozi") or "hormozi").lower()
-    template_root = Path(template_dir) if template_dir is not None else PROJECT_ROOT / 'assets' / 'subtitles' / 'pycaps'
+    template_override = Path(template_dir) if template_dir is not None else None
+    style_hint = (getattr(subtitle_settings, "theme", "") or "").strip().lower() if subtitle_settings is not None else ""
+    template_root = (
+        _resolve_pycaps_template_dir(style=style_hint, override=template_override)
+        if engine == "pycaps"
+        else (template_override or _DEFAULT_PYCAPS_TEMPLATE_ROOT)
+    )
 
     input_path = Path(input_video_path)
     output_path = Path(output_video_path)
@@ -139,7 +182,12 @@ def render_subtitles_router(
         if subtitle_settings is not None:
             previous_enable_emojis = getattr(subtitle_settings, "enable_emojis", None)
             subtitle_settings.enable_emojis = False
-        logger.info("INFO:[Subtitles] Engine=pycaps (Hormozi disabled)")
+        logger.info("[SUBTITLES] engine=pycaps renderer=PyCapsRenderer")
+        logger.info(
+            "[SUBTITLES] style=%s template_dir=%s",
+            style_hint or "default",
+            template_root,
+        )
         try:
             ensure_template_assets(template_root)
             render_with_pycaps(
@@ -162,9 +210,9 @@ def render_subtitles_router(
                     pass
 
         print("  ↩️ Retour automatique au moteur Hormozi.")
-        logger.info("INFO:[Subtitles] PyCaps unavailable, falling back to Hormozi")
+        logger.info("[SUBTITLES] PyCaps unavailable, falling back to Hormozi")
 
-    logger.info("INFO:[Subtitles] Engine=hormozi")
+    logger.info("[SUBTITLES] engine=hormozi renderer=HormoziRenderer")
     span_style_map = {
         # Business & Croissance
         "croissance": {"color": "#39FF14", "bold": True, "emoji": "Ã°Å¸â€œË†"},
@@ -273,13 +321,7 @@ warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
 warnings.filterwarnings("ignore", message="`clean_up_tokenization_spaces` was not set")
 warnings.filterwarnings("ignore", message="Warning: in file.*bytes wanted but.*bytes read")
 
-try:
-    if hasattr(sys.stdout, 'buffer'):
-        _STDOUT_STREAM = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', write_through=True)
-    else:
-        _STDOUT_STREAM = sys.stdout
-except Exception:
-    _STDOUT_STREAM = sys.stdout
+_STDOUT_STREAM = sys.stdout
 
 logging.basicConfig(
     level=logging.INFO,
@@ -290,6 +332,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # --- Deferred dependency status reporting -----------------------------------
 _DEPENDENCY_STATUS_MESSAGES: List[str] = []
@@ -733,6 +776,110 @@ def _recent_asset_distances(
         if identifier and identifier not in distances:
             distances[str(identifier)] = int(gap)
     return distances
+
+
+def _dedupe_consecutive_assets(
+    assets: List[Dict[str, Any]],
+    *,
+    report_segments: Optional[List[Dict[str, Any]]] = None,
+    event_logger: Optional["JsonlLogger"] = None,
+) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """Ensure no consecutive assets reuse the same URL by replacing or dropping."""
+
+    seen_urls: List[str] = []
+    replacements = 0
+    drops = 0
+
+    idx = 0
+    while idx < len(assets):
+        current = assets[idx]
+        current_url = current.get('url')
+        prev_url = assets[idx - 1].get('url') if idx > 0 else None
+        if current_url and prev_url and current_url == prev_url:
+            replaced = False
+            alternatives: Sequence[Dict[str, Any]] = current.get('alternatives') or ()
+            for alt in alternatives:
+                if not alt.get('passes_filters', False):
+                    continue
+                alt_candidate = alt.get('candidate')
+                if alt_candidate is None:
+                    continue
+                alt_url = alt.get('url')
+                if not alt_url or alt_url == current_url or alt_url == prev_url or alt_url in seen_urls:
+                    continue
+                current['candidate'] = alt_candidate
+                current['provider'] = alt.get('provider')
+                current['url'] = alt_url
+                current['score'] = alt.get('score')
+                current.setdefault('dedupe_metadata', {})['applied'] = True
+                current['dedupe_metadata']['replaced_url'] = current_url
+                current['dedupe_metadata']['replacement_url'] = alt_url
+                if report_segments and isinstance(current.get('segment'), int):
+                    seg_idx = current['segment']
+                    if 0 <= seg_idx < len(report_segments):
+                        seg_entry = report_segments[seg_idx]
+                        seg_entry['dedupe_applied'] = True
+                        seg_entry.setdefault('dedupe_log', []).append(
+                            {'action': 'replace', 'from': current_url, 'to': alt_url}
+                        )
+                        selected_payload = seg_entry.get('selected')
+                        if isinstance(selected_payload, list) and selected_payload:
+                            selected_payload[0]['provider'] = current.get('provider')
+                            selected_payload[0]['url'] = alt_url
+                            selected_payload[0]['score'] = current.get('score')
+                if event_logger is not None:
+                    try:
+                        event_logger.log(
+                            {
+                                'event': 'broll_dedupe_applied',
+                                'segment': current.get('segment'),
+                                'action': 'replace',
+                                'from': current_url,
+                                'to': alt_url,
+                            }
+                        )
+                    except Exception:
+                        pass
+                replacements += 1
+                try:
+                    current['alternatives'] = [
+                        alt_entry for alt_entry in alternatives if alt_entry is not alt
+                    ]
+                except Exception:
+                    pass
+                current_url = alt_url
+                replaced = True
+                break
+
+            if not replaced:
+                dropped_entry = assets.pop(idx)
+                drops += 1
+                seg_idx = dropped_entry.get('segment')
+                if report_segments and isinstance(seg_idx, int) and 0 <= seg_idx < len(report_segments):
+                    seg_entry = report_segments[seg_idx]
+                    seg_entry['dedupe_applied'] = True
+                    seg_entry.setdefault('dedupe_log', []).append(
+                        {'action': 'drop', 'from': dropped_entry.get('url')}
+                    )
+                    seg_entry['selected'] = []
+                if event_logger is not None:
+                    try:
+                        event_logger.log(
+                            {
+                                'event': 'broll_dedupe_applied',
+                                'segment': seg_idx,
+                                'action': 'drop',
+                                'from': dropped_entry.get('url'),
+                            }
+                        )
+                    except Exception:
+                        pass
+                continue  # re-evaluate new asset at current index
+        if current_url:
+            seen_urls.append(current_url)
+        idx += 1
+
+    return assets, {'replacements': replacements, 'drops': drops}
 
 
 def enforce_broll_schedule_rules(plan, *, min_duration: float = 1.8, min_gap: float = 1.5):
@@ -2368,6 +2515,21 @@ class Config:
     BROLL_SELECTOR_CONFIG_PATH = Path(_UI_SETTINGS.get('broll_selector_config') or os.getenv('BROLL_SELECTOR_CONFIG') or 'config/broll_selector_config.yaml')
     BROLL_SELECTOR_ENABLED = _to_bool(_UI_SETTINGS.get('broll_selector_enabled'), default=True) if 'broll_selector_enabled' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_SELECTOR_ENABLED') or os.getenv('AI_BROLL_SELECTOR_ENABLED'), default=True)
 
+    # Smart reframe des B-rolls
+    ENABLE_BROLL_SMART_REFRAME = True
+    BROLL_REFAME_SAMPLE_FPS = 8
+    BROLL_REFAME_PADDING = 0.10
+    BROLL_REFAME_MAX_ZOOM = 1.8
+    BROLL_REFAME_SCORE_TH = 0.50
+    BROLL_REFAME_EMA_ALPHA = 0.80
+
+    _UI_LEAK_TRANSITION = _UI_SETTINGS.get('broll_leak_transition') if 'broll_leak_transition' in _UI_SETTINGS else None
+    _ENV_LEAK_TRANSITION = os.getenv('ENABLE_BROLL_LEAK_TRANSITION') or os.getenv('AI_BROLL_LEAK_TRANSITION')
+    ENABLE_BROLL_LEAK_TRANSITION = (
+        _to_bool(_UI_LEAK_TRANSITION, default=False) if _UI_LEAK_TRANSITION is not None
+        else _to_bool(_ENV_LEAK_TRANSITION, default=False)
+    )
+
 # Ã°Å¸Å¡â‚¬ SUPPRIMÃƒâ€°: Fonction _detect_local_llm obsolÃƒÂ¨te
 # RemplacÃƒÂ©e par le systÃƒÂ¨me LLM industriel qui gÃƒÂ¨re automatiquement la dÃƒÂ©tection
 
@@ -2376,6 +2538,463 @@ class Config:
 # Maintenant remplacÃƒÂ©e par le systÃƒÂ¨me LLM industriel dans generate_caption_and_hashtags
 # Ã°Å¸Å¡â‚¬ SUPPRIMÃƒâ€°: Reste de l'ancien systÃƒÂ¨me LLM obsolÃƒÂ¨te
 # Toute cette logique complexe est maintenant remplacÃƒÂ©e par le systÃƒÂ¨me industriel
+
+
+_SMART_REF_CACHE: Dict[str, str] = {}
+
+def _prepare_broll_for_insert(path: Union[str, Path]) -> str:
+    original = str(path)
+    if not getattr(Config, 'ENABLE_BROLL_SMART_REFRAME', False):
+        return original
+    cached = _SMART_REF_CACHE.get(original)
+    if cached:
+        return cached
+    try:
+        cfg = SmartReframeConfig(
+            sample_fps=getattr(Config, 'BROLL_REFAME_SAMPLE_FPS', 8),
+            padding=getattr(Config, 'BROLL_REFAME_PADDING', 0.10),
+            max_zoom=getattr(Config, 'BROLL_REFAME_MAX_ZOOM', 1.8),
+            score_th=getattr(Config, 'BROLL_REFAME_SCORE_TH', 0.50),
+            ema_alpha=getattr(Config, 'BROLL_REFAME_EMA_ALPHA', 0.80),
+        )
+        out_dir = getattr(Config, 'TEMP_FOLDER', Path('temp')) / 'smart_reframe'
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / (Path(original).stem + '_smart.mp4')
+        result = smart_reframe_broll(original, str(out_path), cfg)
+        _SMART_REF_CACHE[original] = result
+        return result
+    except Exception:
+        _SMART_REF_CACHE[original] = original
+        return original
+
+def _set_event_media_path(event: Any, new_path: str) -> None:
+    try:
+        setattr(event, 'media_path', new_path)
+    except Exception:
+        if isinstance(event, dict):
+            event['media_path'] = new_path
+
+def _apply_smart_reframe_to_events(events: Sequence[Any], broll_library: Path) -> List[Any]:
+    valid: List[Any] = []
+    for ev in events:
+        raw_path = getattr(ev, 'media_path', '')
+        path_obj = Path(raw_path) if raw_path else None
+        if path_obj and not path_obj.exists() and raw_path and not path_obj.is_absolute():
+            candidate = (broll_library / raw_path).resolve()
+            if candidate.exists():
+                _set_event_media_path(ev, str(candidate))
+                raw_path = str(candidate)
+                path_obj = candidate
+        if not raw_path:
+            continue
+        if path_obj is None:
+            path_obj = Path(raw_path)
+        if not path_obj.exists():
+            continue
+        prepared = _prepare_broll_for_insert(raw_path)
+        if prepared and prepared != raw_path:
+            _set_event_media_path(ev, prepared)
+            path_obj = Path(prepared)
+        if path_obj.exists():
+            valid.append(ev)
+    return valid
+
+
+@dataclass
+class TransitionConfig:
+    enabled: bool = True
+    trans_dur: float = 0.4
+    leak_in: float = 0.2
+    leak_out: float = 0.6
+    leak_opacity: float = 0.7
+    shutter_offset: float = 0.2
+    alternate_direction: bool = False
+    default_direction: str = "right"
+    light_leak_paths: Sequence[Union[str, Path]] = field(default_factory=list)
+    shutter_path: Optional[Union[str, Path]] = None
+
+
+@dataclass
+class TransitionArtifacts:
+    position_applied: bool
+    leak_clip: Optional[Any]
+    shutter_clip: Optional[Any]
+    metadata: Dict[str, Any]
+
+
+def _resolve_light_leak_paths(paths: Sequence[Union[str, Path]]) -> List[Path]:
+    resolved: List[Path] = []
+    for candidate in paths or []:
+        if not candidate:
+            continue
+        path = Path(candidate)
+        if path.exists():
+            resolved.append(path)
+    return resolved
+
+
+def apply_broll_transition_with_leak(
+    prev_clip: Any,
+    broll_clip: Any,
+    config: TransitionConfig,
+    *,
+    stack: ExitStack,
+    direction: str,
+    leak_cycle: Sequence[Path] | None = None,
+    rng: Any | None = None,
+) -> TransitionArtifacts:
+    if not config.enabled:
+        return TransitionArtifacts(
+            position_applied=False,
+            leak_clip=None,
+            shutter_clip=None,
+            metadata={'status': 'disabled', 'direction': direction},
+        )
+
+    width = max(0, int(getattr(broll_clip, 'w', 0) or 0))
+    height = max(0, int(getattr(broll_clip, 'h', 0) or 0))
+    prev_width = max(0, int(getattr(prev_clip, 'w', 0) or 0))
+    prev_height = max(0, int(getattr(prev_clip, 'h', 0) or 0))
+
+    if min(width, height, prev_width, prev_height) <= 0:
+        return TransitionArtifacts(
+            position_applied=False,
+            leak_clip=None,
+            shutter_clip=None,
+            metadata={'status': 'skipped_geometry', 'direction': direction},
+        )
+
+    leak_paths = _resolve_light_leak_paths(config.light_leak_paths)
+    leak_candidates = list(leak_paths)
+    if leak_cycle:
+        leak_candidates.extend(Path(p) for p in leak_cycle if Path(p).exists())
+
+    start_time = float(
+        getattr(broll_clip, "_start", getattr(broll_clip, "start", 0.0) or 0.0)
+    )
+    clip_duration = float(
+        getattr(broll_clip, "duration", config.trans_dur) or config.trans_dur
+    )
+    transition_duration = float(getattr(config, "trans_dur", 0.4) or 0.4)
+    if transition_duration <= 0.0:
+        transition_duration = 0.4
+
+    leak_clip = None
+    leak_name: Optional[str] = None
+    if leak_candidates and VideoFileClip is not None:
+        if rng is None:
+            import random as _random
+
+            chosen_path = _random.choice(leak_candidates)
+        else:
+            chosen_path = rng.choice(leak_candidates)
+        try:
+            leak_clip = stack.enter_context(VideoFileClip(str(chosen_path)))
+            leak_name = chosen_path.name
+        except Exception:
+            leak_clip = None
+
+    shutter_clip = None
+    shutter_path = Path(config.shutter_path) if config.shutter_path else None
+    if shutter_path and shutter_path.exists() and AudioFileClip is not None:
+        try:
+            shutter_clip = stack.enter_context(AudioFileClip(str(shutter_path)))
+            offset = float(config.shutter_offset or 0.0)
+            if hasattr(shutter_clip, "set_start"):
+                shutter_clip = shutter_clip.set_start(start_time + offset)
+            try:
+                shutter_clip = shutter_clip.subclip(0, transition_duration)
+            except Exception:
+                pass
+            if hasattr(shutter_clip, "set_duration"):
+                try:
+                    shutter_clip = shutter_clip.set_duration(transition_duration)
+                except Exception:
+                    pass
+        except Exception:
+            shutter_clip = None
+
+    if hasattr(broll_clip, "set_position"):
+        try:
+            broll_clip.set_position(("center", "center"))
+        except Exception:
+            pass
+    if hasattr(broll_clip, "set_opacity"):
+        try:
+            broll_clip.set_opacity(1.0)
+        except Exception:
+            pass
+    leak_play_dur = transition_duration
+    leak_window_start = start_time
+    leak_window_end = leak_window_start + leak_play_dur
+    leak_start_offset = float(getattr(config, "leak_in", 0.0) or 0.0)
+    leak_out_hint = float(getattr(config, "leak_out", 0.0) or 0.0)
+    if leak_out_hint > leak_start_offset:
+        center = (leak_start_offset + leak_out_hint) / 2.0
+        leak_start_offset = max(0.0, center - (leak_play_dur / 2.0))
+    if leak_clip is not None:
+        leak_total_duration = float(getattr(leak_clip, "duration", 0.0) or 0.0)
+        if leak_total_duration:
+            leak_start_offset = min(leak_start_offset, max(0.0, leak_total_duration - leak_play_dur))
+        try:
+            leak_clip = leak_clip.subclip(
+                leak_start_offset,
+                leak_start_offset + leak_play_dur,
+            )
+        except Exception:
+            pass
+        if hasattr(leak_clip, "set_start"):
+            try:
+                leak_clip = leak_clip.set_start(leak_window_start)
+            except Exception:
+                pass
+        if hasattr(leak_clip, "set_duration"):
+            try:
+                leak_clip = leak_clip.set_duration(leak_play_dur)
+            except Exception:
+                pass
+        fade_span = min(0.1, leak_play_dur / 4.0)
+        if fade_span > 0 and vfx is not None and hasattr(leak_clip, "fx"):
+            try:
+                leak_clip = leak_clip.fx(vfx.fadein, fade_span).fx(vfx.fadeout, fade_span)
+            except Exception:
+                pass
+        if hasattr(leak_clip, "set_opacity"):
+            try:
+                leak_clip = leak_clip.set_opacity(config.leak_opacity)
+            except Exception:
+                pass
+        if hasattr(leak_clip, "set_position"):
+            try:
+                leak_clip = leak_clip.set_position(("center", "center"))
+            except Exception:
+                pass
+
+    metadata = {
+        'status': 'whip',
+        'direction': direction,
+        'leak': leak_name,
+        'audio': bool(shutter_clip),
+        'trans_dur': leak_play_dur,
+        'leak_play_dur': leak_play_dur,
+        'transition_start': leak_window_start,
+        'transition_end': leak_window_end,
+        'leak_window': (leak_window_start, leak_window_end),
+        'leak_path': leak_name,
+        'leak_start_offset': leak_start_offset,
+    }
+    if shutter_clip is not None:
+        metadata['shutter_start'] = start_time + float(config.shutter_offset or 0.0)
+
+    logger.info(
+        "[BROLL][transition] dir=%s leak=%s audio=%s status=%s trans=%.2fs window=(%.2f, %.2f)",
+        direction,
+        leak_name or "none",
+        "on" if shutter_clip else "off",
+        metadata['status'],
+        leak_play_dur,
+        leak_window_start,
+        leak_window_end,
+    )
+
+    return TransitionArtifacts(
+        position_applied=True,
+        leak_clip=leak_clip,
+        shutter_clip=shutter_clip,
+        metadata=metadata,
+    )
+
+
+def _event_get_time(event: Any, keys: Sequence[str]) -> Optional[float]:
+    for key in keys:
+        value = None
+        if isinstance(event, dict):
+            if key in event:
+                value = event[key]
+        else:
+            if hasattr(event, key):
+                value = getattr(event, key)
+        if value is None:
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _event_get_media(event: Any) -> Optional[str]:
+    for key in ('media_path', 'asset_path', 'path', 'url'):
+        if isinstance(event, dict):
+            value = event.get(key)
+        else:
+            value = getattr(event, key, None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _event_set_value(event: Any, key: str, value: float) -> None:
+    if isinstance(event, dict):
+        event[key] = value
+        return
+    try:
+        setattr(event, key, value)
+    except Exception:
+        # Some timeline objects may be frozen dataclasses; ignore failures.
+        pass
+
+
+def _event_set_many(event: Any, keys: Sequence[str], value: float) -> None:
+    for key in keys:
+        _event_set_value(event, key, value)
+
+
+def _adjust_broll_event_timing(
+    event: Any,
+    start_s: float,
+    end_s: float,
+    min_duration: float,
+    max_duration: float,
+    min_transition: float,
+    max_transition: float,
+) -> Tuple[float, float]:
+    min_duration = max(0.0, float(min_duration))
+    max_duration = max(min_duration, float(max_duration))
+    min_transition = max(0.0, float(min_transition))
+    max_transition = max(min_transition, float(max_transition))
+
+    current_duration = max(0.0, float(end_s) - float(start_s))
+
+    if current_duration <= 0.0:
+        target_duration = min_duration
+        new_end = start_s + target_duration
+    elif current_duration < min_duration:
+        target_duration = min_duration
+        new_end = start_s + target_duration
+    elif current_duration > max_duration:
+        target_duration = max_duration
+        new_end = start_s + target_duration
+    else:
+        target_duration = current_duration
+        new_end = end_s
+
+    _event_set_many(event, ('end_s', 'end'), new_end)
+    _event_set_many(
+        event,
+        ('duration_s', 'duration', 'clip_duration', 'length'),
+        target_duration,
+    )
+
+    if max_duration > min_duration:
+        ratio = (target_duration - min_duration) / (max_duration - min_duration)
+        ratio = max(0.0, min(1.0, ratio))
+    else:
+        ratio = 0.0
+    transition_duration = min_transition + (max_transition - min_transition) * ratio
+    transition_duration = max(min_transition, min(max_transition, transition_duration))
+    _event_set_many(event, ('transition_duration', 'trans_dur'), transition_duration)
+
+    return new_end, transition_duration
+
+
+def _enforce_broll_runtime_constraints(
+    events: Sequence[Any],
+    *,
+    min_duration: float = 2.0,
+    max_duration: float = 3.2,
+    min_transition: float = 0.35,
+    max_transition: float = 0.45,
+    cooldown_s: float = 4.0,
+) -> List[Any]:
+    if not events:
+        return []
+
+    min_duration = max(0.0, float(min_duration))
+    max_duration = max(min_duration, float(max_duration))
+    min_transition = max(0.0, float(min_transition))
+    max_transition = max(min_transition, float(max_transition))
+    cooldown = max(0.0, float(cooldown_s))
+
+    kept: List[Any] = []
+    last_end_by_asset: Dict[str, float] = {}
+
+    for event in events:
+        start = _event_get_time(event, ('start_s', 'start'))
+        end = _event_get_time(event, ('end_s', 'end'))
+        media = _event_get_media(event)
+
+        initial_duration = None
+        if start is not None and end is not None:
+            initial_duration = max(0.0, float(end) - float(start))
+
+        if start is None or end is None:
+            logger.info(
+                "[BROLL][runtime] window=0.00s -> trans=0.00s cooldown_drop=0 duplicate_consecutive=false sanitized=false reason=missing_time",
+            )
+            kept.append(event)
+            if media is not None and end is not None:
+                last_end_by_asset[media] = float(end)
+            continue
+
+        duplicate_consecutive = False
+        cooldown_violation = False
+        drop_event = False
+
+        if media:
+            if kept:
+                previous_media = _event_get_media(kept[-1])
+                if previous_media and previous_media == media:
+                    duplicate_consecutive = True
+                    drop_event = True
+            if not drop_event:
+                last_end = last_end_by_asset.get(media)
+                if last_end is not None:
+                    gap = float(start) - float(last_end)
+                    if gap < cooldown:
+                        cooldown_violation = True
+                        drop_event = True
+
+        if drop_event:
+            logger.info(
+                "[BROLL][runtime] window=%.2fs -> trans=0.00s cooldown_drop=%d duplicate_consecutive=%s sanitized=false",
+                initial_duration if initial_duration is not None else 0.0,
+                1 if cooldown_violation else 0,
+                str(duplicate_consecutive).lower(),
+            )
+            continue
+
+        new_end, transition_duration = _adjust_broll_event_timing(
+            event,
+            float(start),
+            float(end),
+            min_duration,
+            max_duration,
+            min_transition,
+            max_transition,
+        )
+        sanitized_duration = max(0.0, new_end - float(start))
+        logger.info(
+            "[BROLL][runtime] window=%.2fs -> trans=%.2fs cooldown_drop=0 duplicate_consecutive=false sanitized=true",
+            sanitized_duration,
+            transition_duration,
+        )
+        kept.append(event)
+        if media:
+            last_end_by_asset[media] = new_end
+
+    logger.info(
+        "[BROLL][runtime] sanitized_plan=%d/%d window_bounds=[%.2f, %.2f] transition_bounds=[%.2f, %.2f] cooldown=%.2f",
+        len(kept),
+        len(events),
+        min_duration,
+        max_duration,
+        min_transition,
+        max_transition,
+        cooldown,
+    )
+
+    return kept
 
 # === IA: Analyse mots-clÃƒÂ©s et prompts visuels pour guider le B-roll ===
 
@@ -2576,11 +3195,46 @@ class VideoProcessor:
         self._llm_request_cooldown_jitter_s = jitter
         self._llm_next_request_ready = 0.0
         self._llm_throttle_notice_emitted = False
+        self._transition_rng = random.Random(0)
+        leak_paths = sorted((Path('assets') / 'lightleaks').glob('leak*.mp4'))
+        shutter_candidates = [
+            Path('assets') / 'sounds' / 'camera_shutter.wav',
+            Path('assets') / 'sounds' / 'camera_shutter.m4a',
+        ]
+        shutter_path = next((candidate for candidate in shutter_candidates if candidate.exists()), None)
+        default_transition_config = TransitionConfig(
+            enabled=bool(getattr(Config, 'ENABLE_BROLL_LEAK_TRANSITION', False)) and bool(leak_paths),
+            trans_dur=0.4,
+            leak_in=0.15,
+            leak_out=0.55,
+            leak_opacity=0.7,
+            shutter_offset=0.15,
+            alternate_direction=True,
+            light_leak_paths=tuple(leak_paths),
+            shutter_path=shutter_path,
+        )
+        self._transition_config = default_transition_config
+        self._transition_leak_paths = tuple(leak_paths)
+        self._transition_leak_index = 0
 
     def get_last_broll_insert_count(self) -> int:
         """Return the number of B-roll clips inserted during the last run."""
 
         return getattr(self, "_last_broll_insert_count", 0)
+
+    def _resolve_transition_direction(self) -> str:
+        cfg = getattr(self, "_transition_config", None)
+        default = getattr(cfg, "default_direction", "right") if cfg is not None else "right"
+        last = getattr(self, "_transition_direction_last", None)
+        if cfg is None or not getattr(cfg, "alternate_direction", False):
+            self._transition_direction_last = default
+            return default
+        if last not in ("left", "right"):
+            next_direction = default
+        else:
+            next_direction = "left" if last == "right" else "right"
+        self._transition_direction_last = next_direction
+        return next_direction
 
     def _throttle_llm_requests(self) -> None:
         """Sleep if necessary so LLM requests respect the configured cooldown."""
@@ -2913,6 +3567,7 @@ class VideoProcessor:
                         'queries': [],
                         'candidates': [],
                         'selected': [],
+                        'dedupe_applied': False,
                     }
                     for idx, segment in enumerate(segments)
                 ]
@@ -3622,6 +4277,31 @@ class VideoProcessor:
                 except Exception:
                     pass
 
+            alternatives: List[Dict[str, Any]] = []
+            if filter_pass_records:
+                try:
+                    sorted_records = sorted(
+                        (rec for rec in filter_pass_records if rec.get('candidate') is not None),
+                        key=lambda rec: rec.get('score', 0.0),
+                        reverse=True,
+                    )
+                except Exception:
+                    sorted_records = list(filter_pass_records)
+                for record in sorted_records:
+                    candidate_obj = record.get('candidate')
+                    if not candidate_obj or (best_candidate is not None and candidate_obj is best_candidate):
+                        continue
+                    alt_url = getattr(candidate_obj, 'url', None)
+                    alternatives.append(
+                        {
+                            'candidate': candidate_obj,
+                            'provider': record.get('provider'),
+                            'score': record.get('score'),
+                            'url': alt_url,
+                            'passes_filters': record.get('passes_filters', False),
+                        }
+                    )
+
             if best_candidate:
                 selected_assets.append({
                     'segment': idx,
@@ -3631,6 +4311,7 @@ class VideoProcessor:
                     'candidate': best_candidate,
                     'start': float(getattr(segment, 'start', 0.0) or 0.0),
                     'end': float(getattr(segment, 'end', getattr(segment, 'start', 0.0)) or 0.0),
+                    'alternatives': alternatives,
                 })
                 provider_label = str(best_provider or 'unknown')
                 provider_counter[provider_label] += 1
@@ -3757,6 +4438,54 @@ class VideoProcessor:
         materialized_entries: List[CoreTimelineEntry] = []
         pending_seen_updates: List[Dict[str, Any]] = []
         if initial_selected > 0:
+            dedupe_stats = {'replacements': 0, 'drops': 0}
+            if selected_assets:
+                selected_assets, dedupe_stats = _dedupe_consecutive_assets(
+                    selected_assets,
+                    report_segments=report_segments if report is not None else None,
+                    event_logger=event_logger,
+                )
+                unique_assets = len({asset.get('url') for asset in selected_assets if asset.get('url')})
+                total_assets = len(selected_assets)
+                if summary_payload.get('dedupe_counts') is not None:
+                    summary_payload['dedupe_counts'].update({
+                        'consecutive_replacements': dedupe_stats['replacements'],
+                        'consecutive_drops': dedupe_stats['drops'],
+                    })
+                summary_payload['unique_asset_ratio'] = (
+                    (unique_assets / total_assets) if total_assets else 0.0
+                )
+                if dedupe_stats['replacements'] or dedupe_stats['drops']:
+                    try:
+                        logger.info(
+                            "[BROLL][dedupe] replacements=%s drops=%s unique_assets=%s/%s",
+                            dedupe_stats['replacements'],
+                            dedupe_stats['drops'],
+                            unique_assets,
+                            total_assets,
+                        )
+                    except Exception:
+                        pass
+            initial_selected = len(selected_assets)
+            provider_counter = Counter()
+            selected_segments = []
+            selected_durations = []
+            for asset in selected_assets:
+                provider_counter[str(asset.get('provider') or 'unknown')] += 1
+                segment_idx_val = asset.get('segment')
+                if segment_idx_val is not None:
+                    selected_segments.append(segment_idx_val)
+                candidate_obj = asset.get('candidate')
+                duration_val = None
+                if candidate_obj is not None:
+                    duration_val = getattr(candidate_obj, 'duration', None)
+                if not isinstance(duration_val, (int, float)) or duration_val <= 0:
+                    start_val = float(asset.get('start', 0.0) or 0.0)
+                    end_val = float(asset.get('end', start_val) or start_val)
+                    duration_val = max(0.0, end_val - start_val)
+                if isinstance(duration_val, (int, float)) and duration_val > 0:
+                    selected_durations.append(float(duration_val))
+
             timeline_entries: List[CoreTimelineEntry] = []
             download_dir: Optional[Path]
             try:
@@ -4178,6 +4907,91 @@ class VideoProcessor:
             for entry in normalized
         ]
 
+        runtime_events: List[Any] = []
+        for item in plan_events:
+            runtime_events.append(
+                types.SimpleNamespace(
+                    start=float(item['start']),
+                    end=float(item['end']),
+                    start_s=float(item['start']),
+                    end_s=float(item['end']),
+                    media_path=item.get('asset_path'),
+                    asset_path=item.get('asset_path'),
+                    segment_index=item.get('segment', 0),
+                    provider=item.get('provider'),
+                    url=item.get('url'),
+                )
+            )
+
+        runtime_events = _apply_smart_reframe_to_events(runtime_events, Path('.'))
+        cooldown_window = 4.0
+        try:
+            runtime_settings = get_settings()
+            cooldown_window = float(
+                getattr(getattr(runtime_settings, 'broll', object()), 'no_repeat_s', 4.0) or 0.0
+            )
+        except Exception:
+            pass
+        runtime_events = _enforce_broll_runtime_constraints(
+            runtime_events,
+            min_duration=2.0,
+            max_duration=3.2,
+            min_transition=0.35,
+            max_transition=0.45,
+            cooldown_s=max(0.0, cooldown_window),
+        )
+
+        sanitized_plan: List[Dict[str, Any]] = []
+        sanitized_entries: List[CoreTimelineEntry] = []
+        for idx, ev in enumerate(runtime_events):
+            start_val = _event_get_time(ev, ('start_s', 'start'))
+            end_val = _event_get_time(ev, ('end_s', 'end'))
+            media_path = _event_get_media(ev)
+            if start_val is None or end_val is None or media_path is None:
+                continue
+            sanitized_plan.append(
+                {
+                    'start': float(start_val),
+                    'end': float(end_val),
+                    'asset_path': media_path,
+                    'media_path': media_path,
+                    'segment': int(getattr(ev, 'segment_index', idx)),
+                    'provider': getattr(ev, 'provider', None),
+                    'url': getattr(ev, 'url', None),
+                    'crossfade_frames': 0,
+                }
+            )
+            sanitized_entries.append(
+                CoreTimelineEntry(
+                    path=Path(media_path),
+                    start=float(start_val),
+                    end=float(end_val),
+                    segment_index=int(getattr(ev, 'segment_index', idx)),
+                    provider=getattr(ev, 'provider', None),
+                    url=getattr(ev, 'url', None),
+                )
+            )
+
+        plan_events = sanitized_plan
+        normalized = sanitized_entries
+        clip_count = len(normalized)
+        total_timeline_duration = sum(entry.duration for entry in normalized)
+
+        if not plan_events or not normalized:
+            if event_logger is not None:
+                try:
+                    event_logger.log(
+                        {
+                            'event': 'broll_timeline_failed',
+                            'clips': 0,
+                            'output': None,
+                            'reason': 'sanitizer_filtered_all_clips',
+                        }
+                    )
+                except Exception:
+                    pass
+            return None
+
         try:
             from src.pipeline.renderer import render_video  # type: ignore
         except Exception:
@@ -4228,6 +5042,12 @@ class VideoProcessor:
                 base_height = getattr(base_clip, 'h', None)
                 base_width = int(getattr(base_clip, 'w', 0) or 0)
                 roi_cache: Dict[str, Tuple[Optional[float], Optional[str]]] = {}
+                audio_layers: List[Any] = []
+                base_audio = getattr(base_clip, 'audio', None)
+                if base_audio is not None:
+                    audio_layers.append(base_audio)
+                transition_cfg = getattr(self, "_transition_config", None)
+                transition_enabled = bool(getattr(transition_cfg, "enabled", False))
 
                 for entry in normalized:
                     overlay = stack.enter_context(VideoFileClip(str(entry.path)))
@@ -4318,9 +5138,46 @@ class VideoProcessor:
                     except Exception:
                         pass
 
+                    transition_artifacts: Optional[TransitionArtifacts] = None
+                    if transition_enabled and transition_cfg is not None:
+                        leak_paths_available = tuple(getattr(self, "_transition_leak_paths", ()))
+                        try:
+                            transition_artifacts = apply_broll_transition_with_leak(
+                                prev_clip=layers[-1],
+                                broll_clip=overlay,
+                                config=transition_cfg,
+                                stack=stack,
+                                direction=self._resolve_transition_direction(),
+                                leak_cycle=leak_paths_available,
+                                rng=self._transition_rng,
+                            )
+                        except Exception as exc:
+                            logger.debug("[BROLL][transition] skipped due to error: %s", exc)
+                            transition_artifacts = None
+
                     layers.append(overlay)
+                    if transition_artifacts is not None:
+                        if transition_artifacts.leak_clip is not None:
+                            layers.append(transition_artifacts.leak_clip)
+                        if transition_artifacts.shutter_clip is not None and CompositeAudioClip is not None:
+                            audio_layers.append(transition_artifacts.shutter_clip)
+                        if event_logger is not None:
+                            try:
+                                payload = dict(transition_artifacts.metadata)
+                                payload['event'] = 'broll_transition'
+                                payload['segment'] = entry.segment_index
+                                event_logger.log(payload)
+                            except Exception:
+                                pass
 
                 composite = CompositeVideoClip(layers)
+                composite_audio = None
+                if CompositeAudioClip is not None and audio_layers:
+                    try:
+                        composite_audio = CompositeAudioClip(audio_layers)
+                        composite = composite.set_audio(composite_audio)
+                    except Exception:
+                        composite_audio = None
                 composite.write_videofile(
                     str(output_path),
                     codec='libx264',
@@ -4330,6 +5187,11 @@ class VideoProcessor:
                     logger=None,
                 )
                 composite.close()
+                if composite_audio is not None:
+                    try:
+                        composite_audio.close()
+                    except Exception:
+                        pass
                 if event_logger is not None:
                     try:
                         event_logger.log(
@@ -5214,7 +6076,6 @@ class VideoProcessor:
             with_broll_path,
             subtitles,
             final_subtitled_path,
-            template_dir=PROJECT_ROOT / 'assets' / 'subtitles' / 'pycaps',
         )
         
         # Export final accumulÃƒÂ© dans output/final/ et sous-titrÃƒÂ© (burn-in) dans output/subtitled/
@@ -7211,10 +8072,27 @@ class VideoProcessor:
             except Exception:
                 fps_probe = 25.0
             events = normalize_timeline(plan, fps=fps_probe)
+            events = _apply_smart_reframe_to_events(events, broll_library)
             events = enrich_keywords(events)
-            
 
-            
+            cooldown_window = 4.0
+            try:
+                runtime_settings = get_settings()
+                cooldown_window = float(
+                    getattr(getattr(runtime_settings, 'broll', object()), 'no_repeat_s', 4.0) or 0.0
+                )
+            except Exception:
+                pass
+            events = _enforce_broll_runtime_constraints(
+                events,
+                min_duration=2.0,
+                max_duration=3.2,
+                min_transition=0.35,
+                max_transition=0.45,
+                cooldown_s=max(0.0, cooldown_window),
+            )
+
+
             # Hard fail if no valid events
             if not events:
                 raise RuntimeError('Aucun B-roll valide aprÃƒÂ¨s planification/scoring. VÃƒÂ©rifier l\'index FAISS et la librairie. Aucun fallback synthÃƒÂ©tique appliquÃƒÂ©.')
@@ -7282,6 +8160,14 @@ class VideoProcessor:
                                 fps_probe = 25.0
                             legacy_events = normalize_timeline(plan_simple, fps=fps_probe)
                             legacy_events = enrich_keywords(legacy_events)
+                            legacy_events = _enforce_broll_runtime_constraints(
+                                legacy_events,
+                                min_duration=2.0,
+                                max_duration=3.2,
+                                min_transition=0.35,
+                                max_transition=0.45,
+                                cooldown_s=max(0.0, cooldown_window),
+                            )
                             print(f"    Ã¢â„¢Â»Ã¯Â¸Â Fallback legacy appliquÃƒÂ©: {len(legacy_events)} events")
                             valid_events = legacy_events
                             # Continue vers le rendu unique plus bas
@@ -7529,6 +8415,13 @@ def _filter_prompt_terms(words):
             result.append(t)
             seen.add(t)
     return result[:5]
+
+
+__all__ = [
+    "TransitionConfig",
+    "apply_broll_transition_with_leak",
+    "VideoProcessor",
+]
 
 def _prioritize_fresh_assets(broll_candidates, clip_id):
     """Priorise les assets les plus rÃƒÂ©cents basÃƒÂ©s sur le timestamp du dossier."""
@@ -7869,6 +8762,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument('--llm-model-text', help='Override the dedicated text generation model.')
     parser.add_argument('--llm-model-json', help='Override the JSON metadata model used for planning.')
     parser.add_argument('--subtitles-engine', choices=['hormozi', 'pycaps'], help='Override subtitles rendering engine.')
+    parser.add_argument('--subtitles-style', help='Override subtitles style (for PyCaps templates, e.g. hype).')
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     settings = get_settings()
@@ -7878,13 +8772,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         model_text=args.llm_model_text,
         model_json=args.llm_model_json,
     )
-    if args.subtitles_engine:
+    subtitles_settings = getattr(settings, 'subtitles', None)
+    if subtitles_settings is not None and args.subtitles_engine:
         engine_override = (args.subtitles_engine or '').lower()
-        subtitles_settings = getattr(settings, 'subtitles', None)
-        if subtitles_settings is not None:
-            subtitles_settings.engine = engine_override
-            if engine_override == 'pycaps':
-                subtitles_settings.enable_emojis = False
+        subtitles_settings.engine = engine_override
+        if engine_override == 'pycaps':
+            subtitles_settings.enable_emojis = False
+    else:
+        engine_override = (args.subtitles_engine or '').lower() if args.subtitles_engine else None
+
+    if subtitles_settings is not None and args.subtitles_style:
+        style_override = (args.subtitles_style or '').strip().lower()
+        subtitles_settings.theme = style_override
     set_settings(settings)
 
     if args.llm_provider:
@@ -7895,6 +8794,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         os.environ['PIPELINE_LLM_MODEL_JSON'] = settings.llm.model_json
     if args.subtitles_engine:
         os.environ['VP_SUBTITLES_ENGINE'] = engine_override
+    if args.subtitles_style:
+        os.environ['VP_SUBTITLES_THEME'] = (args.subtitles_style or '').strip().lower()
 
     log_effective_settings(settings)
 

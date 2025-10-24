@@ -44,6 +44,11 @@ from .pycaps_renderer import CaptionStyle, THEME_PRESETS, render_subtitles_over_
 _PYCAPS_TEMPLATE_FILENAME = "pycaps.template.json"
 _PYCAPS_CSS_FILENAME = "pycaps.css"
 _PYCAPS_RESOURCES_DIRNAME = "resources"
+_FONT_LABEL_OVERRIDES = {
+    "komika.ttf": "Komika Axis",
+    "Montserrat-ExtraBold.ttf": "Montserrat ExtraBold",
+    "Montserrat-Bold.ttf": "Montserrat Bold",
+}
 
 _FALLBACK_TEMPLATE_JSON = """{
     "css": "pycaps.css",
@@ -521,6 +526,22 @@ def _prepare_runtime_template(source_template_dir: Path) -> Path:
         resources_dst.mkdir(parents=True, exist_ok=True)
 
     ensure_template_assets(runtime_dir)
+    try:
+        font_files = sorted({p.name for p in resources_dst.glob("*.ttf")})
+        if font_files:
+            friendly_names: list[str] = []
+            for filename in font_files:
+                friendly = _FONT_LABEL_OVERRIDES.get(
+                    filename,
+                    Path(filename).stem.replace("_", " ").replace("-", " ").title(),
+                )
+                friendly_names.append(friendly)
+            logger.info("[SUBTITLES] Fonts resolved: %s", ", ".join(friendly_names))
+        else:
+            logger.warning("[SUBTITLES] Fonts resolved: none (template_dir=%s)", runtime_dir)
+    except Exception:
+        logger.debug("[PyCaps] Unable to inspect fonts in %s", resources_dst, exc_info=True)
+
     return runtime_dir
 
 

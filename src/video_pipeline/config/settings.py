@@ -165,7 +165,7 @@ class BrollSettings:
     min_start_s: float = 0.7
     min_gap_s: float = 1.5
     max_gap_s: float = 4.0
-    no_repeat_s: float = 4.0
+    no_repeat_s: float = 10.0
     min_duration_s: float = 0.8
     max_duration_s: float = 2.0
     initial_lead_s: float = 0.7
@@ -190,10 +190,10 @@ class BrollSelectionSettings:
 
 @dataclass(slots=True)
 class BrollDiversitySettings:
-    enable_mmr: bool = False
+    enable_mmr: bool = True
     mmr_alpha: float = 0.7
-    repeat_penalty: float = 0.25
-    repeat_window: int = 2
+    repeat_penalty: float = 0.45
+    repeat_window: int = 5
 
 
 @dataclass(slots=True)
@@ -605,53 +605,54 @@ def _llm_settings(env: Optional[Mapping[str, str]]) -> LLMSettings:
 
 
 def _broll_settings(env: Optional[Mapping[str, str]]) -> BrollSettings:
+    defaults = BrollSettings()
     min_start = _coerce_float(
-        _env(env, "PIPELINE_BROLL_MIN_START_SECONDS", "0.7"),
-        0.7,
+        _env(env, "PIPELINE_BROLL_MIN_START_SECONDS"),
+        defaults.min_start_s,
         minimum=0.0,
     )
     min_gap = _coerce_float(
-        _env(env, "PIPELINE_BROLL_MIN_GAP_SECONDS", "1.5"),
-        1.5,
-        minimum=1.5,
+        _env(env, "PIPELINE_BROLL_MIN_GAP_SECONDS"),
+        defaults.min_gap_s,
+        minimum=defaults.min_gap_s,
     )
     max_gap = _coerce_float(
-        _env(env, "PIPELINE_BROLL_MAX_GAP_SECONDS", "4.0"),
-        4.0,
+        _env(env, "PIPELINE_BROLL_MAX_GAP_SECONDS"),
+        defaults.max_gap_s,
         minimum=0.0,
     )
     no_repeat = _coerce_float(
-        _env(env, "PIPELINE_BROLL_NO_REPEAT_SECONDS", "4.0"),
-        4.0,
+        _env(env, "PIPELINE_BROLL_NO_REPEAT_SECONDS"),
+        defaults.no_repeat_s,
         minimum=0.0,
     )
     min_duration = _coerce_float(
-        _env(env, "PIPELINE_BROLL_MIN_DURATION_SECONDS", "0.8"),
-        0.8,
+        _env(env, "PIPELINE_BROLL_MIN_DURATION_SECONDS"),
+        defaults.min_duration_s,
         minimum=0.0,
     )
     max_duration = _coerce_float(
-        _env(env, "PIPELINE_BROLL_MAX_DURATION_SECONDS", "2.0"),
-        2.0,
+        _env(env, "PIPELINE_BROLL_MAX_DURATION_SECONDS"),
+        defaults.max_duration_s,
         minimum=0.0,
     )
     if max_duration <= 0.0 or max_duration < min_duration:
         max_duration = max(min_duration, 0.1)
     initial_lead = _coerce_float(
-        _env(env, "PIPELINE_BROLL_INITIAL_LEAD_SECONDS", "0.7"),
-        0.7,
+        _env(env, "PIPELINE_BROLL_INITIAL_LEAD_SECONDS"),
+        defaults.initial_lead_s,
         minimum=0.0,
     )
     first_window_max = _coerce_float(
-        _env(env, "PIPELINE_BROLL_FIRST_WINDOW_MAX_SECONDS", "1.5"),
-        1.5,
+        _env(env, "PIPELINE_BROLL_FIRST_WINDOW_MAX_SECONDS"),
+        defaults.first_window_max_s,
         minimum=0.0,
     )
     if first_window_max < initial_lead:
         first_window_max = initial_lead
     target_total = _coerce_int(
-        _env(env, "PIPELINE_BROLL_TARGET_TOTAL", "12"),
-        12,
+        _env(env, "PIPELINE_BROLL_TARGET_TOTAL"),
+        defaults.target_total,
         minimum=0,
     )
 
@@ -1099,7 +1100,7 @@ def _fetch_settings(env: Optional[Mapping[str, str]]) -> FetchSettings:
         or _env(env, "AI_BROLL_FETCH_PROVIDER")
     )
     if not providers:
-        providers = ["pixabay"]
+        providers = ["pexels", "pixabay"]
 
     provider_limits: Dict[str, int] = {}
     for provider in providers:
@@ -1109,8 +1110,8 @@ def _fetch_settings(env: Optional[Mapping[str, str]]) -> FetchSettings:
             provider_limits[provider] = limit
 
     timeout_s = _coerce_float(
-        _env(env, "PIPELINE_FETCH_TIMEOUT_S", "8"),
-        8.0,
+        _env(env, "PIPELINE_FETCH_TIMEOUT_S", "12"),
+        12.0,
         minimum=0.0,
     )
     default_max = _coerce_int(
@@ -1123,7 +1124,7 @@ def _fetch_settings(env: Optional[Mapping[str, str]]) -> FetchSettings:
         default_max,
         minimum=1,
     )
-    allow_images = _resolve_bool_env(env, "BROLL_FETCH_ALLOW_IMAGES", default=True)
+    allow_images = _resolve_bool_env(env, "BROLL_FETCH_ALLOW_IMAGES", default=False)
     allow_videos = _resolve_bool_env(env, "BROLL_FETCH_ALLOW_VIDEOS", default=True)
 
     api_keys: Dict[str, Optional[str]] = {

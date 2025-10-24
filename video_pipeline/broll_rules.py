@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def _log(message: str) -> None:
     """Emit scheduling logs via print to match pipeline expectations."""
 
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAST_TESTS") == "1":
+        logger.info("%s", message)
+        return
     print(message)
 
 
@@ -114,6 +121,9 @@ try:
 
     def _log(message: str) -> None:
         try:
+            if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAST_TESTS") == "1":
+                logger.info("%s", message)
+                return
             __safe_print(message)
         except Exception:
             # never raise from logging
@@ -125,8 +135,11 @@ except Exception:
         try:
             import sys
 
+            if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("FAST_TESTS") == "1":
+                logger.info("%s", message)
+                return
             stream = getattr(sys, "__stdout__", None) or getattr(sys, "stdout", None)
-            if stream:
+            if stream and not getattr(stream, "closed", False):
                 text = str(message) if message is not None else ""
                 if text and not text.endswith("\n"):
                     text += "\n"
@@ -135,6 +148,8 @@ except Exception:
                     stream.flush()
                 except Exception:
                     pass
+            else:
+                logger.info("%s", message)
         except Exception:
             pass
 
