@@ -1,11 +1,16 @@
-* text=auto
-*.py  text eol=lf
-*.md  text eol=lf
-*.ps1 text eol=crlf
-*.bat text eol=crlf
-* text=auto
-*.py text eol=lf
-*.sh text eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
-*.ttf -text
+*.py      text=auto eol=lf
+*.json    text=auto eol=lf
+*.css     text=auto eol=lf
+*.md      text=auto eol=lf
+*.sh      text=auto eol=lf
+*.ps1     text=auto eol=crlf
+*.bat     text=auto eol=crlf
+# binaires
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.mp4     binary
+*.m4a     binary
+*.wav     binary
+*.ttf     binary
