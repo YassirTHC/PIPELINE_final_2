@@ -60,3 +60,5 @@ assets/sounds/*.mp3
 .video_pipeline_cache/
 __pycache__/
 *.pyc
+
+assets/sounds/*.m4a
