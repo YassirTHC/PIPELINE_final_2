@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🧠 FALLBACK HEURISTIQUE - EXTRACTION MOTS-CLÉS INTELLIGENTE
-Système de fallback pour générer des mots-clés B-roll quand le LLM échoue
+ðŸ§  FALLBACK HEURISTIQUE - EXTRACTION MOTS-CLÃ‰S INTELLIGENTE
+SystÃ¨me de fallback pour gÃ©nÃ©rer des mots-clÃ©s B-roll quand le LLM Ã©choue
 """
 
 import re
@@ -11,10 +11,10 @@ from collections import Counter
 from pathlib import Path
 
 class HeuristicKeywordExtractor:
-    """Extracteur de mots-clés heuristique intelligent"""
+    """Extracteur de mots-clÃ©s heuristique intelligent"""
     
     def __init__(self):
-        # Mots-clés universels B-roll (toujours utiles)
+        # Mots-clÃ©s universels B-roll (toujours utiles)
         self.universal_keywords = [
             "people walking", "family dinner", "office desk", "city street",
             "hands typing", "coffee shop", "nature trail", "kids playing",
@@ -23,7 +23,7 @@ class HeuristicKeywordExtractor:
             "kitchen cooking", "bedroom sleeping", "garden flowers", "beach waves"
         ]
         
-        # Mots-clés contextuels par domaine
+        # Mots-clÃ©s contextuels par domaine
         self.domain_keywords = {
             "medical": ["doctor", "nurse", "hospital", "clinic", "patient", "treatment", "medicine"],
             "business": ["office", "meeting", "presentation", "computer", "phone", "desk", "work"],
@@ -33,7 +33,7 @@ class HeuristicKeywordExtractor:
             "health": ["exercise", "gym", "running", "yoga", "meditation", "wellness", "fitness"]
         }
         
-        # Mots-clés d'action dynamiques
+        # Mots-clÃ©s d'action dynamiques
         self.action_keywords = [
             "walking", "running", "talking", "thinking", "working", "studying",
             "cooking", "driving", "reading", "writing", "listening", "speaking",
@@ -41,32 +41,32 @@ class HeuristicKeywordExtractor:
         ]
     
     def extract_keywords_from_text(self, text, target_count=25, context_hint=None):
-        """Extraction heuristique de mots-clés depuis un texte"""
+        """Extraction heuristique de mots-clÃ©s depuis un texte"""
         
-        print(f"🧠 EXTRACTION HEURISTIQUE - {target_count} mots-clés cibles")
+        print(f"ðŸ§  EXTRACTION HEURISTIQUE - {target_count} mots-clÃ©s cibles")
         print("=" * 60)
         
         # 1. Extraction des mots significatifs
         words = self._extract_significant_words(text)
-        print(f"📝 Mots significatifs extraits: {len(words)}")
+        print(f"ðŸ“ Mots significatifs extraits: {len(words)}")
         
-        # 2. Analyse de fréquence
+        # 2. Analyse de frÃ©quence
         word_freq = Counter(words)
         top_words = [word for word, freq in word_freq.most_common(15)]
-        print(f"🎯 Top mots par fréquence: {top_words[:10]}")
+        print(f"ðŸŽ¯ Top mots par frÃ©quence: {top_words[:10]}")
         
-        # 3. Détection du domaine
+        # 3. DÃ©tection du domaine
         detected_domain = self._detect_domain(text, context_hint)
-        print(f"🏥 Domaine détecté: {detected_domain}")
+        print(f"ðŸ¥ Domaine dÃ©tectÃ©: {detected_domain}")
         
-        # 4. Génération des mots-clés
+        # 4. GÃ©nÃ©ration des mots-clÃ©s
         keywords = self._generate_keywords(top_words, detected_domain, target_count)
         
         # 5. Validation et formatage
         final_keywords = self._validate_and_format(keywords, target_count)
         
-        print(f"✅ Mots-clés générés: {len(final_keywords)}")
-        print(f"🎯 Exemples: {final_keywords[:5]}")
+        print(f"âœ… Mots-clÃ©s gÃ©nÃ©rÃ©s: {len(final_keywords)}")
+        print(f"ðŸŽ¯ Exemples: {final_keywords[:5]}")
         
         return final_keywords
     
@@ -89,7 +89,7 @@ class HeuristicKeywordExtractor:
         return significant_words
     
     def _detect_domain(self, text, context_hint=None):
-        """Détection automatique du domaine du texte"""
+        """DÃ©tection automatique du domaine du texte"""
         
         text_lower = text.lower()
         
@@ -116,39 +116,39 @@ class HeuristicKeywordExtractor:
         return "general"
     
     def _generate_keywords(self, top_words, domain, target_count):
-        """Génération des mots-clés combinant plusieurs sources"""
+        """GÃ©nÃ©ration des mots-clÃ©s combinant plusieurs sources"""
         
         keywords = []
         
-        # 1. Mots-clés du texte (priorité haute)
+        # 1. Mots-clÃ©s du texte (prioritÃ© haute)
         keywords.extend(top_words[:10])
         
-        # 2. Mots-clés du domaine détecté
+        # 2. Mots-clÃ©s du domaine dÃ©tectÃ©
         if domain in self.domain_keywords:
             domain_words = self.domain_keywords[domain][:5]
             keywords.extend(domain_words)
         
-        # 3. Mots-clés d'action dynamiques
+        # 3. Mots-clÃ©s d'action dynamiques
         action_words = self.action_keywords[:5]
         keywords.extend(action_words)
         
-        # 4. Mots-clés universels pour compléter
+        # 4. Mots-clÃ©s universels pour complÃ©ter
         remaining = target_count - len(keywords)
         if remaining > 0:
             universal_subset = self.universal_keywords[:remaining]
             keywords.extend(universal_subset)
         
-        # 5. Déduplication et limitation
+        # 5. DÃ©duplication et limitation
         unique_keywords = list(dict.fromkeys(keywords))  # Garde l'ordre
         return unique_keywords[:target_count]
     
     def _validate_and_format(self, keywords, target_count):
-        """Validation et formatage final des mots-clés"""
+        """Validation et formatage final des mots-clÃ©s"""
         
-        # Vérification du nombre
+        # VÃ©rification du nombre
         if len(keywords) < target_count * 0.8:  # 80% minimum
-            print(f"⚠️ Nombre insuffisant de mots-clés: {len(keywords)}/{target_count}")
-            # Compléter avec des mots-clés universels
+            print(f"âš ï¸ Nombre insuffisant de mots-clÃ©s: {len(keywords)}/{target_count}")
+            # ComplÃ©ter avec des mots-clÃ©s universels
             missing = target_count - len(keywords)
             additional = self.universal_keywords[:missing]
             keywords.extend(additional)
@@ -166,7 +166,7 @@ class HeuristicKeywordExtractor:
         return formatted_keywords
     
     def generate_json_output(self, keywords):
-        """Génération d'une sortie JSON formatée"""
+        """GÃ©nÃ©ration d'une sortie JSON formatÃ©e"""
         
         try:
             output = {
@@ -179,14 +179,14 @@ class HeuristicKeywordExtractor:
             return json.dumps(output, indent=2, ensure_ascii=False)
             
         except Exception as e:
-            print(f"❌ Erreur génération JSON: {e}")
+            print(f"âŒ Erreur gÃ©nÃ©ration JSON: {e}")
             # Fallback simple
             return json.dumps({"keywords": keywords[:10]})
 
 def test_heuristic_extractor():
-    """Test du système heuristique"""
+    """Test du systÃ¨me heuristique"""
     
-    print("🧪 TEST FALLBACK HEURISTIQUE")
+    print("ðŸ§ª TEST FALLBACK HEURISTIQUE")
     print("=" * 60)
     
     extractor = HeuristicKeywordExtractor()
@@ -194,22 +194,22 @@ def test_heuristic_extractor():
     # Test avec le transcript du pipeline
     test_text = "EMDR movement sensation reprocessing lateralized movements people doing clinic got goofy looking things"
     
-    print(f"📝 Texte de test: {test_text}")
+    print(f"ðŸ“ Texte de test: {test_text}")
     print()
     
-    # Extraction des mots-clés
+    # Extraction des mots-clÃ©s
     keywords = extractor.extract_keywords_from_text(test_text, target_count=25)
     
     print()
-    print("📊 RÉSULTATS FINAUX")
+    print("ðŸ“Š RÃ‰SULTATS FINAUX")
     print("-" * 40)
-    print(f"🎯 Mots-clés générés: {len(keywords)}")
-    print(f"📝 Liste complète: {keywords}")
+    print(f"ðŸŽ¯ Mots-clÃ©s gÃ©nÃ©rÃ©s: {len(keywords)}")
+    print(f"ðŸ“ Liste complÃ¨te: {keywords}")
     
-    # Génération JSON
+    # GÃ©nÃ©ration JSON
     json_output = extractor.generate_json_output(keywords)
     print()
-    print("🔧 SORTIE JSON")
+    print("ðŸ”§ SORTIE JSON")
     print("-" * 40)
     print(json_output)
     
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     
     print()
     print("=" * 60)
-    print("🏁 TEST HEURISTIQUE TERMINÉ")
-    print(f"✅ {len(keywords)} mots-clés générés avec succès")
+    print("ðŸ TEST HEURISTIQUE TERMINÃ‰")
+    print(f"âœ… {len(keywords)} mots-clÃ©s gÃ©nÃ©rÃ©s avec succÃ¨s")
     
-    input("\nAppuyez sur Entrée pour continuer...") 
+    input("\nAppuyez sur EntrÃ©e pour continuer...") 

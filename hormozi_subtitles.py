@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Système de sous-titres style "Hormozi 1" - ENRICHI avec couleurs intelligentes et emojis contextuels
-Corrections: taille adaptée, synchronisation audio, mots-clés colorés, positionnement exact
-Intégration: SmartColorSystem + ContextualEmojiSystem
+SystÃƒÂ¨me de sous-titres style "Hormozi 1" - ENRICHI avec couleurs intelligentes et emojis contextuels
+Corrections: taille adaptÃƒÂ©e, synchronisation audio, mots-clÃƒÂ©s colorÃƒÂ©s, positionnement exact
+IntÃƒÂ©gration: SmartColorSystem + ContextualEmojiSystem
 """
 
 import cv2
@@ -38,26 +39,26 @@ def _resolve_typed_subtitle_settings() -> Optional["SubtitleSettings"]:
     return getattr(settings, "subtitles", None)
 
 class HormoziSubtitles:
-    """Générateur de sous-titres style Hormozi avec animations et effets"""
+    """GÃƒÂ©nÃƒÂ©rateur de sous-titres style Hormozi avec animations et effets"""
     
     def __init__(
         self,
         subtitle_settings: Optional["SubtitleSettings"] = None,
         font_candidates: Optional[Sequence[str]] = None,
     ):
-        # 🎨 Import des NOUVEAUX systèmes intelligents COMPLETS UNIQUEMENT
+        # Ã°Å¸Å½Â¨ Import des NOUVEAUX systÃƒÂ¨mes intelligents COMPLETS UNIQUEMENT
         try:
             from smart_color_system_complete import SmartColorSystemComplete
             from contextual_emoji_system_complete import ContextualEmojiSystemComplete
             self.smart_colors = SmartColorSystemComplete()
             self.contextual_emojis = ContextualEmojiSystemComplete()
             self.SMART_SYSTEMS_AVAILABLE = True
-            print("🚀 NOUVEAUX SYSTÈMES INTELLIGENTS COMPLETS ACTIVÉS AVEC SUCCÈS !")
+            print("Ã°Å¸Å¡â‚¬ NOUVEAUX SYSTÃƒË†MES INTELLIGENTS COMPLETS ACTIVÃƒâ€°S AVEC SUCCÃƒË†S !")
         except ImportError as e:
-            print(f"❌ ERREUR CRITIQUE: Nouveaux systèmes non disponibles: {e}")
-            print("🔧 Vérifiez que smart_color_system_complete.py et contextual_emoji_system_complete.py existent")
+            print(f"Ã¢ÂÅ’ ERREUR CRITIQUE: Nouveaux systÃƒÂ¨mes non disponibles: {e}")
+            print("Ã°Å¸â€Â§ VÃƒÂ©rifiez que smart_color_system_complete.py et contextual_emoji_system_complete.py existent")
             self.SMART_SYSTEMS_AVAILABLE = False
-            raise ImportError("Les nouveaux systèmes améliorés sont requis pour fonctionner")
+            raise ImportError("Les nouveaux systÃƒÂ¨mes amÃƒÂ©liorÃƒÂ©s sont requis pour fonctionner")
 
         self.subtitle_settings: Optional["SubtitleSettings"] = (
             subtitle_settings or _resolve_typed_subtitle_settings()
@@ -67,41 +68,41 @@ class HormoziSubtitles:
         self._font_logged = False
         self._last_render_metadata: Dict[str, object] = {}
 
-        # 🖼️ NOUVEAU : Système de chargement d'emojis PNG amélioré
+        # Ã°Å¸â€“Â¼Ã¯Â¸Â NOUVEAU : SystÃƒÂ¨me de chargement d'emojis PNG amÃƒÂ©liorÃƒÂ©
         self.emoji_png_cache = {}
         self.emoji_mapping = {
-            # 🚨 Services d'urgence
-            '🚨': '1f6a8.png',      # Emergency
-            '🚒': '1f692.png',      # Fire truck
-            '👮‍♂️': '1f46e-200d-2642-fe0f.png',  # Police officer
-            '🚑': '1f691.png',      # Ambulance
-            '👨‍🚒': '1f468-200d-1f692.png',  # Male firefighter
-            '👩‍🚒': '1f469-200d-1f692.png',  # Female firefighter
+            # Ã°Å¸Å¡Â¨ Services d'urgence
+            'Ã°Å¸Å¡Â¨': '1f6a8.png',      # Emergency
+            'Ã°Å¸Å¡â€™': '1f692.png',      # Fire truck
+            'Ã°Å¸â€˜Â®Ã¢â‚¬ÂÃ¢â„¢â€šÃ¯Â¸Â': '1f46e-200d-2642-fe0f.png',  # Police officer
+            'Ã°Å¸Å¡â€˜': '1f691.png',      # Ambulance
+            'Ã°Å¸â€˜Â¨Ã¢â‚¬ÂÃ°Å¸Å¡â€™': '1f468-200d-1f692.png',  # Male firefighter
+            'Ã°Å¸â€˜Â©Ã¢â‚¬ÂÃ°Å¸Å¡â€™': '1f469-200d-1f692.png',  # Female firefighter
             
-            # 🦸‍♂️ Héros et personnes
-            '🦸‍♂️': '1f9b8-200d-2642-fe0f.png',  # Male hero
-            '🦸‍♀️': '1f9b8-200d-2640-fe0f.png',  # Female hero
-            '👥': '1f465.png',      # People
-            '👤': '1f464.png',      # Person
+            # Ã°Å¸Â¦Â¸Ã¢â‚¬ÂÃ¢â„¢â€šÃ¯Â¸Â HÃƒÂ©ros et personnes
+            'Ã°Å¸Â¦Â¸Ã¢â‚¬ÂÃ¢â„¢â€šÃ¯Â¸Â': '1f9b8-200d-2642-fe0f.png',  # Male hero
+            'Ã°Å¸Â¦Â¸Ã¢â‚¬ÂÃ¢â„¢â‚¬Ã¯Â¸Â': '1f9b8-200d-2640-fe0f.png',  # Female hero
+            'Ã°Å¸â€˜Â¥': '1f465.png',      # People
+            'Ã°Å¸â€˜Â¤': '1f464.png',      # Person
             
-            # 😠 Émotions
-            '😠': '1f620.png',      # Angry
-            '😡': '1f621.png',      # Pissed off
-            '😤': '1f624.png',      # Triumph
-            '😤': '1f624.png',      # Triumph
+            # Ã°Å¸ËœÂ  Ãƒâ€°motions
+            'Ã°Å¸ËœÂ ': '1f620.png',      # Angry
+            'Ã°Å¸ËœÂ¡': '1f621.png',      # Pissed off
+            'Ã°Å¸ËœÂ¤': '1f624.png',      # Triumph
+            'Ã°Å¸ËœÂ¤': '1f624.png',      # Triumph
             
-            # 🔥 Situations d'urgence
-            '🔥': '1f525.png',      # Fire
-            '🏠': '1f3e0.png',      # House
-            '🐱': '1f431.png',      # Cat
-            '🌳': '1f333.png',      # Tree
-            '👶': '1f476.png',      # Baby
-            '💪': '1f4aa.png',      # Biceps (force)
-            '⚡': '26a1.png',       # Lightning (urgence)
-            '🚨': '1f6a8.png',      # Emergency light
+            # Ã°Å¸â€Â¥ Situations d'urgence
+            'Ã°Å¸â€Â¥': '1f525.png',      # Fire
+            'Ã°Å¸ÂÂ ': '1f3e0.png',      # House
+            'Ã°Å¸ÂÂ±': '1f431.png',      # Cat
+            'Ã°Å¸Å’Â³': '1f333.png',      # Tree
+            'Ã°Å¸â€˜Â¶': '1f476.png',      # Baby
+            'Ã°Å¸â€™Âª': '1f4aa.png',      # Biceps (force)
+            'Ã¢Å¡Â¡': '26a1.png',       # Lightning (urgence)
+            'Ã°Å¸Å¡Â¨': '1f6a8.png',      # Emergency light
         }
         
-        # Configuration du style Hormozi – version Montserrat virale
+        # Configuration du style Hormozi Ã¢â‚¬â€œ version Montserrat virale
         self.config = {
             'font_size': 110,
             'font_color': (255, 255, 255),
@@ -168,12 +169,12 @@ class HormoziSubtitles:
             'energy': '#FF8A00',    # orange vibrant
             'focus': '#2563EB',     # bleu profond
             'time': '#0EA5E9',      # bleu clair
-            'success': '#22C55E',   # vert succès
+            'success': '#22C55E',   # vert succÃƒÂ¨s
             'alert': '#F97316',     # orange alerte
             'mobile': '#6366F1',    # violet techno
             'sports': '#10B981',    # vert dynamique
-            'health': '#2DD4BF',    # vert bien-être
-            'education': '#A855F7', # violet éducation
+            'health': '#2DD4BF',    # vert bien-ÃƒÂªtre
+            'education': '#A855F7', # violet ÃƒÂ©ducation
         }
         aliases = {
             'money': 'finance',
@@ -300,19 +301,19 @@ class HormoziSubtitles:
             self.category_colors[alias] = palette[target]
 
         base_emojis: Dict[str, List[str]] = {
-            'finance': ['💰', '💸', '📈', '🪙', '🏦', '💹'],
-            'sales': ['🛒', '🤝', '🏷️', '📞', '💼', '🗣️'],
-            'content': ['🎬', '📝', '📹', '🎧', '🎥', '📣'],
-            'growth': ['📈', '🌱', '🚀', '🎯', '📊', '🏆'],
-            'energy': ['⚡', '🔥', '💥', '💪', '🚀', '⚔️'],
-            'focus': ['🎯', '🧠', '🔍', '🛡️', '📘', '🧭'],
-            'time': ['⏳', '⏰', '🕒', '📆', '⌛', '⏱️'],
-            'success': ['🏆', '🥇', '🎖️', '💎', '🎉', '📣'],
-            'alert': ['🚨', '⚠️', '🔔', '🛑', '🚧', '❗'],
-            'mobile': ['📱', '📲', '☎️', '📞', '🛰️', '💬'],
-            'sports': ['⚽', '🏀', '🏈', '🏋️', '🏃‍♂️', '🥅'],
-            'health': ['🧘', '🥦', '💊', '🩺', '🏥', '💤'],
-            'education': ['🎓', '📚', '🧠', '✍️', '📝', '🏫'],
+            'finance': ['Ã°Å¸â€™Â°', 'Ã°Å¸â€™Â¸', 'Ã°Å¸â€œË†', 'Ã°Å¸Âªâ„¢', 'Ã°Å¸ÂÂ¦', 'Ã°Å¸â€™Â¹'],
+            'sales': ['Ã°Å¸â€ºâ€™', 'Ã°Å¸Â¤Â', 'Ã°Å¸ÂÂ·Ã¯Â¸Â', 'Ã°Å¸â€œÅ¾', 'Ã°Å¸â€™Â¼', 'Ã°Å¸â€”Â£Ã¯Â¸Â'],
+            'content': ['Ã°Å¸Å½Â¬', 'Ã°Å¸â€œÂ', 'Ã°Å¸â€œÂ¹', 'Ã°Å¸Å½Â§', 'Ã°Å¸Å½Â¥', 'Ã°Å¸â€œÂ£'],
+            'growth': ['Ã°Å¸â€œË†', 'Ã°Å¸Å’Â±', 'Ã°Å¸Å¡â‚¬', 'Ã°Å¸Å½Â¯', 'Ã°Å¸â€œÅ ', 'Ã°Å¸Ââ€ '],
+            'energy': ['Ã¢Å¡Â¡', 'Ã°Å¸â€Â¥', 'Ã°Å¸â€™Â¥', 'Ã°Å¸â€™Âª', 'Ã°Å¸Å¡â‚¬', 'Ã¢Å¡â€Ã¯Â¸Â'],
+            'focus': ['Ã°Å¸Å½Â¯', 'Ã°Å¸Â§Â ', 'Ã°Å¸â€Â', 'Ã°Å¸â€ºÂ¡Ã¯Â¸Â', 'Ã°Å¸â€œËœ', 'Ã°Å¸Â§Â­'],
+            'time': ['Ã¢ÂÂ³', 'Ã¢ÂÂ°', 'Ã°Å¸â€¢â€™', 'Ã°Å¸â€œâ€ ', 'Ã¢Å’â€º', 'Ã¢ÂÂ±Ã¯Â¸Â'],
+            'success': ['Ã°Å¸Ââ€ ', 'Ã°Å¸Â¥â€¡', 'Ã°Å¸Å½â€“Ã¯Â¸Â', 'Ã°Å¸â€™Å½', 'Ã°Å¸Å½â€°', 'Ã°Å¸â€œÂ£'],
+            'alert': ['Ã°Å¸Å¡Â¨', 'Ã¢Å¡Â Ã¯Â¸Â', 'Ã°Å¸â€â€', 'Ã°Å¸â€ºâ€˜', 'Ã°Å¸Å¡Â§', 'Ã¢Ââ€”'],
+            'mobile': ['Ã°Å¸â€œÂ±', 'Ã°Å¸â€œÂ²', 'Ã¢ËœÅ½Ã¯Â¸Â', 'Ã°Å¸â€œÅ¾', 'Ã°Å¸â€ºÂ°Ã¯Â¸Â', 'Ã°Å¸â€™Â¬'],
+            'sports': ['Ã¢Å¡Â½', 'Ã°Å¸Ââ‚¬', 'Ã°Å¸ÂË†', 'Ã°Å¸Ââ€¹Ã¯Â¸Â', 'Ã°Å¸ÂÆ’Ã¢â‚¬ÂÃ¢â„¢â€šÃ¯Â¸Â', 'Ã°Å¸Â¥â€¦'],
+            'health': ['Ã°Å¸Â§Ëœ', 'Ã°Å¸Â¥Â¦', 'Ã°Å¸â€™Å ', 'Ã°Å¸Â©Âº', 'Ã°Å¸ÂÂ¥', 'Ã°Å¸â€™Â¤'],
+            'education': ['Ã°Å¸Å½â€œ', 'Ã°Å¸â€œÅ¡', 'Ã°Å¸Â§Â ', 'Ã¢Å“ÂÃ¯Â¸Â', 'Ã°Å¸â€œÂ', 'Ã°Å¸ÂÂ«'],
         }
         self.category_emojis: Dict[str, List[str]] = {
             key: list(values) for key, values in base_emojis.items()
@@ -321,16 +322,16 @@ class HormoziSubtitles:
             if target in base_emojis:
                 self.category_emojis[alias] = list(base_emojis[target])
         
-        # Dictionnaire mots-clés -> catégorie (liste élargie de synonymes/variations)
+        # Dictionnaire mots-clÃƒÂ©s -> catÃƒÂ©gorie (liste ÃƒÂ©largie de synonymes/variations)
         self.keyword_to_category: Dict[str, str] = {}
         self._bootstrap_categories()
-        # Charger un lexique externe optionnel pour enrichir alias/catégories/émoticônes
+        # Charger un lexique externe optionnel pour enrichir alias/catÃƒÂ©gories/ÃƒÂ©moticÃƒÂ´nes
         try:
             self._load_external_emoji_lexicon(Path('config/emoji_lexicon.json'))
         except Exception:
             pass
         
-        # Alias supplémentaires (FR/EN) pour améliorer la couverture sémantique → catégorie
+        # Alias supplÃƒÂ©mentaires (FR/EN) pour amÃƒÂ©liorer la couverture sÃƒÂ©mantique Ã¢â€ â€™ catÃƒÂ©gorie
         self.emoji_alias: Dict[str, str] = {
             # Finance
             'ARGENT': 'finance', 'EURO': 'finance', 'EUROS': 'finance', 'REVENU': 'finance', 'REVENUS': 'finance',
@@ -386,7 +387,7 @@ class HormoziSubtitles:
             'BOOST': 'energy', 'MOVE': 'energy', 'WOW': 'energy', 'INCROYABLE': 'energy',
             'AMAZING': 'energy', 'INCREDIBLE': 'energy', 'FIRE': 'energy', 'CRAZY': 'energy', 'INSANE': 'energy',
             'MOTIVATION': 'energy', 'PASSION': 'energy', 'LOVE': 'energy', 'AMOUR': 'energy', 'HYPE': 'energy',
-            'BURN': 'energy', '🔥': 'energy', '❤️': 'energy',
+            'BURN': 'energy', 'Ã°Å¸â€Â¥': 'energy', 'Ã¢ÂÂ¤Ã¯Â¸Â': 'energy',
             # Alert / Emergency
             'URGENT': 'alert', 'URGENCE': 'alert', 'URGENCY': 'alert', 'ALERT': 'alert', 'ALERTE': 'alert', 'WARNING': 'alert',
             'DANGER': 'alert', 'RISQUE': 'alert', 'RISK': 'alert', 'SECURITY': 'alert', 'SECURITE': 'alert', 'PANIC': 'alert',
@@ -420,13 +421,13 @@ class HormoziSubtitles:
         }
 
         self._hero_triggers: Dict[str, Sequence[str]] = {
-            '🔥': ('OFFER', 'OFFRE', 'DEAL'),
-            '⚡': ('ENERGY', 'ENERGIE', 'POWER', 'SPEED', 'RAPIDE'),
-            '💰': ('PROFIT', 'PROFITS', 'MONEY', 'ARGENT', 'CASH', 'REVENU', 'REVENUE'),
-            '🧠': ('BRAIN', 'GENIUS', 'MENTAL', 'MINDSET', 'FOCUS'),
+            'Ã°Å¸â€Â¥': ('OFFER', 'OFFRE', 'DEAL'),
+            'Ã¢Å¡Â¡': ('ENERGY', 'ENERGIE', 'POWER', 'SPEED', 'RAPIDE'),
+            'Ã°Å¸â€™Â°': ('PROFIT', 'PROFITS', 'MONEY', 'ARGENT', 'CASH', 'REVENU', 'REVENUE'),
+            'Ã°Å¸Â§Â ': ('BRAIN', 'GENIUS', 'MENTAL', 'MINDSET', 'FOCUS'),
         }
         
-        # Mémoire pour éviter la répétition immédiate d'un même emoji
+        # MÃƒÂ©moire pour ÃƒÂ©viter la rÃƒÂ©pÃƒÂ©tition immÃƒÂ©diate d'un mÃƒÂªme emoji
         self._last_emoji: str = ""
         history_window = max(1, int(self.config.get('emoji_history_window', 4)))
         self._recent_emojis = deque(maxlen=history_window)
@@ -435,11 +436,11 @@ class HormoziSubtitles:
         self._emoji_usage_total_emojis = 0
         self._global_group_index = 0
         self._last_emoji_global_index = -999
-        # Mémoire pour lisser la position verticale des sous-titres
+        # MÃƒÂ©moire pour lisser la position verticale des sous-titres
         self._y_ema: float | None = None
         self._line_h_ema: float | None = None
 
-        # Détection visage (placement intelligent): initialiser un cascade si dispo
+        # DÃƒÂ©tection visage (placement intelligent): initialiser un cascade si dispo
         self._face_cascade = None
         try:
             import cv2 as _cv
@@ -457,9 +458,9 @@ class HormoziSubtitles:
             if cat in self.category_emojis and self.category_emojis[cat]:
                 self.emoji_mapping[kw] = self.category_emojis[cat][0]
         
-        # Préchargement d'emojis fréquents (PNG) pour éviter latences
+        # PrÃƒÂ©chargement d'emojis frÃƒÂ©quents (PNG) pour ÃƒÂ©viter latences
         if self.config.get('emoji_prefetch_common', False) and self.config.get('enable_emojis', False):
-            common = ['🔥','💸','🚀','💼','📈','🏆','⏳','⚡','✅','💯']
+            common = ['Ã°Å¸â€Â¥','Ã°Å¸â€™Â¸','Ã°Å¸Å¡â‚¬','Ã°Å¸â€™Â¼','Ã°Å¸â€œË†','Ã°Å¸Ââ€ ','Ã¢ÂÂ³','Ã¢Å¡Â¡','Ã¢Å“â€¦','Ã°Å¸â€™Â¯']
             for ch in common:
                 try:
                     self._load_emoji_png(ch, 64)
@@ -481,34 +482,34 @@ class HormoziSubtitles:
         return self._default_category_color
 
     def _get_category_for_word(self, word: str):
-        """Retourne la config de catégorie (couleur/emoji) si le mot appartient à une catégorie FR/EN."""
+        """Retourne la config de catÃƒÂ©gorie (couleur/emoji) si le mot appartient ÃƒÂ  une catÃƒÂ©gorie FR/EN."""
         word_norm = self._normalize(word)
-        # Définition FR « Hormozi 1 »
+        # DÃƒÂ©finition FR Ã‚Â« Hormozi 1 Ã‚Â»
         self.keyword_categories = getattr(self, 'keyword_categories', None) or {
             "MONEY": {
                 "words": ["ARGENT","EUROS","DOLLARS","REVENU","CHER","COUT","INVESTIR","BENEFICE","VENDRE","ACHETER"],
                 "color": self.category_colors['finance'],
-                "emoji": '💰'
+                "emoji": 'Ã°Å¸â€™Â°'
             },
             "ACTION": {
                 "words": ["CREER","DETRUIRE","MULTIPLIER","AUGMENTER","ECRASER","TRANSFORMER","POUSSER"],
                 "color": self.category_colors['actions'],
-                "emoji": '⚡'
+                "emoji": 'Ã¢Å¡Â¡'
             },
             "RESULT": {
                 "words": ["SUCCES","RESULTAT","GAGNER","VICTOIRE","SOMMET","LEADER","NUMERO","TOP"],
                 "color": self.category_colors['success'],
-                "emoji": '🏆'
+                "emoji": 'Ã°Å¸Ââ€ '
             },
             "TIME": {
                 "words": ["HEURE","TEMPS","JOUR","MINUTE","RAPIDE","VITE","IMMEDIAT","AUJOURDHUI"],
                 "color": self.category_colors['urgency'],
-                "emoji": '⏳'
+                "emoji": 'Ã¢ÂÂ³'
             },
             "EMOTION": {
                 "words": ["PEUR","MOTIVATION","CROYANCE","PASSION","DETERMINATION","ENERGIE","AMOUR"],
                 "color": self.category_colors['emotions'],
-                "emoji": '❤️'
+                "emoji": 'Ã¢ÂÂ¤Ã¯Â¸Â'
             }
         }
         for cat, data in self.keyword_categories.items():
@@ -519,9 +520,9 @@ class HormoziSubtitles:
 
     def parse_transcription_to_word_groups(self, transcription_data: List[Dict], group_size: int = 2) -> List[Dict]:
         """
-        Parse la transcription en groupes de mots (2–3) style Hormozi 1.
-        Chaque groupe est stylisé; seul le premier mot-clé est coloré, les autres restent blancs.
-        Gère aussi le cas SRT (pas de mots horodatés) en répartissant le temps uniformément.
+        Parse la transcription en groupes de mots (2Ã¢â‚¬â€œ3) style Hormozi 1.
+        Chaque groupe est stylisÃƒÂ©; seul le premier mot-clÃƒÂ© est colorÃƒÂ©, les autres restent blancs.
+        GÃƒÂ¨re aussi le cas SRT (pas de mots horodatÃƒÂ©s) en rÃƒÂ©partissant le temps uniformÃƒÂ©ment.
         """
         words: List[Dict] = []
         for segment in transcription_data:
@@ -533,8 +534,8 @@ class HormoziSubtitles:
             duration = max(0.01, seg_end - seg_start)
             raw_words = segment.get("words", [])
             if not raw_words:
-                # Fallback SRT: découper le texte en tokens alphanumériques et répartir le temps
-                tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9']+", seg_text)
+                # Fallback SRT: dÃƒÂ©couper le texte en tokens alphanumÃƒÂ©riques et rÃƒÂ©partir le temps
+                tokens = re.findall(r"[A-Za-zÃƒâ‚¬-Ãƒâ€“ÃƒËœ-ÃƒÂ¶ÃƒÂ¸-ÃƒÂ¿0-9']+", seg_text)
                 if not tokens:
                     continue
                 step = duration / max(1, len(tokens))
@@ -546,7 +547,7 @@ class HormoziSubtitles:
                     raw_words.append({"text": tok, "start": w_start, "end": w_end})
                     cur = w_end
             # Regroupement intelligent par ponctuation/respiration
-            # Découpe en unités au niveau ponctuation forte ; sinon groupe de 2 mots
+            # DÃƒÂ©coupe en unitÃƒÂ©s au niveau ponctuation forte ; sinon groupe de 2 mots
             boundaries = []
             try:
                 text_lower = seg_text.lower()
@@ -682,7 +683,7 @@ class HormoziSubtitles:
         return None
 
     def _load_emoji_font(self, size: int) -> ImageFont.FreeTypeFont:
-        """Charge une police emoji système (Segoe UI Emoji/Noto) pour fallback texte."""
+        """Charge une police emoji systÃƒÂ¨me (Segoe UI Emoji/Noto) pour fallback texte."""
         candidates = [
             "C:/Windows/Fonts/seguiemj.ttf",
             "C:/Windows/Fonts/seguiui.ttf",
@@ -920,16 +921,16 @@ class HormoziSubtitles:
         return ImageFont.load_default()
 
     def _load_emoji_png(self, emoji_char: str, target_h: int) -> Image.Image | None:
-        """Charge un emoji PNG depuis emoji_assets/<codepoint>.png; télécharge via Twemoji si manquant et PNG-only."""
+        """Charge un emoji PNG depuis emoji_assets/<codepoint>.png; tÃƒÂ©lÃƒÂ©charge via Twemoji si manquant et PNG-only."""
         try:
             if not emoji_char:
                 return None
             assets_dir = Path("emoji_assets"); assets_dir.mkdir(parents=True, exist_ok=True)
-            # Support simple et séquences: joindre les codepoints par '-'
+            # Support simple et sÃƒÂ©quences: joindre les codepoints par '-'
             codepoints = "-".join([f"{ord(ch):x}" for ch in emoji_char])
             img_path = assets_dir / f"{codepoints}.png"
             if not img_path.exists() and self.config.get('emoji_png_only', False) and self.config.get('use_twemoji_local', True):
-                # Tentative de téléchargement Twemoji
+                # Tentative de tÃƒÂ©lÃƒÂ©chargement Twemoji
                 urls = [
                     f"https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/{codepoints}.png",
                     f"https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/{codepoints}.png",
@@ -974,7 +975,7 @@ class HormoziSubtitles:
         return active
 
     def _bootstrap_categories(self) -> None:
-        """Initialise les catégories et assigne un grand nombre de mots-clés."""
+        """Initialise les catÃƒÂ©gories et assigne un grand nombre de mots-clÃƒÂ©s."""
         cat = {}
         # Sales / Business
         cat['sales'] = [
@@ -1061,10 +1062,10 @@ class HormoziSubtitles:
                 self.keyword_to_category[w] = category
 
     def _load_external_emoji_lexicon(self, path: Path) -> None:
-        """Charge un lexique externe JSON et fusionne: catégories, alias, emojis, mots-clés.
+        """Charge un lexique externe JSON et fusionne: catÃƒÂ©gories, alias, emojis, mots-clÃƒÂ©s.
         Format attendu (tous facultatifs):
         {
-          "category_emojis": {"category": ["🔥","..."]},
+          "category_emojis": {"category": ["Ã°Å¸â€Â¥","..."]},
           "emoji_alias": {"WORD":"category"},
           "keyword_to_category": {"WORD":"category"},
           "categories": {"category": ["WORD1","WORD2"]}
@@ -1075,25 +1076,25 @@ class HormoziSubtitles:
                 return
             data = json.loads(path.read_text(encoding='utf-8'))
             if isinstance(data, dict):
-                # Emojis par catégorie
+                # Emojis par catÃƒÂ©gorie
                 ce = data.get('category_emojis') or {}
                 if isinstance(ce, dict):
                     for k,v in ce.items():
                         if isinstance(v, list) and v:
                             self.category_emojis[k] = list(dict.fromkeys((self.category_emojis.get(k, []) + v)))
-                # Alias mots -> catégorie
+                # Alias mots -> catÃƒÂ©gorie
                 ea = data.get('emoji_alias') or {}
                 if isinstance(ea, dict):
                     for k, v in ea.items():
                         if isinstance(k, str) and isinstance(v, str):
                             self.emoji_alias[self._normalize(k)] = v
-                # Mots-clés -> catégorie
+                # Mots-clÃƒÂ©s -> catÃƒÂ©gorie
                 km = data.get('keyword_to_category') or {}
                 if isinstance(km, dict):
                     for k, v in km.items():
                         if isinstance(k, str) and isinstance(v, str):
                             self.keyword_to_category[self._normalize(k)] = v
-                # Catégories supplémentaires
+                # CatÃƒÂ©gories supplÃƒÂ©mentaires
                 cat = data.get('categories') or {}
                 if isinstance(cat, dict):
                     for cat_name, words in cat.items():
@@ -1105,7 +1106,7 @@ class HormoziSubtitles:
             pass
 
     def _choose_emoji_for_tokens(self, tokens: List[Dict], group_text: str) -> str:
-        """Choisit un emoji contextuel à partir des catégories déjà évaluées."""
+        """Choisit un emoji contextuel ÃƒÂ  partir des catÃƒÂ©gories dÃƒÂ©jÃƒÂ  ÃƒÂ©valuÃƒÂ©es."""
         candidates: List[str] = []
         categories: List[str] = []
         for token in tokens:
@@ -1241,7 +1242,7 @@ class HormoziSubtitles:
 
     def create_subtitle_frame(self, frame: np.ndarray, words: List[Dict], 
                               current_time: float) -> np.ndarray:
-        """Crée une frame avec sous-titres overlay (coloration du mot-clé; emojis en fin de groupe)."""
+        """CrÃƒÂ©e une frame avec sous-titres overlay (coloration du mot-clÃƒÂ©; emojis en fin de groupe)."""
         height, width = frame.shape[:2]
         if words and isinstance(words, list) and isinstance(words[0], dict) and ("animation_progress" in words[0]):
             active_words = words
@@ -1308,7 +1309,7 @@ class HormoziSubtitles:
                     group_meta[group_idx]['max_height'] = max(group_meta[group_idx]['max_height'], h_total)
                     group_meta[group_idx]['font_size'] = max(group_meta[group_idx]['font_size'], fsize)
                     if j < len(tokens) - 1:
-                        # Espace basé sur la taille de police actuelle
+                        # Espace basÃƒÂ© sur la taille de police actuelle
                         try:
                             space_w = int(max(1, draw.textlength(" ", font=font)))
                         except Exception:
@@ -1417,7 +1418,7 @@ class HormoziSubtitles:
         x = (width - total_w) // 2
         # Marge adaptative: au moins un pourcentage de la hauteur
         margin_bottom_px = max(int(self.config.get('margin_bottom', 80)), int(height * 0.06))
-        # Lissage de la hauteur de ligne pour éviter les sauts verticaux liés à l'animation/bounce
+        # Lissage de la hauteur de ligne pour ÃƒÂ©viter les sauts verticaux liÃƒÂ©s ÃƒÂ  l'animation/bounce
         line_h_target = float(max_h)
         if self._line_h_ema is None:
             self._line_h_ema = line_h_target
@@ -1426,7 +1427,7 @@ class HormoziSubtitles:
             self._line_h_ema = (1 - alpha_line) * self._line_h_ema + alpha_line * line_h_target
         y_target = float(height - margin_bottom_px - int(self._line_h_ema))
         # Position fixe : aucun ajustement pour faces
-        # Lissage EMA de la position Y pour atténuer tout jitter restant
+        # Lissage EMA de la position Y pour attÃƒÂ©nuer tout jitter restant
         if self._y_ema is None:
             self._y_ema = y_target
         else:
@@ -1485,11 +1486,11 @@ class HormoziSubtitles:
                             if dx * dx + dy * dy > stroke_px * stroke_px:
                                 continue
                             draw.text((draw_x + dx, draw_y + dy), word_text, font=font, fill=stroke_fill)
-                # Dessin du texte une seule fois (pas de gradient/ombre pour éviter le sur-noircissement)
+                # Dessin du texte une seule fois (pas de gradient/ombre pour ÃƒÂ©viter le sur-noircissement)
                 draw.text((draw_x, draw_y), word_text, font=font, fill=fill)
                 x += word_w
             elif it['type'] == 'space':
-                # Avancer la position horizontale pour l'espace calculé
+                # Avancer la position horizontale pour l'espace calculÃƒÂ©
                 group_idx = it.get('group_index')
                 if group_idx is not None:
                     pos = group_positions[group_idx]
@@ -1563,16 +1564,16 @@ class HormoziSubtitles:
                                transcription_data: List[Dict], 
                                output_video_path: str) -> None:
         """
-        Ajoute des sous-titres style Hormozi 1 (groupes 2–3 mots, multi-couleurs sur une ligne, emojis PNG en surimpression)
+        Ajoute des sous-titres style Hormozi 1 (groupes 2Ã¢â‚¬â€œ3 mots, multi-couleurs sur une ligne, emojis PNG en surimpression)
         """
-        print("🔥 Génération sous-titres style Hormozi 1...")
-        # Groupes plus dynamiques (2–3 mots)
+        print("Ã°Å¸â€Â¥ GÃƒÂ©nÃƒÂ©ration sous-titres style Hormozi 1...")
+        # Groupes plus dynamiques (2Ã¢â‚¬â€œ3 mots)
         groups = self.parse_transcription_to_word_groups(transcription_data, group_size=2)
         try:
             self._enrich_keywords_from_transcript(groups)
         except Exception:
             pass
-        print(f"📝 {len(groups)} groupes de mots extraits")
+        print(f"Ã°Å¸â€œÂ {len(groups)} groupes de mots extraits")
         video = mp.VideoFileClip(input_video_path)
         def apply_subtitles(get_frame, t):
             frame = get_frame(t)
@@ -1591,10 +1592,10 @@ class HormoziSubtitles:
                     w_active = dict(w)
                     w_active["animation_progress"] = float(anim_prog)
                     active.append(w_active)
-            # Rendu texte + overlay éventuel d'emoji PNG pour mots clés boostés
+            # Rendu texte + overlay ÃƒÂ©ventuel d'emoji PNG pour mots clÃƒÂ©s boostÃƒÂ©s
             out_bgr = self.create_subtitle_frame(frame_bgr, active, t)
             try:
-                # Si une palette avec 'emoji' a été fournie, overlay à droite du texte
+                # Si une palette avec 'emoji' a ÃƒÂ©tÃƒÂ© fournie, overlay ÃƒÂ  droite du texte
                 if isinstance(getattr(self, 'span_style_map', None), dict):
                     for w in active[:2]:
                         word = str(w.get('text','')).strip().lower()
@@ -1604,34 +1605,34 @@ class HormoziSubtitles:
                             emo = style.get('emoji') or ''
                             name = None
                             if isinstance(emo, str):
-                                # Mapping étendu pour tous les émojis du span_style_map
+                                # Mapping ÃƒÂ©tendu pour tous les ÃƒÂ©mojis du span_style_map
                                 m = {
                                     # Business & Croissance
-                                    '📈': 'emoji_chart.png', '🌱': 'emoji_growth.png',
-                                    '🔑': 'emoji_key.png', '🌟': 'emoji_star.png',
-                                    '⚡': 'emoji_lightning.png', '💡': 'emoji_bulb.png',
-                                    '🧭': 'emoji_compass.png', '🗺️': 'emoji_map.png',
+                                    'Ã°Å¸â€œË†': 'emoji_chart.png', 'Ã°Å¸Å’Â±': 'emoji_growth.png',
+                                    'Ã°Å¸â€â€˜': 'emoji_key.png', 'Ã°Å¸Å’Å¸': 'emoji_star.png',
+                                    'Ã¢Å¡Â¡': 'emoji_lightning.png', 'Ã°Å¸â€™Â¡': 'emoji_bulb.png',
+                                    'Ã°Å¸Â§Â­': 'emoji_compass.png', 'Ã°Å¸â€”ÂºÃ¯Â¸Â': 'emoji_map.png',
                                     # Argent & Finance
-                                    '💰': 'emoji_money.png', '📊': 'emoji_chart.png',
-                                    '🏦': 'emoji_bank.png', '📉': 'emoji_down.png',
-                                    '❌': 'emoji_cross.png', '🧾': 'emoji_receipt.png',
-                                    '🪙': 'emoji_coin.png',
+                                    'Ã°Å¸â€™Â°': 'emoji_money.png', 'Ã°Å¸â€œÅ ': 'emoji_chart.png',
+                                    'Ã°Å¸ÂÂ¦': 'emoji_bank.png', 'Ã°Å¸â€œâ€°': 'emoji_down.png',
+                                    'Ã¢ÂÅ’': 'emoji_cross.png', 'Ã°Å¸Â§Â¾': 'emoji_receipt.png',
+                                    'Ã°Å¸Âªâ„¢': 'emoji_coin.png',
                                     # Relation & Client
-                                    '🤝': 'emoji_handshake.png', '🫱🏼‍🫲🏽': 'emoji_handshake.png',
-                                    '🌍': 'emoji_earth.png', '👥': 'emoji_group.png',
-                                    '🔒': 'emoji_lock.png', '🛒': 'emoji_cart.png',
-                                    '📦': 'emoji_package.png', '📋': 'emoji_contract.png',
-                                    # Motivation & Succès
-                                    '🔥': 'emoji_fire.png', '⚡': 'emoji_lightning.png',
-                                    '🏆': 'emoji_trophy.png', '🎯': 'emoji_target.png',
-                                    '⏳': 'emoji_hourglass.png', '🥋': 'emoji_karate.png',
-                                    '🚀': 'emoji_rocket.png', '🌐': 'emoji_globe.png',
-                                    '💥': 'emoji_explosion.png',
+                                    'Ã°Å¸Â¤Â': 'emoji_handshake.png', 'Ã°Å¸Â«Â±Ã°Å¸ÂÂ¼Ã¢â‚¬ÂÃ°Å¸Â«Â²Ã°Å¸ÂÂ½': 'emoji_handshake.png',
+                                    'Ã°Å¸Å’Â': 'emoji_earth.png', 'Ã°Å¸â€˜Â¥': 'emoji_group.png',
+                                    'Ã°Å¸â€â€™': 'emoji_lock.png', 'Ã°Å¸â€ºâ€™': 'emoji_cart.png',
+                                    'Ã°Å¸â€œÂ¦': 'emoji_package.png', 'Ã°Å¸â€œâ€¹': 'emoji_contract.png',
+                                    # Motivation & SuccÃƒÂ¨s
+                                    'Ã°Å¸â€Â¥': 'emoji_fire.png', 'Ã¢Å¡Â¡': 'emoji_lightning.png',
+                                    'Ã°Å¸Ââ€ ': 'emoji_trophy.png', 'Ã°Å¸Å½Â¯': 'emoji_target.png',
+                                    'Ã¢ÂÂ³': 'emoji_hourglass.png', 'Ã°Å¸Â¥â€¹': 'emoji_karate.png',
+                                    'Ã°Å¸Å¡â‚¬': 'emoji_rocket.png', 'Ã°Å¸Å’Â': 'emoji_globe.png',
+                                    'Ã°Å¸â€™Â¥': 'emoji_explosion.png',
                                     # Risque & Erreurs
-                                    '⚠️': 'emoji_warning.png', '🛑': 'emoji_stop.png',
-                                    '🧱': 'emoji_wall.png', '⛔': 'emoji_blocked.png',
-                                    '🔧': 'emoji_tools.png', '🪄': 'emoji_magic.png',
-                                    '📚': 'emoji_book.png', '': 'emoji_brain.png'
+                                    'Ã¢Å¡Â Ã¯Â¸Â': 'emoji_warning.png', 'Ã°Å¸â€ºâ€˜': 'emoji_stop.png',
+                                    'Ã°Å¸Â§Â±': 'emoji_wall.png', 'Ã¢â€ºâ€': 'emoji_blocked.png',
+                                    'Ã°Å¸â€Â§': 'emoji_tools.png', 'Ã°Å¸Âªâ€ž': 'emoji_magic.png',
+                                    'Ã°Å¸â€œÅ¡': 'emoji_book.png', '': 'emoji_brain.png'
                                 }
                                 name = m.get(emo)
                             if name:
@@ -1647,7 +1648,7 @@ class HormoziSubtitles:
                                         png = p
                                         break
                                 if png:
-                                    # Position approx: coin inférieur droit sécurisé
+                                    # Position approx: coin infÃƒÂ©rieur droit sÃƒÂ©curisÃƒÂ©
                                     h,w_ = out_bgr.shape[:2]
                                     out_bgr = self.overlay_big_emoji(out_bgr, str(png), max(32, w_ - 380), max(64, h - 520), scale=1.6)
                                 else:
@@ -1660,7 +1661,7 @@ class HormoziSubtitles:
                                         draw.text((8, 8), emo, font=emoji_font, fill=(255,255,255,255))
                                         # Convertir et overlay
                                         emoji_arr = np.array(emoji_img)
-                                        # Position plus discrète
+                                        # Position plus discrÃƒÂ¨te
                                         h,w_ = out_bgr.shape[:2]
                                         x_pos = max(32, w_ - 120)
                                         y_pos = max(64, h - 120)
@@ -1671,36 +1672,36 @@ class HormoziSubtitles:
                                                 emoji_arr[:,:,c] * 0.7
                                             ).astype(out_bgr.dtype)
                                     except Exception:
-                                        pass  # Fallback silencieux si émoji unicode échoue
+                                        pass  # Fallback silencieux si ÃƒÂ©moji unicode ÃƒÂ©choue
             except Exception:
                 pass
             return cv2.cvtColor(out_bgr, cv2.COLOR_BGR2RGB)
-        # 🚨 CORRECTION BUG: Utiliser apply_to=None pour éviter les problèmes de dimensions
+        # Ã°Å¸Å¡Â¨ CORRECTION BUG: Utiliser apply_to=None pour ÃƒÂ©viter les problÃƒÂ¨mes de dimensions
         final_video = video.fl(apply_subtitles, apply_to=None)
-        print("💾 Export vidéo finale...")
+        print("Ã°Å¸â€™Â¾ Export vidÃƒÂ©o finale...")
         
-        # 🚨 CORRECTION BUG: S'assurer que les dimensions finales sont paires pour H.264
+        # Ã°Å¸Å¡Â¨ CORRECTION BUG: S'assurer que les dimensions finales sont paires pour H.264
         try:
-            # Vérifier les dimensions de la vidéo finale
+            # VÃƒÂ©rifier les dimensions de la vidÃƒÂ©o finale
             final_width = final_video.w
             final_height = final_video.h
             
-            # Forcer des dimensions paires si nécessaire
+            # Forcer des dimensions paires si nÃƒÂ©cessaire
             if final_width % 2 != 0:
                 final_width = final_width - 1 if final_width > 1 else final_width + 1
             if final_height % 2 != 0:
                 final_height = final_height - 1 if final_height > 1 else final_height + 1
             
-            # Redimensionner si les dimensions ont changé
+            # Redimensionner si les dimensions ont changÃƒÂ©
             if final_width != video.w or final_height != video.h:
-                print(f"    🔧 Correction dimensions: {video.w}x{video.h} → {final_width}x{final_height}")
+                print(f"    Ã°Å¸â€Â§ Correction dimensions: {video.w}x{video.h} Ã¢â€ â€™ {final_width}x{final_height}")
                 final_video = final_video.resize((final_width, final_height))
         except Exception as e:
-            print(f"    ⚠️ Erreur correction dimensions: {e}")
-            # Fallback: redimensionner à la taille cible standard
+            print(f"    Ã¢Å¡Â Ã¯Â¸Â Erreur correction dimensions: {e}")
+            # Fallback: redimensionner ÃƒÂ  la taille cible standard
             try:
                 final_video = final_video.resize((720, 1280))
-                print("    🔧 Fallback: redimensionnement à 720x1280")
+                print("    Ã°Å¸â€Â§ Fallback: redimensionnement ÃƒÂ  720x1280")
             except Exception:
                 pass
         
@@ -1713,8 +1714,8 @@ class HormoziSubtitles:
             ffmpeg_params=['-pix_fmt', 'yuv420p', '-movflags', '+faststart']
         )
         video.close(); final_video.close()
-        print(f"✅ Sous-titres Hormozi ajoutés : {output_video_path}") 
-        # Export tokens JSON à côté
+        print(f"Ã¢Å“â€¦ Sous-titres Hormozi ajoutÃƒÂ©s : {output_video_path}") 
+        # Export tokens JSON ÃƒÂ  cÃƒÂ´tÃƒÂ©
         try:
             self.export_tokens_json(groups, str(Path(output_video_path).with_suffix('.tokens.json')))
         except Exception:
@@ -1731,7 +1732,7 @@ class HormoziSubtitles:
             self.config[k] = v
 
     def apply_span_style_map(self, mapping: Dict[str, Dict[str, object]]):
-        """Applique une palette riche multi-couleurs pour certains mots-clés.
+        """Applique une palette riche multi-couleurs pour certains mots-clÃƒÂ©s.
         mapping ex: {"argent": {"color":"#FFD700","bold":True}, ...}
         """
         try:
@@ -1749,96 +1750,96 @@ class HormoziSubtitles:
             pass
     
     def get_smart_color_for_keyword(self, keyword: str, text: str = "", intensity: float = 1.0) -> str:
-        """Obtient une couleur intelligente pour un mot-clé (nouveau système)"""
+        """Obtient une couleur intelligente pour un mot-clÃƒÂ© (nouveau systÃƒÂ¨me)"""
         if self.SMART_SYSTEMS_AVAILABLE:
             try:
                 result = self.smart_colors.get_color_for_keyword(keyword, text, intensity)
                 return result
             except Exception as e:
-                print(f"🔍 DEBUG SMART: Erreur: {e}")
+                print(f"Ã°Å¸â€Â DEBUG SMART: Erreur: {e}")
                 pass
         
-        # Fallback : système classique
+        # Fallback : systÃƒÂ¨me classique
         if keyword.lower() in self.keyword_colors:
             r, g, b = self.keyword_colors[keyword.lower()]
             return f"#{r:02x}{g:02x}{b:02x}"
         
-        # Fallback : couleur par défaut
+        # Fallback : couleur par dÃƒÂ©faut
         return self._default_category_color
     
     def get_contextual_emoji_for_keyword(self, keyword: str, text: str = "", sentiment: str = "neutral", intensity: float = 1.0) -> str:
         """MAPPING AUTHENTIQUE HORMOZI 1 POUR TIKTOK VIRAL"""
         keyword_lower = keyword.lower().strip()
         
-        # 🔥 MAPPING HORMOZI 1 AUTHENTIQUE BASÉ SUR TIKTOK
+        # Ã°Å¸â€Â¥ MAPPING HORMOZI 1 AUTHENTIQUE BASÃƒâ€° SUR TIKTOK
         hormozi_emoji_map = {
-            # 💰 ARGENT & BUSINESS (couleur signature Hormozi)
-            'money': '💰', 'cash': '💸', 'profit': '💰', 'revenue': '💰', 'wealth': '💰',
-            'business': '💼', 'sales': '💰', 'income': '💰', 'rich': '💰', 'expensive': '💸',
-            'investment': '📈', 'financial': '💰', 'budget': '💰', 'value': '💎',
+            # Ã°Å¸â€™Â° ARGENT & BUSINESS (couleur signature Hormozi)
+            'money': 'Ã°Å¸â€™Â°', 'cash': 'Ã°Å¸â€™Â¸', 'profit': 'Ã°Å¸â€™Â°', 'revenue': 'Ã°Å¸â€™Â°', 'wealth': 'Ã°Å¸â€™Â°',
+            'business': 'Ã°Å¸â€™Â¼', 'sales': 'Ã°Å¸â€™Â°', 'income': 'Ã°Å¸â€™Â°', 'rich': 'Ã°Å¸â€™Â°', 'expensive': 'Ã°Å¸â€™Â¸',
+            'investment': 'Ã°Å¸â€œË†', 'financial': 'Ã°Å¸â€™Â°', 'budget': 'Ã°Å¸â€™Â°', 'value': 'Ã°Å¸â€™Å½',
             
-            # 🚨 ATTENTION & URGENCE (style Hormozi)
-            'attention': '👀', 'look': '👀', 'watch': '👀', 'see': '👀', 'focus': '🎯',
-            'important': '🚨', 'urgent': '🚨', 'critical': '🚨', 'must': '❗', 'need': '❗',
-            'stop': '✋', 'wait': '✋', 'listen': '👂', 'hear': '👂',
+            # Ã°Å¸Å¡Â¨ ATTENTION & URGENCE (style Hormozi)
+            'attention': 'Ã°Å¸â€˜â‚¬', 'look': 'Ã°Å¸â€˜â‚¬', 'watch': 'Ã°Å¸â€˜â‚¬', 'see': 'Ã°Å¸â€˜â‚¬', 'focus': 'Ã°Å¸Å½Â¯',
+            'important': 'Ã°Å¸Å¡Â¨', 'urgent': 'Ã°Å¸Å¡Â¨', 'critical': 'Ã°Å¸Å¡Â¨', 'must': 'Ã¢Ââ€”', 'need': 'Ã¢Ââ€”',
+            'stop': 'Ã¢Å“â€¹', 'wait': 'Ã¢Å“â€¹', 'listen': 'Ã°Å¸â€˜â€š', 'hear': 'Ã°Å¸â€˜â€š',
             
-            # ⚡ ACTION & ÉNERGIE
-            'action': '⚡', 'move': '🏃', 'go': '🚀', 'start': '🚀', 'begin': '🚀',
-            'work': '💪', 'effort': '💪', 'push': '💪', 'fight': '⚔️', 'battle': '⚔️',
-            'power': '⚡', 'energy': '⚡', 'force': '💪', 'strength': '💪',
+            # Ã¢Å¡Â¡ ACTION & Ãƒâ€°NERGIE
+            'action': 'Ã¢Å¡Â¡', 'move': 'Ã°Å¸ÂÆ’', 'go': 'Ã°Å¸Å¡â‚¬', 'start': 'Ã°Å¸Å¡â‚¬', 'begin': 'Ã°Å¸Å¡â‚¬',
+            'work': 'Ã°Å¸â€™Âª', 'effort': 'Ã°Å¸â€™Âª', 'push': 'Ã°Å¸â€™Âª', 'fight': 'Ã¢Å¡â€Ã¯Â¸Â', 'battle': 'Ã¢Å¡â€Ã¯Â¸Â',
+            'power': 'Ã¢Å¡Â¡', 'energy': 'Ã¢Å¡Â¡', 'force': 'Ã°Å¸â€™Âª', 'strength': 'Ã°Å¸â€™Âª',
             
-            # 🏆 SUCCÈS & VICTOIRE
-            'success': '🏆', 'win': '🏆', 'winner': '🏆', 'victory': '🏆', 'champion': '🏆',
-            'best': '👑', 'top': '👑', 'first': '🥇', 'great': '🔥', 'amazing': '🤯',
-            'incredible': '🤯', 'fantastic': '🔥', 'perfect': '💯', 'excellent': '⭐',
+            # Ã°Å¸Ââ€  SUCCÃƒË†S & VICTOIRE
+            'success': 'Ã°Å¸Ââ€ ', 'win': 'Ã°Å¸Ââ€ ', 'winner': 'Ã°Å¸Ââ€ ', 'victory': 'Ã°Å¸Ââ€ ', 'champion': 'Ã°Å¸Ââ€ ',
+            'best': 'Ã°Å¸â€˜â€˜', 'top': 'Ã°Å¸â€˜â€˜', 'first': 'Ã°Å¸Â¥â€¡', 'great': 'Ã°Å¸â€Â¥', 'amazing': 'Ã°Å¸Â¤Â¯',
+            'incredible': 'Ã°Å¸Â¤Â¯', 'fantastic': 'Ã°Å¸â€Â¥', 'perfect': 'Ã°Å¸â€™Â¯', 'excellent': 'Ã¢Â­Â',
             
-            # 🧠 INTELLIGENCE & APPRENTISSAGE  
-            'learn': '🧠', 'study': '📚', 'education': '🎓', 'knowledge': '🧠', 'smart': '🧠',
-            'understand': '💡', 'idea': '💡', 'think': '🤔', 'brain': '🧠', 'mind': '🧠',
-            'wisdom': '🦉', 'insight': '💡', 'discovery': '🔍', 'find': '🔍',
+            # Ã°Å¸Â§Â  INTELLIGENCE & APPRENTISSAGE  
+            'learn': 'Ã°Å¸Â§Â ', 'study': 'Ã°Å¸â€œÅ¡', 'education': 'Ã°Å¸Å½â€œ', 'knowledge': 'Ã°Å¸Â§Â ', 'smart': 'Ã°Å¸Â§Â ',
+            'understand': 'Ã°Å¸â€™Â¡', 'idea': 'Ã°Å¸â€™Â¡', 'think': 'Ã°Å¸Â¤â€', 'brain': 'Ã°Å¸Â§Â ', 'mind': 'Ã°Å¸Â§Â ',
+            'wisdom': 'Ã°Å¸Â¦â€°', 'insight': 'Ã°Å¸â€™Â¡', 'discovery': 'Ã°Å¸â€Â', 'find': 'Ã°Å¸â€Â',
             
-                         # ❤️ ÉMOTIONS POSITIVES
-             'love': '❤️', 'like': '👍', 'enjoy': '😊', 'happy': '😊', 'joy': '😊',
-             'excited': '🤩', 'wonderful': '✨', 'beautiful': '✨',
-             'good': '👍', 'positive': '🌟', 'hope': '🌟', 'dream': '✨',
+                         # Ã¢ÂÂ¤Ã¯Â¸Â Ãƒâ€°MOTIONS POSITIVES
+             'love': 'Ã¢ÂÂ¤Ã¯Â¸Â', 'like': 'Ã°Å¸â€˜Â', 'enjoy': 'Ã°Å¸ËœÅ ', 'happy': 'Ã°Å¸ËœÅ ', 'joy': 'Ã°Å¸ËœÅ ',
+             'excited': 'Ã°Å¸Â¤Â©', 'wonderful': 'Ã¢Å“Â¨', 'beautiful': 'Ã¢Å“Â¨',
+             'good': 'Ã°Å¸â€˜Â', 'positive': 'Ã°Å¸Å’Å¸', 'hope': 'Ã°Å¸Å’Å¸', 'dream': 'Ã¢Å“Â¨',
             
-            # 😡 ÉMOTIONS NÉGATIVES (mapping CORRECT!)
-            'hate': '😡', 'angry': '😡', 'mad': '😡', 'furious': '🤬', 'rage': '🤬',
-            'bad': '👎', 'terrible': '💀', 'awful': '💀', 'horrible': '💀',
-            'problem': '⚠️', 'issue': '⚠️', 'trouble': '⚠️', 'difficulty': '😤',
-            'challenge': '💪', 'struggle': '😤', 'pain': '😣', 'hurt': '😣',
+            # Ã°Å¸ËœÂ¡ Ãƒâ€°MOTIONS NÃƒâ€°GATIVES (mapping CORRECT!)
+            'hate': 'Ã°Å¸ËœÂ¡', 'angry': 'Ã°Å¸ËœÂ¡', 'mad': 'Ã°Å¸ËœÂ¡', 'furious': 'Ã°Å¸Â¤Â¬', 'rage': 'Ã°Å¸Â¤Â¬',
+            'bad': 'Ã°Å¸â€˜Å½', 'terrible': 'Ã°Å¸â€™â‚¬', 'awful': 'Ã°Å¸â€™â‚¬', 'horrible': 'Ã°Å¸â€™â‚¬',
+            'problem': 'Ã¢Å¡Â Ã¯Â¸Â', 'issue': 'Ã¢Å¡Â Ã¯Â¸Â', 'trouble': 'Ã¢Å¡Â Ã¯Â¸Â', 'difficulty': 'Ã°Å¸ËœÂ¤',
+            'challenge': 'Ã°Å¸â€™Âª', 'struggle': 'Ã°Å¸ËœÂ¤', 'pain': 'Ã°Å¸ËœÂ£', 'hurt': 'Ã°Å¸ËœÂ£',
             
-            # 🎯 OBJECTIFS & CIBLES
-            'goal': '🎯', 'target': '🎯', 'objective': '🎯', 'aim': '🎯', 'focus': '🎯',
-            'plan': '📋', 'strategy': '🧭', 'method': '⚙️', 'system': '⚙️',
+            # Ã°Å¸Å½Â¯ OBJECTIFS & CIBLES
+            'goal': 'Ã°Å¸Å½Â¯', 'target': 'Ã°Å¸Å½Â¯', 'objective': 'Ã°Å¸Å½Â¯', 'aim': 'Ã°Å¸Å½Â¯', 'focus': 'Ã°Å¸Å½Â¯',
+            'plan': 'Ã°Å¸â€œâ€¹', 'strategy': 'Ã°Å¸Â§Â­', 'method': 'Ã¢Å¡â„¢Ã¯Â¸Â', 'system': 'Ã¢Å¡â„¢Ã¯Â¸Â',
             
-            # 👥 PERSONNES & RELATIONS
-            'people': '👥', 'person': '👤', 'man': '👨', 'woman': '👩', 'women': '👩',
-            'team': '👥', 'group': '👥', 'community': '🌍', 'family': '👨‍👩‍👧‍👦',
-            'friend': '👫', 'relationship': '💕', 'partner': '🤝',
+            # Ã°Å¸â€˜Â¥ PERSONNES & RELATIONS
+            'people': 'Ã°Å¸â€˜Â¥', 'person': 'Ã°Å¸â€˜Â¤', 'man': 'Ã°Å¸â€˜Â¨', 'woman': 'Ã°Å¸â€˜Â©', 'women': 'Ã°Å¸â€˜Â©',
+            'team': 'Ã°Å¸â€˜Â¥', 'group': 'Ã°Å¸â€˜Â¥', 'community': 'Ã°Å¸Å’Â', 'family': 'Ã°Å¸â€˜Â¨Ã¢â‚¬ÂÃ°Å¸â€˜Â©Ã¢â‚¬ÂÃ°Å¸â€˜Â§Ã¢â‚¬ÂÃ°Å¸â€˜Â¦',
+            'friend': 'Ã°Å¸â€˜Â«', 'relationship': 'Ã°Å¸â€™â€¢', 'partner': 'Ã°Å¸Â¤Â',
             
-            # ⏰ TEMPS & URGENCE
-            'time': '⏰', 'now': '⏰', 'today': '📅', 'tomorrow': '📅', 'future': '🔮',
-            'past': '📜', 'present': '⏰', 'quick': '⚡', 'fast': '⚡', 'slow': '🐌',
-            'wait': '⏳', 'delay': '⏳', 'hurry': '💨', 'rush': '💨',
+            # Ã¢ÂÂ° TEMPS & URGENCE
+            'time': 'Ã¢ÂÂ°', 'now': 'Ã¢ÂÂ°', 'today': 'Ã°Å¸â€œâ€¦', 'tomorrow': 'Ã°Å¸â€œâ€¦', 'future': 'Ã°Å¸â€Â®',
+            'past': 'Ã°Å¸â€œÅ“', 'present': 'Ã¢ÂÂ°', 'quick': 'Ã¢Å¡Â¡', 'fast': 'Ã¢Å¡Â¡', 'slow': 'Ã°Å¸ÂÅ’',
+            'wait': 'Ã¢ÂÂ³', 'delay': 'Ã¢ÂÂ³', 'hurry': 'Ã°Å¸â€™Â¨', 'rush': 'Ã°Å¸â€™Â¨',
             
-            # 🚀 CROISSANCE & PROGRÈS
-            'growth': '📈', 'progress': '📈', 'improve': '📈', 'better': '📈',
-            'upgrade': '⬆️', 'level': '📊', 'scale': '📈', 'expand': '📈',
-            'develop': '🌱', 'evolution': '🦋', 'change': '🔄', 'transform': '🦋',
+            # Ã°Å¸Å¡â‚¬ CROISSANCE & PROGRÃƒË†S
+            'growth': 'Ã°Å¸â€œË†', 'progress': 'Ã°Å¸â€œË†', 'improve': 'Ã°Å¸â€œË†', 'better': 'Ã°Å¸â€œË†',
+            'upgrade': 'Ã¢Â¬â€ Ã¯Â¸Â', 'level': 'Ã°Å¸â€œÅ ', 'scale': 'Ã°Å¸â€œË†', 'expand': 'Ã°Å¸â€œË†',
+            'develop': 'Ã°Å¸Å’Â±', 'evolution': 'Ã°Å¸Â¦â€¹', 'change': 'Ã°Å¸â€â€ž', 'transform': 'Ã°Å¸Â¦â€¹',
             
-            # 💯 QUALITÉ & PERFORMANCE
-            'quality': '💎', 'premium': '👑', 'luxury': '💎', 'elite': '👑',
-            'professional': '💼', 'expert': '🎓', 'master': '👑', 'pro': '💯',
+            # Ã°Å¸â€™Â¯ QUALITÃƒâ€° & PERFORMANCE
+            'quality': 'Ã°Å¸â€™Å½', 'premium': 'Ã°Å¸â€˜â€˜', 'luxury': 'Ã°Å¸â€™Å½', 'elite': 'Ã°Å¸â€˜â€˜',
+            'professional': 'Ã°Å¸â€™Â¼', 'expert': 'Ã°Å¸Å½â€œ', 'master': 'Ã°Å¸â€˜â€˜', 'pro': 'Ã°Å¸â€™Â¯',
             
-            # 🦁 FORCE & PUISSANCE (style alpha Hormozi)
-            'beast': '🦁', 'monster': '👹', 'savage': '🦁', 'alpha': '👑', 'lion': '🦁',
-            'tiger': '🐅', 'warrior': '⚔️', 'killer': '💀', 'machine': '🤖', 'unstoppable': '🚀',
-            'invincible': '💪', 'legendary': '👑', 'godlike': '⚡', 'superior': '👑',
+            # Ã°Å¸Â¦Â FORCE & PUISSANCE (style alpha Hormozi)
+            'beast': 'Ã°Å¸Â¦Â', 'monster': 'Ã°Å¸â€˜Â¹', 'savage': 'Ã°Å¸Â¦Â', 'alpha': 'Ã°Å¸â€˜â€˜', 'lion': 'Ã°Å¸Â¦Â',
+            'tiger': 'Ã°Å¸Ââ€¦', 'warrior': 'Ã¢Å¡â€Ã¯Â¸Â', 'killer': 'Ã°Å¸â€™â‚¬', 'machine': 'Ã°Å¸Â¤â€“', 'unstoppable': 'Ã°Å¸Å¡â‚¬',
+            'invincible': 'Ã°Å¸â€™Âª', 'legendary': 'Ã°Å¸â€˜â€˜', 'godlike': 'Ã¢Å¡Â¡', 'superior': 'Ã°Å¸â€˜â€˜',
             
-            # 🔥 VIRAL & TENDANCE (spécial TikTok)
-            'viral': '🔥', 'trending': '📈', 'hot': '🔥', 'fire': '🔥', 'lit': '🔥',
-            'crazy': '🤯', 'insane': '🤯', 'wild': '🤯', 'epic': '🔥', 'sick': '🔥'
+            # Ã°Å¸â€Â¥ VIRAL & TENDANCE (spÃƒÂ©cial TikTok)
+            'viral': 'Ã°Å¸â€Â¥', 'trending': 'Ã°Å¸â€œË†', 'hot': 'Ã°Å¸â€Â¥', 'fire': 'Ã°Å¸â€Â¥', 'lit': 'Ã°Å¸â€Â¥',
+            'crazy': 'Ã°Å¸Â¤Â¯', 'insane': 'Ã°Å¸Â¤Â¯', 'wild': 'Ã°Å¸Â¤Â¯', 'epic': 'Ã°Å¸â€Â¥', 'sick': 'Ã°Å¸â€Â¥'
         }
         
         # Recherche directe dans le mapping Hormozi
@@ -1856,45 +1857,45 @@ class HormoziSubtitles:
         
         # Fallback intelligent par contexte
         if 'money' in text.lower() or 'business' in text.lower():
-            return '💰'
+            return 'Ã°Å¸â€™Â°'
         elif 'success' in text.lower() or 'win' in text.lower():
-            return '🏆'
+            return 'Ã°Å¸Ââ€ '
         elif 'problem' in text.lower() or 'issue' in text.lower():
-            return '⚠️'
+            return 'Ã¢Å¡Â Ã¯Â¸Â'
         elif 'learn' in text.lower() or 'education' in text.lower():
-            return '🧠'
+            return 'Ã°Å¸Â§Â '
         
         # Pas d'emoji pour les mots non pertinents (style Hormozi)
         return ""
     
     def load_emoji_png_improved(self, emoji_char: str, size: int = 64) -> Path | None:
-        """NOUVEAU : Chargement amélioré des emojis PNG avec fallback robuste"""
+        """NOUVEAU : Chargement amÃƒÂ©liorÃƒÂ© des emojis PNG avec fallback robuste"""
         try:
-            # Vérifier le cache d'abord
+            # VÃƒÂ©rifier le cache d'abord
             if emoji_char in self.emoji_png_cache:
                 return self.emoji_png_cache[emoji_char]
             
             # Essayer le mapping direct
             filename = self.emoji_mapping.get(emoji_char)
             if not filename:
-                # Fallback : générer le nom de fichier à partir du code Unicode
+                # Fallback : gÃƒÂ©nÃƒÂ©rer le nom de fichier ÃƒÂ  partir du code Unicode
                 filename = f"{ord(emoji_char):x}.png"
             
             # Construire le chemin
             emoji_path = Path("emoji_assets") / filename
             
-            # Vérifier l'existence
+            # VÃƒÂ©rifier l'existence
             if emoji_path.exists():
                 # Mettre en cache
                 self.emoji_png_cache[emoji_char] = emoji_path
-                print(f"✅ Emoji PNG chargé: {emoji_char} → {filename}")
+                print(f"Ã¢Å“â€¦ Emoji PNG chargÃƒÂ©: {emoji_char} Ã¢â€ â€™ {filename}")
                 return emoji_path
             else:
-                print(f"⚠️ Emoji PNG manquant: {emoji_char} → {filename}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â Emoji PNG manquant: {emoji_char} Ã¢â€ â€™ {filename}")
                 return None
                 
         except Exception as e:
-            print(f"❌ Erreur chargement emoji PNG: {e}")
+            print(f"Ã¢ÂÅ’ Erreur chargement emoji PNG: {e}")
             return None
     
     def get_emoji_display_improved(self, emoji_char: str, fallback_to_text: bool = True) -> str:
@@ -1904,12 +1905,12 @@ class HormoziSubtitles:
         if png_path:
             return f"PNG:{png_path}"
         
-        # Fallback vers police système
+        # Fallback vers police systÃƒÂ¨me
         if fallback_to_text:
             return emoji_char
         
-        # Fallback vers emoji générique
-        return "✨"
+        # Fallback vers emoji gÃƒÂ©nÃƒÂ©rique
+        return "Ã¢Å“Â¨"
 
     def overlay_big_emoji(self, frame_bgr: np.ndarray, emoji_png_path: str, x: int, y: int, scale: float = 1.0) -> np.ndarray:
         """Superpose un gros emoji PNG sur le frame pour simuler un big-emoji.
@@ -1953,7 +1954,7 @@ def add_hormozi_subtitles(input_video_path: str,
     # Brand kit si fourni
     if 'brand_kit' in kwargs:
         proc.apply_brand_kit(kwargs['brand_kit'])
-    # Mises à jour mapping
+    # Mises ÃƒÂ  jour mapping
     if 'keyword_colors' in kwargs and isinstance(kwargs['keyword_colors'], dict):
         proc.keyword_colors.update(kwargs['keyword_colors'])
     # Palette riche multi-couleurs
@@ -1963,5 +1964,7 @@ def add_hormozi_subtitles(input_video_path: str,
         proc.span_style_map = kwargs['span_style_map']
     if 'emoji_mapping' in kwargs and isinstance(kwargs['emoji_mapping'], dict):
         proc.emoji_mapping.update(kwargs['emoji_mapping'])
-    # Exécuter
+    # ExÃƒÂ©cuter
     proc.add_hormozi_subtitles(input_video_path, transcription_data, output_video_path) 
+
+

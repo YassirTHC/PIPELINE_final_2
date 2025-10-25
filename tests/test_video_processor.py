@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import copy
 import json
 import os
@@ -556,4 +556,5 @@ def test_to_bool_accepts_common_values(video_processor_module):
     assert module._to_bool('yes') is True
     assert module._to_bool('0') is False
     assert module._to_bool('false') is False
+
 

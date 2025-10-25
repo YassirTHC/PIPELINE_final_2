@@ -1,8 +1,8 @@
-﻿#!/usr/bin/env python3
+﻿ï»¿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ðŸ§¹ NETTOYEUR JSON AUTOMATIQUE
-Extrait et nettoie le JSON des rÃ©ponses LLM
+Ã°Å¸Â§Â¹ NETTOYEUR JSON AUTOMATIQUE
+Extrait et nettoie le JSON des rÃƒÂ©ponses LLM
 """
 
 import json
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class JSONCleaner:
-    """Classe pour nettoyer et valider les rÃ©ponses JSON des LLM"""
+    """Classe pour nettoyer et valider les rÃƒÂ©ponses JSON des LLM"""
     
     def __init__(self):
         # Patterns pour extraire le JSON des blocs markdown
@@ -30,55 +30,55 @@ class JSONCleaner:
         self.cleanup_patterns = [
             (r'\n\s*\n', ' '),                 # Supprimer les sauts de ligne multiples
             (r'\s+', ' '),                     # Normaliser les espaces
-            (r'^\s+|\s+$', ''),                # Supprimer espaces dÃ©but/fin
+            (r'^\s+|\s+$', ''),                # Supprimer espaces dÃƒÂ©but/fin
         ]
     
     def clean_llm_response(self, response_text: str) -> Optional[Dict[str, Any]]:
         """
-        Nettoie et parse la rÃ©ponse LLM pour extraire le JSON valide
+        Nettoie et parse la rÃƒÂ©ponse LLM pour extraire le JSON valide
         
         Args:
-            response_text: RÃ©ponse brute du LLM
+            response_text: RÃƒÂ©ponse brute du LLM
             
         Returns:
-            Dict JSON parsÃ© ou None si Ã©chec
+            Dict JSON parsÃƒÂ© ou None si ÃƒÂ©chec
         """
         
         if not response_text or not response_text.strip():
-            logger.warning("RÃ©ponse LLM vide")
+            logger.warning("RÃƒÂ©ponse LLM vide")
             return None
         
-        logger.info(f"Nettoyage de la rÃ©ponse LLM: {len(response_text)} caractÃ¨res")
+        logger.info(f"Nettoyage de la rÃƒÂ©ponse LLM: {len(response_text)} caractÃƒÂ¨res")
         
         # 1. Tentative de parsing JSON direct
         try:
             parsed_json = json.loads(response_text)
-            logger.info("âœ… JSON direct valide dÃ©tectÃ©")
+            logger.info("Ã¢Å“â€¦ JSON direct valide dÃƒÂ©tectÃƒÂ©")
             return parsed_json
         except json.JSONDecodeError:
-            logger.info("âš ï¸ JSON direct invalide, tentative de nettoyage...")
+            logger.info("Ã¢Å¡Â Ã¯Â¸Â JSON direct invalide, tentative de nettoyage...")
         
         # 2. Extraction du JSON du markdown
         extracted_json = self._extract_json_from_markdown(response_text)
         if extracted_json:
             try:
                 parsed_json = json.loads(extracted_json)
-                logger.info("âœ… JSON extrait du markdown et validÃ©")
+                logger.info("Ã¢Å“â€¦ JSON extrait du markdown et validÃƒÂ©")
                 return parsed_json
             except json.JSONDecodeError as e:
-                logger.error(f"âŒ JSON extrait invalide: {e}")
+                logger.error(f"Ã¢ÂÅ’ JSON extrait invalide: {e}")
         
-        # 3. Tentative de rÃ©paration JSON
+        # 3. Tentative de rÃƒÂ©paration JSON
         repaired_json = self._repair_json(response_text)
         if repaired_json:
             try:
                 parsed_json = json.loads(repaired_json)
-                logger.info("âœ… JSON rÃ©parÃ© et validÃ©")
+                logger.info("Ã¢Å“â€¦ JSON rÃƒÂ©parÃƒÂ© et validÃƒÂ©")
                 return parsed_json
             except json.JSONDecodeError as e:
-                logger.error(f"âŒ JSON rÃ©parÃ© invalide: {e}")
+                logger.error(f"Ã¢ÂÅ’ JSON rÃƒÂ©parÃƒÂ© invalide: {e}")
         
-        logger.error("âŒ Impossible de nettoyer et valider le JSON")
+        logger.error("Ã¢ÂÅ’ Impossible de nettoyer et valider le JSON")
         return None
     
     def _extract_json_from_markdown(self, text: str) -> Optional[str]:
@@ -94,7 +94,7 @@ class JSONCleaner:
         return None
     
     def _repair_json(self, text: str) -> Optional[str]:
-        """Tente de rÃ©parer le JSON corrompu"""
+        """Tente de rÃƒÂ©parer le JSON corrompu"""
         
         # Recherche de structures JSON partielles
         json_start = text.find('{')
@@ -103,32 +103,32 @@ class JSONCleaner:
         if json_start != -1 and json_end != -1 and json_end > json_start:
             json_str = text[json_start:json_end + 1]
             
-            # Nettoyage des caractÃ¨res problÃ©matiques
+            # Nettoyage des caractÃƒÂ¨res problÃƒÂ©matiques
             for pattern, replacement in self.cleanup_patterns:
                 json_str = re.sub(pattern, replacement, json_str)
             
-            logger.info("Tentative de rÃ©paration JSON")
+            logger.info("Tentative de rÃƒÂ©paration JSON")
             return json_str
         
         return None
     
     def validate_keywords_response(self, parsed_json: Dict[str, Any]) -> tuple[bool, list[str]]:
         """
-        Valide une rÃ©ponse de mots-clÃ©s
+        Valide une rÃƒÂ©ponse de mots-clÃƒÂ©s
         
         Args:
-            parsed_json: JSON parsÃ©
+            parsed_json: JSON parsÃƒÂ©
             
         Returns:
             (valid, keywords_list)
         """
         
         if not isinstance(parsed_json, dict):
-            logger.error("RÃ©ponse n'est pas un dictionnaire")
+            logger.error("RÃƒÂ©ponse n'est pas un dictionnaire")
             return False, []
         
         if 'keywords' not in parsed_json:
-            logger.error("ClÃ© 'keywords' manquante")
+            logger.error("ClÃƒÂ© 'keywords' manquante")
             return False, []
         
         keywords = parsed_json['keywords']
@@ -137,27 +137,27 @@ class JSONCleaner:
             return False, []
         
         if len(keywords) < 3:
-            logger.warning(f"Nombre de mots-clÃ©s insuffisant: {len(keywords)}")
+            logger.warning(f"Nombre de mots-clÃƒÂ©s insuffisant: {len(keywords)}")
             return False, []
         
-        # Validation des mots-clÃ©s individuels
+        # Validation des mots-clÃƒÂ©s individuels
         valid_keywords = []
         for i, keyword in enumerate(keywords):
             if isinstance(keyword, str) and keyword.strip():
                 valid_keywords.append(keyword.strip())
             else:
-                logger.warning(f"Mots-clÃ©s {i} invalide: {keyword}")
+                logger.warning(f"Mots-clÃƒÂ©s {i} invalide: {keyword}")
         
         if len(valid_keywords) < 3:
-            logger.error("Pas assez de mots-clÃ©s valides")
+            logger.error("Pas assez de mots-clÃƒÂ©s valides")
             return False, []
         
-        logger.info(f"âœ… {len(valid_keywords)} mots-clÃ©s valides trouvÃ©s")
+        logger.info(f"Ã¢Å“â€¦ {len(valid_keywords)} mots-clÃƒÂ©s valides trouvÃƒÂ©s")
         return True, valid_keywords
     
     def clean_and_validate(self, response_text: str) -> tuple[bool, list[str]]:
         """
-        MÃ©thode principale : nettoie et valide la rÃ©ponse LLM
+        MÃƒÂ©thode principale : nettoie et valide la rÃƒÂ©ponse LLM
         
         Returns:
             (success, keywords_list)
@@ -177,5 +177,6 @@ def clean_llm_json(response_text: str) -> Optional[Dict[str, Any]]:
     return json_cleaner.clean_llm_response(response_text)
 
 def validate_keywords(response_text: str) -> tuple[bool, list[str]]:
-    """Fonction utilitaire pour valider les mots-clÃ©s"""
+    """Fonction utilitaire pour valider les mots-clÃƒÂ©s"""
     return json_cleaner.clean_and_validate(response_text) 
+

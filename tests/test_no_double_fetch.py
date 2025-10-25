@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 def test_no_double_refine_guard():
     # Ensure refinement does not override when terms equal existing queries
     queries = ["deep work", "office desk"]
@@ -10,5 +10,6 @@ def test_no_double_refine_guard():
         refined = True
 
     assert refined is False
+
 
 

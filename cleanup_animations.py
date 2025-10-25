@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 Script de nettoyage des fonctions d'animations
-Supprime toutes les fonctions d'animations problématiques
+Supprime toutes les fonctions d'animations problÃƒÂ©matiques
 """
 
 import re
@@ -12,7 +13,7 @@ def clean_animations():
     
     file_path = Path('video_processor.py')
     
-    print("🧹 NETTOYAGE DES FONCTIONS D'ANIMATIONS")
+    print("Ã°Å¸Â§Â¹ NETTOYAGE DES FONCTIONS D'ANIMATIONS")
     print("=" * 50)
     
     try:
@@ -21,7 +22,7 @@ def clean_animations():
             content = f.read()
         
         original_lines = len(content.split('\n'))
-        print(f"📄 Fichier original: {original_lines} lignes")
+        print(f"Ã°Å¸â€œâ€ž Fichier original: {original_lines} lignes")
         
         # Supprimer les fonctions d'animations en utilisant des patterns plus simples
         functions_to_remove = [
@@ -40,25 +41,25 @@ def clean_animations():
         current_function = None
         
         for line in lines:
-            # Vérifier si on commence une fonction à supprimer
+            # VÃƒÂ©rifier si on commence une fonction ÃƒÂ  supprimer
             should_skip = False
             for func_start in functions_to_remove:
                 if line.strip().startswith(func_start):
                     skip_function = True
                     current_function = func_start
-                    print(f"🗑️ Suppression de la fonction: {func_start}")
+                    print(f"Ã°Å¸â€”â€˜Ã¯Â¸Â Suppression de la fonction: {func_start}")
                     break
             
-            # Si on est dans une fonction à supprimer, continuer à sauter
+            # Si on est dans une fonction ÃƒÂ  supprimer, continuer ÃƒÂ  sauter
             if skip_function:
-                # Vérifier si on a atteint la fin de la fonction (ligne vide ou nouvelle fonction)
+                # VÃƒÂ©rifier si on a atteint la fin de la fonction (ligne vide ou nouvelle fonction)
                 if (line.strip() == '' or 
                     (line.strip().startswith('def ') and not line.strip().startswith(current_function))):
                     skip_function = False
                     current_function = None
                 continue
             
-            # Garder la ligne si elle n'est pas dans une fonction à supprimer
+            # Garder la ligne si elle n'est pas dans une fonction ÃƒÂ  supprimer
             cleaned_lines.append(line)
         
         # Reconstituer le contenu
@@ -67,22 +68,23 @@ def clean_animations():
         # Nettoyer les lignes vides multiples
         cleaned_content = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_content)
         
-        # Écrire le fichier nettoyé
+        # Ãƒâ€°crire le fichier nettoyÃƒÂ©
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(cleaned_content)
         
         new_lines = len(cleaned_content.split('\n'))
-        print(f"📄 Fichier nettoyé: {new_lines} lignes")
-        print(f"🗑️ Lignes supprimées: {original_lines - new_lines}")
+        print(f"Ã°Å¸â€œâ€ž Fichier nettoyÃƒÂ©: {new_lines} lignes")
+        print(f"Ã°Å¸â€”â€˜Ã¯Â¸Â Lignes supprimÃƒÂ©es: {original_lines - new_lines}")
         
-        print("✅ Nettoyage terminé avec succès!")
+        print("Ã¢Å“â€¦ Nettoyage terminÃƒÂ© avec succÃƒÂ¨s!")
         return True
         
     except Exception as e:
-        print(f"❌ Erreur lors du nettoyage: {e}")
+        print(f"Ã¢ÂÅ’ Erreur lors du nettoyage: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 if __name__ == "__main__":
     clean_animations() 
+

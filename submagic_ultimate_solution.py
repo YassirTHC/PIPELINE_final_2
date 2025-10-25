@@ -1,8 +1,9 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 SOLUTION ULTIME SUBMAGIC - PIL + ffmpeg overlay
-Résout le problème de vidéo noire en utilisant UNIQUEMENT PIL + ffmpeg
-TOUTES les fonctionnalités Submagic complètes intégrées
+RÃƒÂ©sout le problÃƒÂ¨me de vidÃƒÂ©o noire en utilisant UNIQUEMENT PIL + ffmpeg
+TOUTES les fonctionnalitÃƒÂ©s Submagic complÃƒÂ¨tes intÃƒÂ©grÃƒÂ©es
 """
 
 import os
@@ -16,19 +17,19 @@ import tempfile
 import json
 import requests
 
-# Rendu PIL efficace avec cache global pour performance optimisée (audit pattern: PIL/Image/font/cache)
+# Rendu PIL efficace avec cache global pour performance optimisÃƒÂ©e (audit pattern: PIL/Image/font/cache)
 _FONT_CACHE = {}
 _EMOJI_CACHE = {}
 _EMOJI_ASSETS_DIR = Path("emoji_assets")
 
 class SubmagicUltimateConfig:
-    """Configuration finale optimisée"""
+    """Configuration finale optimisÃƒÂ©e"""
     def __init__(self):
         self.font_base_size = 70
         self.font_keyword_size = 80
         self.font_emphasis_size = 90
         
-        # Couleurs RGB complètes (6 couleurs + blanc)
+        # Couleurs RGB complÃƒÂ¨tes (6 couleurs + blanc)
         self.color_white = (255, 255, 255)
         self.color_green = (50, 255, 50)        # Actions
         self.color_red = (255, 50, 50)          # Emphase
@@ -38,11 +39,11 @@ class SubmagicUltimateConfig:
         self.color_purple = (150, 50, 255)      # Tech
         self.color_light_gray = (200, 200, 200) # Neutre
         
-        # Contours épais pour visibilité parfaite
+        # Contours ÃƒÂ©pais pour visibilitÃƒÂ© parfaite
         self.stroke_width = 6
         self.stroke_color = (0, 0, 0)
         
-        # Position centrée et sûre dans le cadre
+        # Position centrÃƒÂ©e et sÃƒÂ»re dans le cadre
         self.bottom_margin = 0.25
         self.safe_margin = 60
         
@@ -51,30 +52,30 @@ class SubmagicUltimateConfig:
         self.bounce_intensity = 0.35
         self.persistence_enabled = True
         
-        # Emojis contextuels activés
+        # Emojis contextuels activÃƒÂ©s
         self.emoji_enabled = True
         self.emoji_size_ratio = 0.9
 
 # Mapping emojis contextuels complet
 EMOJI_MAP = {
-    'behavior': '🎭', 'lift': '🏋️', 'running': '🏃', 'run': '🏃',
-    'why': '❓', 'what': '❓', 'quit': '❌', 'stop': '❌',
-    'time': '⏰', 'money': '💰', 'rich': '💸', 'success': '🏆',
-    'love': '❤️', 'people': '👥', 'happy': '😊',
-    'ai': '🤖', 'future': '🚀', 'idea': '💡'
+    'behavior': 'Ã°Å¸Å½Â­', 'lift': 'Ã°Å¸Ââ€¹Ã¯Â¸Â', 'running': 'Ã°Å¸ÂÆ’', 'run': 'Ã°Å¸ÂÆ’',
+    'why': 'Ã¢Ââ€œ', 'what': 'Ã¢Ââ€œ', 'quit': 'Ã¢ÂÅ’', 'stop': 'Ã¢ÂÅ’',
+    'time': 'Ã¢ÂÂ°', 'money': 'Ã°Å¸â€™Â°', 'rich': 'Ã°Å¸â€™Â¸', 'success': 'Ã°Å¸Ââ€ ',
+    'love': 'Ã¢ÂÂ¤Ã¯Â¸Â', 'people': 'Ã°Å¸â€˜Â¥', 'happy': 'Ã°Å¸ËœÅ ',
+    'ai': 'Ã°Å¸Â¤â€“', 'future': 'Ã°Å¸Å¡â‚¬', 'idea': 'Ã°Å¸â€™Â¡'
 }
 
 def download_emoji_image(emoji_char: str) -> Optional[Image.Image]:
-    """Télécharge emoji Twemoji coloré"""
+    """TÃƒÂ©lÃƒÂ©charge emoji Twemoji colorÃƒÂ©"""
     if emoji_char in _EMOJI_CACHE:
         return _EMOJI_CACHE[emoji_char]
     
     emoji_codes = {
-        "🎭": "1f3ad", "🏋️": "1f3cb-fe0f", "🏃": "1f3c3", 
-        "❓": "2753", "❌": "274c", "⏰": "23f0",
-        "💰": "1f4b0", "💸": "1f4b8", "🏆": "1f3c6",
-        "❤️": "2764-fe0f", "👥": "1f465", "😊": "1f60a",
-        "🤖": "1f916", "🚀": "1f680", "💡": "1f4a1"
+        "Ã°Å¸Å½Â­": "1f3ad", "Ã°Å¸Ââ€¹Ã¯Â¸Â": "1f3cb-fe0f", "Ã°Å¸ÂÆ’": "1f3c3", 
+        "Ã¢Ââ€œ": "2753", "Ã¢ÂÅ’": "274c", "Ã¢ÂÂ°": "23f0",
+        "Ã°Å¸â€™Â°": "1f4b0", "Ã°Å¸â€™Â¸": "1f4b8", "Ã°Å¸Ââ€ ": "1f3c6",
+        "Ã¢ÂÂ¤Ã¯Â¸Â": "2764-fe0f", "Ã°Å¸â€˜Â¥": "1f465", "Ã°Å¸ËœÅ ": "1f60a",
+        "Ã°Å¸Â¤â€“": "1f916", "Ã°Å¸Å¡â‚¬": "1f680", "Ã°Å¸â€™Â¡": "1f4a1"
     }
     
     code = emoji_codes.get(emoji_char)
@@ -92,7 +93,7 @@ def download_emoji_image(emoji_char: str) -> Optional[Image.Image]:
                 with open(emoji_file, 'wb') as f:
                     f.write(response.content)
         except Exception as e:
-            print(f"    ⚠️ Erreur téléchargement emoji: {e}")
+            print(f"    Ã¢Å¡Â Ã¯Â¸Â Erreur tÃƒÂ©lÃƒÂ©chargement emoji: {e}")
             return None
     
     try:
@@ -100,11 +101,11 @@ def download_emoji_image(emoji_char: str) -> Optional[Image.Image]:
         _EMOJI_CACHE[emoji_char] = emoji_img
         return emoji_img
     except Exception as e:
-        print(f"    ⚠️ Erreur chargement emoji: {e}")
+        print(f"    Ã¢Å¡Â Ã¯Â¸Â Erreur chargement emoji: {e}")
         return None
 
 def get_system_font_cached(size: int) -> ImageFont.FreeTypeFont:
-    """Police système robuste avec cache efficace"""
+    """Police systÃƒÂ¨me robuste avec cache efficace"""
     if size in _FONT_CACHE:
         return _FONT_CACHE[size]
     
@@ -123,7 +124,7 @@ def get_system_font_cached(size: int) -> ImageFont.FreeTypeFont:
             except Exception:
                 continue
     
-    # Fallback par défaut
+    # Fallback par dÃƒÂ©faut
     font = ImageFont.load_default()
     _FONT_CACHE[size] = font
     return font
@@ -148,7 +149,7 @@ def classify_word_ultimate(word: str) -> str:
         return 'neutral'
 
 def get_contextual_emoji(word: str, word_type: str) -> Optional[str]:
-    """Récupère emoji contextuel basé sur mots-clés"""
+    """RÃƒÂ©cupÃƒÂ¨re emoji contextuel basÃƒÂ© sur mots-clÃƒÂ©s"""
     return EMOJI_MAP.get(word.lower())
 
 def get_word_style_ultimate(word: str, config: SubmagicUltimateConfig) -> Dict:
@@ -175,10 +176,10 @@ def get_word_style_ultimate(word: str, config: SubmagicUltimateConfig) -> Dict:
 def create_subtitle_frame_ultimate(words_data: List[Dict], video_size: tuple, 
                                  config: SubmagicUltimateConfig, frame_time: float) -> Image.Image:
     """
-    Crée frame sous-titres avec TOUTES les fonctionnalités:
+    CrÃƒÂ©e frame sous-titres avec TOUTES les fonctionnalitÃƒÂ©s:
     - Bounce easeOutBack avec sin/progress/pi
-    - Contours épais stroke_width avec range dx dy
-    - Position centrée center/bottom_margin/safe
+    - Contours ÃƒÂ©pais stroke_width avec range dx dy
+    - Position centrÃƒÂ©e center/bottom_margin/safe
     - Fade-in/out avec opacity/progress/fade
     - Emojis contextuels behavior/lift/why
     """
@@ -191,7 +192,7 @@ def create_subtitle_frame_ultimate(words_data: List[Dict], video_size: tuple,
     if not words_data:
         return frame
     
-    # Calculer positions avec marges sûres
+    # Calculer positions avec marges sÃƒÂ»res
     text_elements = []
     total_width = 0
     max_height = 0
@@ -245,19 +246,19 @@ def create_subtitle_frame_ultimate(words_data: List[Dict], video_size: tuple,
         total_width += text_width + emoji_width + 20
         max_height = max(max_height, text_height)
     
-    # Position centrée et sûre dans le cadre (audit pattern)
+    # Position centrÃƒÂ©e et sÃƒÂ»re dans le cadre (audit pattern)
     start_x = max(config.safe_margin, (width - total_width) // 2)
     text_y = height - int(height * config.bottom_margin) - max_height // 2
     
     current_x = start_x
     
-    # Dessiner avec contours épais pour visibilité (audit pattern)
+    # Dessiner avec contours ÃƒÂ©pais pour visibilitÃƒÂ© (audit pattern)
     for element in text_elements:
         # Emoji contextuel d'abord
         if element['emoji_img']:
             emoji_y = text_y - element['emoji_img'].height // 4
             
-            # Appliquer fade à l'emoji
+            # Appliquer fade ÃƒÂ  l'emoji
             if element['opacity'] < 1.0:
                 emoji_alpha = element['emoji_img'].split()[-1]
                 emoji_alpha = emoji_alpha.point(lambda p: int(p * element['opacity']))
@@ -266,19 +267,19 @@ def create_subtitle_frame_ultimate(words_data: List[Dict], video_size: tuple,
             frame.paste(element['emoji_img'], (current_x, emoji_y), element['emoji_img'])
             current_x += element['emoji_width']
         
-        # Texte avec contours épais stroke_width/range/dx/dy (audit pattern)
+        # Texte avec contours ÃƒÂ©pais stroke_width/range/dx/dy (audit pattern)
         word = element['word']
         font = element['font']
         opacity = element['opacity']
         
-        # Contour noir épais pour visibilité
+        # Contour noir ÃƒÂ©pais pour visibilitÃƒÂ©
         for dx in range(-config.stroke_width, config.stroke_width + 1):
             for dy in range(-config.stroke_width, config.stroke_width + 1):
                 if dx != 0 or dy != 0:
                     draw.text((current_x + dx, text_y + dy), word, 
                              font=font, fill=(0, 0, 0, int(255 * opacity)))
         
-        # Texte coloré principal
+        # Texte colorÃƒÂ© principal
         color = (*element['color'], int(255 * opacity))
         draw.text((current_x, text_y), word, font=font, fill=color)
         
@@ -317,28 +318,28 @@ def parse_words_ultimate(transcription_data: List[Dict]) -> List[Dict]:
 def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict], 
                          output_video_path: str) -> str:
     """
-    SOLUTION ULTIME COMPLÈTE - PIL + ffmpeg natif
-    Toutes fonctionnalités Submagic + gestion erreurs robuste
+    SOLUTION ULTIME COMPLÃƒË†TE - PIL + ffmpeg natif
+    Toutes fonctionnalitÃƒÂ©s Submagic + gestion erreurs robuste
     """
     config = SubmagicUltimateConfig()
     
-    print("🚀 SUBMAGIC ULTIME - PIL + ffmpeg overlay natif...")
+    print("Ã°Å¸Å¡â‚¬ SUBMAGIC ULTIME - PIL + ffmpeg overlay natif...")
     
-    # Vérifications robustes avec gestion d'erreurs
+    # VÃƒÂ©rifications robustes avec gestion d'erreurs
     try:
         if not Path(input_video_path).exists():
-            print(f"❌ Erreur: Vidéo source introuvable: {input_video_path}")
+            print(f"Ã¢ÂÅ’ Erreur: VidÃƒÂ©o source introuvable: {input_video_path}")
             return input_video_path
         
         # Parser mots avec synchronisation exacte
         words_timeline = parse_words_ultimate(transcription_data)
-        print(f"📝 {len(words_timeline)} mots à traiter")
+        print(f"Ã°Å¸â€œÂ {len(words_timeline)} mots ÃƒÂ  traiter")
         
         if not words_timeline:
-            print("⚠️ Aucun mot trouvé dans la transcription")
+            print("Ã¢Å¡Â Ã¯Â¸Â Aucun mot trouvÃƒÂ© dans la transcription")
             return input_video_path
         
-        # Obtenir info vidéo avec ffprobe
+        # Obtenir info vidÃƒÂ©o avec ffprobe
         cmd = [
             'ffprobe', '-v', 'quiet', '-print_format', 'json',
             '-show_format', '-show_streams', input_video_path
@@ -346,7 +347,7 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         video_info = json.loads(result.stdout)
         
-        # Extraire dimensions et durée
+        # Extraire dimensions et durÃƒÂ©e
         for stream in video_info.get('streams', []):
             if stream.get('codec_type') == 'video':
                 video_width = int(stream.get('width', 1280))
@@ -357,20 +358,20 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
         else:
             video_width, video_height, fps, duration = 1280, 720, 30, 20
         
-        print(f"📊 Vidéo: {video_width}x{video_height}, {fps}fps, {duration:.1f}s")
+        print(f"Ã°Å¸â€œÅ  VidÃƒÂ©o: {video_width}x{video_height}, {fps}fps, {duration:.1f}s")
         
     except Exception as e:
-        print(f"❌ Erreur analyse vidéo: {e}")
+        print(f"Ã¢ÂÅ’ Erreur analyse vidÃƒÂ©o: {e}")
         return input_video_path
     
-    # Créer frames sous-titres avec gestion mémoire tempfile/TemporaryDirectory
-    print("✨ Génération frames sous-titres...")
+    # CrÃƒÂ©er frames sous-titres avec gestion mÃƒÂ©moire tempfile/TemporaryDirectory
+    print("Ã¢Å“Â¨ GÃƒÂ©nÃƒÂ©ration frames sous-titres...")
     
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir = Path(temp_dir)
             
-            # Générer frames PNG pour overlay ffmpeg
+            # GÃƒÂ©nÃƒÂ©rer frames PNG pour overlay ffmpeg
             frame_files = []
             total_frames = int(duration * fps)
             
@@ -378,7 +379,7 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
             for frame_num in range(0, total_frames, 15):
                 frame_time = frame_num / fps
                 
-                # Déterminer mots actifs avec persistance
+                # DÃƒÂ©terminer mots actifs avec persistance
                 active_words = []
                 current_word_idx = -1
                 
@@ -386,7 +387,7 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
                     word_start = word_data['start']
                     word_end = word_data['end']
                     
-                    # Persistance: mots déjà vus
+                    # Persistance: mots dÃƒÂ©jÃƒÂ  vus
                     if config.persistence_enabled and word_start <= frame_time:
                         active_words.append({
                             'word': word_data['word'],
@@ -400,11 +401,11 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
                         if active_words:
                             active_words[-1]['is_current'] = True
                 
-                # Limiter pour lisibilité
+                # Limiter pour lisibilitÃƒÂ©
                 if len(active_words) > 4:
                     active_words = active_words[-4:]
                 
-                # Générer frame avec toutes fonctionnalités
+                # GÃƒÂ©nÃƒÂ©rer frame avec toutes fonctionnalitÃƒÂ©s
                 if active_words:
                     # Calculer temps relatif pour animation
                     if current_word_idx >= 0:
@@ -423,15 +424,15 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
                     frame_files.append((frame_num / fps, str(frame_file)))
             
             if not frame_files:
-                print("⚠️ Aucune frame générée")
+                print("Ã¢Å¡Â Ã¯Â¸Â Aucune frame gÃƒÂ©nÃƒÂ©rÃƒÂ©e")
                 return input_video_path
             
-            print(f"✅ {len(frame_files)} frames générées")
+            print(f"Ã¢Å“â€¦ {len(frame_files)} frames gÃƒÂ©nÃƒÂ©rÃƒÂ©es")
             
             # Utilisation ffmpeg natif pour composition avec ffmpeg/overlay/filter_complex (audit pattern)
-            print("🎬 Composition finale avec ffmpeg natif...")
+            print("Ã°Å¸Å½Â¬ Composition finale avec ffmpeg natif...")
             
-            # Créer filter complex pour overlay
+            # CrÃƒÂ©er filter complex pour overlay
             filter_parts = []
             inputs = ['-i', input_video_path]
             
@@ -451,7 +452,7 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
             
             filter_complex = ';'.join(filter_parts)
             
-            # Export avec paramètres optimisés crf/preset/medium
+            # Export avec paramÃƒÂ¨tres optimisÃƒÂ©s crf/preset/medium
             output_path = Path(output_video_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
@@ -463,35 +464,35 @@ def add_submagic_ultimate(input_video_path: str, transcription_data: List[Dict],
                 '-map', '0:a',
                 '-c:v', 'libx264',
                 '-c:a', 'aac',
-                '-crf', '20',           # Paramètres export optimisés crf/preset/medium (audit pattern)
-                '-preset', 'medium',    # Paramètres export optimisés crf/preset/medium (audit pattern)
+                '-crf', '20',           # ParamÃƒÂ¨tres export optimisÃƒÂ©s crf/preset/medium (audit pattern)
+                '-preset', 'medium',    # ParamÃƒÂ¨tres export optimisÃƒÂ©s crf/preset/medium (audit pattern)
                 '-pix_fmt', 'yuv420p',
                 str(output_path)
             ]
             
-            print(f"💾 Export vers: {output_path.name}")
+            print(f"Ã°Å¸â€™Â¾ Export vers: {output_path.name}")
             
             subprocess.run(cmd, check=True, capture_output=True)
-            print("✅ SUCCÈS TOTAL!")
+            print("Ã¢Å“â€¦ SUCCÃƒË†S TOTAL!")
             return str(output_path)
             
     except subprocess.CalledProcessError as e:
-        # Gestion d'erreurs appropriée avec try/except/print/error (audit pattern)
-        print(f"❌ Erreur ffmpeg: {e}")
+        # Gestion d'erreurs appropriÃƒÂ©e avec try/except/print/error (audit pattern)
+        print(f"Ã¢ÂÅ’ Erreur ffmpeg: {e}")
         try:
-            print(f"❌ stderr: {e.stderr.decode()}")
+            print(f"Ã¢ÂÅ’ stderr: {e.stderr.decode()}")
         except:
             pass
         return input_video_path
     except Exception as e:
-        # Gestion d'erreurs appropriée avec try/except/print/error (audit pattern)
-        print(f"❌ Erreur génération: {e}")
+        # Gestion d'erreurs appropriÃƒÂ©e avec try/except/print/error (audit pattern)
+        print(f"Ã¢ÂÅ’ Erreur gÃƒÂ©nÃƒÂ©ration: {e}")
         return input_video_path
 
 # Test validation
 def test_ultimate_system():
-    """Test système ultime"""
-    print("🧪 TEST SYSTÈME ULTIME")
+    """Test systÃƒÂ¨me ultime"""
+    print("Ã°Å¸Â§Âª TEST SYSTÃƒË†ME ULTIME")
     print("=" * 50)
     
     test_data = [
@@ -499,15 +500,16 @@ def test_ultimate_system():
     ]
     
     words = parse_words_ultimate(test_data)
-    print(f"📝 {len(words)} mots")
+    print(f"Ã°Å¸â€œÂ {len(words)} mots")
     
     config = SubmagicUltimateConfig()
     for word in words:
         style = get_word_style_ultimate(word['word'], config)
         emoji = get_contextual_emoji(word['word'], word['type'])
-        print(f"  '{word['word']}' → {style['color']} ({style['font_size']}px) {emoji}")
+        print(f"  '{word['word']}' Ã¢â€ â€™ {style['color']} ({style['font_size']}px) {emoji}")
     
-    print("✅ Système ultime prêt!")
+    print("Ã¢Å“â€¦ SystÃƒÂ¨me ultime prÃƒÂªt!")
 
 if __name__ == "__main__":
     test_ultimate_system() 
+

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import random
 import sys
 import types
@@ -265,4 +265,5 @@ def test_resolve_transition_direction_alternates():
     processor._transition_config = TransitionConfig(alternate_direction=False)
     fixed = VideoProcessor._resolve_transition_direction(processor)
     assert fixed == "right"
+
 

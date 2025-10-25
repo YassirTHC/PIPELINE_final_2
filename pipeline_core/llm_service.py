@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """LLM metadata helper built on top of the existing integration stack."""
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, StrictStr, c
 from pipeline_core.configuration import tfidf_fallback_disabled_from_env
 from pipeline_core.llm_providers import LLMClient, get_llm_client
 
-try:  # Optional import â€“ settings layer may not be available in unit stubs
+try:  # Optional import Ã¢â‚¬â€œ settings layer may not be available in unit stubs
     from video_pipeline.config import get_settings, load_settings, set_settings
 except Exception:  # pragma: no cover - optional dependency
     get_settings = None  # type: ignore[assignment]
@@ -811,8 +811,8 @@ def _sanitize_queries(
 
 SEGMENT_JSON_PROMPT = (
     "You are a JSON API. Return ONLY one JSON object with keys: broll_keywords, queries. "
-    "broll_keywords: 8â€“12 visual noun phrases (2â€“3 words), concrete and shootable. "
-    "queries: 8â€“12 short, filmable search queries (2â€“4 words), provider-friendly. "
+    "broll_keywords: 8Ã¢â‚¬â€œ12 visual noun phrases (2Ã¢â‚¬â€œ3 words), concrete and shootable. "
+    "queries: 8Ã¢â‚¬â€œ12 short, filmable search queries (2Ã¢â‚¬â€œ4 words), provider-friendly. "
     "Make every query a tangible subject or action (people, hands, props, places). "
     "Never end queries with filler like 'at', 'in', 'with', 'of'. Do not use words such as 'showing', 'displaying', 'scene', 'shot'. "
     "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
@@ -829,7 +829,7 @@ _QUERY_SYNONYMS: Dict[str, List[str]] = {
 }
 
 def _augment_with_synonyms(queries: Sequence[str], *, max_extra_per: int = 1, limit: int = 12) -> List[str]:
-    """Add 0â€“1 short synonym per base query from a static table, capped by ``limit``."""
+    """Add 0Ã¢â‚¬â€œ1 short synonym per base query from a static table, capped by ``limit``."""
 
     out: List[str] = []
     seen: Set[str] = set()
@@ -2249,7 +2249,7 @@ def _ollama_generate_json(
 
 def _ollama_generate_sync(endpoint: str, model: str, prompt: str, options: dict) -> str:
     """
-    Fallback non-streaming pour contourner les rÃ©ponses vides du stream.
+    Fallback non-streaming pour contourner les rÃƒÂ©ponses vides du stream.
     Utilise /api/generate avec stream=False et renvoie .strip() du champ 'response'.
     """
 
@@ -3425,26 +3425,26 @@ def build_dynamic_domains_prompt(transcript_text: str, *, max_len: int = 1200) -
     tx = (transcript_text or "")[:max_len]
     return f"""
 PHASE: DOMAINS
-RÃ”LE
-Tu es planificateur B-roll pour vidÃ©os verticales (TikTok/Shorts, 9:16).
+RÃƒâ€LE
+Tu es planificateur B-roll pour vidÃƒÂ©os verticales (TikTok/Shorts, 9:16).
 
 OBJECTIF
-- DÃ©tecte la langue principale.
-- Identifie librement 1 Ã  3 domaines pertinents (pas de liste prÃ©dÃ©finie).
-- RÃ©sume en 1 phrase le thÃ¨me visuel principal (champ "summary").
+- DÃƒÂ©tecte la langue principale.
+- Identifie librement 1 ÃƒÂ  3 domaines pertinents (pas de liste prÃƒÂ©dÃƒÂ©finie).
+- RÃƒÂ©sume en 1 phrase le thÃƒÂ¨me visuel principal (champ "summary").
 
 CONTRAINTES
 - Score de confiance entre 0 et 1 (float).
 - Aucune sortie hors JSON.
 
-RÃ‰PONDS UNIQUEMENT EN JSON:
+RÃƒâ€°PONDS UNIQUEMENT EN JSON:
 {{
-  "language": "fr|en|â€¦",
+  "language": "fr|en|Ã¢â‚¬Â¦",
   "detected_domains": [{{"name": "...", "confidence": 0.0}}],
   "summary": "phrase courte"
 }}
 
-TRANSCRIPT (tronquÃ©):
+TRANSCRIPT (tronquÃƒÂ©):
 {tx}
 """
 
@@ -3459,27 +3459,27 @@ def build_dynamic_keywords_prompt(
 ) -> str:
     tx = (transcript_text or "")[:max_len]
     lang = (language or "fr|en").strip()
-    domains_text = ", ".join(domains or []) or "(dÃ©duis librement)"
-    summary_text = summary or "(rÃ©sume librement)"
+    domains_text = ", ".join(domains or []) or "(dÃƒÂ©duis librement)"
+    summary_text = summary or "(rÃƒÂ©sume librement)"
     return f"""
 PHASE: KEYWORDS
 LANGUE CIBLE: {lang}
-DOMAINES DETECTÃ‰S: {domains_text}
-RÃ‰SUMÃ‰ VISUEL: {summary_text}
+DOMAINES DETECTÃƒâ€°S: {domains_text}
+RÃƒâ€°SUMÃƒâ€° VISUEL: {summary_text}
 
 OBJECTIF
-- GÃ©nÃ¨re 6 Ã  10 mots-clÃ©s ou scÃ¨nes filmables, concrets et utilisables sur Pexels/Pixabay.
-- Pour chaque mot-clÃ©, ajoute 1 Ã  3 variantes/synonymes pertinents.
-- Conserve la langue dÃ©tectÃ©e (ou ajoute anglais si nÃ©cessaire).
+- GÃƒÂ©nÃƒÂ¨re 6 ÃƒÂ  10 mots-clÃƒÂ©s ou scÃƒÂ¨nes filmables, concrets et utilisables sur Pexels/Pixabay.
+- Pour chaque mot-clÃƒÂ©, ajoute 1 ÃƒÂ  3 variantes/synonymes pertinents.
+- Conserve la langue dÃƒÂ©tectÃƒÂ©e (ou ajoute anglais si nÃƒÂ©cessaire).
 
-RÃ‰PONDS UNIQUEMENT EN JSON:
+RÃƒâ€°PONDS UNIQUEMENT EN JSON:
 {{
   "keywords": ["..."],
-  "synonyms": {{"mot_clÃ©": ["variante1", "variante2"]}},
-  "notes": "risques Ã  Ã©viter"
+  "synonyms": {{"mot_clÃƒÂ©": ["variante1", "variante2"]}},
+  "notes": "risques ÃƒÂ  ÃƒÂ©viter"
 }}
 
-TRANSCRIPT (tronquÃ©):
+TRANSCRIPT (tronquÃƒÂ©):
 {tx}
 """
 
@@ -3495,28 +3495,28 @@ def build_dynamic_queries_prompt(
 ) -> str:
     tx = (transcript_text or "")[:max_len]
     lang = (language or "fr|en").strip()
-    domains_text = ", ".join(domains or []) or "(dÃ©duis librement)"
-    summary_text = summary or "(rÃ©sume librement)"
+    domains_text = ", ".join(domains or []) or "(dÃƒÂ©duis librement)"
+    summary_text = summary or "(rÃƒÂ©sume librement)"
     keyword_text = ", ".join(keywords or []) or "(utilise ton analyse)"
     return f"""
 PHASE: QUERIES
 LANGUE CIBLE: {lang}
-DOMAINES DETECTÃ‰S: {domains_text}
-RÃ‰SUMÃ‰ VISUEL: {summary_text}
-MOTS-CLÃ‰S PRINCIPAUX: {keyword_text}
+DOMAINES DETECTÃƒâ€°S: {domains_text}
+RÃƒâ€°SUMÃƒâ€° VISUEL: {summary_text}
+MOTS-CLÃƒâ€°S PRINCIPAUX: {keyword_text}
 
 OBJECTIF
-- Propose 6 Ã  8 requÃªtes de recherche concrÃ¨tes (2 Ã  4 mots, sujet+action+contexte) adaptÃ©es aux banques vidÃ©os verticales.
-- GÃ©nÃ¨re des briefs segmentaires facultatifs: window 3-6s, mots-clÃ©s/queries ciblÃ©s.
+- Propose 6 ÃƒÂ  8 requÃƒÂªtes de recherche concrÃƒÂ¨tes (2 ÃƒÂ  4 mots, sujet+action+contexte) adaptÃƒÂ©es aux banques vidÃƒÂ©os verticales.
+- GÃƒÂ©nÃƒÂ¨re des briefs segmentaires facultatifs: window 3-6s, mots-clÃƒÂ©s/queries ciblÃƒÂ©s.
 
-RÃ‰PONDS UNIQUEMENT EN JSON:
+RÃƒâ€°PONDS UNIQUEMENT EN JSON:
 {{
   "search_queries": ["..."],
   "segment_briefs": [{{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}],
   "notes": "anti-termes ou risques"
 }}
 
-TRANSCRIPT (tronquÃ©):
+TRANSCRIPT (tronquÃƒÂ©):
 {tx}
 """
 
@@ -5746,4 +5746,5 @@ def generate_metadata_as_json(
 
     _remember_last_metadata(queries, broll_keywords)
     return result
+
 

@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🧪 BENCH QWEN3:4B OPTIMISÉ - PROMPT DIRECTIF
-Test de qwen3:4b avec un prompt optimisé pour éviter le mode "thinking"
+ðŸ§ª BENCH QWEN3:4B OPTIMISÃ‰ - PROMPT DIRECTIF
+Test de qwen3:4b avec un prompt optimisÃ© pour Ã©viter le mode "thinking"
 """
 
 import time
@@ -12,11 +12,11 @@ import psutil
 from datetime import datetime
 
 def bench_qwen3_4b_optimized():
-    """Benchmark de qwen3:4b avec prompt optimisé"""
+    """Benchmark de qwen3:4b avec prompt optimisÃ©"""
     
-    print("🧪 BENCH QWEN3:4B OPTIMISÉ - PROMPT DIRECTIF")
+    print("ðŸ§ª BENCH QWEN3:4B OPTIMISÃ‰ - PROMPT DIRECTIF")
     print("=" * 60)
-    print(f"⏰ Début: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"â° DÃ©but: {datetime.now().strftime('%H:%M:%S')}")
     print()
     
     # Configuration
@@ -31,33 +31,33 @@ No explanations, no thinking, just JSON.'''
     payload = {
         "model": MODEL,
         "prompt": PROMPT,
-        "temperature": 0.1,  # Plus déterministe
-        "max_tokens": 100,   # Réduit pour accélérer
+        "temperature": 0.1,  # Plus dÃ©terministe
+        "max_tokens": 100,   # RÃ©duit pour accÃ©lÃ©rer
         "stream": False,
-        "top_p": 0.9,       # Contrôle de la créativité
+        "top_p": 0.9,       # ContrÃ´le de la crÃ©ativitÃ©
         "top_k": 40         # Limite les choix
     }
     
-    print(f"🎯 Modèle: {MODEL}")
-    print(f"📝 Prompt: {len(PROMPT)} caractères")
-    print(f"⏱️ Timeout: 60s (réduit)")
-    print(f"📊 Max tokens: 100")
-    print(f"🌡️ Temperature: 0.1 (déterministe)")
+    print(f"ðŸŽ¯ ModÃ¨le: {MODEL}")
+    print(f"ðŸ“ Prompt: {len(PROMPT)} caractÃ¨res")
+    print(f"â±ï¸ Timeout: 60s (rÃ©duit)")
+    print(f"ðŸ“Š Max tokens: 100")
+    print(f"ðŸŒ¡ï¸ Temperature: 0.1 (dÃ©terministe)")
     print()
     
-    # Monitoring système avant
-    print("📊 MONITORING SYSTÈME - AVANT")
+    # Monitoring systÃ¨me avant
+    print("ðŸ“Š MONITORING SYSTÃˆME - AVANT")
     print("-" * 40)
     mem_before = psutil.virtual_memory()
     cpu_percent = psutil.cpu_percent(interval=1)
     
-    print(f"💾 RAM disponible: {mem_before.available / 1e9:.2f} GB")
-    print(f"💾 RAM utilisée: {mem_before.used / 1e9:.2f} GB")
-    print(f"🔄 CPU: {cpu_percent}%")
+    print(f"ðŸ’¾ RAM disponible: {mem_before.available / 1e9:.2f} GB")
+    print(f"ðŸ’¾ RAM utilisÃ©e: {mem_before.used / 1e9:.2f} GB")
+    print(f"ðŸ”„ CPU: {cpu_percent}%")
     print()
     
     # Test LLM
-    print("🚀 TEST QWEN3:4B OPTIMISÉ EN COURS...")
+    print("ðŸš€ TEST QWEN3:4B OPTIMISÃ‰ EN COURS...")
     print("-" * 40)
     
     try:
@@ -68,109 +68,109 @@ No explanations, no thinking, just JSON.'''
         elapsed = t1 - t0
         status = r.status_code
         
-        print(f"✅ Statut: {status}")
-        print(f"⏱️ Temps total: {elapsed:.2f}s")
-        print(f"📊 Latence: {elapsed*1000:.0f}ms")
+        print(f"âœ… Statut: {status}")
+        print(f"â±ï¸ Temps total: {elapsed:.2f}s")
+        print(f"ðŸ“Š Latence: {elapsed*1000:.0f}ms")
         
         if r.status_code == 200:
             try:
                 response_data = r.json()
                 response_text = response_data.get('response', '')
-                print(f"📝 Réponse: {len(response_text)} caractères")
-                print(f"🔍 Début réponse: {response_text[:200]}...")
+                print(f"ðŸ“ RÃ©ponse: {len(response_text)} caractÃ¨res")
+                print(f"ðŸ” DÃ©but rÃ©ponse: {response_text[:200]}...")
                 
                 # Test parsing JSON
                 try:
                     parsed_json = json.loads(response_text)
-                    print("✅ JSON valide détecté")
+                    print("âœ… JSON valide dÃ©tectÃ©")
                     
                     # Analyse de la structure
                     if 'keywords' in parsed_json:
                         keywords = parsed_json['keywords']
-                        print(f"🎯 Mots-clés trouvés: {len(keywords)}")
-                        print(f"📝 Mots-clés: {keywords}")
+                        print(f"ðŸŽ¯ Mots-clÃ©s trouvÃ©s: {len(keywords)}")
+                        print(f"ðŸ“ Mots-clÃ©s: {keywords}")
                         
                         if isinstance(keywords, list) and len(keywords) >= 5:
-                            print("✅ Nombre de mots-clés OK (≥5)")
+                            print("âœ… Nombre de mots-clÃ©s OK (â‰¥5)")
                         else:
-                            print("⚠️ Nombre de mots-clés insuffisant")
+                            print("âš ï¸ Nombre de mots-clÃ©s insuffisant")
                     else:
-                        print("⚠️ Structure 'keywords' manquante")
+                        print("âš ï¸ Structure 'keywords' manquante")
                         
                 except json.JSONDecodeError as e:
-                    print(f"❌ JSON invalide: {e}")
-                    print("🔍 Tentative de réparation...")
+                    print(f"âŒ JSON invalide: {e}")
+                    print("ðŸ” Tentative de rÃ©paration...")
                     
-                    # Tentative de réparation simple
+                    # Tentative de rÃ©paration simple
                     try:
                         import re
                         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
                         if json_match:
                             json_str = json_match.group()
                             parsed_json = json.loads(json_str)
-                            print("✅ JSON réparé avec succès")
+                            print("âœ… JSON rÃ©parÃ© avec succÃ¨s")
                         else:
-                            print("❌ Impossible de réparer le JSON")
+                            print("âŒ Impossible de rÃ©parer le JSON")
                     except:
-                        print("❌ Réparation JSON échouée")
+                        print("âŒ RÃ©paration JSON Ã©chouÃ©e")
                         
             except Exception as e:
-                print(f"❌ Erreur parsing réponse: {e}")
-                print(f"📝 Réponse brute: {r.text[:200]}...")
+                print(f"âŒ Erreur parsing rÃ©ponse: {e}")
+                print(f"ðŸ“ RÃ©ponse brute: {r.text[:200]}...")
         else:
-            print(f"❌ Erreur HTTP: {r.text}")
+            print(f"âŒ Erreur HTTP: {r.text}")
             
     except requests.exceptions.Timeout:
-        print("⏱️ TIMEOUT après 60s")
+        print("â±ï¸ TIMEOUT aprÃ¨s 60s")
         elapsed = 60
         status = "TIMEOUT"
     except Exception as e:
-        print(f"❌ Erreur: {str(e)}")
+        print(f"âŒ Erreur: {str(e)}")
         elapsed = 0
         status = "ERROR"
     
-    # Monitoring système après
+    # Monitoring systÃ¨me aprÃ¨s
     print()
-    print("📊 MONITORING SYSTÈME - APRÈS")
+    print("ðŸ“Š MONITORING SYSTÃˆME - APRÃˆS")
     print("-" * 40)
     mem_after = psutil.virtual_memory()
     cpu_percent_after = psutil.cpu_percent(interval=1)
     
     mem_delta = mem_before.available - mem_after.available
-    print(f"💾 RAM delta: {mem_delta / 1e6:.1f} MB")
-    print(f"💾 RAM disponible: {mem_after.available / 1e9:.2f} GB")
-    print(f"🔄 CPU: {cpu_percent_after}%")
+    print(f"ðŸ’¾ RAM delta: {mem_delta / 1e6:.1f} MB")
+    print(f"ðŸ’¾ RAM disponible: {mem_after.available / 1e9:.2f} GB")
+    print(f"ðŸ”„ CPU: {cpu_percent_after}%")
     
-    # Analyse des résultats
+    # Analyse des rÃ©sultats
     print()
-    print("🔍 ANALYSE DES RÉSULTATS")
+    print("ðŸ” ANALYSE DES RÃ‰SULTATS")
     print("=" * 60)
     
     if elapsed < 10:
-        print("✅ QWEN3:4B OPTIMISÉ - Temps excellent (<10s)")
-        print("🎯 Problème résolu: Prompt optimisé fonctionne")
+        print("âœ… QWEN3:4B OPTIMISÃ‰ - Temps excellent (<10s)")
+        print("ðŸŽ¯ ProblÃ¨me rÃ©solu: Prompt optimisÃ© fonctionne")
     elif elapsed < 30:
-        print("⚠️ QWEN3:4B OPTIMISÉ - Temps acceptable (10-30s)")
-        print("🎯 Amélioration significative, peut être optimisé")
+        print("âš ï¸ QWEN3:4B OPTIMISÃ‰ - Temps acceptable (10-30s)")
+        print("ðŸŽ¯ AmÃ©lioration significative, peut Ãªtre optimisÃ©")
     elif elapsed < 60:
-        print("❌ QWEN3:4B OPTIMISÉ - Temps élevé (30-60s)")
-        print("🎯 Problème persiste, vérifier configuration")
+        print("âŒ QWEN3:4B OPTIMISÃ‰ - Temps Ã©levÃ© (30-60s)")
+        print("ðŸŽ¯ ProblÃ¨me persiste, vÃ©rifier configuration")
     else:
-        print("🚨 QWEN3:4B OPTIMISÉ - Timeout atteint")
-        print("🎯 Problème critique, modèle inutilisable")
+        print("ðŸš¨ QWEN3:4B OPTIMISÃ‰ - Timeout atteint")
+        print("ðŸŽ¯ ProblÃ¨me critique, modÃ¨le inutilisable")
     
     print()
-    print("📋 RECOMMANDATIONS")
+    print("ðŸ“‹ RECOMMANDATIONS")
     print("-" * 40)
     
     if elapsed < 30:
-        print("1. ✅ QWEN3:4B fonctionne avec prompt optimisé")
-        print("2. 🎯 Implémenter ce prompt dans le pipeline")
-        print("3. 🔧 Supprimer qwen3:8b inutile")
+        print("1. âœ… QWEN3:4B fonctionne avec prompt optimisÃ©")
+        print("2. ðŸŽ¯ ImplÃ©menter ce prompt dans le pipeline")
+        print("3. ðŸ”§ Supprimer qwen3:8b inutile")
     else:
-        print("1. ⚠️ Vérifier configuration Ollama")
-        print("2. 🔍 Tester avec d'autres paramètres")
-        print("3. 🚨 Considérer un modèle plus léger")
+        print("1. âš ï¸ VÃ©rifier configuration Ollama")
+        print("2. ðŸ” Tester avec d'autres paramÃ¨tres")
+        print("3. ðŸš¨ ConsidÃ©rer un modÃ¨le plus lÃ©ger")
     
     return elapsed, status
 
@@ -179,6 +179,6 @@ if __name__ == "__main__":
     
     print()
     print("=" * 60)
-    print(f"🏁 BENCH OPTIMISÉ TERMINÉ - Temps: {elapsed:.2f}s, Statut: {status}")
+    print(f"ðŸ BENCH OPTIMISÃ‰ TERMINÃ‰ - Temps: {elapsed:.2f}s, Statut: {status}")
     
-    input("\nAppuyez sur Entrée pour continuer...") 
+    input("\nAppuyez sur EntrÃ©e pour continuer...") 

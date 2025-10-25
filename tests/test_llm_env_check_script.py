@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import types
 
 import tools.llm_env_check as llm_env_check
@@ -55,4 +55,5 @@ def test_main_reports_missing_pytest(monkeypatch, capsys):
     assert exit_code == 3
     captured = capsys.readouterr()
     assert "pytest executable not found" in captured.out
+
 

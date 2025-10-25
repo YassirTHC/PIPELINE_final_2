@@ -1,3 +1,4 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 Script de configuration pour MoviePy avec ImageMagick
@@ -31,44 +32,45 @@ def configure_moviepy():
                 break
         
         if imagemagick_path:
-            print(f"✅ ImageMagick trouvé: {imagemagick_path}")
+            print(f"Ã¢Å“â€¦ ImageMagick trouvÃƒÂ©: {imagemagick_path}")
             
             # Configurer MoviePy
             cfg.change_settings({"IMAGEMAGICK_BINARY": imagemagick_path})
-            print("✅ MoviePy configuré avec ImageMagick")
+            print("Ã¢Å“â€¦ MoviePy configurÃƒÂ© avec ImageMagick")
             
             # Test de la configuration
             try:
                 from moviepy.video.VideoClip import TextClip
                 test_clip = TextClip("Test", fontsize=50, color='white')
                 test_clip.close()
-                print("✅ Test de TextClip réussi!")
+                print("Ã¢Å“â€¦ Test de TextClip rÃƒÂ©ussi!")
                 return True
                 
             except Exception as e:
-                print(f"⚠️ Test échoué: {e}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â Test ÃƒÂ©chouÃƒÂ©: {e}")
                 return False
         else:
-            print("❌ ImageMagick non trouvé dans les chemins standards")
-            print("Chemins vérifiés:")
+            print("Ã¢ÂÅ’ ImageMagick non trouvÃƒÂ© dans les chemins standards")
+            print("Chemins vÃƒÂ©rifiÃƒÂ©s:")
             for path in possible_paths:
                 print(f"  - {path}")
             return False
             
     except ImportError:
-        print("❌ MoviePy non installé")
+        print("Ã¢ÂÅ’ MoviePy non installÃƒÂ©")
         return False
     except Exception as e:
-        print(f"❌ Erreur de configuration: {e}")
+        print(f"Ã¢ÂÅ’ Erreur de configuration: {e}")
         return False
 
 if __name__ == "__main__":
-    print("🔧 Configuration de MoviePy avec ImageMagick...")
+    print("Ã°Å¸â€Â§ Configuration de MoviePy avec ImageMagick...")
     success = configure_moviepy()
     
     if success:
-        print("\n✅ Configuration terminée avec succès!")
-        print("Vous pouvez maintenant utiliser TextClip avec des styles avancés.")
+        print("\nÃ¢Å“â€¦ Configuration terminÃƒÂ©e avec succÃƒÂ¨s!")
+        print("Vous pouvez maintenant utiliser TextClip avec des styles avancÃƒÂ©s.")
     else:
-        print("\n❌ Configuration échouée.")
+        print("\nÃ¢ÂÅ’ Configuration ÃƒÂ©chouÃƒÂ©e.")
         print("Les sous-titres utiliseront le mode de fallback simple.") 
+

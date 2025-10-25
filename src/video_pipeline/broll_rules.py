@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -133,4 +133,5 @@ except Exception:
             pass
 
 # --- END OVERRIDE ---
+
 

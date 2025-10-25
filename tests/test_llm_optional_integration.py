@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import importlib.machinery
 
 import pipeline_core.llm_service as llm_module
@@ -36,4 +36,5 @@ def test_missing_optional_dependency_falls_back(monkeypatch, caplog):
     assert factory.__name__ == "_fallback_stub"
     assert "Optional pipeline integration disabled (missing dependency: sklearn)" in caplog.text
     assert "Falling back to stub pipeline integration (module load failed)" in caplog.text
+
 

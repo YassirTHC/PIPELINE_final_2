@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Simple GUI launcher for run_pipeline.py."""
 from __future__ import annotations
@@ -85,13 +85,13 @@ class PipelineLauncher(tk.Tk):
         self.video_var = tk.StringVar()
         video_entry = ttk.Entry(options_frame, textvariable=self.video_var)
         video_entry.grid(row=1, column=0, columnspan=3, sticky="ew", padx=(0, 5))
-        ttk.Button(options_frame, text="Browse…", command=self._choose_video).grid(row=1, column=3, sticky="ew")
+        ttk.Button(options_frame, text="Browseâ€¦", command=self._choose_video).grid(row=1, column=3, sticky="ew")
 
         ttk.Label(options_frame, text="Output directory").grid(row=2, column=0, sticky="w", pady=(10, 0))
         self.output_var = tk.StringVar(value=str(DEFAULT_OUTPUT_DIR))
         out_entry = ttk.Entry(options_frame, textvariable=self.output_var)
         out_entry.grid(row=3, column=0, columnspan=3, sticky="ew", padx=(0, 5))
-        ttk.Button(options_frame, text="Browse…", command=self._choose_output).grid(row=3, column=3, sticky="ew")
+        ttk.Button(options_frame, text="Browseâ€¦", command=self._choose_output).grid(row=3, column=3, sticky="ew")
 
         llm_frame = ttk.LabelFrame(options_frame, text="LLM settings")
         llm_frame.grid(row=4, column=0, columnspan=4, sticky="ew", pady=(15, 0))
@@ -270,4 +270,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

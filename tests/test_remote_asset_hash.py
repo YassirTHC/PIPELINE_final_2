@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from pipeline_core.fetchers import RemoteAssetCandidate
 
 
@@ -42,4 +42,5 @@ def test_remote_asset_candidate_hash():
 
     d = {a: 1, b: 2, c: 3}
     assert d[a] == 2
+
 

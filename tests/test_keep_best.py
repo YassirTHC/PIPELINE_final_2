@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -146,4 +146,5 @@ def test_forced_keep_budget_is_enforced(monkeypatch, tmp_path):
     selected_urls = [event.get("selected_url") for event in decision_events if event.get("selected_url")]
     assert selected_urls == ["https://cdn/fallback-one.mp4"]
     assert "https://cdn/fallback-two.mp4" not in selected_urls
+
 

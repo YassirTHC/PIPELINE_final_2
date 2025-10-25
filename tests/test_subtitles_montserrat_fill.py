@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import numpy as np
 
 from hormozi_subtitles import HormoziSubtitles
@@ -42,4 +42,5 @@ def test_montserrat_fill_and_stroke_application():
     keyword_items = [item for item in metadata["items"] if item.get("keyword")]
     assert keyword_items, "render metadata should flag keyword items"
     assert all(item.get("bg_rgb") is None for item in keyword_items)
+
 

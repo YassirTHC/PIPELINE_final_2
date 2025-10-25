@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import json
 import importlib.machinery
 import os
@@ -260,10 +260,10 @@ def test_broll_summary_matches_console(tmp_path):
     assert payload["dedupe_counts"] == {"url": 1, "phash": 0}
     assert payload["render_ok"] is True
 
-    fake_console_line = "    ðŸ“Š B-roll sÃ©lectionnÃ©s: 2/3 (66.7%); providers=pexels:2"
+    fake_console_line = "    Ã°Å¸â€œÅ  B-roll sÃƒÂ©lectionnÃƒÂ©s: 2/3 (66.7%); providers=pexels:2"
     import re
 
-    match = re.search(r"B-roll sÃ©lectionnÃ©s:\s*(\d+)\s*/\s*(\d+)", fake_console_line)
+    match = re.search(r"B-roll sÃƒÂ©lectionnÃƒÂ©s:\s*(\d+)\s*/\s*(\d+)", fake_console_line)
     assert match, "expected to parse console summary"
     assert int(match.group(1)) == payload["inserted"]
     assert int(match.group(2)) == payload["segments"]
@@ -272,14 +272,14 @@ def test_broll_summary_matches_console(tmp_path):
 def test_format_broll_banner_warns_on_zero_insertions():
     success, banner = format_broll_completion_banner(0, origin="legacy")
     assert success is False
-    assert "âš ï¸" in banner
+    assert "Ã¢Å¡Â Ã¯Â¸Â" in banner
     assert "Aucun B-roll" in banner
 
 
 def test_format_broll_banner_keeps_success_icon():
     success, banner = format_broll_completion_banner(3, origin="pipeline_core")
     assert success is True
-    assert "âœ…" in banner
+    assert "Ã¢Å“â€¦" in banner
     assert "3" in banner
     assert "B-roll" in banner
 
@@ -287,7 +287,7 @@ def test_format_broll_banner_keeps_success_icon():
 def test_format_broll_banner_warns_on_failed_render():
     success, banner = format_broll_completion_banner(2, origin="pipeline_core", render_ok=False)
     assert success is False
-    assert "âš ï¸" in banner
+    assert "Ã¢Å¡Â Ã¯Â¸Â" in banner
     assert "rendu" in banner
 
 
@@ -370,7 +370,7 @@ def test_pipeline_core_download_failure_zero_count(monkeypatch, tmp_path):
 
     banner_success, banner_text = format_broll_completion_banner(count, origin="pipeline_core")
     assert banner_success is False
-    assert "âš ï¸" in banner_text
+    assert "Ã¢Å¡Â Ã¯Â¸Â" in banner_text
 
     report_path = tmp_path / "output" / "meta" / "selection_report_input.json"
     report_payload = json.loads(report_path.read_text(encoding="utf-8"))
@@ -496,4 +496,5 @@ def test_selection_report_captures_candidates_success(monkeypatch, tmp_path):
     ]
     providers = {candidate["provider"] for candidate in segment_entry["candidates"]}
     assert providers == {"pexels", "pixabay"}
+
 

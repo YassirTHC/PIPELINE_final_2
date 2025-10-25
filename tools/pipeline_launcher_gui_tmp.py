@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Simple GUI launcher for run_pipeline.py."""
 from __future__ import annotations
@@ -256,4 +256,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

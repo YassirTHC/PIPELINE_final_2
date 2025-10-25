@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Utility to probe Ollama models for JSON strict and text generation behaviour."""
 
@@ -215,7 +215,7 @@ def format_text_summary(meta: Dict[str, Any]) -> str:
     latency_str = f"{latency:.2f}s" if isinstance(latency, (int, float)) else 'n/a'
     length = meta.get('length', 0)
     empty = 'empty' if meta.get('empty') else 'ok'
-    non_ascii = '⚠️' if meta.get('non_ascii') else '✅'
+    non_ascii = 'âš ï¸' if meta.get('non_ascii') else 'âœ…'
     errors = meta.get('errors') or []
     if errors:
         return f"{latency_str}, len={length}, {empty}, {non_ascii}, errors"
@@ -235,7 +235,7 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
     ]
     for entry in results:
         model = entry['model']
-        json_ok = '✅' if entry['json_strict'].get('valid') else '❌'
+        json_ok = 'âœ…' if entry['json_strict'].get('valid') else 'âŒ'
         short_desc = format_text_summary(entry['text'].get('short', {}))
         long_desc = format_text_summary(entry['text'].get('long', {}))
         lines.append(f'| {model} | {json_ok} | {short_desc} | {long_desc} |')
@@ -341,4 +341,5 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == '__main__':
     sys.exit(main())
+
 

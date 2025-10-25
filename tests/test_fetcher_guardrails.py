@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import sys
 from types import ModuleType
 
@@ -41,4 +41,5 @@ def test_fetcher_skips_provider_without_key(monkeypatch):
 
     assert candidates == []
     assert called['value'] is False
+
 

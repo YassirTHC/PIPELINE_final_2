@@ -1,11 +1,12 @@
-# 🚀 SCHÉMA DE VALIDATION PYDANTIC POUR PIPELINE HYBRIDE
+﻿ï»¿# -*- coding: utf-8 -*-
+# Ã°Å¸Å¡â‚¬ SCHÃƒâ€°MA DE VALIDATION PYDANTIC POUR PIPELINE HYBRIDE
 
 from pydantic import BaseModel, Field, validator
 from typing import List, Dict, Any
 import json
 
 # ========================================
-# SCHÉMA ÉTAPE 1 : TITRES + HASHTAGS
+# SCHÃƒâ€°MA Ãƒâ€°TAPE 1 : TITRES + HASHTAGS
 # ========================================
 class Etape1Schema(BaseModel):
     title: List[str] = Field(..., min_items=3, max_items=5, description="3-5 titres")
@@ -17,7 +18,7 @@ class Etape1Schema(BaseModel):
             if len(title) > 60:
                 raise ValueError(f"Titre trop long: {title} ({len(title)} > 60)")
             if not title.strip():
-                raise ValueError("Titre vide détecté")
+                raise ValueError("Titre vide dÃƒÂ©tectÃƒÂ©")
         return v
     
     @validator('hashtags')
@@ -30,11 +31,11 @@ class Etape1Schema(BaseModel):
         return v
 
 # ========================================
-# SCHÉMA ÉTAPE 2 : DESCRIPTIONS + B-ROLL KEYWORDS
+# SCHÃƒâ€°MA Ãƒâ€°TAPE 2 : DESCRIPTIONS + B-ROLL KEYWORDS
 # ========================================
 class BrollKeywordItem(BaseModel):
-    category: str = Field(..., description="Catégorie du mot-clé")
-    base: str = Field(..., description="Mot-clé de base")
+    category: str = Field(..., description="CatÃƒÂ©gorie du mot-clÃƒÂ©")
+    base: str = Field(..., description="Mot-clÃƒÂ© de base")
     synonyms: List[str] = Field(..., min_items=4, max_items=4, description="Exactement 4 synonymes")
     
     @validator('category')
@@ -44,16 +45,16 @@ class BrollKeywordItem(BaseModel):
             "OBJECTS & PROPS", "EMOTIONAL/CONTEXTUAL"
         ]
         if v not in valid_categories:
-            raise ValueError(f"Catégorie invalide: {v}. Doit être une de: {valid_categories}")
+            raise ValueError(f"CatÃƒÂ©gorie invalide: {v}. Doit ÃƒÂªtre une de: {valid_categories}")
         return v
 
 class Etape2Schema(BaseModel):
     description: List[str] = Field(..., min_items=2, max_items=3, description="2-3 descriptions")
-    broll_keywords: List[BrollKeywordItem] = Field(..., min_items=25, max_items=25, description="Exactement 25 mots-clés")
+    broll_keywords: List[BrollKeywordItem] = Field(..., min_items=25, max_items=25, description="Exactement 25 mots-clÃƒÂ©s")
     
     @validator('broll_keywords')
     def validate_broll_keywords_distribution(cls, v):
-        # Vérifier qu'on a exactement 5 mots-clés par catégorie
+        # VÃƒÂ©rifier qu'on a exactement 5 mots-clÃƒÂ©s par catÃƒÂ©gorie
         categories = {}
         for item in v:
             if item.category not in categories:
@@ -64,14 +65,14 @@ class Etape2Schema(BaseModel):
         
         for category in expected_categories:
             if category not in categories:
-                raise ValueError(f"Catégorie manquante: {category}")
+                raise ValueError(f"CatÃƒÂ©gorie manquante: {category}")
             if categories[category] != 5:
-                raise ValueError(f"Catégorie {category}: {categories[category]} mots-clés au lieu de 5")
+                raise ValueError(f"CatÃƒÂ©gorie {category}: {categories[category]} mots-clÃƒÂ©s au lieu de 5")
         
         return v
 
 # ========================================
-# SCHÉMA FINAL COMBINÉ
+# SCHÃƒâ€°MA FINAL COMBINÃƒâ€°
 # ========================================
 class FinalSchema(BaseModel):
     title: List[str] = Field(..., min_items=3, max_items=5)
@@ -83,7 +84,7 @@ class FinalSchema(BaseModel):
 # FONCTIONS DE VALIDATION
 # ========================================
 def validate_etape_1(json_str: str) -> Dict[str, Any]:
-    """Valide et parse l'étape 1"""
+    """Valide et parse l'ÃƒÂ©tape 1"""
     try:
         data = json.loads(json_str)
         validated = Etape1Schema(**data)
@@ -92,7 +93,7 @@ def validate_etape_1(json_str: str) -> Dict[str, Any]:
         return {"success": False, "data": None, "errors": str(e)}
 
 def validate_etape_2(json_str: str) -> Dict[str, Any]:
-    """Valide et parse l'étape 2"""
+    """Valide et parse l'ÃƒÂ©tape 2"""
     try:
         data = json.loads(json_str)
         validated = Etape2Schema(**data)
@@ -101,7 +102,7 @@ def validate_etape_2(json_str: str) -> Dict[str, Any]:
         return {"success": False, "data": None, "errors": str(e)}
 
 def combine_etapes(etape1_data: Dict, etape2_data: Dict) -> Dict[str, Any]:
-    """Combine les résultats des deux étapes"""
+    """Combine les rÃƒÂ©sultats des deux ÃƒÂ©tapes"""
     try:
         combined = {
             "title": etape1_data["title"],
@@ -118,30 +119,31 @@ def combine_etapes(etape1_data: Dict, etape2_data: Dict) -> Dict[str, Any]:
 # FONCTIONS UTILITAIRES
 # ========================================
 def get_schema_info():
-    """Retourne les informations sur les schémas"""
+    """Retourne les informations sur les schÃƒÂ©mas"""
     return {
         "etape_1": {
             "champs": ["title", "hashtags"],
             "contraintes": "3-5 titres, 10-14 hashtags",
-            "validation": "Longueur titres ≤60, format hashtags #keyword"
+            "validation": "Longueur titres Ã¢â€°Â¤60, format hashtags #keyword"
         },
         "etape_2": {
             "champs": ["description", "broll_keywords"],
-            "contraintes": "2-3 descriptions, 25 mots-clés (5 par catégorie)",
-            "validation": "5 catégories, 4 synonymes par mot-clé"
+            "contraintes": "2-3 descriptions, 25 mots-clÃƒÂ©s (5 par catÃƒÂ©gorie)",
+            "validation": "5 catÃƒÂ©gories, 4 synonymes par mot-clÃƒÂ©"
         },
         "final": {
             "champs": ["title", "description", "hashtags", "broll_keywords"],
-            "contraintes": "Toutes les contraintes des étapes 1 et 2",
-            "validation": "Schéma complet et cohérent"
+            "contraintes": "Toutes les contraintes des ÃƒÂ©tapes 1 et 2",
+            "validation": "SchÃƒÂ©ma complet et cohÃƒÂ©rent"
         }
     }
 
 if __name__ == "__main__":
     info = get_schema_info()
-    print("🚀 SCHÉMAS DE VALIDATION CRÉÉS :")
+    print("Ã°Å¸Å¡â‚¬ SCHÃƒâ€°MAS DE VALIDATION CRÃƒâ€°Ãƒâ€°S :")
     for etape, details in info.items():
-        print(f"📋 {etape.upper()}: {details['champs']}")
+        print(f"Ã°Å¸â€œâ€¹ {etape.upper()}: {details['champs']}")
         print(f"   Contraintes: {details['contraintes']}")
         print(f"   Validation: {details['validation']}")
         print() 
+

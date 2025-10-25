@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🧹 NETTOYAGE RÉFÉRENCES LLAMA2:13B
-Remplace toutes les références à qwen3:8b par qwen3:8b dans le code
+ðŸ§¹ NETTOYAGE RÃ‰FÃ‰RENCES LLAMA2:13B
+Remplace toutes les rÃ©fÃ©rences Ã  qwen3:8b par qwen3:8b dans le code
 """
 
 import os
@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 def nettoyer_fichier(file_path):
-    """Nettoie un fichier en remplaçant qwen3:8b par qwen3:8b"""
+    """Nettoie un fichier en remplaÃ§ant qwen3:8b par qwen3:8b"""
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -24,29 +24,29 @@ def nettoyer_fichier(file_path):
         # Remplacer qwen3:8b par qwen3:8b
         content_new = content.replace('qwen3:8b', 'qwen3:8b')
         
-        # Compter les occurrences après
+        # Compter les occurrences aprÃ¨s
         count_after = content_new.count('qwen3:8b')
         
-        # Écrire le fichier modifié
+        # Ã‰crire le fichier modifiÃ©
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content_new)
         
         return count_before, count_after
         
     except Exception as e:
-        print(f"❌ Erreur avec {file_path}: {e}")
+        print(f"âŒ Erreur avec {file_path}: {e}")
         return 0, 0
 
 def nettoyer_repertoire():
-    """Nettoie tous les fichiers du répertoire"""
+    """Nettoie tous les fichiers du rÃ©pertoire"""
     
-    print("🧹 NETTOYAGE RÉFÉRENCES LLAMA2:13B")
+    print("ðŸ§¹ NETTOYAGE RÃ‰FÃ‰RENCES LLAMA2:13B")
     print("=" * 50)
     
-    # Extensions de fichiers à traiter
+    # Extensions de fichiers Ã  traiter
     extensions = ['.py', '.yaml', '.yml', '.md', '.txt', '.bat', '.sh']
     
-    # Fichiers à ignorer
+    # Fichiers Ã  ignorer
     ignore_files = {
         'test_llama2_13b_prompt_complet.py',
         'test_llama2_13b_prompt_final.py',
@@ -70,17 +70,17 @@ def nettoyer_repertoire():
                 
             file_path = Path(root) / file
             
-            # Vérifier l'extension
+            # VÃ©rifier l'extension
             if file_path.suffix.lower() in extensions:
                 count_before, count_after = nettoyer_fichier(file_path)
                 if count_before > 0:
-                    print(f"✅ {file_path}: {count_before} → {count_after} références")
+                    print(f"âœ… {file_path}: {count_before} â†’ {count_after} rÃ©fÃ©rences")
                     total_files += 1
                     total_replacements += count_before
     
-    print(f"\n🎉 NETTOYAGE TERMINÉ!")
-    print(f"📁 Fichiers traités: {total_files}")
-    print(f"🔄 Références remplacées: {total_replacements}")
+    print(f"\nðŸŽ‰ NETTOYAGE TERMINÃ‰!")
+    print(f"ðŸ“ Fichiers traitÃ©s: {total_files}")
+    print(f"ðŸ”„ RÃ©fÃ©rences remplacÃ©es: {total_replacements}")
     
     return total_files, total_replacements
 
@@ -88,9 +88,9 @@ if __name__ == "__main__":
     total_files, total_replacements = nettoyer_repertoire()
     
     if total_replacements > 0:
-        print(f"\n✅ {total_replacements} références à qwen3:8b ont été remplacées par qwen3:8b")
-        print("L'interface devrait maintenant afficher le bon modèle!")
+        print(f"\nâœ… {total_replacements} rÃ©fÃ©rences Ã  qwen3:8b ont Ã©tÃ© remplacÃ©es par qwen3:8b")
+        print("L'interface devrait maintenant afficher le bon modÃ¨le!")
     else:
-        print("\nℹ️ Aucune référence à qwen3:8b trouvée")
+        print("\nâ„¹ï¸ Aucune rÃ©fÃ©rence Ã  qwen3:8b trouvÃ©e")
     
-    input("\nAppuyez sur Entrée pour continuer...") 
+    input("\nAppuyez sur EntrÃ©e pour continuer...") 

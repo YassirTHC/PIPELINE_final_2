@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-🎵 CONFIGURATEUR MUSIQUE LIBRE DE DROITS
-Configure automatiquement les dossiers et télécharge de la musique libre
+Ã°Å¸Å½Âµ CONFIGURATEUR MUSIQUE LIBRE DE DROITS
+Configure automatiquement les dossiers et tÃƒÂ©lÃƒÂ©charge de la musique libre
 """
 
 import os
@@ -14,7 +15,7 @@ def setup_music_folders():
     """Configure la structure des dossiers musique."""
     music_root = Path("assets/music")
     
-    # Créer la structure
+    # CrÃƒÂ©er la structure
     folders = {
         "free": {
             "low": ["ambient", "calm", "gentle"],
@@ -42,10 +43,10 @@ def setup_music_folders():
                 sub_path = main_path / sub_folder
                 sub_path.mkdir(exist_ok=True)
     
-    print("✅ Structure des dossiers musique créée")
+    print("Ã¢Å“â€¦ Structure des dossiers musique crÃƒÂ©ÃƒÂ©e")
 
 def download_sample_music():
-    """Télécharge de la musique libre de droits d'exemple."""
+    """TÃƒÂ©lÃƒÂ©charge de la musique libre de droits d'exemple."""
     # URLs de musique libre de droits (exemples)
     sample_music = {
         "low/ambient": "https://example.com/free/ambient_soft.mp3",
@@ -63,18 +64,18 @@ def download_sample_music():
             filename = f"sample_{path.replace('/', '_')}.mp3"
             file_path = folder_path / filename
             
-            print(f"📥 Téléchargement: {filename}")
+            print(f"Ã°Å¸â€œÂ¥ TÃƒÂ©lÃƒÂ©chargement: {filename}")
             # response = requests.get(url)
             # file_path.write_bytes(response.content)
             
-            # Créer un fichier placeholder pour l'exemple
+            # CrÃƒÂ©er un fichier placeholder pour l'exemple
             file_path.write_text(f"Placeholder pour {filename}\nURL: {url}")
             
         except Exception as e:
-            print(f"❌ Erreur téléchargement {path}: {e}")
+            print(f"Ã¢ÂÅ’ Erreur tÃƒÂ©lÃƒÂ©chargement {path}: {e}")
 
 def create_music_config():
-    """Crée le fichier de configuration musique."""
+    """CrÃƒÂ©e le fichier de configuration musique."""
     config = {
         "music_settings": {
             "auto_add": True,
@@ -85,17 +86,17 @@ def create_music_config():
         },
         "intensity_mapping": {
             "low": {
-                "description": "Calme, réfléchi, méditation",
+                "description": "Calme, rÃƒÂ©flÃƒÂ©chi, mÃƒÂ©ditation",
                 "folders": ["ambient", "calm", "gentle"],
                 "volume": 0.15
             },
             "medium": {
-                "description": "Équilibré, professionnel, informatif",
+                "description": "Ãƒâ€°quilibrÃƒÂ©, professionnel, informatif",
                 "folders": ["upbeat", "modern", "positive"],
                 "volume": 0.2
             },
             "high": {
-                "description": "Énergique, motivant, action",
+                "description": "Ãƒâ€°nergique, motivant, action",
                 "folders": ["energetic", "electronic", "motivational"],
                 "volume": 0.25
             }
@@ -117,27 +118,28 @@ def create_music_config():
         import json
         json.dump(config, f, indent=2, ensure_ascii=False)
     
-    print("✅ Configuration musique créée: config/music_config.json")
+    print("Ã¢Å“â€¦ Configuration musique crÃƒÂ©ÃƒÂ©e: config/music_config.json")
 
 def main():
-    """Configuration complète."""
-    print("🎵 CONFIGURATION MUSIQUE LIBRE DE DROITS")
+    """Configuration complÃƒÂ¨te."""
+    print("Ã°Å¸Å½Âµ CONFIGURATION MUSIQUE LIBRE DE DROITS")
     print("=" * 50)
     
     setup_music_folders()
     download_sample_music()
     create_music_config()
     
-    print("\n🎉 Configuration terminée !")
-    print("\n📁 Dossiers créés:")
+    print("\nÃ°Å¸Å½â€° Configuration terminÃƒÂ©e !")
+    print("\nÃ°Å¸â€œÂ Dossiers crÃƒÂ©ÃƒÂ©s:")
     print("   assets/music/free/ - Musique libre de droits")
     print("   assets/music/licensed/ - Musique sous licence")
     print("   config/music_config.json - Configuration")
     
-    print("\n🚀 Utilisation:")
+    print("\nÃ°Å¸Å¡â‚¬ Utilisation:")
     print("   1. Ajoutez vos musiques dans assets/music/free/")
-    print("   2. Organisez par intensité (low/medium/high)")
+    print("   2. Organisez par intensitÃƒÂ© (low/medium/high)")
     print("   3. Le pipeline ajoutera automatiquement la musique")
 
 if __name__ == "__main__":
     main() 
+

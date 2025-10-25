@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Provider adapters for interacting with different LLM backends."""
 from __future__ import annotations
 
@@ -269,4 +269,5 @@ def get_llm_client(settings: Optional[Any] = None) -> LLMClient:
         return TogetherClient(api_key=api_key, model_json=model_json, model_text=model_text)
 
     raise ValueError(f"Unsupported LLM provider: {provider}")
+
 

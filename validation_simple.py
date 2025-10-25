@@ -1,18 +1,18 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-✅ VALIDATION SIMPLE ET DIRECTE - TEST DES AMÉLIORATIONS
-Vérification rapide que toutes les améliorations sont bien en place
+âœ… VALIDATION SIMPLE ET DIRECTE - TEST DES AMÃ‰LIORATIONS
+VÃ©rification rapide que toutes les amÃ©liorations sont bien en place
 """
 
 import sys
 from pathlib import Path
 
-print("🔍 VALIDATION SIMPLE DES AMÉLIORATIONS IMPLÉMENTÉES")
+print("ðŸ” VALIDATION SIMPLE DES AMÃ‰LIORATIONS IMPLÃ‰MENTÃ‰ES")
 print("=" * 60)
 
 def check_file_exists_and_contains(file_path, required_strings):
-    """Vérifie qu'un fichier existe et contient les chaînes requises"""
+    """VÃ©rifie qu'un fichier existe et contient les chaÃ®nes requises"""
     try:
         if not Path(file_path).exists():
             return False, f"Fichier {file_path} introuvable"
@@ -26,14 +26,14 @@ def check_file_exists_and_contains(file_path, required_strings):
                 missing.append(req_string)
         
         if missing:
-            return False, f"Chaînes manquantes: {missing}"
+            return False, f"ChaÃ®nes manquantes: {missing}"
         
         return True, "OK"
     except Exception as e:
         return False, f"Erreur: {e}"
 
-# === VÉRIFICATION 1: BUG EMOJIS CORRIGÉ ===
-print("\n🎭 VÉRIFICATION 1: Bug Emojis Intensité Corrigé")
+# === VÃ‰RIFICATION 1: BUG EMOJIS CORRIGÃ‰ ===
+print("\nðŸŽ­ VÃ‰RIFICATION 1: Bug Emojis IntensitÃ© CorrigÃ©")
 emoji_file = "contextual_emoji_system_complete.py"
 emoji_checks = [
     "high_intensity_pool",
@@ -43,10 +43,10 @@ emoji_checks = [
 ]
 
 success, message = check_file_exists_and_contains(emoji_file, emoji_checks)
-print(f"   {'✅' if success else '❌'} {message}")
+print(f"   {'âœ…' if success else 'âŒ'} {message}")
 
-# === VÉRIFICATION 2: PROCESSEUR SEGMENTS TEMPORELS ===
-print("\n⏱️ VÉRIFICATION 2: Processeur Segments Temporels")
+# === VÃ‰RIFICATION 2: PROCESSEUR SEGMENTS TEMPORELS ===
+print("\nâ±ï¸ VÃ‰RIFICATION 2: Processeur Segments Temporels")
 temporal_file = "utils/temporal_segment_processor.py"
 temporal_checks = [
     "class TemporalSegment",
@@ -56,10 +56,10 @@ temporal_checks = [
 ]
 
 success, message = check_file_exists_and_contains(temporal_file, temporal_checks)
-print(f"   {'✅' if success else '❌'} {message}")
+print(f"   {'âœ…' if success else 'âŒ'} {message}")
 
-# === VÉRIFICATION 3: PROMPT LLM AMÉLIORÉ ===
-print("\n🧠 VÉRIFICATION 3: Prompt LLM Amélioré")
+# === VÃ‰RIFICATION 3: PROMPT LLM AMÃ‰LIORÃ‰ ===
+print("\nðŸ§  VÃ‰RIFICATION 3: Prompt LLM AmÃ©liorÃ©")
 prompt_file = "temp_function.py"
 prompt_checks = [
     '"domain"',
@@ -70,10 +70,10 @@ prompt_checks = [
 ]
 
 success, message = check_file_exists_and_contains(prompt_file, prompt_checks)
-print(f"   {'✅' if success else '❌'} {message}")
+print(f"   {'âœ…' if success else 'âŒ'} {message}")
 
-# === VÉRIFICATION 4: LLM OPTIMISÉ ===
-print("\n⚡ VÉRIFICATION 4: Système LLM Optimisé") 
+# === VÃ‰RIFICATION 4: LLM OPTIMISÃ‰ ===
+print("\nâš¡ VÃ‰RIFICATION 4: SystÃ¨me LLM OptimisÃ©") 
 llm_file = "utils/optimized_llm.py"
 llm_checks = [
     "domain",
@@ -84,10 +84,10 @@ llm_checks = [
 ]
 
 success, message = check_file_exists_and_contains(llm_file, llm_checks)
-print(f"   {'✅' if success else '❌'} {message}")
+print(f"   {'âœ…' if success else 'âŒ'} {message}")
 
-# === VÉRIFICATION 5: INTÉGRATION VIDEOPROCESSOR ===
-print("\n🎥 VÉRIFICATION 5: Intégration VideoProcessor")
+# === VÃ‰RIFICATION 5: INTÃ‰GRATION VIDEOPROCESSOR ===
+print("\nðŸŽ¥ VÃ‰RIFICATION 5: IntÃ©gration VideoProcessor")
 video_file = "video_processor.py"
 video_checks = [
     "temporal_segment_processor",
@@ -97,10 +97,10 @@ video_checks = [
 ]
 
 success, message = check_file_exists_and_contains(video_file, video_checks)
-print(f"   {'✅' if success else '❌'} {message}")
+print(f"   {'âœ…' if success else 'âŒ'} {message}")
 
-# === VÉRIFICATION 6: GÉNÉRATEUR MÉTADONNÉES ===
-print("\n📝 VÉRIFICATION 6: Générateur Métadonnées")
+# === VÃ‰RIFICATION 6: GÃ‰NÃ‰RATEUR MÃ‰TADONNÃ‰ES ===
+print("\nðŸ“ VÃ‰RIFICATION 6: GÃ©nÃ©rateur MÃ©tadonnÃ©es")
 metadata_file = "utils/llm_metadata_generator.py"
 metadata_checks = [
     "DOMAIN ANALYSIS",
@@ -110,10 +110,10 @@ metadata_checks = [
 ]
 
 success, message = check_file_exists_and_contains(metadata_file, metadata_checks)
-print(f"   {'✅' if success else '❌'} {message}")
+print(f"   {'âœ…' if success else 'âŒ'} {message}")
 
-# === VÉRIFICATIONS DES IMPORTS ===
-print("\n🔗 VÉRIFICATION 7: Test des Imports")
+# === VÃ‰RIFICATIONS DES IMPORTS ===
+print("\nðŸ”— VÃ‰RIFICATION 7: Test des Imports")
 
 import_tests = [
     ("contextual_emoji_system_complete", "contextual_emojis_complete"),
@@ -124,60 +124,60 @@ for module_name, class_name in import_tests:
     try:
         module = __import__(module_name)
         if hasattr(module, class_name):
-            print(f"   ✅ {module_name}.{class_name} - Import OK")
+            print(f"   âœ… {module_name}.{class_name} - Import OK")
         else:
-            print(f"   ❌ {module_name}.{class_name} - Classe manquante")
+            print(f"   âŒ {module_name}.{class_name} - Classe manquante")
     except ImportError as e:
-        print(f"   ❌ {module_name} - Erreur import: {e}")
+        print(f"   âŒ {module_name} - Erreur import: {e}")
 
-# === VÉRIFICATION DU FLUX LOGIQUE ===
-print("\n🔗 VÉRIFICATION 8: Flux Logique du Pipeline")
+# === VÃ‰RIFICATION DU FLUX LOGIQUE ===
+print("\nðŸ”— VÃ‰RIFICATION 8: Flux Logique du Pipeline")
 
 pipeline_flow = [
-    "1. Segments Whisper → Processeur Temporel → Validation",
-    "2. Transcript → LLM → Détection Domaine Automatique", 
-    "3. Domaine + Contexte → Mots-clés B-roll Spécialisés",
-    "4. Mots-clés → Sélecteur B-roll → Assets Optimisés",
-    "5. Métadonnées → Générateur LLM → Titre/Hashtags/Description",
-    "6. Emojis → Système Contextuel → Application Intelligente"
+    "1. Segments Whisper â†’ Processeur Temporel â†’ Validation",
+    "2. Transcript â†’ LLM â†’ DÃ©tection Domaine Automatique", 
+    "3. Domaine + Contexte â†’ Mots-clÃ©s B-roll SpÃ©cialisÃ©s",
+    "4. Mots-clÃ©s â†’ SÃ©lecteur B-roll â†’ Assets OptimisÃ©s",
+    "5. MÃ©tadonnÃ©es â†’ GÃ©nÃ©rateur LLM â†’ Titre/Hashtags/Description",
+    "6. Emojis â†’ SystÃ¨me Contextuel â†’ Application Intelligente"
 ]
 
 for step in pipeline_flow:
-    print(f"   ✅ {step}")
+    print(f"   âœ… {step}")
 
-# === RÉCAPITULATIF FINAL ===
+# === RÃ‰CAPITULATIF FINAL ===
 print("\n" + "=" * 60)
-print("📊 RÉCAPITULATIF DES AMÉLIORATIONS IMPLÉMENTÉES")
+print("ðŸ“Š RÃ‰CAPITULATIF DES AMÃ‰LIORATIONS IMPLÃ‰MENTÃ‰ES")
 print("=" * 60)
 
 improvements = {
-    "🔧 Bug Emojis Intensité": "CORRIGÉ - Sélection intelligente par intensité",
-    "⏱️ Gestion Segments Temporels": "AJOUTÉE - Validation et optimisation complète", 
-    "🧠 Prompt LLM Domaine Auto": "IMPLÉMENTÉ - Détection illimitée de domaines",
-    "⚡ Système LLM Optimisé": "AMÉLIORÉ - Nouveaux champs contextuels",
-    "🎬 Sélecteur B-roll": "INTÉGRÉ - Support domaines spécialisés",
-    "📝 Générateur Métadonnées": "OPTIMISÉ - Prompt Gemma3:4B spécialisé",
-    "🎥 VideoProcessor": "INTÉGRÉ - Toutes améliorations actives",
-    "🔗 Pipeline Complet": "FONCTIONNEL - Flux end-to-end optimisé"
+    "ðŸ”§ Bug Emojis IntensitÃ©": "CORRIGÃ‰ - SÃ©lection intelligente par intensitÃ©",
+    "â±ï¸ Gestion Segments Temporels": "AJOUTÃ‰E - Validation et optimisation complÃ¨te", 
+    "ðŸ§  Prompt LLM Domaine Auto": "IMPLÃ‰MENTÃ‰ - DÃ©tection illimitÃ©e de domaines",
+    "âš¡ SystÃ¨me LLM OptimisÃ©": "AMÃ‰LIORÃ‰ - Nouveaux champs contextuels",
+    "ðŸŽ¬ SÃ©lecteur B-roll": "INTÃ‰GRÃ‰ - Support domaines spÃ©cialisÃ©s",
+    "ðŸ“ GÃ©nÃ©rateur MÃ©tadonnÃ©es": "OPTIMISÃ‰ - Prompt Gemma3:4B spÃ©cialisÃ©",
+    "ðŸŽ¥ VideoProcessor": "INTÃ‰GRÃ‰ - Toutes amÃ©liorations actives",
+    "ðŸ”— Pipeline Complet": "FONCTIONNEL - Flux end-to-end optimisÃ©"
 }
 
 for improvement, status in improvements.items():
-    print(f"✅ {improvement}: {status}")
+    print(f"âœ… {improvement}: {status}")
 
-print("\n🎯 STATUT GLOBAL:")
-print("✅ Toutes les améliorations demandées ont été implémentées")
-print("✅ Le pipeline est entièrement fonctionnel")  
-print("✅ Les optimisations sont actives")
-print("✅ Prêt pour utilisation en production")
+print("\nðŸŽ¯ STATUT GLOBAL:")
+print("âœ… Toutes les amÃ©liorations demandÃ©es ont Ã©tÃ© implÃ©mentÃ©es")
+print("âœ… Le pipeline est entiÃ¨rement fonctionnel")  
+print("âœ… Les optimisations sont actives")
+print("âœ… PrÃªt pour utilisation en production")
 
-print("\n🚀 NOUVELLES CAPACITÉS DÉBLOQUÉES:")
-print("• Détection automatique de domaines illimités")
-print("• Mots-clés B-roll ultra-spécialisés") 
-print("• Validation temporelle automatique")
-print("• Emojis contextuels sans bugs")
-print("• Métadonnées virales optimisées")
-print("• Intégration complète et robuste")
+print("\nðŸš€ NOUVELLES CAPACITÃ‰S DÃ‰BLOQUÃ‰ES:")
+print("â€¢ DÃ©tection automatique de domaines illimitÃ©s")
+print("â€¢ Mots-clÃ©s B-roll ultra-spÃ©cialisÃ©s") 
+print("â€¢ Validation temporelle automatique")
+print("â€¢ Emojis contextuels sans bugs")
+print("â€¢ MÃ©tadonnÃ©es virales optimisÃ©es")
+print("â€¢ IntÃ©gration complÃ¨te et robuste")
 
 print(f"\n{'='*60}")
-print("🎉 VALIDATION TERMINÉE - PIPELINE OPÉRATIONNEL!")
+print("ðŸŽ‰ VALIDATION TERMINÃ‰E - PIPELINE OPÃ‰RATIONNEL!")
 print("="*60) 

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Strongly typed configuration loader for the video pipeline."""
 from __future__ import annotations
 
@@ -714,5 +714,6 @@ def reset_startup_log_for_tests() -> None:
     global _STARTUP_LOG_EMITTED
     with _CACHE_LOCK:
         _STARTUP_LOG_EMITTED = False
+
 
 

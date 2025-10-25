@@ -1,11 +1,12 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-🏆 GOLDEN SAMPLE JSON POUR LLAMA2:13B
+Ã°Å¸Ââ€  GOLDEN SAMPLE JSON POUR LLAMA2:13B
 Exemple JSON parfait avec exactement 20-25 keywords et 10-14 hashtags
 """
 
 def generate_golden_sample():
-    """Génère le golden sample JSON parfait"""
+    """GÃƒÂ©nÃƒÂ¨re le golden sample JSON parfait"""
     
     golden_sample = {
         "title": "EMDR Movement Sensation: Transform Trauma Through Motion",
@@ -214,18 +215,18 @@ def analyze_golden_sample():
     """Analyse le golden sample pour validation"""
     sample = generate_golden_sample()
     
-    print("🏆 GOLDEN SAMPLE JSON POUR LLAMA2:13B")
+    print("Ã°Å¸Ââ€  GOLDEN SAMPLE JSON POUR LLAMA2:13B")
     print("=" * 60)
     
-    # Analyse des quantités
+    # Analyse des quantitÃƒÂ©s
     hashtags_count = len(sample["hashtags"])
     keywords_count = len(sample["broll_keywords"])
     
-    print(f"📊 ANALYSE QUANTITATIVE:")
+    print(f"Ã°Å¸â€œÅ  ANALYSE QUANTITATIVE:")
     print(f"   Hashtags: {hashtags_count} (attendu: 10-14)")
     print(f"   Keywords B-roll: {keywords_count} (attendu: 20-25)")
     
-    # Analyse des catégories
+    # Analyse des catÃƒÂ©gories
     categories = {}
     for kw in sample["broll_keywords"]:
         cat = kw["category"]
@@ -233,7 +234,7 @@ def analyze_golden_sample():
             categories[cat] = 0
         categories[cat] += 1
     
-    print(f"\n📋 RÉPARTITION PAR CATÉGORIES:")
+    print(f"\nÃ°Å¸â€œâ€¹ RÃƒâ€°PARTITION PAR CATÃƒâ€°GORIES:")
     for cat, count in categories.items():
         print(f"   {cat}: {count} keywords")
     
@@ -242,27 +243,27 @@ def analyze_golden_sample():
     keywords_ok = 20 <= keywords_count <= 25
     categories_ok = all(count >= 4 for count in categories.values())
     
-    print(f"\n✅ VALIDATION:")
-    print(f"   Hashtags 10-14: {'✅' if hashtags_ok else '❌'}")
-    print(f"   Keywords 20-25: {'✅' if keywords_ok else '❌'}")
-    print(f"   Catégories ≥4: {'✅' if categories_ok else '❌'}")
+    print(f"\nÃ¢Å“â€¦ VALIDATION:")
+    print(f"   Hashtags 10-14: {'Ã¢Å“â€¦' if hashtags_ok else 'Ã¢ÂÅ’'}")
+    print(f"   Keywords 20-25: {'Ã¢Å“â€¦' if keywords_ok else 'Ã¢ÂÅ’'}")
+    print(f"   CatÃƒÂ©gories Ã¢â€°Â¥4: {'Ã¢Å“â€¦' if categories_ok else 'Ã¢ÂÅ’'}")
     
     if hashtags_ok and keywords_ok and categories_ok:
-        print(f"\n🏆 GOLDEN SAMPLE VALIDÉ - PRÊT POUR LLAMA2:13B !")
+        print(f"\nÃ°Å¸Ââ€  GOLDEN SAMPLE VALIDÃƒâ€° - PRÃƒÅ T POUR LLAMA2:13B !")
     
     return sample
 
 def get_prompt_enhancement():
-    """Génère le texte d'amélioration du prompt"""
+    """GÃƒÂ©nÃƒÂ¨re le texte d'amÃƒÂ©lioration du prompt"""
     
     enhancement = """
-⚠️ RÈGLES DE QUANTITÉ À RESPECTER STRICTEMENT :
-1. "hashtags" doit contenir ENTRE 10 et 14 éléments EXACTEMENT (jamais moins, jamais plus).
-2. "broll_keywords" doit contenir ENTRE 20 et 25 éléments EXACTEMENT.
-3. Chaque "category" de "broll_keywords" doit avoir MINIMUM 4 mots-clés.
-4. Si tu ne respectes pas ces règles, la réponse sera REJETÉE.
+Ã¢Å¡Â Ã¯Â¸Â RÃƒË†GLES DE QUANTITÃƒâ€° Ãƒâ‚¬ RESPECTER STRICTEMENT :
+1. "hashtags" doit contenir ENTRE 10 et 14 ÃƒÂ©lÃƒÂ©ments EXACTEMENT (jamais moins, jamais plus).
+2. "broll_keywords" doit contenir ENTRE 20 et 25 ÃƒÂ©lÃƒÂ©ments EXACTEMENT.
+3. Chaque "category" de "broll_keywords" doit avoir MINIMUM 4 mots-clÃƒÂ©s.
+4. Si tu ne respectes pas ces rÃƒÂ¨gles, la rÃƒÂ©ponse sera REJETÃƒâ€°E.
 
-📋 EXEMPLE DE STRUCTURE PARFAITE (à reproduire exactement) :
+Ã°Å¸â€œâ€¹ EXEMPLE DE STRUCTURE PARFAITE (ÃƒÂ  reproduire exactement) :
 {
   "title": "EMDR Movement Sensation: Transform Trauma Through Motion",
   "description": "Discover how lateralized movements and EMDR therapy can reshape your relationship with trauma and unlock lasting stress relief.",
@@ -270,27 +271,27 @@ def get_prompt_enhancement():
   "broll_keywords": [
     {"category": "VISUAL ACTIONS", "base": "lateralized movements", "synonyms": ["side-to-side", "front-to-back", "up-down"]},
     {"category": "PEOPLE & ROLES", "base": "therapist", "synonyms": ["counselor", "mental health professional", "coach"]}
-    // ... TOTAL: 20-25 éléments répartis en 5 catégories
+    // ... TOTAL: 20-25 ÃƒÂ©lÃƒÂ©ments rÃƒÂ©partis en 5 catÃƒÂ©gories
   ]
 }
 
-🚨 RESPECTE EXACTEMENT cette structure et ces quantités !
+Ã°Å¸Å¡Â¨ RESPECTE EXACTEMENT cette structure et ces quantitÃƒÂ©s !
 """
     
     return enhancement
 
 if __name__ == "__main__":
-    # Générer et analyser le golden sample
+    # GÃƒÂ©nÃƒÂ©rer et analyser le golden sample
     sample = analyze_golden_sample()
     
     # Afficher le JSON complet
-    print(f"\n📄 GOLDEN SAMPLE JSON COMPLET:")
+    print(f"\nÃ°Å¸â€œâ€ž GOLDEN SAMPLE JSON COMPLET:")
     print("=" * 60)
     import json
     print(json.dumps(sample, indent=2, ensure_ascii=False))
     
-    # Afficher l'amélioration du prompt
-    print(f"\n🔧 AMÉLIORATION DU PROMPT:")
+    # Afficher l'amÃƒÂ©lioration du prompt
+    print(f"\nÃ°Å¸â€Â§ AMÃƒâ€°LIORATION DU PROMPT:")
     print("=" * 60)
     print(get_prompt_enhancement())
     
@@ -298,4 +299,5 @@ if __name__ == "__main__":
     with open("golden_sample_llama2_13b.json", "w", encoding="utf-8") as f:
         json.dump(sample, f, indent=2, ensure_ascii=False)
     
-    print(f"\n📁 Golden sample sauvegardé dans 'golden_sample_llama2_13b.json'") 
+    print(f"\nÃ°Å¸â€œÂ Golden sample sauvegardÃƒÂ© dans 'golden_sample_llama2_13b.json'") 
+

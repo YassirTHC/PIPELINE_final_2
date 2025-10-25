@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import json
 import numpy as np
 
@@ -12,4 +12,5 @@ def test_json_logger_coerces_numpy(tmp_path):
     data = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
     assert isinstance(data["value"], float)
     assert data["value"] == 0.5
+
 

@@ -1,24 +1,25 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 Script pour corriger la structure try/except dans video_processor.py
 """
 
 def fix_structure():
-    print("🔧 Correction de la structure try/except...")
+    print("Ã°Å¸â€Â§ Correction de la structure try/except...")
     
     with open('video_processor.py', 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # Correction spécifique: le if à la ligne 2859 doit être indenté dans le try
+    # Correction spÃƒÂ©cifique: le if ÃƒÂ  la ligne 2859 doit ÃƒÂªtre indentÃƒÂ© dans le try
     old_pattern = """            except Exception as e:
-                print(f"    ⚠️ Erreur lors de la vérification/nettoyage: {e}")
+                print(f"    Ã¢Å¡Â Ã¯Â¸Â Erreur lors de la vÃƒÂ©rification/nettoyage: {e}")
                 # En cas d'erreur, ne pas supprimer les B-rolls
                 pass
 
         if Path(cfg.output_video).exists():"""
     
     new_pattern = """            except Exception as e:
-                print(f"    ⚠️ Erreur lors de la vérification/nettoyage: {e}")
+                print(f"    Ã¢Å¡Â Ã¯Â¸Â Erreur lors de la vÃƒÂ©rification/nettoyage: {e}")
                 # En cas d'erreur, ne pas supprimer les B-rolls
                 pass
 
@@ -26,7 +27,7 @@ def fix_structure():
     
     if old_pattern in content:
         content = content.replace(old_pattern, new_pattern)
-        print("   ✅ Corrigé: indentation du bloc if Path(cfg.output_video)")
+        print("   Ã¢Å“â€¦ CorrigÃƒÂ©: indentation du bloc if Path(cfg.output_video)")
         
         # Sauvegarder
         with open('video_processor.py', 'w', encoding='utf-8') as f:
@@ -34,20 +35,20 @@ def fix_structure():
         
         return True
     else:
-        print("   ⚠️ Pattern non trouvé - structure déjà correcte?")
+        print("   Ã¢Å¡Â Ã¯Â¸Â Pattern non trouvÃƒÂ© - structure dÃƒÂ©jÃƒÂ  correcte?")
         return False
 
 def test_syntax():
-    """Tester la syntaxe après correction"""
-    print("\n🧪 Test de syntaxe...")
+    """Tester la syntaxe aprÃƒÂ¨s correction"""
+    print("\nÃ°Å¸Â§Âª Test de syntaxe...")
     try:
         with open('video_processor.py', 'r', encoding='utf-8') as f:
             code = f.read()
         compile(code, 'video_processor.py', 'exec')
-        print("✅ SUCCESS: Syntaxe correcte !")
+        print("Ã¢Å“â€¦ SUCCESS: Syntaxe correcte !")
         return True
     except SyntaxError as e:
-        print(f"❌ SYNTAX ERROR: {e}")
+        print(f"Ã¢ÂÅ’ SYNTAX ERROR: {e}")
         print(f"   Ligne: {e.lineno}")
         print(f"   Position: {e.offset}")
         if e.text:
@@ -55,7 +56,7 @@ def test_syntax():
         return False
 
 if __name__ == "__main__":
-    print("🎯 CORRECTION STRUCTURE TRY/EXCEPT")
+    print("Ã°Å¸Å½Â¯ CORRECTION STRUCTURE TRY/EXCEPT")
     print("=" * 40)
     
     # Corriger la structure
@@ -64,11 +65,12 @@ if __name__ == "__main__":
     # Tester la syntaxe
     success = test_syntax()
     
-    # Résumé
-    print(f"\n🏆 RÉSUMÉ:")
+    # RÃƒÂ©sumÃƒÂ©
+    print(f"\nÃ°Å¸Ââ€  RÃƒâ€°SUMÃƒâ€°:")
     if success:
-        print("   ✅ Structure corrigée avec succès")
-        print("   🚀 Pipeline syntaxiquement correct")
+        print("   Ã¢Å“â€¦ Structure corrigÃƒÂ©e avec succÃƒÂ¨s")
+        print("   Ã°Å¸Å¡â‚¬ Pipeline syntaxiquement correct")
     else:
-        print("   ❌ Erreurs de syntaxe persistantes")
-        print("   🔧 Correction additionnelle requise") 
+        print("   Ã¢ÂÅ’ Erreurs de syntaxe persistantes")
+        print("   Ã°Å¸â€Â§ Correction additionnelle requise") 
+

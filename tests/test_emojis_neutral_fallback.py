@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from hormozi_subtitles import HormoziSubtitles
 
 
@@ -42,4 +42,5 @@ def test_previous_usage_does_not_force_fallback():
     neutral_segment = _build_segment(['anyway', 'perhaps', 'maybe', 'still'], start=5.0)
     groups = proc.parse_transcription_to_word_groups([neutral_segment], group_size=2)
     assert all(not group.get('emojis') for group in groups)
+
 

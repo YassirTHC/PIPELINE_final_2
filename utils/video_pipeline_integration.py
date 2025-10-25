@@ -1,6 +1,6 @@
-﻿# -*- coding: utf-8 -*-
-# ðŸŽ¬ INTÃ‰GRATION PIPELINE VIDÃ‰O EXISTANT - CONNECTEUR PRINCIPAL
-# Se connecte directement Ã  votre VideoProcessor existant
+﻿ï»¿# -*- coding: utf-8 -*-
+# Ã°Å¸Å½Â¬ INTÃƒâ€°GRATION PIPELINE VIDÃƒâ€°O EXISTANT - CONNECTEUR PRINCIPAL
+# Se connecte directement ÃƒÂ  votre VideoProcessor existant
 
 import logging
 import time
@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
 import sys
 
-# Ajouter le rÃ©pertoire parent au path pour importer les modules
+# Ajouter le rÃƒÂ©pertoire parent au path pour importer les modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import des modules locaux
@@ -23,14 +23,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class VideoPipelineIntegration:
-    """IntÃ©gration complÃ¨te avec le pipeline vidÃ©o existant"""
+    """IntÃƒÂ©gration complÃƒÂ¨te avec le pipeline vidÃƒÂ©o existant"""
     
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or self._default_config()
         self.llm = create_optimized_llm()
         self.session_id = f"session_{int(time.time())}"
         
-        # MÃ©triques de session
+        # MÃƒÂ©triques de session
         self.session_metrics = {
             'videos_processed': 0,
             'total_processing_time': 0.0,
@@ -41,9 +41,9 @@ class VideoPipelineIntegration:
         }
     
     def _default_config(self) -> Dict[str, Any]:
-        """Configuration par dÃ©faut"""
+        """Configuration par dÃƒÂ©faut"""
         return {
-            'max_keywords_per_video': 10,  # OPTIMISÃ‰: 15 â†’ 10 pour plus de pertinence
+            'max_keywords_per_video': 10,  # OPTIMISÃƒâ€°: 15 Ã¢â€ â€™ 10 pour plus de pertinence
             'min_keywords_quality': 0.6,
             'enable_broll_generation': True,
             'enable_metadata_generation': True,
@@ -58,18 +58,18 @@ class VideoPipelineIntegration:
                                 video_id: str,
                                 segment_timestamps: Optional[List[Tuple[float, float]]] = None) -> Dict[str, Any]:
         """
-        Traitement complet d'un transcript vidÃ©o
+        Traitement complet d'un transcript vidÃƒÂ©o
         
         Args:
             transcript: Le transcript complet ou par segments
-            video_id: Identifiant unique de la vidÃ©o
+            video_id: Identifiant unique de la vidÃƒÂ©o
             segment_timestamps: [(start_time, end_time), ...] si segment-level
         
         Returns:
-            Dict avec toutes les mÃ©tadonnÃ©es gÃ©nÃ©rÃ©es
+            Dict avec toutes les mÃƒÂ©tadonnÃƒÂ©es gÃƒÂ©nÃƒÂ©rÃƒÂ©es
         """
         start_time = time.time()
-        logger.info(f"ðŸŽ¬ Traitement vidÃ©o {video_id} - {len(transcript)} caractÃ¨res")
+        logger.info(f"Ã°Å¸Å½Â¬ Traitement vidÃƒÂ©o {video_id} - {len(transcript)} caractÃƒÂ¨res")
         
         try:
             result = {
@@ -84,7 +84,7 @@ class VideoPipelineIntegration:
                 'errors': []
             }
             
-            # 1. DÃ©tection de domaine
+            # 1. DÃƒÂ©tection de domaine
             if self.config['enable_domain_detection']:
                 domain, confidence = detect_domain_enhanced(transcript)
                 domain_info = get_domain_info(domain)
@@ -95,9 +95,9 @@ class VideoPipelineIntegration:
                     'domain_details': domain_info
                 }
                 
-                logger.info(f"ðŸŽ¯ Domaine dÃ©tectÃ©: {domain} (confiance: {confidence:.3f})")
+                logger.info(f"Ã°Å¸Å½Â¯ Domaine dÃƒÂ©tectÃƒÂ©: {domain} (confiance: {confidence:.3f})")
             
-            # 2. GÃ©nÃ©ration LLM complÃ¨te
+            # 2. GÃƒÂ©nÃƒÂ©ration LLM complÃƒÂ¨te
             if self.config['enable_metadata_generation']:
                 llm_success, llm_data = self._generate_llm_content(transcript, video_id)
                 
@@ -105,52 +105,52 @@ class VideoPipelineIntegration:
                     result['metadata'] = llm_data
                     result['success'] = True
                     self.session_metrics['successful_generations'] += 1
-                    logger.info(f"âœ… LLM rÃ©ussi pour {video_id}")
+                    logger.info(f"Ã¢Å“â€¦ LLM rÃƒÂ©ussi pour {video_id}")
                 else:
-                    result['errors'].append("Ã‰chec gÃ©nÃ©ration LLM")
+                    result['errors'].append("Ãƒâ€°chec gÃƒÂ©nÃƒÂ©ration LLM")
                     self.session_metrics['failed_generations'] += 1
-                    logger.error(f"âŒ LLM Ã©chouÃ© pour {video_id}")
+                    logger.error(f"Ã¢ÂÅ’ LLM ÃƒÂ©chouÃƒÂ© pour {video_id}")
             
             # 3. Optimisation B-roll
             if self.config['enable_broll_generation'] and result['success']:
                 broll_data = self._optimize_broll_keywords(transcript, video_id, result['metadata'])
                 result['broll_data'] = broll_data
-                logger.info(f"ðŸŽ¬ B-roll optimisÃ©: {len(broll_data['keywords'])} mots-clÃ©s")
+                logger.info(f"Ã°Å¸Å½Â¬ B-roll optimisÃƒÂ©: {len(broll_data['keywords'])} mots-clÃƒÂ©s")
             
             # 4. Traitement par segments si timestamps fournis
             if segment_timestamps and len(segment_timestamps) > 1:
                 segment_data = self._process_segments(transcript, segment_timestamps, video_id)
                 result['segment_data'] = segment_data
-                logger.info(f"ðŸ“Š {len(segment_data)} segments traitÃ©s")
+                logger.info(f"Ã°Å¸â€œÅ  {len(segment_data)} segments traitÃƒÂ©s")
             
-            # 5. MÃ©triques et validation
+            # 5. MÃƒÂ©triques et validation
             processing_time = time.time() - start_time
             result['processing_time'] = processing_time
             
-            # Enregistrer les mÃ©triques
+            # Enregistrer les mÃƒÂ©triques
             self._record_video_metrics(video_id, transcript, result)
             
-            # Mettre Ã  jour les mÃ©triques de session
+            # Mettre ÃƒÂ  jour les mÃƒÂ©triques de session
             self._update_session_metrics(result)
             
-            logger.info(f"âœ… VidÃ©o {video_id} traitÃ©e en {processing_time:.1f}s")
+            logger.info(f"Ã¢Å“â€¦ VidÃƒÂ©o {video_id} traitÃƒÂ©e en {processing_time:.1f}s")
             return result
             
         except Exception as e:
-            error_msg = f"Erreur traitement vidÃ©o {video_id}: {str(e)}"
+            error_msg = f"Erreur traitement vidÃƒÂ©o {video_id}: {str(e)}"
             logger.error(error_msg)
             
             result['errors'].append(error_msg)
             result['processing_time'] = time.time() - start_time
             
-            # Fallback si activÃ©
+            # Fallback si activÃƒÂ©
             if self.config['fallback_on_error']:
                 result = self._fallback_processing(transcript, video_id, result)
             
             return result
     
     def _generate_llm_content(self, transcript: str, video_id: str) -> Tuple[bool, Dict[str, Any]]:
-        """GÃ©nÃ©ration du contenu LLM avec retry"""
+        """GÃƒÂ©nÃƒÂ©ration du contenu LLM avec retry"""
         for attempt in range(self.config['max_retries']):
             try:
                 success_meta, metadata = self.llm.generate_complete_metadata(transcript)
@@ -176,18 +176,18 @@ class VideoPipelineIntegration:
 
                 logger.warning(f'[LLM] Attempt {attempt + 1} failed for {video_id}')
             except Exception as e:
-                logger.error(f"âŒ Erreur LLM tentative {attempt + 1}: {e}")
+                logger.error(f"Ã¢ÂÅ’ Erreur LLM tentative {attempt + 1}: {e}")
         
         return False, {}
     
     def _optimize_broll_keywords(self, transcript: str, video_id: str, llm_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Optimisation des mots-clÃ©s B-roll basÃ©e sur les donnÃ©es LLM"""
+        """Optimisation des mots-clÃƒÂ©s B-roll basÃƒÂ©e sur les donnÃƒÂ©es LLM"""
         try:
-            # Extraire les mots-clÃ©s du rÃ©sultat LLM
+            # Extraire les mots-clÃƒÂ©s du rÃƒÂ©sultat LLM
             keywords = llm_data.get('keywords', [])
             
             if not keywords:
-                # Fallback: extraire des mots-clÃ©s basiques du transcript
+                # Fallback: extraire des mots-clÃƒÂ©s basiques du transcript
                 fallback_keywords = self._extract_basic_keywords(transcript)
                 keywords = fallback_keywords
             
@@ -201,7 +201,7 @@ class VideoPipelineIntegration:
                 'statistics': optimized['statistics']
             }
         except Exception as e:
-            logger.error(f"âŒ Erreur optimisation B-roll: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur optimisation B-roll: {e}")
             return {}
     
     def _process_segments(self, transcript: str, timestamps: List[Tuple[float, float]], video_id: str) -> List[Dict[str, Any]]:
@@ -210,7 +210,7 @@ class VideoPipelineIntegration:
         
         for i, (start_time, end_time) in enumerate(timestamps):
             try:
-                # Extraire le segment du transcript (logique Ã  adapter)
+                # Extraire le segment du transcript (logique ÃƒÂ  adapter)
                 segment_text = f"Segment {i+1}: {transcript[:100]}..."  # Exemple
                 
                 # Traitement du segment
@@ -224,7 +224,7 @@ class VideoPipelineIntegration:
                     'confidence': 0.0
                 }
                 
-                # DÃ©tection de domaine par segment
+                # DÃƒÂ©tection de domaine par segment
                 if self.config['enable_domain_detection']:
                     domain, confidence = detect_domain_enhanced(segment_text)
                     segment_result['domain'] = domain
@@ -233,20 +233,20 @@ class VideoPipelineIntegration:
                 segments.append(segment_result)
                 
             except Exception as e:
-                logger.error(f"âŒ Erreur segment {i+1}: {e}")
+                logger.error(f"Ã¢ÂÅ’ Erreur segment {i+1}: {e}")
                 continue
         
         return segments
     
     def _fallback_processing(self, transcript: str, video_id: str, failed_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Traitement de fallback en cas d'Ã©chec"""
-        logger.info(f"ðŸ”„ Fallback pour {video_id}")
+        """Traitement de fallback en cas d'ÃƒÂ©chec"""
+        logger.info(f"Ã°Å¸â€â€ž Fallback pour {video_id}")
         
         try:
-            # MÃ©thode de fallback simple
+            # MÃƒÂ©thode de fallback simple
             fallback_result = failed_result.copy()
             
-            # GÃ©nÃ©ration basique de mots-clÃ©s
+            # GÃƒÂ©nÃƒÂ©ration basique de mots-clÃƒÂ©s
             basic_keywords = self._extract_basic_keywords(transcript)
             fallback_result['metadata'] = {
                 'title': f"Video {video_id}",
@@ -256,33 +256,33 @@ class VideoPipelineIntegration:
             }
             
             fallback_result['success'] = True
-            fallback_result['errors'].append("Fallback appliquÃ©")
+            fallback_result['errors'].append("Fallback appliquÃƒÂ©")
             
             return fallback_result
             
         except Exception as e:
-            logger.error(f"âŒ Fallback Ã©chouÃ©: {e}")
+            logger.error(f"Ã¢ÂÅ’ Fallback ÃƒÂ©chouÃƒÂ©: {e}")
             return failed_result
     
     def _extract_basic_keywords(self, transcript: str) -> List[str]:
-        """Extraction basique de mots-clÃ©s (fallback)"""
+        """Extraction basique de mots-clÃƒÂ©s (fallback)"""
         # Logique simple d'extraction
         words = transcript.lower().split()
         # Filtrer les mots courts et communs
         keywords = [word for word in words if len(word) > 3 and word not in ['the', 'and', 'for', 'with']]
-        return list(set(keywords))[:10]  # Max 10 mots-clÃ©s
+        return list(set(keywords))[:10]  # Max 10 mots-clÃƒÂ©s
     
     def _record_video_metrics(self, video_id: str, transcript: str, result: Dict[str, Any]):
-        """Enregistrement des mÃ©triques pour une vidÃ©o"""
+        """Enregistrement des mÃƒÂ©triques pour une vidÃƒÂ©o"""
         try:
-            # Calculer les mÃ©triques
+            # Calculer les mÃƒÂ©triques
             keywords_count = len(result.get('metadata', {}).get('keywords', []))
             success = result.get('success', False)
             processing_time = result.get('processing_time', 0.0)
             domain = result.get('domain_info', {}).get('detected_domain', 'generic')
             confidence = result.get('domain_info', {}).get('confidence', 0.0)
             
-            # Enregistrer dans le systÃ¨me de mÃ©triques
+            # Enregistrer dans le systÃƒÂ¨me de mÃƒÂ©triques
             record_llm_metrics(
                 segment_id=video_id,
                 transcript=transcript,
@@ -296,14 +296,14 @@ class VideoPipelineIntegration:
             )
             
         except Exception as e:
-            logger.error(f"âŒ Erreur enregistrement mÃ©triques: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur enregistrement mÃƒÂ©triques: {e}")
     
     def _update_session_metrics(self, result: Dict[str, Any]):
-        """Mise Ã  jour des mÃ©triques de session"""
+        """Mise ÃƒÂ  jour des mÃƒÂ©triques de session"""
         self.session_metrics['videos_processed'] += 1
         self.session_metrics['total_processing_time'] += result.get('processing_time', 0.0)
         
-        # Mots-clÃ©s moyens
+        # Mots-clÃƒÂ©s moyens
         keywords_count = len(result.get('metadata', {}).get('keywords', []))
         total_videos = self.session_metrics['videos_processed']
         current_avg = self.session_metrics['avg_keywords_per_video']
@@ -314,7 +314,7 @@ class VideoPipelineIntegration:
         self.session_metrics['domain_distribution'][domain] = self.session_metrics['domain_distribution'].get(domain, 0) + 1
     
     def get_session_summary(self) -> Dict[str, Any]:
-        """RÃ©sumÃ© de la session de traitement"""
+        """RÃƒÂ©sumÃƒÂ© de la session de traitement"""
         if self.session_metrics['videos_processed'] == 0:
             return self.session_metrics
         
@@ -341,39 +341,39 @@ class VideoPipelineIntegration:
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(report_data, f, indent=2, ensure_ascii=False)
             
-            logger.info(f"ðŸ“Š Rapport de session exportÃ©: {output_path}")
+            logger.info(f"Ã°Å¸â€œÅ  Rapport de session exportÃƒÂ©: {output_path}")
             return output_path
             
         except Exception as e:
-            logger.error(f"âŒ Erreur export rapport: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur export rapport: {e}")
             return ""
 
-# === INTÃ‰GRATION AVEC VOTRE PIPELINE EXISTANT ===
+# === INTÃƒâ€°GRATION AVEC VOTRE PIPELINE EXISTANT ===
 
 def integrate_with_video_processor(video_processor_instance, transcript: str, video_id: str) -> Dict[str, Any]:
     """
-    IntÃ¨gre directement avec votre VideoProcessor existant
+    IntÃƒÂ¨gre directement avec votre VideoProcessor existant
     
     Args:
         video_processor_instance: Instance de votre VideoProcessor
-        transcript: Le transcript de la vidÃ©o
-        video_id: Identifiant de la vidÃ©o
+        transcript: Le transcript de la vidÃƒÂ©o
+        video_id: Identifiant de la vidÃƒÂ©o
     
     Returns:
-        Dict avec toutes les mÃ©tadonnÃ©es gÃ©nÃ©rÃ©es
+        Dict avec toutes les mÃƒÂ©tadonnÃƒÂ©es gÃƒÂ©nÃƒÂ©rÃƒÂ©es
     """
     try:
-        # CrÃ©er l'intÃ©gration
+        # CrÃƒÂ©er l'intÃƒÂ©gration
         integration = VideoPipelineIntegration()
         
         # Traiter le transcript
         result = integration.process_video_transcript(transcript, video_id)
         
-        # Retourner le rÃ©sultat
+        # Retourner le rÃƒÂ©sultat
         return result
         
     except Exception as e:
-        logger.error(f"âŒ Erreur intÃ©gration avec VideoProcessor: {e}")
+        logger.error(f"Ã¢ÂÅ’ Erreur intÃƒÂ©gration avec VideoProcessor: {e}")
         return {
             'video_id': video_id,
             'success': False,
@@ -384,7 +384,7 @@ def integrate_with_video_processor(video_processor_instance, transcript: str, vi
 
 def enhance_video_processor_methods(video_processor_class):
     """
-    AmÃ©liore votre classe VideoProcessor avec nos mÃ©thodes LLM
+    AmÃƒÂ©liore votre classe VideoProcessor avec nos mÃƒÂ©thodes LLM
     
     Args:
         video_processor_class: Votre classe VideoProcessor
@@ -392,14 +392,14 @@ def enhance_video_processor_methods(video_processor_class):
     
     def enhanced_generate_caption_and_hashtags(self, subtitles: List[Dict]) -> Dict[str, Any]:
         """
-        Version amÃ©liorÃ©e de votre mÃ©thode generate_caption_and_hashtags
-        Utilise notre systÃ¨me LLM industriel
+        Version amÃƒÂ©liorÃƒÂ©e de votre mÃƒÂ©thode generate_caption_and_hashtags
+        Utilise notre systÃƒÂ¨me LLM industriel
         """
         try:
             # Extraire le transcript complet
             transcript = " ".join([s.get('text', '') for s in subtitles if s.get('text')])
             
-            # Utiliser notre systÃ¨me LLM
+            # Utiliser notre systÃƒÂ¨me LLM
             integration = VideoPipelineIntegration()
             result = integration.process_video_transcript(transcript, "enhanced_generation")
             
@@ -411,7 +411,7 @@ def enhance_video_processor_methods(video_processor_class):
                 broll_keywords = result['broll_data'].get('keywords', [])
                 queries = metadata.get('queries', result['broll_data'].get('queries', []))
 
-                print(f"    ðŸš€ LLM industriel: {len(broll_keywords)} mots-clÃ©s B-roll gÃ©nÃ©rÃ©s")
+                print(f"    Ã°Å¸Å¡â‚¬ LLM industriel: {len(broll_keywords)} mots-clÃƒÂ©s B-roll gÃƒÂ©nÃƒÂ©rÃƒÂ©s")
                 return {
                     'title': title,
                     'description': description,
@@ -421,32 +421,32 @@ def enhance_video_processor_methods(video_processor_class):
                     'llm_status': 'ok',
                 }
             else:
-                # Fallback vers votre mÃ©thode existante
-                print(f"    âš ï¸ LLM Ã©chouÃ©, fallback vers mÃ©thode existante")
+                # Fallback vers votre mÃƒÂ©thode existante
+                print(f"    Ã¢Å¡Â Ã¯Â¸Â LLM ÃƒÂ©chouÃƒÂ©, fallback vers mÃƒÂ©thode existante")
                 return self._original_generate_caption_and_hashtags(subtitles)
                 
         except Exception as e:
-            print(f"    âŒ Erreur LLM industriel: {e}")
-            # Fallback vers votre mÃ©thode existante
+            print(f"    Ã¢ÂÅ’ Erreur LLM industriel: {e}")
+            # Fallback vers votre mÃƒÂ©thode existante
             return self._original_generate_caption_and_hashtags(subtitles)
     
-    # Sauvegarder la mÃ©thode originale
+    # Sauvegarder la mÃƒÂ©thode originale
     if hasattr(video_processor_class, 'generate_caption_and_hashtags'):
         video_processor_class._original_generate_caption_and_hashtags = video_processor_class.generate_caption_and_hashtags
     
-    # Remplacer par la version amÃ©liorÃ©e
+    # Remplacer par la version amÃƒÂ©liorÃƒÂ©e
     video_processor_class.generate_caption_and_hashtags = enhanced_generate_caption_and_hashtags
     
-    print("âœ… MÃ©thodes VideoProcessor amÃ©liorÃ©es avec le systÃ¨me LLM industriel")
+    print("Ã¢Å“â€¦ MÃƒÂ©thodes VideoProcessor amÃƒÂ©liorÃƒÂ©es avec le systÃƒÂ¨me LLM industriel")
 
 # === FONCTIONS UTILITAIRES ===
 def create_pipeline_integration(config: Dict[str, Any] = None) -> VideoPipelineIntegration:
-    """Factory pour crÃ©er une instance d'intÃ©gration"""
+    """Factory pour crÃƒÂ©er une instance d'intÃƒÂ©gration"""
     return VideoPipelineIntegration(config)
 
 def process_video_batch(transcripts: List[Tuple[str, str]], 
                        config: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-    """Traitement en lot de plusieurs vidÃ©os"""
+    """Traitement en lot de plusieurs vidÃƒÂ©os"""
     integration = create_pipeline_integration(config)
     results = []
     
@@ -458,35 +458,36 @@ def process_video_batch(transcripts: List[Tuple[str, str]],
 
 # === TEST RAPIDE ===
 if __name__ == "__main__":
-    print("ðŸ§ª Test de l'intÃ©gration pipeline vidÃ©o...")
+    print("Ã°Å¸Â§Âª Test de l'intÃƒÂ©gration pipeline vidÃƒÂ©o...")
     
     # Test avec un transcript simple
     test_transcript = "EMDR therapy utilizes bilateral stimulation to process traumatic memories. The therapist guides the patient through eye movements while recalling distressing events."
     test_video_id = "test_video_001"
     
-    # CrÃ©er l'intÃ©gration
+    # CrÃƒÂ©er l'intÃƒÂ©gration
     integration = create_pipeline_integration()
     
-    # Traiter la vidÃ©o
-    print(f"ðŸŽ¬ Traitement vidÃ©o: {test_video_id}")
+    # Traiter la vidÃƒÂ©o
+    print(f"Ã°Å¸Å½Â¬ Traitement vidÃƒÂ©o: {test_video_id}")
     result = integration.process_video_transcript(test_transcript, test_video_id)
     
-    # Afficher les rÃ©sultats
-    print(f"âœ… SuccÃ¨s: {result['success']}")
-    print(f"â±ï¸ Temps: {result['processing_time']:.1f}s")
+    # Afficher les rÃƒÂ©sultats
+    print(f"Ã¢Å“â€¦ SuccÃƒÂ¨s: {result['success']}")
+    print(f"Ã¢ÂÂ±Ã¯Â¸Â Temps: {result['processing_time']:.1f}s")
     
     if result['success']:
-        print(f"ðŸŽ¯ Domaine: {result['domain_info']['detected_domain']}")
-        print(f"ðŸ“ Titre: {result['metadata'].get('title', 'N/A')}")
-        print(f"ðŸ”‘ Mots-clÃ©s: {len(result['metadata'].get('keywords', []))}")
-        print(f"ðŸŽ¬ B-roll: {len(result['broll_data'].get('keywords', []))}")
+        print(f"Ã°Å¸Å½Â¯ Domaine: {result['domain_info']['detected_domain']}")
+        print(f"Ã°Å¸â€œÂ Titre: {result['metadata'].get('title', 'N/A')}")
+        print(f"Ã°Å¸â€â€˜ Mots-clÃƒÂ©s: {len(result['metadata'].get('keywords', []))}")
+        print(f"Ã°Å¸Å½Â¬ B-roll: {len(result['broll_data'].get('keywords', []))}")
     
-    # RÃ©sumÃ© de session
+    # RÃƒÂ©sumÃƒÂ© de session
     summary = integration.get_session_summary()
-    print(f"\nðŸ“Š RÃ©sumÃ© session:")
-    print(f"   VidÃ©os traitÃ©es: {summary['videos_processed']}")
-    print(f"   Taux de succÃ¨s: {summary['success_rate']:.1%}")
+    print(f"\nÃ°Å¸â€œÅ  RÃƒÂ©sumÃƒÂ© session:")
+    print(f"   VidÃƒÂ©os traitÃƒÂ©es: {summary['videos_processed']}")
+    print(f"   Taux de succÃƒÂ¨s: {summary['success_rate']:.1%}")
     print(f"   Temps moyen: {summary['avg_processing_time']:.1f}s")
     
-    print("\nï¿½ï¿½ Test terminÃ© !") 
+    print("\nÃ¯Â¿Â½Ã¯Â¿Â½ Test terminÃƒÂ© !") 
+
 

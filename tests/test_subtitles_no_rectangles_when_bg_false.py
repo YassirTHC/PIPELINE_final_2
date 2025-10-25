@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from unittest.mock import patch
 
 import numpy as np
@@ -46,4 +46,5 @@ def test_no_rectangles_when_keyword_background_disabled(monkeypatch):
     for item in keyword_items:
         assert item.get("bg_rgb") is None
         assert item.get("rgb") == subtitles.hex_to_rgb("#FFAA00")
+
 

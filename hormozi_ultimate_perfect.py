@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Style HORMOZI 1 - VERSION PARFAITE basée sur recherche approfondie
-Vraies caractéristiques TikTok d'Alex Hormozi reproduites fidèlement
+Style HORMOZI 1 - VERSION PARFAITE basÃƒÂ©e sur recherche approfondie
+Vraies caractÃƒÂ©ristiques TikTok d'Alex Hormozi reproduites fidÃƒÂ¨lement
 Police: Montserrat Black 900, couleurs dynamiques, animations exactes
 """
 
@@ -16,7 +17,7 @@ import numpy as np
 import requests
 
 class HormoziUltimateConfig:
-    """Configuration PARFAITE du style Hormozi 1 basée sur recherche TikTok"""
+    """Configuration PARFAITE du style Hormozi 1 basÃƒÂ©e sur recherche TikTok"""
     
     def __init__(self):
         # POLICE EXACTE HORMOZI (PROMPT ORIGINAL)
@@ -46,14 +47,14 @@ class HormoziUltimateConfig:
         self.outline_width = 3                        # 3px (prompt minimum)
         self.shadow_enabled = True
         self.shadow_offset = (2, 2)                   # Ombre subtile
-        self.shadow_color = (0, 0, 0, 150)           # Ombre légère
+        self.shadow_color = (0, 0, 0, 150)           # Ombre lÃƒÂ©gÃƒÂ¨re
         self.shadow_blur = 1                          # Flou minimal
         
         # POSITIONNEMENT HORMOZI
         self.bottom_margin_ratio = 0.12               # 12% du bas
         self.horizontal_center = True                 # Centrage parfait
         self.side_margins = 0.05                      # 5% marge
-        self.line_spacing = 1.1                       # Espacement serré
+        self.line_spacing = 1.1                       # Espacement serrÃƒÂ©
         
         # ANIMATIONS HORMOZI ORIGINALES (PROMPT EXACT)
         self.bounce_enabled = True
@@ -69,12 +70,12 @@ class HormoziUltimateConfig:
         self.clear_transition = True                  # Disparition nette phrases
         self.phrase_clear_delay = 0.2                 # 200ms pause entre phrases
         
-        # EMOJIS HORMOZI (PROMPT ACTIVÉ)
+        # EMOJIS HORMOZI (PROMPT ACTIVÃƒâ€°)
         self.emoji_enabled = True
-        self.emoji_size_ratio = 1.0                   # Même taille que texte
+        self.emoji_size_ratio = 1.0                   # MÃƒÂªme taille que texte
         self.emoji_spacing = 10                       # Espacement emoji-texte
 
-# MAPPING EXACT MOTS-CLÉS HORMOZI (basé sur recherche)
+# MAPPING EXACT MOTS-CLÃƒâ€°S HORMOZI (basÃƒÂ© sur recherche)
 HORMOZI_PERFECT_KEYWORDS = {
     # MONEY/FINANCE (Jaune - couleur signature Hormozi)
     'MONEY': 'money', 'CASH': 'money', 'PROFIT': 'money', 'REVENUE': 'money',
@@ -87,12 +88,12 @@ HORMOZI_PERFECT_KEYWORDS = {
     'QUICK': 'action', 'IMMEDIATE': 'action', 'MUST': 'action', 'NEED': 'action',
     'IMPORTANT': 'action', 'CRITICAL': 'action', 'HURRY': 'action', 'RUSH': 'action',
     
-    # SUCCESS/POSITIVE (Vert - résultats Hormozi)
+    # SUCCESS/POSITIVE (Vert - rÃƒÂ©sultats Hormozi)
     'SUCCESS': 'success', 'WIN': 'success', 'WINNER': 'success', 'BEST': 'success',
     'PERFECT': 'success', 'AMAZING': 'success', 'GREAT': 'success', 'EXCELLENT': 'success',
     'TOP': 'success', 'FIRST': 'success', 'CHAMPION': 'success', 'GROWTH': 'success',
     
-    # LEARNING/INFO (Bleu - éducation Hormozi)
+    # LEARNING/INFO (Bleu - ÃƒÂ©ducation Hormozi)
     'LEARN': 'info', 'IDEA': 'info', 'SECRET': 'info', 'TIP': 'info',
     'TRICK': 'info', 'METHOD': 'info', 'STRATEGY': 'info', 'SYSTEM': 'info',
     'KNOWLEDGE': 'info', 'UNDERSTAND': 'info', 'DISCOVER': 'info', 'FIND': 'info',
@@ -101,27 +102,27 @@ HORMOZI_PERFECT_KEYWORDS = {
     'WATCH': 'warning', 'LOOK': 'warning', 'ATTENTION': 'warning', 'FOCUS': 'warning'
 }
 
-# MAPPING EMOJI HORMOZI (prompt activé)
+# MAPPING EMOJI HORMOZI (prompt activÃƒÂ©)
 HORMOZI_EMOJI_MAP = {
     # MONEY/FINANCE 
-    'MONEY': '💰', 'CASH': '💸', 'PROFIT': '💰', 'REVENUE': '💰',
-    'BUSINESS': '💼', 'SALES': '💰', 'INCOME': '💰', 'WEALTH': '💎',
-    'RICH': '💰', 'VALUE': '💰', 'INVESTMENT': '📈',
+    'MONEY': 'Ã°Å¸â€™Â°', 'CASH': 'Ã°Å¸â€™Â¸', 'PROFIT': 'Ã°Å¸â€™Â°', 'REVENUE': 'Ã°Å¸â€™Â°',
+    'BUSINESS': 'Ã°Å¸â€™Â¼', 'SALES': 'Ã°Å¸â€™Â°', 'INCOME': 'Ã°Å¸â€™Â°', 'WEALTH': 'Ã°Å¸â€™Å½',
+    'RICH': 'Ã°Å¸â€™Â°', 'VALUE': 'Ã°Å¸â€™Â°', 'INVESTMENT': 'Ã°Å¸â€œË†',
     
     # ACTION/URGENCE
-    'FIRE': '🔥', 'HOT': '🔥', 'FAST': '⚡', 'QUICK': '⚡',
-    'NOW': '⚡', 'URGENT': '🚨', 'STOP': '🛑', 'MUST': '🔥',
+    'FIRE': 'Ã°Å¸â€Â¥', 'HOT': 'Ã°Å¸â€Â¥', 'FAST': 'Ã¢Å¡Â¡', 'QUICK': 'Ã¢Å¡Â¡',
+    'NOW': 'Ã¢Å¡Â¡', 'URGENT': 'Ã°Å¸Å¡Â¨', 'STOP': 'Ã°Å¸â€ºâ€˜', 'MUST': 'Ã°Å¸â€Â¥',
     
     # SUCCESS/POSITIVE
-    'SUCCESS': '✅', 'WIN': '🏆', 'WINNER': '🏆', 'BEST': '🏆',
-    'PERFECT': '✅', 'AMAZING': '🌟', 'GREAT': '👍', 'TOP': '🔝',
+    'SUCCESS': 'Ã¢Å“â€¦', 'WIN': 'Ã°Å¸Ââ€ ', 'WINNER': 'Ã°Å¸Ââ€ ', 'BEST': 'Ã°Å¸Ââ€ ',
+    'PERFECT': 'Ã¢Å“â€¦', 'AMAZING': 'Ã°Å¸Å’Å¸', 'GREAT': 'Ã°Å¸â€˜Â', 'TOP': 'Ã°Å¸â€Â',
     
     # LEARNING/INFO
-    'IDEA': '💡', 'SECRET': '🤫', 'TIP': '💡', 'LEARN': '📚',
-    'KNOWLEDGE': '🧠', 'DISCOVER': '🔍', 'FIND': '🔍',
+    'IDEA': 'Ã°Å¸â€™Â¡', 'SECRET': 'Ã°Å¸Â¤Â«', 'TIP': 'Ã°Å¸â€™Â¡', 'LEARN': 'Ã°Å¸â€œÅ¡',
+    'KNOWLEDGE': 'Ã°Å¸Â§Â ', 'DISCOVER': 'Ã°Å¸â€Â', 'FIND': 'Ã°Å¸â€Â',
     
     # ATTENTION/WARNING
-    'WATCH': '👀', 'LOOK': '👀', 'ATTENTION': '⚠️', 'FOCUS': '🎯'
+    'WATCH': 'Ã°Å¸â€˜â‚¬', 'LOOK': 'Ã°Å¸â€˜â‚¬', 'ATTENTION': 'Ã¢Å¡Â Ã¯Â¸Â', 'FOCUS': 'Ã°Å¸Å½Â¯'
 }
 
 # Cache fonts
@@ -129,19 +130,19 @@ _FONT_CACHE = {}
 _EMOJI_CACHE = {}
 
 def get_hormozi_font(size: int) -> ImageFont.FreeTypeFont:
-    """Récupère la vraie police Hormozi avec fallbacks"""
+    """RÃƒÂ©cupÃƒÂ¨re la vraie police Hormozi avec fallbacks"""
     cache_key = f"hormozi_perfect_{size}"
     if cache_key in _FONT_CACHE:
         return _FONT_CACHE[cache_key]
     
-    # Polices PROMPT Hormozi (Impact priorité absolue)
+    # Polices PROMPT Hormozi (Impact prioritÃƒÂ© absolue)
     font_paths = [
-        # PROMPT priorités
-        "C:/Windows/Fonts/impact.ttf",         # Impact PROMPT priorité 1
+        # PROMPT prioritÃƒÂ©s
+        "C:/Windows/Fonts/impact.ttf",         # Impact PROMPT prioritÃƒÂ© 1
         "C:/Windows/Fonts/IMPACT.TTF",
-        "C:/Windows/Fonts/ariblk.ttf",         # Arial Black PROMPT priorité 2
+        "C:/Windows/Fonts/ariblk.ttf",         # Arial Black PROMPT prioritÃƒÂ© 2
         "C:/Windows/Fonts/ARIBLK.TTF",
-        "C:/Windows/Fonts/anton.ttf",          # Anton PROMPT priorité 3
+        "C:/Windows/Fonts/anton.ttf",          # Anton PROMPT prioritÃƒÂ© 3
         "C:/Windows/Fonts/ANTON.TTF",
         # System names
         "Impact",
@@ -154,25 +155,25 @@ def get_hormozi_font(size: int) -> ImageFont.FreeTypeFont:
         try:
             if os.path.exists(font_path):
                 font = ImageFont.truetype(font_path, size)
-                print(f"✅ Police Hormozi PARFAITE: {font_path} ({size}px)")
+                print(f"Ã¢Å“â€¦ Police Hormozi PARFAITE: {font_path} ({size}px)")
                 break
             else:
                 # Try by name
                 font = ImageFont.truetype(font_path, size)
-                print(f"✅ Police Hormozi système: {font_path} ({size}px)")
+                print(f"Ã¢Å“â€¦ Police Hormozi systÃƒÂ¨me: {font_path} ({size}px)")
                 break
         except Exception:
             continue
     
     if not font:
         font = ImageFont.load_default()
-        print(f"⚠️ Police par défaut utilisée ({size}px)")
+        print(f"Ã¢Å¡Â Ã¯Â¸Â Police par dÃƒÂ©faut utilisÃƒÂ©e ({size}px)")
     
     _FONT_CACHE[cache_key] = font
     return font
 
 def download_hormozi_emoji(emoji_char: str) -> Optional[Image.Image]:
-    """Télécharge emoji style Hormozi (Twemoji)"""
+    """TÃƒÂ©lÃƒÂ©charge emoji style Hormozi (Twemoji)"""
     if emoji_char in _EMOJI_CACHE:
         return _EMOJI_CACHE[emoji_char]
     
@@ -188,13 +189,13 @@ def download_hormozi_emoji(emoji_char: str) -> Optional[Image.Image]:
             _EMOJI_CACHE[emoji_char] = emoji_img
             return emoji_img
     except Exception as e:
-        print(f"⚠️ Emoji {emoji_char}: {e}")
+        print(f"Ã¢Å¡Â Ã¯Â¸Â Emoji {emoji_char}: {e}")
     
     _EMOJI_CACHE[emoji_char] = None
     return None
 
 def get_word_color_hormozi(word: str, config: HormoziUltimateConfig) -> Tuple[int, int, int]:
-    """Détermine la couleur d'un mot selon les règles Hormozi"""
+    """DÃƒÂ©termine la couleur d'un mot selon les rÃƒÂ¨gles Hormozi"""
     word_clean = word.upper().strip('.,!?":;()[]{}')
     
     if word_clean in HORMOZI_PERFECT_KEYWORDS:
@@ -214,7 +215,7 @@ def get_word_color_hormozi(word: str, config: HormoziUltimateConfig) -> Tuple[in
     return config.color_default
 
 def get_contextual_emoji_hormozi(word: str) -> Optional[str]:
-    """Récupère emoji contextuel pour un mot Hormozi"""
+    """RÃƒÂ©cupÃƒÂ¨re emoji contextuel pour un mot Hormozi"""
     word_clean = word.upper().strip('.,!?":;()[]{}')
     
     if word_clean in HORMOZI_EMOJI_MAP:
@@ -223,7 +224,7 @@ def get_contextual_emoji_hormozi(word: str) -> Optional[str]:
     return None
 
 def download_emoji_hormozi(emoji_char: str, size: int = 72) -> Optional[Image.Image]:
-    """Télécharge emoji Twemoji au format PNG"""
+    """TÃƒÂ©lÃƒÂ©charge emoji Twemoji au format PNG"""
     try:
         # Convertir emoji en code Unicode
         emoji_code = '-'.join([f'{ord(c):x}' for c in emoji_char])
@@ -255,7 +256,7 @@ def download_emoji_hormozi(emoji_char: str, size: int = 72) -> Optional[Image.Im
         return None
 
 def split_text_hormozi(text: str, max_words_per_line: int) -> List[str]:
-    """Découpe texte style Hormozi (max 4-6 mots par ligne)"""
+    """DÃƒÂ©coupe texte style Hormozi (max 4-6 mots par ligne)"""
     words = text.split()
     lines = []
     current_line = []
@@ -274,7 +275,7 @@ def split_text_hormozi(text: str, max_words_per_line: int) -> List[str]:
 
 def create_hormozi_perfect_frame(words_data: List[Dict], video_size: Tuple[int, int], 
                                 config: HormoziUltimateConfig, frame_time: float) -> Image.Image:
-    """Crée frame sous-titres style Hormozi MOT PAR MOT (prompt exact)"""
+    """CrÃƒÂ©e frame sous-titres style Hormozi MOT PAR MOT (prompt exact)"""
     
     width, height = video_size
     
@@ -329,14 +330,14 @@ def create_hormozi_perfect_frame(words_data: List[Dict], video_size: Tuple[int, 
     max_width = width * (1 - 2 * config.side_margins)
     
     if line_width > max_width:
-        # Réduire la taille de police
+        # RÃƒÂ©duire la taille de police
         while line_width > max_width and font_size > config.font_min_size:
             font_size -= 2
             font = get_hormozi_font(font_size)
             bbox = draw.textbbox((0, 0), line_text, font=font)
             line_width = bbox[2] - bbox[0]
     
-    # Position Hormozi (bas centré)
+    # Position Hormozi (bas centrÃƒÂ©)
     line_height = font_size * config.line_spacing
     total_height = line_height  # Une seule ligne mot par mot
     
@@ -360,11 +361,11 @@ def create_hormozi_perfect_frame(words_data: List[Dict], video_size: Tuple[int, 
         # Centrage horizontal Hormozi
         line_x = (width - line_width) // 2
         
-        # Vérifier débordement
+        # VÃƒÂ©rifier dÃƒÂ©bordement
         if line_x < width * config.side_margins:
             line_x = int(width * config.side_margins)
         if line_x + line_width > width * (1 - config.side_margins):
-            # Réduire police si débordement
+            # RÃƒÂ©duire police si dÃƒÂ©bordement
             scale_factor = (width * (1 - 2 * config.side_margins)) / line_width
             if scale_factor < 1:
                 reduced_size = int(font_size * scale_factor * 0.9)
@@ -390,7 +391,7 @@ def create_hormozi_perfect_frame(words_data: List[Dict], video_size: Tuple[int, 
             for word in words:
                 word_color = get_word_color_hormozi(word, config)
                 
-                # Ombre si activée
+                # Ombre si activÃƒÂ©e
                 if config.shadow_enabled:
                     shadow_x = current_x + config.shadow_offset[0]
                     shadow_y = temp_y + config.shadow_offset[1]
@@ -405,7 +406,7 @@ def create_hormozi_perfect_frame(words_data: List[Dict], video_size: Tuple[int, 
                                 temp_draw.text((current_x + dx, temp_y + dy), word, 
                                              font=font, fill=(*config.outline_color, opacity))
                 
-                # Texte coloré principal
+                # Texte colorÃƒÂ© principal
                 temp_draw.text((current_x, temp_y), word, font=font, 
                              fill=(*word_color, opacity))
                 
@@ -446,11 +447,11 @@ def create_hormozi_perfect_frame(words_data: List[Dict], video_size: Tuple[int, 
                                 draw.text((current_x + dx, int(line_y) + dy), word, 
                                         font=font, fill=(*config.outline_color, opacity))
                 
-                # Texte principal coloré
+                # Texte principal colorÃƒÂ©
                 draw.text((current_x, int(line_y)), word, font=font, 
                         fill=(*word_color, opacity))
                 
-                # Emoji si présent
+                # Emoji si prÃƒÂ©sent
                 if word.upper().strip('.,!?":;()[]{}') in HORMOZI_EMOJI_MAP:
                     emoji_char = HORMOZI_EMOJI_MAP[word.upper().strip('.,!?":;()[]{}')]
                     emoji_img = download_hormozi_emoji(emoji_char)
@@ -486,7 +487,7 @@ def parse_transcription_hormozi_perfect(transcription_data: List[Dict]) -> List[
         if not text:
             continue
         
-        # Découper en mots (prompt: mot par mot)
+        # DÃƒÂ©couper en mots (prompt: mot par mot)
         words = re.findall(r'\b\w+\b', text.upper())
         if not words:
             continue
@@ -495,7 +496,7 @@ def parse_transcription_hormozi_perfect(transcription_data: List[Dict]) -> List[
         segment_duration = segment['end'] - segment['start']
         word_duration = segment_duration / len(words)
         
-        # Durée minimum/maximum par mot (prompt: rapide)
+        # DurÃƒÂ©e minimum/maximum par mot (prompt: rapide)
         word_duration = max(0.4, min(1.0, word_duration))
         
         current_time = segment['start']
@@ -516,25 +517,25 @@ def parse_transcription_hormozi_perfect(transcription_data: List[Dict]) -> List[
 def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: List[Dict], 
                                  output_video_path: str) -> str:
     """
-    Génère sous-titres style Hormozi 1 PARFAIT
-    Basé sur recherche approfondie du vrai style TikTok d'Alex Hormozi
+    GÃƒÂ©nÃƒÂ¨re sous-titres style Hormozi 1 PARFAIT
+    BasÃƒÂ© sur recherche approfondie du vrai style TikTok d'Alex Hormozi
     """
     
-    print("🎯 STYLE HORMOZI 1 PARFAIT - RECHERCHE APPROFONDIE")
+    print("Ã°Å¸Å½Â¯ STYLE HORMOZI 1 PARFAIT - RECHERCHE APPROFONDIE")
     print("=" * 70)
-    print("✅ Police: Montserrat Black 900 (exacte)")
-    print("✅ Couleurs: 5 couleurs signature Hormozi")
-    print("✅ Animation: Bounce + fade-in authentique")
-    print("✅ Position: Bas centré exact")
-    print("✅ Timing: Phrases complètes synchronisées")
+    print("Ã¢Å“â€¦ Police: Montserrat Black 900 (exacte)")
+    print("Ã¢Å“â€¦ Couleurs: 5 couleurs signature Hormozi")
+    print("Ã¢Å“â€¦ Animation: Bounce + fade-in authentique")
+    print("Ã¢Å“â€¦ Position: Bas centrÃƒÂ© exact")
+    print("Ã¢Å“â€¦ Timing: Phrases complÃƒÂ¨tes synchronisÃƒÂ©es")
     
-    # Vérifications
+    # VÃƒÂ©rifications
     if not os.path.exists(input_video_path):
-        print(f"❌ Vidéo non trouvée: {input_video_path}")
+        print(f"Ã¢ÂÅ’ VidÃƒÂ©o non trouvÃƒÂ©e: {input_video_path}")
         return input_video_path
     
     if not transcription_data:
-        print("❌ Transcription manquante")
+        print("Ã¢ÂÅ’ Transcription manquante")
         return input_video_path
     
     # Config Hormozi parfaite
@@ -542,9 +543,9 @@ def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: Lis
     
     # Parse mots individuels (prompt exact)
     words_data = parse_transcription_hormozi_perfect(transcription_data)
-    print(f"📝 {len(words_data)} mots individuels Hormozi analysés")
+    print(f"Ã°Å¸â€œÂ {len(words_data)} mots individuels Hormozi analysÃƒÂ©s")
     
-    # Analyser mots-clés détectés
+    # Analyser mots-clÃƒÂ©s dÃƒÂ©tectÃƒÂ©s
     all_words = [w['text'] for w in words_data]
     keywords_found = []
     for word in all_words:
@@ -553,11 +554,11 @@ def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: Lis
             keywords_found.append(f"{clean_word}({HORMOZI_PERFECT_KEYWORDS[clean_word]})")
     
     if keywords_found:
-        print(f"🎨 Mots-clés Hormozi détectés: {', '.join(keywords_found[:5])}...")
+        print(f"Ã°Å¸Å½Â¨ Mots-clÃƒÂ©s Hormozi dÃƒÂ©tectÃƒÂ©s: {', '.join(keywords_found[:5])}...")
     else:
-        print("⚠️ Aucun mot-clé Hormozi dans cette transcription")
+        print("Ã¢Å¡Â Ã¯Â¸Â Aucun mot-clÃƒÂ© Hormozi dans cette transcription")
     
-    # Métadonnées vidéo
+    # MÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o
     try:
         ffprobe_cmd = [
             'ffprobe', '-v', 'quiet', '-print_format', 'json',
@@ -573,17 +574,17 @@ def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: Lis
         duration = float(video_info['format']['duration'])
         
         font_size_calculated = int(video_height * config.font_scale_factor)
-        print(f"📊 Vidéo: {video_width}x{video_height}, {fps} FPS")
-        print(f"🔤 Police Hormozi: {font_size_calculated}px (facteur {config.font_scale_factor})")
+        print(f"Ã°Å¸â€œÅ  VidÃƒÂ©o: {video_width}x{video_height}, {fps} FPS")
+        print(f"Ã°Å¸â€Â¤ Police Hormozi: {font_size_calculated}px (facteur {config.font_scale_factor})")
         
     except Exception as e:
-        print(f"❌ Erreur ffprobe: {e}")
+        print(f"Ã¢ÂÅ’ Erreur ffprobe: {e}")
         return input_video_path
     
-    # Génération frames
+    # GÃƒÂ©nÃƒÂ©ration frames
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            print("🎬 Génération frames style Hormozi PARFAIT...")
+            print("Ã°Å¸Å½Â¬ GÃƒÂ©nÃƒÂ©ration frames style Hormozi PARFAIT...")
             
             frame_count = int(duration * fps)
             
@@ -597,10 +598,10 @@ def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: Lis
                 frame_path = os.path.join(temp_dir, f"subtitle_{frame_num:06d}.png")
                 subtitle_frame.save(frame_path, 'PNG')
             
-            print(f"   {frame_count} frames Hormozi générées")
+            print(f"   {frame_count} frames Hormozi gÃƒÂ©nÃƒÂ©rÃƒÂ©es")
             
             # Composition ffmpeg
-            print("🎬 Composition finale avec style Hormozi authentique...")
+            print("Ã°Å¸Å½Â¬ Composition finale avec style Hormozi authentique...")
             
             os.makedirs(os.path.dirname(output_video_path), exist_ok=True)
             
@@ -613,7 +614,7 @@ def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: Lis
                 '-map', '0:a?',
                 '-c:v', 'libx264',
                 '-c:a', 'aac',
-                '-crf', '18',  # Qualité supérieure
+                '-crf', '18',  # QualitÃƒÂ© supÃƒÂ©rieure
                 '-preset', 'medium',
                 '-pix_fmt', 'yuv420p',
                 '-r', str(fps),
@@ -623,21 +624,22 @@ def add_hormozi_perfect_subtitles(input_video_path: str, transcription_data: Lis
             result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                print(f"✅ SUCCÈS! Style Hormozi 1 PARFAIT: {Path(output_video_path).name}")
-                print("🎉 CARACTÉRISTIQUES HORMOZI APPLIQUÉES:")
-                print(f"  🔤 Police: Montserrat Black 900 ({font_size_calculated}px)")
-                print(f"  📍 Position: {config.bottom_margin_ratio:.0%} du bas (authentique)")
-                print(f"  🎨 Couleurs: {len(keywords_found)} mots-clés colorés")
-                print(f"  ⚡ Animation: Bounce {config.bounce_scale}x + fade {config.fade_duration}s")
-                print(f"  📱 Format: Max {config.max_words_per_line} mots/ligne, {config.max_lines} lignes")
-                print(f"  🎯 Style: 100% conforme recherche TikTok Hormozi")
+                print(f"Ã¢Å“â€¦ SUCCÃƒË†S! Style Hormozi 1 PARFAIT: {Path(output_video_path).name}")
+                print("Ã°Å¸Å½â€° CARACTÃƒâ€°RISTIQUES HORMOZI APPLIQUÃƒâ€°ES:")
+                print(f"  Ã°Å¸â€Â¤ Police: Montserrat Black 900 ({font_size_calculated}px)")
+                print(f"  Ã°Å¸â€œÂ Position: {config.bottom_margin_ratio:.0%} du bas (authentique)")
+                print(f"  Ã°Å¸Å½Â¨ Couleurs: {len(keywords_found)} mots-clÃƒÂ©s colorÃƒÂ©s")
+                print(f"  Ã¢Å¡Â¡ Animation: Bounce {config.bounce_scale}x + fade {config.fade_duration}s")
+                print(f"  Ã°Å¸â€œÂ± Format: Max {config.max_words_per_line} mots/ligne, {config.max_lines} lignes")
+                print(f"  Ã°Å¸Å½Â¯ Style: 100% conforme recherche TikTok Hormozi")
                 return output_video_path
             else:
-                print(f"❌ Erreur ffmpeg: {result.stderr}")
+                print(f"Ã¢ÂÅ’ Erreur ffmpeg: {result.stderr}")
                 return input_video_path
                 
     except Exception as e:
-        print(f"❌ Erreur génération: {e}")
+        print(f"Ã¢ÂÅ’ Erreur gÃƒÂ©nÃƒÂ©ration: {e}")
         import traceback
         traceback.print_exc()
         return input_video_path 
+

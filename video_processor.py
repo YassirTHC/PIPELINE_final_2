@@ -1,3 +1,4 @@
+﻿ï»¿Ã¯Â»Â¿# -*- coding: utf-8 -*-
 import sys
 
 try:
@@ -215,77 +216,77 @@ def render_subtitles_router(
     logger.info("[SUBTITLES] engine=hormozi renderer=HormoziRenderer")
     span_style_map = {
         # Business & Croissance
-        "croissance": {"color": "#39FF14", "bold": True, "emoji": "ðŸ“ˆ"},
-        "growth": {"color": "#39FF14", "bold": True, "emoji": "ðŸ“ˆ"},
-        "opportunitÃ©": {"color": "#FFD700", "bold": True, "emoji": "ï¿½ï¿½"},
-        "opportunite": {"color": "#FFD700", "bold": True, "emoji": "ðŸ”‘"},
-        "innovation": {"color": "#00E5FF", "emoji": "âš¡"},
-        "idÃ©e": {"color": "#00E5FF", "emoji": "ðŸ’¡"},
-        "idee": {"color": "#00E5FF", "emoji": "ðŸ’¡"},
-        "stratÃ©gie": {"color": "#FF73FA", "emoji": "ðŸ§­"},
-        "strategie": {"color": "#FF73FA", "emoji": "ðŸ§­"},
-        "plan": {"color": "#FF73FA", "emoji": "ðŸ—ºï¸"},
+        "croissance": {"color": "#39FF14", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¹Ã¢â‚¬Â "},
+        "growth": {"color": "#39FF14", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¹Ã¢â‚¬Â "},
+        "opportunitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": {"color": "#FFD700", "bold": True, "emoji": "ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¿Ãƒâ€šÃ‚Â½ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¿Ãƒâ€šÃ‚Â½"},
+        "opportunite": {"color": "#FFD700", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“"},
+        "innovation": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¡"},
+        "idÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¡"},
+        "idee": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¡"},
+        "stratÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gie": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â­"},
+        "strategie": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â­"},
+        "plan": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â"},
         # Argent & Finance
-        "argent": {"color": "#FFD700", "bold": True, "emoji": "ðŸ’°"},
-        "money": {"color": "#FFD700", "bold": True, "emoji": "ðŸ’°"},
-        "cash": {"color": "#FFD700", "bold": True, "emoji": "ðŸ’°"},
-        "investissement": {"color": "#8AFF00", "bold": True, "emoji": "ðŸ“Š"},
-        "investissements": {"color": "#8AFF00", "bold": True, "emoji": "ðŸ“Š"},
-        "revenu": {"color": "#8AFF00", "emoji": "ðŸ¦"},
-        "revenus": {"color": "#8AFF00", "emoji": "ðŸ¦"},
-        "profit": {"color": "#8AFF00", "bold": True, "emoji": "ðŸ’°"},
-        "profits": {"color": "#8AFF00", "bold": True, "emoji": "ðŸ’°"},
-        "perte": {"color": "#FF3131", "emoji": "ðŸ“‰"},
-        "pertes": {"color": "#FF3131", "emoji": "ðŸ“‰"},
-        "Ã©chec": {"color": "#FF3131", "emoji": "âŒ"},
-        "echec": {"color": "#FF3131", "emoji": "âŒ"},
-        "budget": {"color": "#FFD700", "emoji": "ðŸ§¾"},
-        "gestion": {"color": "#FFD700", "emoji": "ðŸª™"},
-        "roi": {"color": "#8AFF00", "bold": True, "emoji": "ðŸ“ˆ"},
-        "chiffre": {"color": "#FFD700", "emoji": "ðŸ’°"},
-        "ca": {"color": "#FFD700", "emoji": "ðŸ’°"},
+        "argent": {"color": "#FFD700", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
+        "money": {"color": "#FFD700", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
+        "cash": {"color": "#FFD700", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
+        "investissement": {"color": "#8AFF00", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â "},
+        "investissements": {"color": "#8AFF00", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â "},
+        "revenu": {"color": "#8AFF00", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¦"},
+        "revenus": {"color": "#8AFF00", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¦"},
+        "profit": {"color": "#8AFF00", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
+        "profits": {"color": "#8AFF00", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
+        "perte": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°"},
+        "pertes": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°"},
+        "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chec": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢"},
+        "echec": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢"},
+        "budget": {"color": "#FFD700", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â¾"},
+        "gestion": {"color": "#FFD700", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂªÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢"},
+        "roi": {"color": "#8AFF00", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¹Ã¢â‚¬Â "},
+        "chiffre": {"color": "#FFD700", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
+        "ca": {"color": "#FFD700", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°"},
         # Relation & Client
-        "client": {"color": "#00E5FF", "underline": True, "emoji": "ðŸ¤"},
-        "clients": {"color": "#00E5FF", "underline": True, "emoji": "ðŸ¤"},
-        "collaboration": {"color": "#00E5FF", "emoji": "ðŸ«±ðŸ¼â€ðŸ«²ðŸ½"},
-        "collaborations": {"color": "#00E5FF", "emoji": "ðŸ«±ðŸ¼â€ðŸ«²ðŸ½"},
-        "communautÃ©": {"color": "#39FF14", "emoji": "ðŸŒ"},
-        "communaute": {"color": "#39FF14", "emoji": "ðŸŒ"},
-        "confiance": {"color": "#00E5FF", "emoji": "ðŸ”’"},
-        "vente": {"color": "#FF73FA", "emoji": "ðŸ›’"},
-        "ventes": {"color": "#FF73FA", "emoji": "ðŸ›’"},
-        "deal": {"color": "#FF73FA", "emoji": "ðŸ“¦"},
-        "deals": {"color": "#FF73FA", "emoji": "ðŸ“¦"},
-        "prospect": {"color": "#00E5FF", "emoji": "ðŸ¤"},
-        "prospects": {"color": "#00E5FF", "emoji": "ðŸ¤"},
-        "contrat": {"color": "#FF73FA", "emoji": "ðŸ“‹"},
-        # Motivation & SuccÃ¨s
-        "succÃ¨s": {"color": "#39FF14", "italic": True, "emoji": "ðŸ†"},
-        "succes": {"color": "#39FF14", "italic": True, "emoji": "ðŸ†"},
-        "motivation": {"color": "#FF73FA", "bold": True, "emoji": "ðŸ”¥"},
-        "Ã©nergie": {"color": "#FF73FA", "emoji": "âš¡"},
-        "energie": {"color": "#FF73FA", "emoji": "âš¡"},
-        "victoire": {"color": "#39FF14", "emoji": "ðŸŽ¯"},
-        "discipline": {"color": "#FFD700", "emoji": "â³"},
-        "viral": {"color": "#FF73FA", "bold": True, "emoji": "ðŸš€"},
-        "viralitÃ©": {"color": "#FF73FA", "bold": True, "emoji": "ðŸŒ"},
-        "viralite": {"color": "#FF73FA", "bold": True, "emoji": "ðŸŒ"},
-        "impact": {"color": "#FF73FA", "emoji": "ðŸ’¥"},
-        "explose": {"color": "#FF73FA", "emoji": "ðŸ’¥"},
-        "explosion": {"color": "#FF73FA", "emoji": "ðŸ’¥"},
+        "client": {"color": "#00E5FF", "underline": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤Ãƒâ€šÃ‚Â"},
+        "clients": {"color": "#00E5FF", "underline": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤Ãƒâ€šÃ‚Â"},
+        "collaboration": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â«Ãƒâ€šÃ‚Â±ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¼ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â«Ãƒâ€šÃ‚Â²ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â½"},
+        "collaborations": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â«Ãƒâ€šÃ‚Â±ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¼ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â«Ãƒâ€šÃ‚Â²ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â½"},
+        "communautÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": {"color": "#39FF14", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â"},
+        "communaute": {"color": "#39FF14", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â"},
+        "confiance": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢"},
+        "vente": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂºÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢"},
+        "ventes": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂºÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢"},
+        "deal": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¦"},
+        "deals": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¦"},
+        "prospect": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤Ãƒâ€šÃ‚Â"},
+        "prospects": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤Ãƒâ€šÃ‚Â"},
+        "contrat": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹"},
+        # Motivation & SuccÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s
+        "succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s": {"color": "#39FF14", "italic": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â "},
+        "succes": {"color": "#39FF14", "italic": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â "},
+        "motivation": {"color": "#FF73FA", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥"},
+        "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nergie": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¡"},
+        "energie": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¡"},
+        "victoire": {"color": "#39FF14", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯"},
+        "discipline": {"color": "#FFD700", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â³"},
+        "viral": {"color": "#FF73FA", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬"},
+        "viralitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": {"color": "#FF73FA", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â"},
+        "viralite": {"color": "#FF73FA", "bold": True, "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â"},
+        "impact": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¥"},
+        "explose": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¥"},
+        "explosion": {"color": "#FF73FA", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¥"},
         # Risque & Erreurs
-        "erreur": {"color": "#FF3131", "emoji": "âš ï¸"},
-        "erreurs": {"color": "#FF3131", "emoji": "âš ï¸"},
-        "warning": {"color": "#FF3131", "emoji": "âš ï¸"},
-        "obstacle": {"color": "#FF3131", "emoji": "ðŸ§±"},
-        "obstacles": {"color": "#FF3131", "emoji": "ðŸ§±"},
-        "solution": {"color": "#00E5FF", "emoji": "ðŸ”§"},
-        "solutions": {"color": "#00E5FF", "emoji": "ðŸ”§"},
-        "leÃ§on": {"color": "#00E5FF", "emoji": "ðŸ“š"},
-        "lecon": {"color": "#00E5FF", "emoji": "ðŸ“š"},
-        "apprentissage": {"color": "#00E5FF", "emoji": "ðŸ§ "},
-        "problÃ¨me": {"color": "#FF3131", "emoji": "ðŸ›‘"},
-        "probleme": {"color": "#FF3131", "emoji": "ðŸ›‘"},
+        "erreur": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â"},
+        "erreurs": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â"},
+        "warning": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â"},
+        "obstacle": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â±"},
+        "obstacles": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â±"},
+        "solution": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â§"},
+        "solutions": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â§"},
+        "leÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§on": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â¡"},
+        "lecon": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â¡"},
+        "apprentissage": {"color": "#00E5FF", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â "},
+        "problÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂºÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“"},
+        "probleme": {"color": "#FF3131", "emoji": "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂºÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“"},
     }
 
     if subtitle_settings is not None and not getattr(subtitle_settings, "enable_emojis", True):
@@ -314,7 +315,7 @@ except Exception:  # pragma: no cover - fallback when root config is unavailable
     class _ROOT_CONFIG:
         ENABLE_LEGACY_PIPELINE_FALLBACK = False
 
-# ðŸš€ NOUVEAU: Configuration des logs temps rÃ©el + suppression warnings non-critiques
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Configuration des logs temps rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©el + suppression warnings non-critiques
 import warnings
 warnings.filterwarnings("ignore", message="SymbolDatabase.GetPrototype() is deprecated")
 warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
@@ -370,9 +371,9 @@ def emit_dependency_status(stream: Optional[TextIO] = None, *, once: bool = True
     if once:
         _DEPENDENCY_STATUS_EMITTED = True
 
-# ðŸš€ NOUVEAU: Fonction print temps rÃ©el
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Fonction print temps rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©el
 def print_realtime(message):
-    """Print avec flush immÃ©diat pour logs temps rÃ©el"""
+    """Print avec flush immÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©diat pour logs temps rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©el"""
     print(message, flush=True)
     logger.info(message)
 
@@ -530,15 +531,15 @@ def format_broll_completion_banner(
     effective_ok = (render_ok if render_ok is not None else count > 0) and count > 0
 
     if effective_ok:
-        return True, f"    âœ… B-roll insÃ©rÃ©s avec succÃ¨s ({count})"
+        return True, f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ B-roll insÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s avec succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s ({count})"
 
     if count > 0:
-        return False, "    âš ï¸ B-roll sÃ©lectionnÃ©s mais rendu indisponible; retour Ã  la vidÃ©o d'origine"
+        return False, "    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â B-roll sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lectionnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s mais rendu indisponible; retour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o d'origine"
 
     if origin_key == "pipeline_core":
-        return False, "    âš ï¸ Pipeline core: aucun B-roll sÃ©lectionnÃ©; retour Ã  la vidÃ©o d'origine"
+        return False, "    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Pipeline core: aucun B-roll sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lectionnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©; retour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o d'origine"
 
-    return False, "    âš ï¸ Aucun B-roll insÃ©rÃ©; retour Ã  la vidÃ©o d'origine"
+    return False, "    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Aucun B-roll insÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©; retour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o d'origine"
 
 SELECTION_METRICS_PATH = PROJECT_ROOT / "output" / "meta" / "selection_metrics.jsonl"
 
@@ -1036,7 +1037,7 @@ import json
 import random
 import numpy as np
 import shutil
-from datetime import datetime  # NEW: pour mÃ©tadonnÃ©es intelligentes
+from datetime import datetime  # NEW: pour mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es intelligentes
 import whisper
 import requests
 import cv2
@@ -1110,7 +1111,7 @@ except ImportError:  # pragma: no cover - test environments may stub partial API
     def generate_segment_queries(segment_text: str):  # type: ignore[override]
         return []
 
-# ðŸš€ NOUVEAU: Cache global pour Ã©viter le rechargement des modÃ¨les
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Cache global pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©viter le rechargement des modÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨les
 _MODEL_CACHE = {}
 
 _TRUEISH = {"1", "true", "t", "yes", "y", "on"}
@@ -2020,7 +2021,7 @@ def _merge_segment_query_sources(
         return added
 
     print(
-        f"    ?? DEBUG _combine_broll_queries ENTR�E llm_queries: {llm_queries[:3]}"
+        f"    ?? DEBUG _combine_broll_queries ENTRÃƒâ€°E llm_queries: {llm_queries[:3]}"
     )
 
     llm_only_mode = _BROLL_LLM_ONLY if llm_only is None else bool(llm_only)
@@ -2044,7 +2045,7 @@ def _merge_segment_query_sources(
         if combined:
             primary_source = "llm_hint"
             print(
-                "    ?? DEBUG _combine_broll_queries APR�S _consume (llm_only), "
+                "    ?? DEBUG _combine_broll_queries APRÃƒË†S _consume (llm_only), "
                 f"combined={combined[:3] if combined else 'VIDE'}"
             )
             debug_preview = combined[:cap][:5]
@@ -2093,7 +2094,7 @@ def _merge_segment_query_sources(
         llm_backfill = llm_prefill[llm_initial_cap:]
         _consume("llm_hint", llm_initial_terms, relax=True)
     print(
-        "    ?? DEBUG _combine_broll_queries APR�S _consume, "
+        "    ?? DEBUG _combine_broll_queries APRÃƒË†S _consume, "
         f"combined={combined[:3] if combined else 'VIDE'}"
     )
     _consume("segment_brief", brief_pool)
@@ -2178,97 +2179,97 @@ def _choose_dynamic_domain(dyn: dict):
     return None, None
 
 def get_sentence_transformer_model(model_name: str):
-    """RÃ©cupÃ¨re un modÃ¨le SentenceTransformer depuis le cache ou le charge"""
-    # ðŸš€ OPTIMISATION: Normaliser le nom du modÃ¨le pour Ã©viter les doublons
+    """RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cupÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨re un modÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨le SentenceTransformer depuis le cache ou le charge"""
+    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ OPTIMISATION: Normaliser le nom du modÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨le pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©viter les doublons
     normalized_name = model_name.replace('sentence-transformers/', '')
     
     if normalized_name not in _MODEL_CACHE:
-        print(f"    ðŸ”„ Chargement initial du modÃ¨le: {model_name}")
+        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Chargement initial du modÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨le: {model_name}")
         try:
             from sentence_transformers import SentenceTransformer
             _MODEL_CACHE[normalized_name] = SentenceTransformer(model_name)
-            print(f"    âœ… ModÃ¨le {model_name} chargÃ© et mis en cache")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ModÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨le {model_name} chargÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© et mis en cache")
         except Exception as e:
-            print(f"    âŒ Erreur chargement modÃ¨le {model_name}: {e}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur chargement modÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨le {model_name}: {e}")
             return None
     else:
-        print(f"    â™»ï¸ ModÃ¨le {model_name} rÃ©cupÃ©rÃ© du cache")
+        print(f"    ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ModÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨le {model_name} rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cupÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© du cache")
     
     return _MODEL_CACHE[normalized_name]
 
 def safe_remove_tree(directory: Path, max_retries: int = 3, delay: float = 1.0) -> bool:
     """
-    Supprime un dossier de faÃ§on sÃ©curisÃ©e avec retry et gestion des handles Windows
+    Supprime un dossier de faÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§on sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©curisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e avec retry et gestion des handles Windows
     
     Args:
-        directory: Dossier Ã  supprimer
+        directory: Dossier ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  supprimer
         max_retries: Nombre maximum de tentatives
-        delay: DÃ©lai entre les tentatives (secondes)
+        delay: DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lai entre les tentatives (secondes)
     
     Returns:
-        True si la suppression a rÃ©ussi, False sinon
+        True si la suppression a rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ussi, False sinon
     """
     if not directory.exists():
         return True
     
     for attempt in range(max_retries):
         try:
-            # Forcer la libÃ©ration des handles
+            # Forcer la libÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration des handles
             gc.collect()
             
-            # Tentative de suppression rÃ©cursive
+            # Tentative de suppression rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cursive
             shutil.rmtree(directory, ignore_errors=False)
             
-            # VÃ©rifier que c'est vraiment supprimÃ©
+            # VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier que c'est vraiment supprimÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
             if not directory.exists():
                 return True
                 
         except PermissionError as e:
             if "WinError 32" in str(e) or "being used by another process" in str(e):
-                print(f"    âš ï¸ Tentative {attempt + 1}/{max_retries}: Fichier en cours d'utilisation, retry dans {delay}s...")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Tentative {attempt + 1}/{max_retries}: Fichier en cours d'utilisation, retry dans {delay}s...")
                 time.sleep(delay)
                 delay *= 1.5  # Backoff exponentiel
                 continue
             else:
-                print(f"    âŒ Erreur de permission: {e}")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur de permission: {e}")
                 break
         except Exception as e:
-            print(f"    âŒ Erreur inattendue lors de la suppression: {e}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur inattendue lors de la suppression: {e}")
             break
     
-    # Si on arrive ici, toutes les tentatives ont Ã©chouÃ©
+    # Si on arrive ici, toutes les tentatives ont ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chouÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
     try:
         # Tentative finale avec ignore_errors=True
         shutil.rmtree(directory, ignore_errors=True)
         if not directory.exists():
-            print(f"    âœ… Suppression rÃ©ussie avec ignore_errors")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Suppression rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ussie avec ignore_errors")
             return True
         else:
-            print(f"    âš ï¸ Dossier partiellement supprimÃ©, rÃ©sidu: {directory}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Dossier partiellement supprimÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©, rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sidu: {directory}")
             return False
     except Exception as e:
-        print(f"    âŒ Ã‰chec final de suppression: {e}")
+        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°chec final de suppression: {e}")
         return False
 
 # Gestion optionnelle de Mediapipe avec fallback
 try:
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
-    _register_dependency_status("âœ… Mediapipe disponible - Utilisation des fonctionnalitÃ©s IA avancÃ©es")
+    _register_dependency_status("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Mediapipe disponible - Utilisation des fonctionnalitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s IA avancÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es")
 except ImportError:
     MEDIAPIPE_AVAILABLE = False
     mp = None
-    _register_dependency_status("âš ï¸ Mediapipe non disponible - Utilisation du fallback OpenCV (fonctionnalitÃ©s rÃ©duites)")
+    _register_dependency_status("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Mediapipe non disponible - Utilisation du fallback OpenCV (fonctionnalitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©duites)")
 
-# ðŸš€ NOUVEAU: Import du sÃ©lecteur B-roll gÃ©nÃ©rique
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Import du sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique
 try:
     from broll_selector import BrollSelector, Asset, ScoringFeatures, BrollCandidate
     BROLL_SELECTOR_AVAILABLE = True
-    _register_dependency_status("âœ… SÃ©lecteur B-roll gÃ©nÃ©rique disponible - Scoring mixte activÃ©")
+    _register_dependency_status("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique disponible - Scoring mixte activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©")
 except ImportError as e:
     BROLL_SELECTOR_AVAILABLE = False
-    _register_dependency_status(f"âš ï¸ SÃ©lecteur B-roll gÃ©nÃ©rique non disponible: {e}")
-    _register_dependency_status("   ðŸ”„ Utilisation du systÃ¨me de scoring existant")
+    _register_dependency_status(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique non disponible: {e}")
+    _register_dependency_status("   ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Utilisation du systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me de scoring existant")
 
 try:
     from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
@@ -2426,17 +2427,17 @@ def configure_imagemagick():
         for path in possible_paths:
             if os.path.exists(path):
                 cfg.change_settings({"IMAGEMAGICK_BINARY": path})
-                _register_dependency_status(f"âœ… ImageMagick configurÃ©: {path}")
+                _register_dependency_status(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ImageMagick configurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {path}")
                 return True
 
-        _register_dependency_status("âš ï¸ ImageMagick non trouvÃ©, utilisation du mode fallback")
+        _register_dependency_status("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ImageMagick non trouvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©, utilisation du mode fallback")
         return False
 
     except Exception as e:
-        _register_dependency_status(f"âš ï¸ Erreur configuration ImageMagick: {e}")
+        _register_dependency_status(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur configuration ImageMagick: {e}")
         return False
 
-# Configuration automatique au dÃ©marrage
+# Configuration automatique au dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©marrage
 configure_imagemagick()
 
 # Configuration du logging
@@ -2444,29 +2445,29 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class Config:
-    """Configuration centralisÃ©e du pipeline"""
+    """Configuration centralisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e du pipeline"""
     CLIPS_FOLDER = Path("./clips")
     OUTPUT_FOLDER = Path("./output") 
     TEMP_FOLDER = Path("./temp")
     
-    # RÃ©solution cible pour les rÃ©seaux sociaux
+    # RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©solution cible pour les rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©seaux sociaux
     TARGET_WIDTH = 720
     TARGET_HEIGHT = 1280  # Format 9:16
     
-    # ParamÃ¨tres Whisper
+    # ParamÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨tres Whisper
     WHISPER_MODEL = "tiny"  # ou "small", "medium", "large"
     
-    # ParamÃ¨tres sous-titres
+    # ParamÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨tres sous-titres
     SUBTITLE_FONT_SIZE = 85
     SUBTITLE_COLOR = 'yellow'
     SUBTITLE_STROKE_COLOR = 'black'
     SUBTITLE_STROKE_WIDTH = 3
-    # Biais global (en secondes) pour corriger un lÃ©ger dÃ©calage systÃ©matique
-    # 0.0 par dÃ©faut pour Ã©viter tout dÃ©calage si non nÃ©cessaire
+    # Biais global (en secondes) pour corriger un lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ger dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©calage systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©matique
+    # 0.0 par dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©viter tout dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©calage si non nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessaire
     SUBTITLE_TIMING_BIAS_S = 0.0
 
-    # Activation B-roll: UI > ENV > dÃ©faut(off)
-    # Si fetchers cochÃ©s, activer automatiquement l'insertion B-roll, sauf si explicitement dÃ©sactivÃ© cÃ´tÃ© UI
+    # Activation B-roll: UI > ENV > dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut(off)
+    # Si fetchers cochÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s, activer automatiquement l'insertion B-roll, sauf si explicitement dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sactivÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© UI
     _UI_ENABLE_BROLL = _UI_SETTINGS.get('enable_broll') if 'enable_broll' in _UI_SETTINGS else None
     _ENV_ENABLE_BROLL = os.getenv('ENABLE_BROLL') or os.getenv('AI_BROLL_ENABLED')
     _AUTO_ENABLE = _to_bool(_UI_SETTINGS.get('broll_fetch_enable'), default=True) if 'broll_fetch_enable' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_FETCH_ENABLE') or os.getenv('AI_BROLL_ENABLE_FETCHER'), default=True)
@@ -2480,21 +2481,21 @@ class Config:
     ) if 'legacy_pipeline_fallback' in _UI_SETTINGS else getattr(_ROOT_CONFIG, 'ENABLE_LEGACY_PIPELINE_FALLBACK', False)
 
     # === Options fetcher B-roll (stock) ===
-    # Active le fetch automatique: UI > ENV > dÃ©faut(on)
+    # Active le fetch automatique: UI > ENV > dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut(on)
     BROLL_FETCH_ENABLE = _to_bool(_UI_SETTINGS.get('broll_fetch_enable'), default=True) if 'broll_fetch_enable' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_FETCH_ENABLE') or os.getenv('AI_BROLL_ENABLE_FETCHER'), default=True)
-    # Fournisseur: UI > ENV > dÃ©faut pexels
+    # Fournisseur: UI > ENV > dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut pexels
     BROLL_FETCH_PROVIDER = (_UI_SETTINGS.get('broll_fetch_provider') or os.getenv('AI_BROLL_FETCH_PROVIDER') or 'pexels')
-    # ClÃ©s API
+    # ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s API
     PEXELS_API_KEY = _UI_SETTINGS.get('PEXELS_API_KEY') or os.getenv('PEXELS_API_KEY')
     PIXABAY_API_KEY = _UI_SETTINGS.get('PIXABAY_API_KEY') or os.getenv('PIXABAY_API_KEY')
-    # ContrÃ´les de fetch
-    BROLL_FETCH_MAX_PER_KEYWORD = int(_UI_SETTINGS.get('broll_fetch_max_per_keyword') or os.getenv('BROLL_FETCH_MAX_PER_KEYWORD') or 25)  # CORRIGÃ‰: 12 â†’ 25
+    # ContrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´les de fetch
+    BROLL_FETCH_MAX_PER_KEYWORD = int(_UI_SETTINGS.get('broll_fetch_max_per_keyword') or os.getenv('BROLL_FETCH_MAX_PER_KEYWORD') or 25)  # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 12 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 25
     BROLL_FETCH_ALLOW_VIDEOS = _to_bool(_UI_SETTINGS.get('broll_fetch_allow_videos'), default=True) if 'broll_fetch_allow_videos' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_FETCH_ALLOW_VIDEOS'), default=True)
     BROLL_FETCH_ALLOW_IMAGES = _to_bool(_UI_SETTINGS.get('broll_fetch_allow_images'), default=False) if 'broll_fetch_allow_images' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_FETCH_ALLOW_IMAGES'), default=False)
-    # Ã‰largir le pool par dÃ©faut: activer les images si non prÃ©cisÃ©
+    # ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°largir le pool par dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut: activer les images si non prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
     if 'broll_fetch_allow_images' not in _UI_SETTINGS and os.getenv('BROLL_FETCH_ALLOW_IMAGES') is None:
         BROLL_FETCH_ALLOW_IMAGES = True
-    # Embeddings pour matching sÃ©mantique
+    # Embeddings pour matching sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©mantique
     BROLL_USE_EMBEDDINGS = _to_bool(_UI_SETTINGS.get('broll_use_embeddings'), default=True) if 'broll_use_embeddings' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_USE_EMBEDDINGS'), default=True)
     BROLL_EMBEDDING_MODEL = (_UI_SETTINGS.get('broll_embedding_model') or os.getenv('BROLL_EMBEDDING_MODEL') or 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
     # Config contextuelle
@@ -2503,15 +2504,15 @@ class Config:
     # Sortie et nettoyage
     USE_HARDLINKS = _to_bool(_UI_SETTINGS.get('use_hardlinks'), default=True) if 'use_hardlinks' in _UI_SETTINGS else _to_bool(os.getenv('USE_HARDLINKS'), default=True)
     BROLL_DELETE_AFTER_USE = _to_bool(_UI_SETTINGS.get('broll_delete_after_use'), default=True) if 'broll_delete_after_use' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_DELETE_AFTER_USE') or os.getenv('AI_BROLL_PURGE_AFTER_USE'), default=True)
-    # ðŸš€ NOUVEAU: Forcer le nettoyage aprÃ¨s chaque vidÃ©o pour Ã©conomiser l'espace
-    BROLL_CLEANUP_PER_VIDEO = True  # Toujours activÃ© pour Ã©viter l'accumulation
+    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Forcer le nettoyage aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s chaque vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©conomiser l'espace
+    BROLL_CLEANUP_PER_VIDEO = True  # Toujours activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©viter l'accumulation
     BROLL_PURGE_AFTER_RUN = _to_bool(_UI_SETTINGS.get('broll_purge_after_run'), default=True) if 'broll_purge_after_run' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_PURGE_AFTER_RUN') or os.getenv('AI_BROLL_PURGE_AFTER_RUN'), default=True)
     # Brand kit
     BRAND_KIT_ID = _UI_SETTINGS.get('brand_kit_id') or os.getenv('BRAND_KIT_ID') or 'default'
     # Experimental FX (wipes/zoom/LUT etc.)
     ENABLE_EXPERIMENTAL_FX = _to_bool(_UI_SETTINGS.get('enable_experimental_fx'), default=False) if 'enable_experimental_fx' in _UI_SETTINGS else _to_bool(os.getenv('ENABLE_EXPERIMENTAL_FX'), default=False)
 
-    # ðŸš€ NOUVEAU: Configuration du sÃ©lecteur B-roll gÃ©nÃ©rique
+    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Configuration du sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique
     BROLL_SELECTOR_CONFIG_PATH = Path(_UI_SETTINGS.get('broll_selector_config') or os.getenv('BROLL_SELECTOR_CONFIG') or 'config/broll_selector_config.yaml')
     BROLL_SELECTOR_ENABLED = _to_bool(_UI_SETTINGS.get('broll_selector_enabled'), default=True) if 'broll_selector_enabled' in _UI_SETTINGS else _to_bool(os.getenv('BROLL_SELECTOR_ENABLED') or os.getenv('AI_BROLL_SELECTOR_ENABLED'), default=True)
 
@@ -2530,14 +2531,14 @@ class Config:
         else _to_bool(_ENV_LEAK_TRANSITION, default=False)
     )
 
-# ðŸš€ SUPPRIMÃ‰: Fonction _detect_local_llm obsolÃ¨te
-# RemplacÃ©e par le systÃ¨me LLM industriel qui gÃ¨re automatiquement la dÃ©tection
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ SUPPRIMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: Fonction _detect_local_llm obsolÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨te
+# RemplacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e par le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me LLM industriel qui gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨re automatiquement la dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tection
 
-# ðŸš€ SUPPRIMÃ‰: Ancien systÃ¨me LLM obsolÃ¨te remplacÃ© par le systÃ¨me industriel
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ SUPPRIMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: Ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me LLM obsolÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨te remplacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© par le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me industriel
 # Cette fonction utilisait l'ancien prompt complexe et causait des timeouts
-# Maintenant remplacÃ©e par le systÃ¨me LLM industriel dans generate_caption_and_hashtags
-# ðŸš€ SUPPRIMÃ‰: Reste de l'ancien systÃ¨me LLM obsolÃ¨te
-# Toute cette logique complexe est maintenant remplacÃ©e par le systÃ¨me industriel
+# Maintenant remplacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e par le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me LLM industriel dans generate_caption_and_hashtags
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ SUPPRIMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: Reste de l'ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me LLM obsolÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨te
+# Toute cette logique complexe est maintenant remplacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e par le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me industriel
 
 
 _SMART_REF_CACHE: Dict[str, str] = {}
@@ -2996,10 +2997,10 @@ def _enforce_broll_runtime_constraints(
 
     return kept
 
-# === IA: Analyse mots-clÃ©s et prompts visuels pour guider le B-roll ===
+# === IA: Analyse mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s et prompts visuels pour guider le B-roll ===
 
 def extract_keywords_from_transcript_ai(transcript_segments: List[Dict]) -> Dict:
-    """Analyse simple: thÃ¨mes, occurrences et timestamps pour B-roll contextuel."""
+    """Analyse simple: thÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨mes, occurrences et timestamps pour B-roll contextuel."""
     keyword_categories = {
         'money': ['money', 'cash', 'dollars', 'profit', 'revenue', 'income', 'wealth'],
         'business': ['business', 'company', 'startup', 'entrepreneur', 'strategy'],
@@ -3009,7 +3010,7 @@ def extract_keywords_from_transcript_ai(transcript_segments: List[Dict]) -> Dict
         'emotion_positive': ['amazing', 'incredible', 'fantastic', 'awesome', 'fire'],
         'emotion_negative': ['problem', 'issue', 'difficult', 'challenge', 'fail'],
         'action': ['build', 'create', 'launch', 'start', 'implement', 'execute'],
-        # ðŸš€ NOUVELLES CATÃ‰GORIES pour contenu cerveau/mental/neurosciences
+        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVELLES CATÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°GORIES pour contenu cerveau/mental/neurosciences
         'brain_mind': ['brain', 'mind', 'mental', 'neuroscience', 'neural', 'cognitive', 'psychology'],
         'health_wellness': ['health', 'wellness', 'nutrition', 'nutrients', 'supplements', 'fitness', 'energy'],
         'learning_growth': ['learn', 'learning', 'growth', 'development', 'improvement', 'potential', 'capability'],
@@ -3027,11 +3028,11 @@ def extract_keywords_from_transcript_ai(transcript_segments: List[Dict]) -> Dict
                 for seg in transcript_segments:
                     text = (seg.get('text') or '').lower()
                     if kw in text:
-                        # ðŸš€ CORRECTION: Gestion robuste des timestamps avec slice objects
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: Gestion robuste des timestamps avec slice objects
                         start_val = seg.get('start', 0.0)
                         end_val = seg.get('end', 0.0)
                         
-                        # Convertir slice objects en float si nÃ©cessaire
+                        # Convertir slice objects en float si nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessaire
                         if hasattr(start_val, 'start'):  # Si c'est un slice
                             start_val = start_val.start or 0.0
                         if hasattr(end_val, 'start'):  # Si c'est un slice
@@ -3048,12 +3049,12 @@ def extract_keywords_from_transcript_ai(transcript_segments: List[Dict]) -> Dict
         dominant_theme = max(detected_keywords.items(), key=lambda x: len(x[1]))[0]
     except Exception:
         pass
-    # ðŸš€ CORRECTION CRITIQUE: Gestion robuste du timestamp final
+    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION CRITIQUE: Gestion robuste du timestamp final
     total_duration = 0.0
     if transcript_segments:
         try:
             last_end = transcript_segments[-1].get('end', 0.0)
-            # Convertir slice object en float si nÃ©cessaire
+            # Convertir slice object en float si nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessaire
             if hasattr(last_end, 'start'):  # Si c'est un slice
                 last_end = last_end.start or 0.0
             total_duration = float(last_end)
@@ -3072,7 +3073,7 @@ def generate_broll_prompts_ai(keyword_analysis: Dict) -> List[Dict]:
     """Generate B-roll prompts using AI analysis."""
     try:
         # Extract main theme and keywords
-        main_theme = keyword_analysis.get('dominant_theme', 'general')  # ðŸš€ CORRECTION: ClÃ© correcte
+        main_theme = keyword_analysis.get('dominant_theme', 'general')  # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: ClÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© correcte
         keywords = keyword_analysis.get('keywords', {})
         sentiment = keyword_analysis.get('sentiment', 0.0)
         
@@ -3114,13 +3115,13 @@ def generate_broll_prompts_ai(keyword_analysis: Dict) -> List[Dict]:
             ])
         else:
             # Generic prompts for other themes  
-            # ðŸš€ CORRECTION: keywords est un dict, pas une liste
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: keywords est un dict, pas une liste
             if keywords and isinstance(keywords, dict):
-                # Extraire les premiers mots-clÃ©s de toutes les catÃ©gories
+                # Extraire les premiers mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s de toutes les catÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gories
                 all_kws = []
                 for category_kws in keywords.values():
                     if isinstance(category_kws, list):
-                        all_kws.extend(category_kws[:2])  # 2 par catÃ©gorie
+                        all_kws.extend(category_kws[:2])  # 2 par catÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gorie
                 base_keywords = all_kws[:3] if all_kws else [main_theme]
             else:
                 base_keywords = [main_theme]
@@ -3140,14 +3141,14 @@ def generate_broll_prompts_ai(keyword_analysis: Dict) -> List[Dict]:
         return unique_prompts
         
     except Exception as e:
-        print(f"âš ï¸ Erreur gÃ©nÃ©ration prompts AI: {e}")
+        print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration prompts AI: {e}")
         # Fallback prompts
         return ['general content', 'people working', 'modern technology']
 
 class VideoProcessor:
     _shared_llm_service = None
 
-    """Classe principale pour traiter les vidÃ©os"""
+    """Classe principale pour traiter les vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©os"""
 
     def __init__(self):
         emit_dependency_status()
@@ -3156,7 +3157,7 @@ class VideoProcessor:
         else:
             self.whisper_model = whisper.load_model(Config.WHISPER_MODEL)
         _setup_directories()
-        # Cache Ã©ventuel pour spaCy
+        # Cache ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ventuel pour spaCy
         self._spacy_model = None
 
         if VideoProcessor._shared_llm_service is None:
@@ -3246,7 +3247,7 @@ class VideoProcessor:
         if not getattr(self, "_llm_throttle_notice_emitted", False):
             if jitter > 0.0:
                 logger.info(
-                    "[LLM] applying request cooldown: base %.2fs (+0�%.2fs jitter)",
+                    "[LLM] applying request cooldown: base %.2fs (+0Ã¢â‚¬â€œ%.2fs jitter)",
                     cooldown,
                     jitter,
                 )
@@ -3265,12 +3266,12 @@ class VideoProcessor:
         self._llm_next_request_ready = now + delay
 
     def _setup_directories(self):
-        """CrÃ©e les dossiers nÃ©cessaires"""
+        """CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e les dossiers nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessaires"""
         for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
             folder.mkdir(parents=True, exist_ok=True)
     
     def _generate_unique_output_dir(self, clip_stem: str) -> Path:
-        """CrÃ©e un dossier unique pour ce clip sous output/clips/<stem>[-NNN]"""
+        """CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e un dossier unique pour ce clip sous output/clips/<stem>[-NNN]"""
         root = Config.OUTPUT_FOLDER / 'clips'
         root.mkdir(parents=True, exist_ok=True)
         base = root / clip_stem
@@ -3665,14 +3666,14 @@ class VideoProcessor:
             except Exception:
                 debug_keys = []
             print(f"    ?? DEBUG metadata_payload keys: {debug_keys}")
-            debug_preview = metadata_queries_raw[:5] if metadata_queries_raw else "VIDE - Va r�g�n�rer !"
+            debug_preview = metadata_queries_raw[:5] if metadata_queries_raw else "VIDE - Va rÃƒÂ©gÃƒÂ©nÃƒÂ©rer !"
             print(f"    ?? DEBUG queries found: {debug_preview}")
             base_llm_queries = _relaxed_normalise_terms(metadata_queries_raw, metadata_query_cap)
             print(
-                f"    ?? DEBUG llm_queries apr�s normalisation: {base_llm_queries[:5]}"
+                f"    ?? DEBUG llm_queries aprÃƒÂ¨s normalisation: {base_llm_queries[:5]}"
             )
             if not base_llm_queries:
-                print("    ?? llm_queries VIDE apr�s normalisation !")
+                print("    ?? llm_queries VIDE aprÃƒÂ¨s normalisation !")
             if not base_llm_queries:
                 broll_kw = metadata_payload.get("broll_keywords") or []
                 print(f"    ?? Queries vides ! Utilisation broll_keywords: {broll_kw[:5]}")
@@ -3795,7 +3796,7 @@ class VideoProcessor:
 
             try:
                 print(
-                    f"    ?? DEBUG final_queries RE�UES: {final_queries[:5]}"
+                    f"    ?? DEBUG final_queries REÃƒâ€¡UES: {final_queries[:5]}"
                 )
             except Exception:
                 pass
@@ -4248,7 +4249,7 @@ class VideoProcessor:
                 if forced_keep_remaining is not None:
                     forced_keep_remaining = max(0, forced_keep_remaining - 1)
                 forced_keep_consumed += 1
-                remaining_display = 'âˆž' if forced_keep_remaining is None else forced_keep_remaining
+                remaining_display = 'ÃƒÆ’Ã‚Â¢Ãƒâ€¹Ã¢â‚¬Â Ãƒâ€¦Ã‚Â¾' if forced_keep_remaining is None else forced_keep_remaining
                 score_display = (
                     f"{float(best_score):.3f}"
                     if isinstance(best_score, (int, float))
@@ -4695,14 +4696,14 @@ class VideoProcessor:
 
             providers_display = ", ".join(f"{k}:{v}" for k, v in provider_mix.items()) or "none"
             render_ok_value = summary_payload.get('render_ok')
-            icon = "ðŸ“Š" if render_ok_value else "âš ï¸"
+            icon = "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â " if render_ok_value else "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â"
             suffix = ""
             if final_inserted == 0 and initial_selected > 0:
-                suffix = " (Ã©chec du tÃ©lÃ©chargement/rendu)"
+                suffix = " (ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chec du tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chargement/rendu)"
             elif final_inserted > 0 and not render_ok_value:
                 suffix = " (rendu indisponible)"
             print(
-                f"    {icon} B-roll sÃ©lectionnÃ©s: {final_inserted}/{total_segments} "
+                f"    {icon} B-roll sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lectionnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {final_inserted}/{total_segments} "
                 f"({selection_rate * 100:.1f}%); providers={providers_display}{suffix}"
             )
         except Exception:
@@ -5689,7 +5690,7 @@ class VideoProcessor:
             pass
 
     def _hardlink_or_copy(self, src: Path, dst: Path) -> None:
-        """CrÃ©e un hardlink si possible, sinon copie le fichier."""
+        """CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e un hardlink si possible, sinon copie le fichier."""
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
             if getattr(Config, 'USE_HARDLINKS', True):
@@ -5742,29 +5743,29 @@ class VideoProcessor:
         except Exception:
             pass
 
-    # ðŸš¨ CORRECTION CRITIQUE: MÃ©thodes manquantes pour le sÃ©lecteur B-roll
+    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION CRITIQUE: MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©thodes manquantes pour le sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll
     def _load_broll_selector_config(self):
-        """Charge la configuration du sÃ©lecteur B-roll depuis le fichier YAML"""
+        """Charge la configuration du sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll depuis le fichier YAML"""
         try:
             import yaml
             if Config.BROLL_SELECTOR_CONFIG_PATH.exists():
                 with open(Config.BROLL_SELECTOR_CONFIG_PATH, 'r', encoding='utf-8') as f:
                     return yaml.safe_load(f) or {}
             else:
-                print(f"    âš ï¸ Fichier de configuration introuvable: {Config.BROLL_SELECTOR_CONFIG_PATH}")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Fichier de configuration introuvable: {Config.BROLL_SELECTOR_CONFIG_PATH}")
                 return {}
         except Exception as e:
-            print(f"    âš ï¸ Erreur chargement configuration: {e}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur chargement configuration: {e}")
             return {}
 
     def _calculate_asset_hash(self, asset_path: Path) -> str:
-        """Calcule un hash unique pour un asset B-roll basÃ© sur son contenu et mÃ©tadonnÃ©es"""
+        """Calcule un hash unique pour un asset B-roll basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur son contenu et mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es"""
         try:
             import hashlib
             import os
             from datetime import datetime
             
-            # Hash basÃ© sur le nom, la taille et la date de modification
+            # Hash basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur le nom, la taille et la date de modification
             stat = asset_path.stat()
             hash_data = f"{asset_path.name}_{stat.st_size}_{stat.st_mtime}"
             return hashlib.md5(hash_data.encode()).hexdigest()
@@ -5773,11 +5774,11 @@ class VideoProcessor:
             return str(asset_path.name)
 
     def _extract_keywords_for_segment_spacy(self, text: str) -> List[str]:
-        """Extraction optionnelle (spaCy) de mots-clÃ©s (noms/verbes/entitÃ©s). Fallback heuristique si indisponible."""
+        """Extraction optionnelle (spaCy) de mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s (noms/verbes/entitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s). Fallback heuristique si indisponible."""
         try:
             import re as _re
             
-            # ðŸš¨ CORRECTION IMMÃ‰DIATE: Filtre des mots gÃ©nÃ©riques inutiles
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION IMMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°DIATE: Filtre des mots gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques inutiles
             GENERIC_WORDS = {
                 'very', 'much', 'many', 'some', 'any', 'all', 'each', 'every', 'few', 'several',
                 'reflexes', 'speed', 'clear', 'good', 'bad', 'big', 'small', 'new', 'old', 'high', 'low',
@@ -5842,7 +5843,7 @@ class VideoProcessor:
                             selector_keywords = fetch_keywords[:]
                         if not fetch_keywords:
                             fetch_keywords = selector_keywords[:8] if selector_keywords else ['motivation','reward','focus','success','mindset']
-            # ðŸš¨ CORRECTION IMMÃ‰DIATE: Prioriser les mots contextuels importants
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION IMMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°DIATE: Prioriser les mots contextuels importants
             PRIORITY_WORDS = {
                 'neuroscience', 'brain', 'mind', 'consciousness', 'cognitive', 'mental', 'psychology',
                 'medical', 'health', 'treatment', 'research', 'science', 'discovery', 'innovation',
@@ -5850,7 +5851,7 @@ class VideoProcessor:
                 'business', 'success', 'growth', 'strategy', 'leadership', 'entrepreneur', 'startup'
             }
             
-            # RÃ©organiser pour prioriser les mots importants
+            # RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©organiser pour prioriser les mots importants
             priority_keywords = [kw for kw in keywords if kw in PRIORITY_WORDS]
             other_keywords = [kw for kw in keywords if kw not in PRIORITY_WORDS]
             
@@ -5862,22 +5863,22 @@ class VideoProcessor:
 
     def process_all_clips(self, input_video_path: str):
         """Pipeline principal de traitement"""
-        logger.info("ðŸš€ DÃ©but du pipeline de traitement")
-        print("ðŸŽ¬ DÃ©marrage du pipeline de traitement...")
+        logger.info("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©but du pipeline de traitement")
+        print("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©marrage du pipeline de traitement...")
         
-        # Ã‰tape 1: DÃ©coupage (votre IA existante)
+        # ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tape 1: DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©coupage (votre IA existante)
         
-        # Ã‰tape 2: Traitement de chaque clip
+        # ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tape 2: Traitement de chaque clip
         clip_files = list(Config.CLIPS_FOLDER.glob("*.mp4"))
         total_clips = len(clip_files)
         
-        print(f"ðŸ“ {total_clips} clips trouvÃ©s dans le dossier clips/")
+        print(f"ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â {total_clips} clips trouvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s dans le dossier clips/")
         
         for i, clip_path in enumerate(clip_files):
-            print(f"\nðŸŽ¬ [{i+1}/{total_clips}] Traitement de: {clip_path.name}")
-            logger.info(f"ðŸŽ¬ Traitement du clip {i+1}/{total_clips}: {clip_path.name}")
+            print(f"\nÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ [{i+1}/{total_clips}] Traitement de: {clip_path.name}")
+            logger.info(f"ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ Traitement du clip {i+1}/{total_clips}: {clip_path.name}")
             
-            # Skip si dÃ©jÃ  traitÃ©
+            # Skip si dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
             stem = Path(clip_path).stem
             final_dir = Config.OUTPUT_FOLDER / 'final'
             processed_already = False
@@ -5885,8 +5886,8 @@ class VideoProcessor:
                 matches = list(final_dir.glob(f"final_{stem}*.mp4"))
                 processed_already = len(matches) > 0
             if processed_already:
-                print(f"â© Clip dÃ©jÃ  traitÃ©, ignorÃ© : {clip_path.name}")
-                logger.info(f"â© Clip dÃ©jÃ  traitÃ©, ignorÃ© : {clip_path.name}")
+                print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â© Clip dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©, ignorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© : {clip_path.name}")
+                logger.info(f"ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â© Clip dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©, ignorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© : {clip_path.name}")
                 continue
 
             # Verrou concurrentiel par clip
@@ -5894,16 +5895,16 @@ class VideoProcessor:
             locks_dir.mkdir(parents=True, exist_ok=True)
             lock_file = locks_dir / f"{stem}.lock"
             if lock_file.exists():
-                print(f"â­ï¸ Verrou dÃ©tectÃ©, saut du clip: {clip_path.name}")
+                print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â­ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Verrou dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tectÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©, saut du clip: {clip_path.name}")
                 continue
             try:
                 lock_file.write_text("locked", encoding='utf-8')
                 self.process_single_clip(clip_path)
-                print(f"âœ… Clip {clip_path.name} traitÃ© avec succÃ¨s")
-                logger.info(f"âœ… Clip {clip_path.name} traitÃ© avec succÃ¨s")
+                print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Clip {clip_path.name} traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© avec succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s")
+                logger.info(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Clip {clip_path.name} traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© avec succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s")
             except Exception as e:
-                print(f"âŒ Erreur lors du traitement de {clip_path.name}: {e}")
-                logger.error(f"âŒ Erreur lors du traitement de {clip_path.name}: {e}")
+                print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur lors du traitement de {clip_path.name}: {e}")
+                logger.error(f"ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur lors du traitement de {clip_path.name}: {e}")
             finally:
                 try:
                     if lock_file.exists():
@@ -5911,15 +5912,15 @@ class VideoProcessor:
                 except Exception:
                     pass
         
-        print(f"\nðŸŽ‰ Pipeline terminÃ© ! {total_clips} clips traitÃ©s.")
-        logger.info("ðŸŽ‰ Pipeline terminÃ© avec succÃ¨s")
-        # Purge B-roll (librairie + caches) si demandÃ© pour garder le disque lÃ©ger
+        print(f"\nÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° Pipeline terminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© ! {total_clips} clips traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s.")
+        logger.info("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° Pipeline terminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© avec succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s")
+        # Purge B-roll (librairie + caches) si demandÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© pour garder le disque lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ger
         try:
             if getattr(Config, 'BROLL_PURGE_AFTER_RUN', False):
                 self._purge_broll_caches()
         except Exception:
             pass
-        # AgrÃ©ger un rapport global mÃªme sans --json-report
+        # AgrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ger un rapport global mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªme sans --json-report
         try:
             final_dir = (Config.OUTPUT_FOLDER / 'final')
             items = []
@@ -5936,22 +5937,22 @@ class VideoProcessor:
 
     def cut_viral_clips(self, input_video_path: str):
         """
-        Interface pour votre IA de dÃ©coupage existante
-        Remplacez cette mÃ©thode par votre implÃ©mentation
+        Interface pour votre IA de dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©coupage existante
+        Remplacez cette mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©thode par votre implÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©mentation
         """
-        logger.info("ðŸ“¼ DÃ©coupage des clips avec IA...")
+        logger.info("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¼ DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©coupage des clips avec IA...")
         
         # Exemple basique - remplacez par votre IA
         video = VideoFileClip(input_video_path)
         duration = video.duration
         
-        # DÃ©coupage adaptatif selon la durÃ©e
+        # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©coupage adaptatif selon la durÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e
         if duration <= 30:
-            # VidÃ©o courte : utiliser toute la vidÃ©o
+            # VidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o courte : utiliser toute la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o
             segment_duration = duration
             segments = 1
         else:
-            # VidÃ©o longue : dÃ©couper en segments de 30 secondes
+            # VidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o longue : dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©couper en segments de 30 secondes
             segment_duration = 30
             segments = max(1, int(duration // segment_duration))
         
@@ -5964,7 +5965,7 @@ class VideoProcessor:
             clip.write_videofile(str(output_path), logger=None)
         
         video.close()
-        logger.info(f"âœ… {segments} clips gÃ©nÃ©rÃ©s")
+        logger.info(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ {segments} clips gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
     
     def _process_single_clip_impl(self, clip_path: Path, *, verbose: bool = False):
         """Traite un clip individuel (reframe -> transcription (pour B-roll) -> B-roll -> sous-titres)"""
@@ -5975,12 +5976,12 @@ class VideoProcessor:
         except Exception:
             pass
 
-        # Dossier de sortie dÃ©diÃ© et unique
+        # Dossier de sortie dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©diÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© et unique
         per_clip_dir = self._generate_unique_output_dir(clip_path.stem)
         
-        print(f"  ðŸ“ Ã‰tape 1/4: Reframe dynamique IA...")
+        print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tape 1/4: Reframe dynamique IA...")
         reframed_path = self.reframe_to_vertical(clip_path)
-        # DÃ©placer artefact reframed dans le dossier du clip
+        # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©placer artefact reframed dans le dossier du clip
         try:
             dst_reframed = per_clip_dir / 'reframed.mp4'
             if Path(reframed_path).exists():
@@ -5989,11 +5990,11 @@ class VideoProcessor:
         except Exception:
             pass
         
-        print(f"  ðŸ—£ï¸ Ã‰tape 2/4: Transcription Whisper (guide B-roll)...")
-        # Transcrire tÃ´t pour guider la sÃ©lection B-roll (SRT disponible)
+        print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒâ€šÃ‚Â£ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tape 2/4: Transcription Whisper (guide B-roll)...")
+        # Transcrire tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´t pour guider la sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection B-roll (SRT disponible)
         subtitles = self.transcribe_segments(reframed_path)
         try:
-            # Ã‰crire un SRT Ã  cÃ´tÃ© de la vidÃ©o reframÃ©e
+            # ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°crire un SRT ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© de la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o reframÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e
             srt_reframed = reframed_path.with_suffix('.srt')
             write_srt(subtitles, srt_reframed)
             # Sauvegarder transcription segments JSON
@@ -6003,51 +6004,51 @@ class VideoProcessor:
         except Exception:
             pass
         
-        print(f"  ðŸŽžï¸ Ã‰tape 3/4: Insertion des B-rolls {'(activÃ©e)' if getattr(Config, 'ENABLE_BROLL', False) else '(dÃ©sactivÃ©e)'}...")
+        print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tape 3/4: Insertion des B-rolls {'(activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e)' if getattr(Config, 'ENABLE_BROLL', False) else '(dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sactivÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e)'}...")
         
-        # ðŸš€ CORRECTION: GÃ©nÃ©rer les mots-clÃ©s LLM AVANT l'insertion des B-rolls
+        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM AVANT l'insertion des B-rolls
         metadata: Dict[str, Any] = {}
         broll_keywords: List[str] = []
         title = ""
         description = ""
         hashtags: List[str] = []
         try:
-            print("    ðŸ¤– GÃ©nÃ©ration prÃ©coce des mots-clÃ©s LLM pour B-rolls...")
+            print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©coce des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM pour B-rolls...")
             metadata = self.generate_caption_and_hashtags(subtitles) or {}
             title = str(metadata.get('title') or '').strip()
             description = str(metadata.get('description') or '').strip()
             hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
             broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
-            print(f"    âœ… Mots-clÃ©s B-roll LLM gÃ©nÃ©rÃ©s: {len(broll_keywords)} termes")
-            print(f"    ðŸŽ¯ Exemples: {', '.join(broll_keywords[:5])}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll LLM gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {len(broll_keywords)} termes")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Exemples: {', '.join(broll_keywords[:5])}")
         except Exception as e:
-            print(f"    âš ï¸ Erreur gÃ©nÃ©ration mots-clÃ©s LLM: {e}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM: {e}")
             broll_keywords = []
         
-        # Maintenant insÃ©rer les B-rolls avec les mots-clÃ©s LLM disponibles
+        # Maintenant insÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer les B-rolls avec les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM disponibles
         with_broll_path = self.insert_brolls_if_enabled(reframed_path, subtitles, broll_keywords)
         
-        # Copier artefact with_broll si diffÃ©rent
+        # Copier artefact with_broll si diffÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rent
         try:
             if with_broll_path and with_broll_path != reframed_path:
                 self._safe_copy(with_broll_path, per_clip_dir / 'with_broll.mp4')
         except Exception:
             pass
         
-        print(f"  âœ¨ Ã‰tape 4/4: Ajout des sous-titres Hormozi 1...")
-        # GÃ©nÃ©rer meta (titre/hashtags) depuis transcription (dÃ©jÃ  fait)
+        print(f"  ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¨ ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tape 4/4: Ajout des sous-titres Hormozi 1...")
+        # GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer meta (titre/hashtags) depuis transcription (dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  fait)
         try:
-            # RÃ©utiliser les donnÃ©es dÃ©jÃ  gÃ©nÃ©rÃ©es
-            if not broll_keywords:  # Fallback si pas encore gÃ©nÃ©rÃ©
+            # RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©utiliser les donnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es
+            if not broll_keywords:  # Fallback si pas encore gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                 metadata = self.generate_caption_and_hashtags(subtitles) or metadata or {}
                 title = str(metadata.get('title') or '').strip()
                 description = str(metadata.get('description') or '').strip()
                 hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
                 broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
 
-            print(f"  ðŸ“ Title: {title}")
-            print(f"  ðŸ“ Description: {description}")
-            print(f"  #ï¸âƒ£ Hashtags: {' '.join(hashtags)}")
+            print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Title: {title}")
+            print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Description: {description}")
+            print(f"  #ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢Ãƒâ€ Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â£ Hashtags: {' '.join(hashtags)}")
             meta_path = per_clip_dir / 'meta.txt'
             with open(meta_path, 'w', encoding='utf-8') as f:
                 f.write(
@@ -6056,19 +6057,19 @@ class VideoProcessor:
                     "Hashtags: " + ' '.join(hashtags) + "\n\n" +
                     "B-roll Keywords: " + ', '.join(broll_keywords) + "\n"
                 )
-            print(f"  ðŸ“ [MÃ‰TADONNÃ‰ES] Fichier meta.txt sauvegardÃ©: {meta_path}")
+            print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â [MÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°TADONNÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°ES] Fichier meta.txt sauvegardÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {meta_path}")
         except Exception as e:
-            print(f"  âš ï¸ [ERREUR MÃ‰TADONNÃ‰ES] {e}")
-            # Fallback: crÃ©er des mÃ©tadonnÃ©es basiques
+            print(f"  ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â [ERREUR MÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°TADONNÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°ES] {e}")
+            # Fallback: crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er des mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es basiques
             try:
                 meta_path = per_clip_dir / 'meta.txt'
                 with open(meta_path, 'w', encoding='utf-8') as f:
-                    f.write("Title: VidÃ©o gÃ©nÃ©rÃ©e automatiquement\n\nDescription: Contenu gÃ©nÃ©rÃ© par pipeline vidÃ©o\n\nHashtags: #video #auto\n\nB-roll Keywords: video, content\n")
-                print(f"  ðŸ“ [FALLBACK] MÃ©tadonnÃ©es de base sauvegardÃ©es: {meta_path}")
+                    f.write("Title: VidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e automatiquement\n\nDescription: Contenu gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© par pipeline vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o\n\nHashtags: #video #auto\n\nB-roll Keywords: video, content\n")
+                print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â [FALLBACK] MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es de base sauvegardÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es: {meta_path}")
             except Exception as e2:
-                print(f"  âŒ [ERREUR FALLBACK] {e2}")
+                print(f"  ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ [ERREUR FALLBACK] {e2}")
         
-        # Appliquer style Hormozi sur la vidÃ©o post B-roll
+        # Appliquer style Hormozi sur la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o post B-roll
         subtitled_out_dir = per_clip_dir
         subtitled_out_dir.mkdir(parents=True, exist_ok=True)
         final_subtitled_path = subtitled_out_dir / 'final_subtitled.mp4'
@@ -6078,14 +6079,14 @@ class VideoProcessor:
             final_subtitled_path,
         )
         
-        # Export final accumulÃ© dans output/final/ et sous-titrÃ© (burn-in) dans output/subtitled/
+        # Export final accumulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© dans output/final/ et sous-titrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© (burn-in) dans output/subtitled/
         final_dir = Config.OUTPUT_FOLDER / 'final'
         subtitled_dir = Config.OUTPUT_FOLDER / 'subtitled'
         # Noms de base sans extension
         base_name = clip_path.stem
         output_path = self._unique_path(final_dir, f"final_{base_name}", ".mp4")
         try:
-            # Choisir source finale: si sous-titrÃ©e existe sinon with_broll sinon reframed
+            # Choisir source finale: si sous-titrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e existe sinon with_broll sinon reframed
             source_final = None
             if final_subtitled_path.exists():
                 source_final = final_subtitled_path
@@ -6095,7 +6096,7 @@ class VideoProcessor:
                 source_final = reframed_path
             if source_final and Path(source_final).exists():
                 self._hardlink_or_copy(source_final, output_path)
-                # Ecrire SRT: Ã©viter le doublon si la vidÃ©o finale a dÃ©jÃ  les sous-titres incrustÃ©s
+                # Ecrire SRT: ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©viter le doublon si la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o finale a dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  les sous-titres incrustÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                 is_burned = (final_subtitled_path.exists() and Path(source_final) == Path(final_subtitled_path))
                 if not is_burned:
                     srt_out = output_path.with_suffix('.srt')
@@ -6108,12 +6109,12 @@ class VideoProcessor:
                     except Exception:
                         pass
                 else:
-                    # Produire uniquement une SRT dans le dossier du clip, pas Ã  cÃ´tÃ© du MP4 final
+                    # Produire uniquement une SRT dans le dossier du clip, pas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© du MP4 final
                     try:
                         write_srt(subtitles, per_clip_dir / 'final.srt')
                     except Exception:
                         pass
-                # Toujours produire un VTT Ã  cÃ´tÃ© du final pour compat
+                # Toujours produire un VTT ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© du final pour compat
                 try:
                     vtt_out = output_path.with_suffix('.vtt')
                     write_vtt(subtitles, vtt_out)
@@ -6121,20 +6122,20 @@ class VideoProcessor:
                     pass
                 # Copier final dans dossier clip
                 self._hardlink_or_copy(output_path, per_clip_dir / 'final.mp4')
-                # Si une version sous-titrÃ©e burn-in existe, la dupliquer dans output/subtitled/
+                # Si une version sous-titrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e burn-in existe, la dupliquer dans output/subtitled/
                 if final_subtitled_path.exists():
                     subtitled_out = self._unique_path(subtitled_dir, f"{base_name}_subtitled", ".mp4")
                     self._hardlink_or_copy(final_subtitled_path, subtitled_out)
-                # Copier meta.txt Ã  cÃ´tÃ© du final accumulÃ©
+                # Copier meta.txt ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© du final accumulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                 try:
                     meta_src = per_clip_dir / 'meta.txt'
                     if meta_src.exists():
                         self._hardlink_or_copy(meta_src, output_path.with_suffix('.txt'))
                 except Exception:
                     pass
-                # Ecrire un JSON rÃ©cap par clip
+                # Ecrire un JSON rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cap par clip
                 try:
-                    # DurÃ©e et hash final
+                    # DurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e et hash final
                     final_duration = None
                     try:
                         with VideoFileClip(str(output_path)) as vc:
@@ -6183,17 +6184,17 @@ class VideoProcessor:
                         pass
                 except Exception:
                     pass
-                print(f"  ðŸ“¤ Export terminÃ©: {output_path.name}")
-                # Nettoyage des intermÃ©diaires pour limiter l'empreinte disque
+                print(f"  ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¤ Export terminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {output_path.name}")
+                # Nettoyage des intermÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©diaires pour limiter l'empreinte disque
                 self._cleanup_files([
                     with_broll_path if with_broll_path and with_broll_path != output_path else None,
                 ])
                 return output_path
             else:
-                print(f"  âš ï¸ Fichier final introuvable")
+                print(f"  ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Fichier final introuvable")
                 return None
         except Exception as e:
-            print(f"  âŒ Erreur export: {e}")
+            print(f"  ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur export: {e}")
             return None
 
     def _get_sample_times(self, duration: float, fps: int) -> List[float]:
@@ -6205,7 +6206,7 @@ class VideoProcessor:
             return list(np.arange(0, duration, 4/fps))
 
     def _smooth_trajectory(self, x_centers: List[float], window_size: int = 15) -> List[float]:
-        # FenÃªtre plus grande pour un lissage plus smooth
+        # FenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªtre plus grande pour un lissage plus smooth
         window_size = max(window_size, 31)
         if len(x_centers) < window_size:
             kernel = np.ones(min(9, len(x_centers))) / max(1, min(9, len(x_centers)))
@@ -6216,7 +6217,7 @@ class VideoProcessor:
         except Exception:
             kernel = np.ones(window_size) / window_size
             smoothed = np.convolve(x_centers, kernel, mode='same').tolist()
-        # EMA additionnel pour attÃ©nuer le jitter haute frÃ©quence
+        # EMA additionnel pour attÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nuer le jitter haute frÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©quence
         alpha = 0.15  # plus petit = plus lisse
         ema = []
         last = smoothed[0] if smoothed else 0.5
@@ -6321,7 +6322,7 @@ class VideoProcessor:
                 face_module = None
         if pose_module is not None and face_module is not None:
             with pose_module.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.8) as pose, face_module.FaceDetection(model_selection=0, min_detection_confidence=0.7) as face_detection:
-                for t in tqdm(sample_times, desc="ðŸ”Ž IA focus", leave=False):
+                for t in tqdm(sample_times, desc="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â½ IA focus", leave=False):
                     try:
                         frame = video.get_frame(t)  # MoviePy retourne des frames RGB
                         image_rgb = frame
@@ -6332,7 +6333,7 @@ class VideoProcessor:
                     except Exception:
                         x_centers.append(0.5)
         else:
-            for t in tqdm(sample_times, desc="ðŸ”Ž IA focus", leave=False):
+            for t in tqdm(sample_times, desc="ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â½ IA focus", leave=False):
                 try:
                     frame = video.get_frame(t)  # MoviePy retourne des frames RGB
                     center = self._detect_center_from_edges(frame)
@@ -6342,18 +6343,18 @@ class VideoProcessor:
         return self._interpolate_trajectory(x_centers, sample_times, duration, fps)
 
     def reframe_to_vertical(self, clip_path: Path) -> Path:
-        """Reframe dynamique basÃ© sur dÃ©tection IA optimisÃ©e"""
-        logger.info("ðŸŽ¯ Reframe dynamique avec IA (optimisÃ©)")
-        print("    ðŸŽ¯ DÃ©tection IA en cours...")
+        """Reframe dynamique basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tection IA optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e"""
+        logger.info("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Reframe dynamique avec IA (optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©)")
+        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tection IA en cours...")
         video = VideoFileClip(str(clip_path))
         fps = int(video.fps)
         duration = video.duration
-        # DÃ©tection des centres d'intÃ©rÃªt
+        # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tection des centres d'intÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªt
         x_centers = self._detect_focus_points(video, fps, duration)
         x_centers_smooth = self._smooth_trajectory(x_centers, window_size=min(15, max(5, len(x_centers)//4)))
         frame_index = 0
         applied_x_center_px = None
-        beta = 0.85  # amortissement (0.85 = trÃ¨s smooth)
+        beta = 0.85  # amortissement (0.85 = trÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s smooth)
         def crop_frame(frame):
             nonlocal frame_index
             nonlocal applied_x_center_px
@@ -6366,7 +6367,7 @@ class VideoProcessor:
             # Initialisation EMA
             if applied_x_center_px is None:
                 applied_x_center_px = x_target_px
-            # Clamp vitesse de dÃ©placement + deadband
+            # Clamp vitesse de dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©placement + deadband
             shift = x_target_px - applied_x_center_px
             deadband_px = w * 0.003
             if abs(shift) < deadband_px:
@@ -6380,7 +6381,7 @@ class VideoProcessor:
             # EMA amorti
             applied_x_center_px = beta * applied_x_center_px + (1 - beta) * x_clamped
             
-            # ðŸš¨ CORRECTION BUG: Forcer des dimensions paires pour H.264
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION BUG: Forcer des dimensions paires pour H.264
             target_width = Config.TARGET_WIDTH
             target_height = Config.TARGET_HEIGHT
             
@@ -6388,7 +6389,7 @@ class VideoProcessor:
             crop_width = int(target_width * h / target_height)
             crop_width = min(crop_width, w)
             
-            # ðŸš¨ CORRECTION: S'assurer que crop_width est pair
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION: S'assurer que crop_width est pair
             if crop_width % 2 != 0:
                 crop_width = crop_width - 1 if crop_width > 1 else crop_width + 1
             
@@ -6396,11 +6397,11 @@ class VideoProcessor:
             x2 = x1 + crop_width
             cropped = frame[:, x1:x2]
             
-            # ðŸš¨ CORRECTION: S'assurer que les dimensions finales sont paires
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION: S'assurer que les dimensions finales sont paires
             final_width = target_width
             final_height = target_height
             
-            # VÃ©rifier et corriger si nÃ©cessaire
+            # VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier et corriger si nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessaire
             if final_width % 2 != 0:
                 final_width = final_width - 1 if final_width > 1 else final_width + 1
             if final_height % 2 != 0:
@@ -6432,16 +6433,16 @@ class VideoProcessor:
                 ffmpeg_params=['-pix_fmt','yuv420p','-movflags','+faststart','-crf','20']
             )
         video.close(); reframed.close()
-        print("    âœ… Reframe terminÃ©")
+        print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Reframe terminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©")
         return output_path
     
     def transcribe_audio(self, video_path: Path) -> str:
         """Transcription avec Whisper"""
-        logger.info("ðŸ“ Transcription audio avec Whisper")
-        print("    ðŸ“ Transcription Whisper en cours...")
+        logger.info("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Transcription audio avec Whisper")
+        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Transcription Whisper en cours...")
         
         result = self.whisper_model.transcribe(str(video_path))
-        print("    âœ… Transcription terminÃ©e")
+        print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Transcription terminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e")
         return result["text"]
     
     def transcribe_segments(self, video_path: Path) -> List[Dict]:
@@ -6449,8 +6450,8 @@ class VideoProcessor:
         Transcrit l'audio en segments avec timestamps (sans rendu visuel).
         Retourne une liste de segments {'text', 'start', 'end'} et conserve les mots si fournis.
         """
-        logger.info("â±ï¸ Transcription avec timestamps")
-        print("    â±ï¸ GÃ©nÃ©ration des timestamps...")
+        logger.info("ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â±ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Transcription avec timestamps")
+        print("    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â±ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration des timestamps...")
         result = self.whisper_model.transcribe(str(video_path), word_timestamps=True)
         bias = getattr(Config, 'SUBTITLE_TIMING_BIAS_S', 0.0)
         subtitles: List[Dict] = []
@@ -6474,11 +6475,11 @@ class VideoProcessor:
                 if precise_words:
                     subtitle["words"] = precise_words
             subtitles.append(subtitle)
-        print(f"    âœ… {len(subtitles)} segments de sous-titres gÃ©nÃ©rÃ©s")
+        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ {len(subtitles)} segments de sous-titres gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
         return subtitles
 
     def generate_caption_and_hashtags(self, subtitles: List[Dict]) -> Dict[str, Any]:
-        """GÃ©nÃ¨re un dictionnaire complet de mÃ©tadonnÃ©es via le systÃ¨me LLM industriel."""
+        """GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨re un dictionnaire complet de mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es via le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me LLM industriel."""
         full_text = ' '.join(s.get('text', '') for s in subtitles)
         video_id_hint = getattr(self, '_current_video_id', None)
         if not video_id_hint:
@@ -6519,7 +6520,7 @@ class VideoProcessor:
         except Exception:
             pass
 
-        # ðŸš€ NOUVEAU: Utilisation du systÃ¨me LLM industriel
+        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Utilisation du systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me LLM industriel
         def _run_fallback(reason: Optional[str] = None):
             if reason:
                 print(reason)
@@ -6532,7 +6533,7 @@ class VideoProcessor:
                 queries_fb = fallback_meta.get('queries') or []
 
                 if not title_fb and description_fb:
-                    title_fb = (description_fb[:60] + ('â€¦' if len(description_fb) > 60 else ''))
+                    title_fb = (description_fb[:60] + ('ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦' if len(description_fb) > 60 else ''))
                 payload = _finalize_metadata(
                     'fallback',
                     title=title_fb,
@@ -6543,35 +6544,35 @@ class VideoProcessor:
                     base=fallback_meta,
                     source_label='fallback',
                 )
-                print("    ðŸª« [Fallback] MÃ©tadonnÃ©es gÃ©nÃ©rÃ©es sans LLM avancÃ©")
-                print(f"    ðŸŽ¯ Titre fallback: {title_fb}")
+                print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂªÃƒâ€šÃ‚Â« [Fallback] MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es sans LLM avancÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©")
+                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Titre fallback: {title_fb}")
                 if description_fb:
-                    print(f"    ðŸ“ Description fallback: {description_fb[:100]}...")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Description fallback: {description_fb[:100]}...")
                 if hashtags_fb:
-                    print(f"    #ï¸âƒ£ Hashtags fallback: {', '.join(hashtags_fb[:5])}...")
+                    print(f"    #ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢Ãƒâ€ Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â£ Hashtags fallback: {', '.join(hashtags_fb[:5])}...")
                 if broll_keywords_fb:
-                    print(f"    ðŸŽ¬ Mots-clÃ©s B-roll fallback: {', '.join(broll_keywords_fb[:5])}...")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll fallback: {', '.join(broll_keywords_fb[:5])}...")
                 if queries_fb:
-                    print(f"    ðŸ”Ž RequÃªtes fallback: {', '.join(queries_fb[:3])}...")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â½ RequÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªtes fallback: {', '.join(queries_fb[:3])}...")
 
                 return _remember(payload)
             return None
 
         def _run_heuristics():
-            words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9Ã©Ã¨Ã Ã¹Ã§ÃªÃ®Ã´Ã¢]+", full_text) if len(w) > 2]
+            words = [w.strip().lower() for w in re.split(r"[^a-zA-Z0-9ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂªÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢]+", full_text) if len(w) > 2]
             counts = Counter(words)
             common = [w for w, _ in counts.most_common(12) if w.isalpha()]
             hashtags_h = _sanitize_hashtags([f"#{w}" for w in common[:12]])
 
-            # ðŸš€ NOUVEAU: Mots-clÃ©s B-roll de fallback basÃ©s sur les mots communs
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll de fallback basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s sur les mots communs
             broll_keywords_h = [w for w in common if len(w) > 3][:15]
             queries_h = [f"{w} b-roll" for w in common[:8]]
 
             # Heuristic title/description
-            title_h = (full_text.strip()[:60] + ("â€¦" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
-            description_h = (full_text.strip()[:180] + ("â€¦" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
-            print("    ðŸ§© [Heuristics] Meta gÃ©nÃ©rÃ©es en fallback")
-            print(f"    ðŸ”‘ Mots-clÃ©s B-roll fallback: {', '.join(broll_keywords_h[:5])}...")
+            title_h = (full_text.strip()[:60] + ("ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" if len(full_text.strip()) > 60 else "")) if full_text.strip() else ""
+            description_h = (full_text.strip()[:180] + ("ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" if len(full_text.strip()) > 180 else "")) if full_text.strip() else ""
+            print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â© [Heuristics] Meta gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es en fallback")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll fallback: {', '.join(broll_keywords_h[:5])}...")
             payload = _finalize_metadata(
                 'heuristic',
                 title=title_h,
@@ -6584,14 +6585,14 @@ class VideoProcessor:
             return _remember(payload)
 
         if generate_metadata_as_json is None:
-            fallback_result = _run_fallback("    âš ï¸ [LLM INDUSTRIEL] Service indisponible, utilisation du fallback historique")
+            fallback_result = _run_fallback("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â [LLM INDUSTRIEL] Service indisponible, utilisation du fallback historique")
             if fallback_result:
                 return fallback_result
             return _run_heuristics()
 
         try:
             self._throttle_llm_requests()
-            print(f"    ðŸš€ [LLM INDUSTRIEL] GÃ©nÃ©ration de mÃ©tadonnÃ©es pour {len(full_text)} caractÃ¨res")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ [LLM INDUSTRIEL] GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration de mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es pour {len(full_text)} caractÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨res")
 
             meta = generate_metadata_as_json(
                 full_text,
@@ -6600,7 +6601,7 @@ class VideoProcessor:
 
             need_fallback = (not meta) or (not (meta.get('title') or meta.get('description')))
             if need_fallback:
-                fallback_result = _run_fallback("    âš ï¸ [LLM INDUSTRIEL] RÃ©ponse JSON vide ou non analysable, activation du fallback")
+                fallback_result = _run_fallback("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â [LLM INDUSTRIEL] RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ponse JSON vide ou non analysable, activation du fallback")
                 if fallback_result:
                     return fallback_result
                 return _run_heuristics()
@@ -6612,14 +6613,14 @@ class VideoProcessor:
             queries = meta.get('queries') or []
             response_len = meta.get('raw_response_length')
 
-            print(f"    âœ… [LLM INDUSTRIEL] MÃ©tadonnÃ©es gÃ©nÃ©rÃ©es avec succÃ¨s (JSON)")
-            print(f"    ðŸŽ¯ Titre: {title}")
-            print(f"    ðŸ“ Description: {description[:100]}...")
-            print(f"    #ï¸âƒ£ Hashtags JSON: {len(hashtags)} gÃ©nÃ©rÃ©s")
-            print(f"    ðŸŽ¬ Mots-clÃ©s B-roll JSON: {len(broll_keywords)} termes optimisÃ©s")
-            print(f"    ðŸ”Ž RequÃªtes JSON: {len(queries)} gÃ©nÃ©rÃ©es")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ [LLM INDUSTRIEL] MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es avec succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s (JSON)")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Titre: {title}")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Description: {description[:100]}...")
+            print(f"    #ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢Ãƒâ€ Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â£ Hashtags JSON: {len(hashtags)} gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll JSON: {len(broll_keywords)} termes optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
+            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â½ RequÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªtes JSON: {len(queries)} gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es")
             if response_len is not None:
-                print(f"    ðŸ“ RÃ©ponse LLM (caractÃ¨res): {response_len}")
+                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ponse LLM (caractÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨res): {response_len}")
 
             payload = _finalize_metadata(
                 'ok',
@@ -6634,29 +6635,29 @@ class VideoProcessor:
             return _remember(payload)
 
         except Exception as e:
-            fallback_result = _run_fallback(f"    ðŸ”„ [FALLBACK] Retour vers ancien systÃ¨me: {e}")
+            fallback_result = _run_fallback(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ [FALLBACK] Retour vers ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me: {e}")
             if fallback_result:
                 return fallback_result
 
         return _run_heuristics()
 
     def insert_brolls_if_enabled(self, input_path: Path, subtitles: List[Dict], broll_keywords: List[str]) -> Path:
-        """Point d'extension B-roll: retourne le chemin vidÃ©o aprÃ¨s insertion si activÃ©e."""
+        """Point d'extension B-roll: retourne le chemin vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s insertion si activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e."""
         if not getattr(Config, 'ENABLE_BROLL', False):
-            print("    â­ï¸ B-roll dÃ©sactivÃ©s: aucune insertion")
+            print("    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â­ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â B-roll dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sactivÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: aucune insertion")
             return input_path
 
         self._last_broll_insert_count = 0
         try:
-            # VÃ©rifier la librairie B-roll
+            # VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier la librairie B-roll
             broll_root = Path("AI-B-roll")
             broll_library = broll_root / "broll_library"
             if not broll_library.exists():
-                print("    â„¹ï¸ Librairie B-roll absente, initialisation automatique")
+                print("    ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Librairie B-roll absente, initialisation automatique")
             try:
                 broll_library.mkdir(parents=True, exist_ok=True)
             except Exception as exc:
-                print(f"    âš ï¸ Impossible de prÃ©parer AI-B-roll/broll_library ({exc}); utilisation du cache pipeline_core")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Impossible de prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©parer AI-B-roll/broll_library ({exc}); utilisation du cache pipeline_core")
                 fallback_base = getattr(getattr(self._pipeline_config, "paths", None), "temp_dir", None)
                 if not fallback_base:
                     fallback_base = getattr(Config, "TEMP_FOLDER", Path("temp"))
@@ -6664,12 +6665,12 @@ class VideoProcessor:
                 try:
                     fallback_library.mkdir(parents=True, exist_ok=True)
                 except Exception as fallback_exc:
-                    print(f"    âš ï¸ PrÃ©paration du cache pipeline_core Ã©chouÃ©e: {fallback_exc}")
+                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©paration du cache pipeline_core ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chouÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e: {fallback_exc}")
                     fallback_library = Path(fallback_base)
                 broll_library = fallback_library
-            # PrÃ©parer chemins (Ã©crire directement dans le dossier du clip si possible)
+            # PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©parer chemins (ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©crire directement dans le dossier du clip si possible)
             clip_dir = (Path(input_path).parent if (Path(input_path).name == 'reframed.mp4') else Config.TEMP_FOLDER)
-            # Si input_path est dÃ©jÃ  dans un dossier clip (reframed.mp4), sortir with_broll.mp4 Ã  cÃ´tÃ©
+            # Si input_path est dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  dans un dossier clip (reframed.mp4), sortir with_broll.mp4 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  cÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
             if Path(input_path).name == 'reframed.mp4':
                 output_with_broll = clip_dir / 'with_broll.mp4'
             else:
@@ -6808,7 +6809,7 @@ class VideoProcessor:
                 core_segments.append(_CoreSegment(start=start, end=end, text=text))
 
             if not core_segments:
-                print("    âš ï¸ Aucun segment de transcription valide, saut B-roll")
+                print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Aucun segment de transcription valide, saut B-roll")
                 return input_path
 
             if _legacy_pipeline_fallback_enabled():
@@ -6816,17 +6817,17 @@ class VideoProcessor:
                 if str(broll_root.resolve()) not in sys.path:
                     sys.path.insert(0, str(broll_root.resolve()))
             
-                # ðŸš€ NOUVEAUX IMPORTS INTELLIGENTS SYNCHRONES (DÃ‰SACTIVÃ‰S POUR PROMPT OPTIMISÃ‰)
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAUX IMPORTS INTELLIGENTS SYNCHRONES (DÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°SACTIVÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°S POUR PROMPT OPTIMISÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°)
                 try:
                     from sync_context_analyzer import SyncContextAnalyzer
                     from broll_diversity_manager import BrollDiversityManager
-                    # ðŸš¨ DÃ‰SACTIVATION TEMPORAIRE: Le systÃ¨me intelligent interfÃ¨re avec notre prompt optimisÃ© LLM
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ DÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°SACTIVATION TEMPORAIRE: Le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me intelligent interfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨re avec notre prompt optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© LLM
                     INTELLIGENT_BROLL_AVAILABLE = False
-                    print("    âš ï¸  SystÃ¨me intelligent DÃ‰SACTIVÃ‰ pour laisser le prompt optimisÃ© LLM fonctionner")
-                    print("    ðŸŽ¯ Utilisation exclusive du prompt optimisÃ©: 25-35 keywords + structure hiÃ©rarchique")
+                    print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  SystÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me intelligent DÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°SACTIVÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° pour laisser le prompt optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© LLM fonctionner")
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Utilisation exclusive du prompt optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: 25-35 keywords + structure hiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rarchique")
                 except ImportError as e:
-                    print(f"    âš ï¸  SystÃ¨me intelligent non disponible: {e}")
-                    print("    ðŸ”„ Fallback vers ancien systÃ¨me...")
+                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  SystÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me intelligent non disponible: {e}")
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback vers ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me...")
                     INTELLIGENT_BROLL_AVAILABLE = False
             
                 # Imports B-roll dans tous les cas
@@ -6850,22 +6851,22 @@ class VideoProcessor:
                     for payload in legacy_segment_payloads
                 ]
             
-                # ðŸ§  ANALYSE INTELLIGENTE AVANCÃ‰E
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  ANALYSE INTELLIGENTE AVANCÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°E
                 if INTELLIGENT_BROLL_AVAILABLE:
-                    print("    ðŸ§  Utilisation du systÃ¨me B-roll intelligent...")
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  Utilisation du systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me B-roll intelligent...")
                     try:
                         # Initialiser l'analyseur contextuel intelligent SYNCHRONE
                         context_analyzer = SyncContextAnalyzer()
                     
-                        # Analyser le contexte global de la vidÃ©o
+                        # Analyser le contexte global de la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o
                         transcript_text = " ".join([s.get('text', '') for s in subtitles])
                         global_analysis = context_analyzer.analyze_context(transcript_text)
                     
-                        print(f"    ðŸŽ¯ Contexte dÃ©tectÃ©: {global_analysis.main_theme}")
-                        print(f"    ðŸ§¬ Sujets: {', '.join(global_analysis.key_topics[:3])}")
-                        print(f"    ðŸ˜Š Sentiment: {global_analysis.sentiment}")
-                        print(f"    ðŸ“Š ComplexitÃ©: {global_analysis.complexity}")
-                        print(f"    ðŸ”‘ Mots-clÃ©s: {', '.join(global_analysis.keywords[:5])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Contexte dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tectÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {global_analysis.main_theme}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â¬ Sujets: {', '.join(global_analysis.key_topics[:3])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¹Ã…â€œÃƒâ€¦Ã‚Â  Sentiment: {global_analysis.sentiment}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  ComplexitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {global_analysis.complexity}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {', '.join(global_analysis.keywords[:5])}")
                     
                         # Persister l'analyse intelligente
                         try:
@@ -6884,17 +6885,17 @@ class VideoProcessor:
                                     },
                                     'timestamp': str(datetime.now())
                                 }, f, ensure_ascii=False, indent=2)
-                            print(f"    ðŸ’¾ MÃ©tadonnÃ©es intelligentes sauvegardÃ©es: {meta_path}")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¾ MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es intelligentes sauvegardÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es: {meta_path}")
                         
-                            # ðŸŽ¬ INSÃ‰RATION INTELLIGENTE DES B-ROLLS
-                            print("    ðŸŽ¬ Insertion intelligente des B-rolls...")
+                            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ INSÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°RATION INTELLIGENTE DES B-ROLLS
+                            print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¬ Insertion intelligente des B-rolls...")
                             try:
-                                # CrÃ©er un dossier unique pour ce clip
+                                # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un dossier unique pour ce clip
                                 clip_id = input_path.stem
                                 unique_broll_dir = broll_library / f"clip_intelligent_{clip_id}_{int(time.time())}"
                                 unique_broll_dir.mkdir(parents=True, exist_ok=True)
                             
-                                # GÃ©nÃ©rer des prompts intelligents basÃ©s sur l'analyse
+                                # GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer des prompts intelligents basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s sur l'analyse
                                 intelligent_prompts = []
                                 main_theme = global_analysis.main_theme
                                 kws = _filter_prompt_terms(global_analysis.keywords[:6]) if hasattr(global_analysis, 'keywords') else []
@@ -6934,29 +6935,29 @@ class VideoProcessor:
                                 seen_ip = set()
                                 intelligent_prompts = [p for p in intelligent_prompts if not (p in seen_ip or seen_ip.add(p))][:8]
 
-                                print(f"    ðŸŽ¯ Prompts intelligents gÃ©nÃ©rÃ©s: {', '.join(intelligent_prompts[:3])}")
+                                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Prompts intelligents gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {', '.join(intelligent_prompts[:3])}")
                             
-                                # Utiliser l'ancien systÃ¨me mais avec les prompts intelligents
-                                # (temporaire en attendant l'intÃ©gration complÃ¨te)
-                                print("    ðŸ”„ Utilisation du systÃ¨me B-roll avec prompts intelligents...")
+                                # Utiliser l'ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me mais avec les prompts intelligents
+                                # (temporaire en attendant l'intÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gration complÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨te)
+                                print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Utilisation du systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me B-roll avec prompts intelligents...")
                             
                             except Exception as e:
-                                print(f"    âš ï¸  Erreur insertion intelligente: {e}")
-                                print("    ðŸ”„ Fallback vers ancien systÃ¨me...")
+                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur insertion intelligente: {e}")
+                                print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback vers ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me...")
                                 INTELLIGENT_BROLL_AVAILABLE = False
                             
                         except Exception as e:
-                            print(f"    âš ï¸  Erreur systÃ¨me intelligent: {e}")
-                            print("    ðŸ”„ Fallback vers ancien systÃ¨me...")
+                            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me intelligent: {e}")
+                            print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback vers ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me...")
                             INTELLIGENT_BROLL_AVAILABLE = False
                     except Exception as e:
-                        print(f"    âš ï¸  Erreur systÃ¨me intelligent: {e}")
-                        print("    ðŸ”„ Fallback vers ancien systÃ¨me...")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me intelligent: {e}")
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback vers ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me...")
                         INTELLIGENT_BROLL_AVAILABLE = False
                     
-                # Fallback: ancienne analyse si systÃ¨me intelligent indisponible
+                # Fallback: ancienne analyse si systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me intelligent indisponible
                 if not INTELLIGENT_BROLL_AVAILABLE:
-                    print("    ðŸ”„ Utilisation de l'ancien systÃ¨me B-roll...")
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Utilisation de l'ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me B-roll...")
                     analysis = extract_keywords_from_transcript_ai(subtitles)
                     prompts = generate_broll_prompts_ai(analysis)
                     # Filtrer les prompts fallback
@@ -6970,7 +6971,7 @@ class VideoProcessor:
                             prompts = cleaned_prompts
                     except Exception:
                         pass
-                    # Persiste metadata dans un dossier clip dÃ©diÃ© si possible
+                    # Persiste metadata dans un dossier clip dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©diÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© si possible
                     try:
                         meta_dir = Config.OUTPUT_FOLDER / 'meta'
                         meta_dir.mkdir(parents=True, exist_ok=True)
@@ -6980,10 +6981,10 @@ class VideoProcessor:
                     except Exception:
                         pass
                 else:
-                    # ðŸŽ¯ UTILISER LES PROMPTS INTELLIGENTS
-                    print("    ðŸŽ¯ Utilisation des prompts intelligents pour B-rolls...")
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ UTILISER LES PROMPTS INTELLIGENTS
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Utilisation des prompts intelligents pour B-rolls...")
                     try:
-                        # CrÃ©er une analyse basÃ©e sur l'analyse intelligente
+                        # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er une analyse basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e sur l'analyse intelligente
                         analysis = {
                             'main_theme': global_analysis.main_theme,
                             'key_topics': global_analysis.key_topics,
@@ -6991,48 +6992,48 @@ class VideoProcessor:
                             'keywords': global_analysis.keywords
                         }
                     
-                        # Utiliser les prompts intelligents gÃ©nÃ©rÃ©s
+                        # Utiliser les prompts intelligents gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                         prompts = intelligent_prompts if 'intelligent_prompt' in locals() else [
                             f"{global_analysis.main_theme} {kw}" for kw in global_analysis.keywords[:3]
                         ]
                     
-                        print(f"    ðŸŽ¯ Prompts utilisÃ©s: {', '.join(prompts[:3])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Prompts utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {', '.join(prompts[:3])}")
                     
                     except Exception as e:
-                        print(f"    âš ï¸  Erreur prompts intelligents: {e}")
-                        # Fallback vers prompts gÃ©nÃ©riques
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur prompts intelligents: {e}")
+                        # Fallback vers prompts gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques
                         analysis = extract_keywords_from_transcript_ai(subtitles)
                         prompts = generate_broll_prompts_ai(analysis)
             
-                # ðŸš€ NOUVEAU: IntÃ©gration des mots-clÃ©s B-roll du LLM
-                # RÃ©cupÃ©rer les mots-clÃ©s B-roll gÃ©nÃ©rÃ©s par le LLM (si disponibles)
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: IntÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gration des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll du LLM
+                # RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cupÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s par le LLM (si disponibles)
                 llm_broll_keywords = []
                 try:
-                    # Les mots-clÃ©s B-roll sont dÃ©jÃ  disponibles depuis generate_caption_and_hashtags
-                    # Ils sont passÃ©s via la variable broll_keywords dans le scope parent
+                    # Les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll sont dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  disponibles depuis generate_caption_and_hashtags
+                    # Ils sont passÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s via la variable broll_keywords dans le scope parent
                     if 'broll_keywords' in locals():
                         llm_broll_keywords = broll_keywords
-                        print(f"    ðŸ§  Mots-clÃ©s B-roll LLM intÃ©grÃ©s: {len(llm_broll_keywords)} termes")
-                        print(f"    ðŸŽ¯ Exemples: {', '.join(llm_broll_keywords[:5])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll LLM intÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {len(llm_broll_keywords)} termes")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Exemples: {', '.join(llm_broll_keywords[:5])}")
                     else:
-                        print("    âš ï¸ Mots-clÃ©s B-roll LLM non disponibles")
+                        print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll LLM non disponibles")
                 except Exception as e:
-                    print(f"    âš ï¸ Erreur rÃ©cupÃ©ration mots-clÃ©s B-roll LLM: {e}")
+                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cupÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ration mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s B-roll LLM: {e}")
             
-                # Combiner les mots-clÃ©s LLM avec les prompts existants
+                # Combiner les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM avec les prompts existants
                 if llm_broll_keywords:
-                    # Enrichir les prompts avec les mots-clÃ©s LLM
+                    # Enrichir les prompts avec les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM
                     enhanced_prompts = []
-                    for kw in llm_broll_keywords[:8]:  # Limiter Ã  8 mots-clÃ©s principaux
+                    for kw in llm_broll_keywords[:8]:  # Limiter ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  8 mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s principaux
                         enhanced_prompts.append(kw)
-                        # CrÃ©er des combinaisons avec le thÃ¨me principal
+                        # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er des combinaisons avec le thÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me principal
                         if 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
                             enhanced_prompts.append(f"{global_analysis.main_theme} {kw}")
                 
                     # Ajouter les prompts existants
                     enhanced_prompts.extend(prompts)
                 
-                    # DÃ©dupliquer et limiter
+                    # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dupliquer et limiter
                     seen_prompts = set()
                     final_prompts = []
                     for p in enhanced_prompts:
@@ -7040,9 +7041,9 @@ class VideoProcessor:
                             final_prompts.append(p)
                             seen_prompts.add(p)
                 
-                    prompts = final_prompts[:12]  # Limiter Ã  12 prompts finaux
-                    print(f"    ðŸš€ Prompts enrichis avec LLM: {len(prompts)} termes")
-                    print(f"    ðŸŽ¯ Prompts finaux: {', '.join(prompts[:5])}...")
+                    prompts = final_prompts[:12]  # Limiter ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  12 prompts finaux
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Prompts enrichis avec LLM: {len(prompts)} termes")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Prompts finaux: {', '.join(prompts[:5])}...")
             
             core_result = self._maybe_use_pipeline_core(
                 core_segments,
@@ -7104,17 +7105,17 @@ class VideoProcessor:
                         return candidate
                 return input_path
 
-            # Construire la config du pipeline (fetch + embeddings activÃ©s, pas de limites)
+            # Construire la config du pipeline (fetch + embeddings activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s, pas de limites)
             cfg = BrollConfig(
                 input_video=str(input_path),
                 output_video=output_with_broll,
                 broll_library=broll_library,
                 srt_path=None,
                 render_subtitles=False,
-                            max_broll_ratio=0.65,           # CORRIGÃ‰: 90% â†’ 65% pour Ã©quilibre optimal
-            min_gap_between_broll_s=1.5,    # CORRIGÃ‰: 0.2s â†’ 1.5s pour respiration visuelle
-                            max_broll_clip_s=4.0,           # CORRIGÃ‰: 8.0s â†’ 4.0s pour B-rolls Ã©quilibrÃ©s
-            min_broll_clip_s=2.0,           # CORRIGÃ‰: 3.5s â†’ 2.0s pour durÃ©e optimale
+                            max_broll_ratio=0.65,           # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 90% ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 65% pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©quilibre optimal
+            min_gap_between_broll_s=1.5,    # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 0.2s ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 1.5s pour respiration visuelle
+                            max_broll_clip_s=4.0,           # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 8.0s ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 4.0s pour B-rolls ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©quilibrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
+            min_broll_clip_s=2.0,           # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 3.5s ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 2.0s pour durÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e optimale
                 use_whisper=False,
                 ffmpeg_preset="fast",
                 crf=23,
@@ -7124,9 +7125,9 @@ class VideoProcessor:
                 fetch_provider=getattr(Config, 'BROLL_FETCH_PROVIDER', 'pexels'),
                 pexels_api_key=getattr(Config, 'PEXELS_API_KEY', None),
                 pixabay_api_key=getattr(Config, 'PIXABAY_API_KEY', None),
-                fetch_max_per_keyword=getattr(Config, 'BROLL_FETCH_MAX_PER_KEYWORD', 25),  # CORRIGÃ‰: 50 â†’ 25 pour qualitÃ© optimale
+                fetch_max_per_keyword=getattr(Config, 'BROLL_FETCH_MAX_PER_KEYWORD', 25),  # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 50 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 25 pour qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© optimale
                 fetch_allow_videos=getattr(Config, 'BROLL_FETCH_ALLOW_VIDEOS', True),
-                fetch_allow_images=getattr(Config, 'BROLL_FETCH_ALLOW_IMAGES', True),  # ActivÃ©: images animÃ©es + Ken Burns
+                fetch_allow_images=getattr(Config, 'BROLL_FETCH_ALLOW_IMAGES', True),  # ActivÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: images animÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es + Ken Burns
                 # Embeddings
                 use_embeddings=getattr(Config, 'BROLL_USE_EMBEDDINGS', True),
                 embedding_model_name=getattr(Config, 'BROLL_EMBEDDING_MODEL', 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'),
@@ -7134,11 +7135,11 @@ class VideoProcessor:
                 # Experimental FX toggle
                 enable_experimental_fx=getattr(Config, 'ENABLE_EXPERIMENTAL_FX', False),
             )
-            # FETCH DYNAMIQUE PAR CLIP: CrÃ©er un dossier unique et forcer le fetch Ã  chaque fois
+            # FETCH DYNAMIQUE PAR CLIP: CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un dossier unique et forcer le fetch ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  chaque fois
             try:
                 from src.pipeline.fetchers import ensure_assets_for_keywords  # type: ignore
                 
-                # CrÃ©er un dossier unique pour ce clip (Ã©viter le partage entre clips)
+                # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un dossier unique pour ce clip (ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©viter le partage entre clips)
                 clip_id = input_path.stem  # Nom du fichier sans extension
                 clip_broll_dir = broll_library / f"clip_{clip_id}_{int(time.time())}"
                 clip_broll_dir.mkdir(parents=True, exist_ok=True)
@@ -7147,30 +7148,30 @@ class VideoProcessor:
                 setattr(cfg, 'enable_fetcher', True)
                 setattr(cfg, 'broll_library', str(clip_broll_dir))  # Utiliser le dossier unique
                 
-                print(f"    ðŸ”„ Fetch B-roll personnalisÃ© pour clip: {clip_id}")
-                print(f"    ðŸ“ Dossier B-roll unique: {clip_broll_dir.name}")
+                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fetch B-roll personnalisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© pour clip: {clip_id}")
+                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Dossier B-roll unique: {clip_broll_dir.name}")
                 
-                # ðŸš€ NOUVEAU: IntÃ©gration du sÃ©lecteur B-roll gÃ©nÃ©rique
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: IntÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gration du sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique
                 if BROLL_SELECTOR_AVAILABLE and getattr(Config, 'BROLL_SELECTOR_ENABLED', True):
                     try:
-                        print("    ðŸŽ¯ SÃ©lecteur B-roll gÃ©nÃ©rique activÃ© - Scoring mixte intelligent")
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© - Scoring mixte intelligent")
                         
-                        # Initialiser le sÃ©lecteur avec la configuration
+                        # Initialiser le sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur avec la configuration
                         selector_config = None
                         if getattr(Config, 'BROLL_SELECTOR_CONFIG_PATH', None):
                             try:
                                 import yaml
                                 with open(Config.BROLL_SELECTOR_CONFIG_PATH, 'r', encoding='utf-8') as f:
                                     selector_config = yaml.safe_load(f)
-                                print(f"    âš™ï¸ Configuration chargÃ©e: {Config.BROLL_SELECTOR_CONFIG_PATH}")
+                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Configuration chargÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e: {Config.BROLL_SELECTOR_CONFIG_PATH}")
                             except Exception as e:
-                                print(f"    âš ï¸ Erreur chargement config: {e}")
+                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur chargement config: {e}")
                         
-                        # CrÃ©er le sÃ©lecteur
+                        # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er le sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur
                         from broll_selector import BrollSelector
                         broll_selector = BrollSelector(selector_config)
                         
-                        # Analyser le contexte pour la sÃ©lection intelligente
+                        # Analyser le contexte pour la sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection intelligente
                         context_keywords = []
                         if 'global_analysis' in locals():
                             context_keywords = global_analysis.keywords[:10] if hasattr(global_analysis, 'keywords') else []
@@ -7182,16 +7183,16 @@ class VideoProcessor:
                                     words = text.lower().split()
                                     context_keywords.extend([w for w in words if len(w) > 3 and w.isalpha()])
                         
-                        # DÃ©tecter le domaine
+                        # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tecter le domaine
                         detected_domain = None
                         if 'global_analysis' in locals() and hasattr(global_analysis, 'main_theme'):
                             detected_domain = global_analysis.main_theme
                         
-                        print(f"    ðŸŽ¯ Contexte: {detected_domain or 'gÃ©nÃ©ral'}")
-                        print(f"    ðŸ”‘ Mots-clÃ©s contextuels: {', '.join(context_keywords[:5])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Contexte: {detected_domain or 'gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ral'}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s contextuels: {', '.join(context_keywords[:5])}")
                         
-                        # Utiliser le sÃ©lecteur pour la planification
-                        # Domaine effectif pour le sÃ©lecteur (dyn > global)
+                        # Utiliser le sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur pour la planification
+                        # Domaine effectif pour le sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur (dyn > global)
                         dyn_ctx = getattr(self, '_dyn_context', None)
                         dyn_dom_name, dyn_dom_conf = (None, None)
                         if ENABLE_SELECTOR_DYNAMIC_DOMAIN and dyn_ctx:
@@ -7223,52 +7224,52 @@ class VideoProcessor:
                                 desired_count=self._load_broll_selector_config().get('desired_broll_count', 3)
                             )
                         
-                        # Sauvegarder le rapport de sÃ©lection
+                        # Sauvegarder le rapport de sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection
                         try:
                             meta_dir = Config.OUTPUT_FOLDER / 'meta'
                             meta_dir.mkdir(parents=True, exist_ok=True)
                             selection_report_path = meta_dir / f"{Path(input_path).stem}_broll_selection_report.json"
                             with open(selection_report_path, 'w', encoding='utf-8') as f:
                                 json.dump(selection_report, f, ensure_ascii=False, indent=2)
-                            print(f"    ðŸ’¾ Rapport de sÃ©lection sauvegardÃ©: {selection_report_path}")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¾ Rapport de sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection sauvegardÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {selection_report_path}")
                         except Exception as e:
-                            print(f"    âš ï¸ Erreur sauvegarde rapport: {e}")
+                            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur sauvegarde rapport: {e}")
                         
-                        # Afficher les statistiques de sÃ©lection
+                        # Afficher les statistiques de sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection
                         if 'diagnostics' in selection_report:
                             diag = selection_report['diagnostics']
-                            print(f"    ðŸ“Š SÃ©lection: {diag.get('num_selected', 0)}/{diag.get('num_candidates', 0)} B-rolls")
-                            print(f"    ðŸŽ¯ Top score: {diag.get('top_score', 0):.3f}")
-                            print(f"    ðŸ“ Seuil appliquÃ©: {diag.get('min_score', 0):.3f}")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection: {diag.get('num_selected', 0)}/{diag.get('num_candidates', 0)} B-rolls")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Top score: {diag.get('top_score', 0):.3f}")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Seuil appliquÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {diag.get('min_score', 0):.3f}")
                         
                         if selection_report.get('fallback_used'):
-                            print(f"    ðŸ†˜ Fallback activÃ©: Tier {selection_report.get('fallback_tier', '?')}")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Ãƒâ€¹Ã…â€œ Fallback activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: Tier {selection_report.get('fallback_tier', '?')}")
                         
                     except Exception as e:
-                        print(f"    âš ï¸ Erreur sÃ©lecteur gÃ©nÃ©rique: {e}")
-                        print("    ðŸ”„ Fallback vers systÃ¨me existant")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique: {e}")
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback vers systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me existant")
                 
-                # ðŸš€ CORRECTION: IntÃ©gration des mots-clÃ©s LLM pour le fetch
-                # SÃ‰LECTION INTELLIGENTE: Mots-clÃ©s contextuels + concepts associÃ©s
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: IntÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gration des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM pour le fetch
+                # SÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°LECTION INTELLIGENTE: Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s contextuels + concepts associÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                 from collections import Counter as _Counter
                 kw_pool: list[str] = []
                 
-                # ðŸ§  PRIORITÃ‰ 1: Mots-clÃ©s LLM si disponibles
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  PRIORITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° 1: Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM si disponibles
                 if 'broll_keywords' in locals() and broll_keywords:
-                    print(f"    ðŸš€ Utilisation des mots-clÃ©s LLM pour le fetch: {len(broll_keywords)} termes")
-                    # Ajouter TOUS les mots-clÃ©s LLM en prioritÃ©
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Utilisation des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM pour le fetch: {len(broll_keywords)} termes")
+                    # Ajouter TOUS les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM en prioritÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                     for kw in broll_keywords:
                         low = (kw or '').strip().lower()
                         if low and len(low) >= 3:
                             kw_pool.append(low)
                             # Ajouter des variations pour enrichir
-                            if ' ' in low:  # Mots composÃ©s
+                            if ' ' in low:  # Mots composÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                                 parts = low.split()
                                 kw_pool.extend(parts)
                     
-                    print(f"    ðŸŽ¯ Mots-clÃ©s LLM ajoutÃ©s: {', '.join(broll_keywords[:8])}")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM ajoutÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {', '.join(broll_keywords[:8])}")
                 
-                # ðŸ”„ PRIORITÃ‰ 2: Extraction des mots-clÃ©s du transcript
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ PRIORITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° 2: Extraction des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s du transcript
                 for s in subtitles:
                     base_kws = extract_keywords_for_segment(s.get('text','')) or []
                     spacy_kws = self._extract_keywords_for_segment_spacy(s.get('text','')) or []
@@ -7277,75 +7278,75 @@ class VideoProcessor:
                         if low and len(low) >= 3:
                             kw_pool.append(low)
                 
-                # ðŸš€ CONCEPTS ASSOCIÃ‰S ENRICHIS (50+ concepts)
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CONCEPTS ASSOCIÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°S ENRICHIS (50+ concepts)
                 concept_mapping = {
-                    # ðŸ§  Cerveau & Intelligence
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  Cerveau & Intelligence
                     'brain': ['neuroscience', 'mind', 'thinking', 'intelligence', 'cognitive', 'mental', 'psychology', 'consciousness'],
                     'mind': ['brain', 'thinking', 'thought', 'intelligence', 'cognitive', 'mental', 'psychology'],
                     'thinking': ['brain', 'mind', 'thought', 'intelligence', 'cognitive', 'mental', 'logic'],
                     
-                    # ðŸ’° Argent & Finance
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â° Argent & Finance
                     'money': ['finance', 'business', 'success', 'wealth', 'investment', 'cash', 'profit', 'revenue'],
                     'argent': ['finance', 'business', 'success', 'wealth', 'investment', 'cash', 'profit', 'revenue'],
                     'finance': ['money', 'business', 'investment', 'wealth', 'profit', 'revenue', 'budget'],
                     
-                    # ðŸŽ¯ Focus & Concentration
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Focus & Concentration
                     'focus': ['concentration', 'productivity', 'attention', 'mindfulness', 'clarity', 'precision'],
                     'concentration': ['focus', 'attention', 'mindfulness', 'clarity', 'precision', 'dedication'],
                     'attention': ['focus', 'concentration', 'mindfulness', 'awareness', 'observation'],
                     
-                    # ðŸ† SuccÃ¨s & RÃ©ussite
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â  SuccÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s & RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ussite
                     'success': ['achievement', 'goal', 'victory', 'winning', 'growth', 'accomplishment', 'triumph'],
-                    'succÃ¨s': ['achievement', 'goal', 'victory', 'winning', 'growth', 'accomplishment', 'triumph'],
+                    'succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s': ['achievement', 'goal', 'victory', 'winning', 'growth', 'accomplishment', 'triumph'],
                     'victory': ['success', 'achievement', 'winning', 'triumph', 'conquest', 'domination'],
                     
-                    # â¤ï¸ SantÃ© & Bien-Ãªtre
+                    # ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¤ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â SantÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© & Bien-ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªtre
                     'health': ['wellness', 'fitness', 'medical', 'lifestyle', 'nutrition', 'vitality', 'strength'],
-                    'santÃ©': ['wellness', 'fitness', 'medical', 'lifestyle', 'nutrition', 'vitality', 'strength'],
+                    'santÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©': ['wellness', 'fitness', 'medical', 'lifestyle', 'nutrition', 'vitality', 'strength'],
                     'fitness': ['health', 'wellness', 'exercise', 'training', 'strength', 'endurance'],
                     
-                    # ðŸ¤– Technologie & Innovation
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Technologie & Innovation
                     'technology': ['digital', 'innovation', 'future', 'ai', 'automation', 'tech', 'modern'],
                     'technologie': ['digital', 'innovation', 'future', 'ai', 'automation', 'tech', 'modern'],
                     'innovation': ['technology', 'digital', 'future', 'ai', 'automation', 'creativity', 'progress'],
                     
-                    # ðŸ’¼ Business & Entreprise
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¼ Business & Entreprise
                     'business': ['entrepreneur', 'startup', 'strategy', 'leadership', 'growth', 'company', 'enterprise'],
                     'entreprise': ['entrepreneur', 'startup', 'strategy', 'leadership', 'growth', 'company', 'enterprise'],
                     'strategy': ['business', 'planning', 'tactics', 'approach', 'method', 'system'],
                     
-                    # ðŸš€ Action & Dynamisme
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Action & Dynamisme
                     'action': ['movement', 'energy', 'power', 'vitality', 'dynamism', 'activity', 'motion'],
                     'action': ['movement', 'energy', 'power', 'vitality', 'dynamism', 'activity', 'motion'],
                     'energy': ['power', 'vitality', 'strength', 'force', 'intensity', 'enthusiasm'],
                     
-                    # ðŸ”¥ Ã‰motion & Passion
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°motion & Passion
                     'emotion': ['feeling', 'passion', 'excitement', 'inspiration', 'motivation', 'enthusiasm'],
-                    'Ã©motion': ['feeling', 'passion', 'excitement', 'inspiration', 'motivation', 'enthusiasm'],
+                    'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©motion': ['feeling', 'passion', 'excitement', 'inspiration', 'motivation', 'enthusiasm'],
                     'passion': ['emotion', 'feeling', 'excitement', 'inspiration', 'motivation', 'enthusiasm'],
                     
-                    # ðŸ§  DÃ©veloppement Personnel
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©veloppement Personnel
                     'growth': ['development', 'improvement', 'progress', 'advancement', 'evolution', 'maturity'],
                     'croissance': ['development', 'improvement', 'progress', 'advancement', 'evolution', 'maturity'],
                     'development': ['growth', 'improvement', 'progress', 'advancement', 'evolution', 'maturity'],
                     
-                    # âœ… Solutions & RÃ©solution
+                    # ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Solutions & RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©solution
                     'solution': ['resolution', 'fix', 'answer', 'remedy', 'cure', 'treatment'],
                     'solution': ['resolution', 'fix', 'answer', 'remedy', 'cure', 'treatment'],
                     'resolution': ['solution', 'fix', 'answer', 'remedy', 'cure', 'treatment'],
                     
-                    # âš ï¸ ProblÃ¨mes & DÃ©fis
+                    # ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ProblÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨mes & DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©fis
                     'problem': ['challenge', 'difficulty', 'obstacle', 'barrier', 'issue', 'trouble'],
-                    'problÃ¨me': ['challenge', 'difficulty', 'obstacle', 'barrier', 'issue', 'trouble'],
+                    'problÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me': ['challenge', 'difficulty', 'obstacle', 'barrier', 'issue', 'trouble'],
                     'challenge': ['problem', 'difficulty', 'obstacle', 'barrier', 'issue', 'trouble'],
                     
-                    # ðŸŒŸ QualitÃ© & Excellence
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€¦Ã‚Â¸ QualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© & Excellence
                     'quality': ['excellence', 'perfection', 'superiority', 'premium', 'best', 'optimal'],
-                    'qualitÃ©': ['excellence', 'perfection', 'superiority', 'premium', 'best', 'optimal'],
+                    'qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©': ['excellence', 'perfection', 'superiority', 'premium', 'best', 'optimal'],
                     'excellence': ['quality', 'perfection', 'superiority', 'premium', 'best', 'optimal']
                 }
                 
-                # Enrichir avec des concepts associÃ©s
+                # Enrichir avec des concepts associÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                 for kw in kw_pool[:]:
                     for concept, related in concept_mapping.items():
                         if concept in kw or any(r in kw for r in related):
@@ -7353,38 +7354,38 @@ class VideoProcessor:
                 
                 counts = _Counter(kw_pool)
                 
-                # ðŸš¨ CORRECTION CRITIQUE: PRIORISER les mots-clÃ©s LLM sur les mots-clÃ©s gÃ©nÃ©riques
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION CRITIQUE: PRIORISER les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM sur les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques
                 if 'broll_keywords' in locals() and broll_keywords:
-                    # Utiliser DIRECTEMENT les mots-clÃ©s LLM comme requÃªte principale
+                    # Utiliser DIRECTEMENT les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM comme requÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªte principale
                     llm_keywords = [kw.strip().lower() for kw in broll_keywords if kw and len(kw.strip()) >= 3]
                     if llm_keywords:
-                        # Prendre les 8 premiers mots-clÃ©s LLM + 2 concepts associÃ©s
+                        # Prendre les 8 premiers mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM + 2 concepts associÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                         top_kws = llm_keywords[:8]
-                        # Ajouter quelques concepts associÃ©s pour enrichir
-                        for kw in top_kws[:3]:  # Pour les 3 premiers mots-clÃ©s LLM
+                        # Ajouter quelques concepts associÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s pour enrichir
+                        for kw in top_kws[:3]:  # Pour les 3 premiers mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM
                             for concept, related in concept_mapping.items():
                                 if concept in kw or any(r in kw for r in related):
-                                    top_kws.extend(related[:1])  # 1 concept max par mot-clÃ© LLM
+                                    top_kws.extend(related[:1])  # 1 concept max par mot-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© LLM
                                     break
-                        print(f"    ðŸš€ REQUÃŠTE LLM PRIORITAIRE: {' '.join(top_kws[:5])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ REQUÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â TE LLM PRIORITAIRE: {' '.join(top_kws[:5])}")
                     else:
                         top_kws = [w for w,_n in counts.most_common(15)]
-                        print(f"    ðŸ”„ Fallback vers mots-clÃ©s gÃ©nÃ©riques: {' '.join(top_kws[:5])}")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback vers mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques: {' '.join(top_kws[:5])}")
                 else:
                     top_kws = [w for w,_n in counts.most_common(15)]
-                    print(f"    ðŸ”„ Mots-clÃ©s gÃ©nÃ©riques: {' '.join(top_kws[:5])}")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques: {' '.join(top_kws[:5])}")
                 
                 # Fallback intelligent selon le contexte
                 if not top_kws:
                     top_kws = ["focus","concentration","study","brain","mind","productivity","success"]
-                print(f"    ðŸ”Ž Fetch B-roll sur requÃªte: {' '.join(top_kws[:5])}")
-                # Provider auto-fallback si pas de clÃ©s -> archive
+                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â½ Fetch B-roll sur requÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªte: {' '.join(top_kws[:5])}")
+                # Provider auto-fallback si pas de clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s -> archive
                 import os as _os
                 pex = getattr(Config, 'PEXELS_API_KEY', None) or _os.getenv('PEXELS_API_KEY')
                 pixa = getattr(Config, 'PIXABAY_API_KEY', None) or _os.getenv('PIXABAY_API_KEY')
                 uns = getattr(Config, 'UNSPLASH_ACCESS_KEY', None) or _os.getenv('UNSPLASH_ACCESS_KEY')
-                giphy = _os.getenv('GIPHY_API_KEY')  # ðŸŽ­ GIPHY pour GIFs animÃ©s
-                # Exposer l'accÃ¨s Unsplash dans la cfg si dispo
+                giphy = _os.getenv('GIPHY_API_KEY')  # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â­ GIPHY pour GIFs animÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
+                # Exposer l'accÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s Unsplash dans la cfg si dispo
                 try:
                     if uns:
                         setattr(cfg, 'unsplash_access_key', uns)
@@ -7393,11 +7394,11 @@ class VideoProcessor:
                 if not any([pex, pixa, uns]):
                     try:
                         setattr(cfg, 'fetch_provider', 'archive')
-                        print("    ðŸŒ Providers: archive (aucune clÃ© API dÃ©tectÃ©e)")
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â Providers: archive (aucune clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© API dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tectÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e)")
                     except Exception:
                         pass
                 else:
-                    # ðŸš€ AMÃ‰LIORATION: Construire une liste de providers optimisÃ©e
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ AMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°LIORATION: Construire une liste de providers optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e
                     prov = []
                     if pex:
                         prov.append('pexels')
@@ -7406,58 +7407,58 @@ class VideoProcessor:
                     if uns:
                         prov.append('unsplash')
                     if giphy:
-                        prov.append('giphy')  # ðŸŽ­ GIPHY pour GIFs animÃ©s
+                        prov.append('giphy')  # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â­ GIPHY pour GIFs animÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                     
-                    # ðŸŽ¯ AJOUT SÃ‰CURISÃ‰: Archive.org comme source supplÃ©mentaire
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ AJOUT SÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°CURISÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: Archive.org comme source supplÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©mentaire
                     try:
-                        if prov:  # Si on a des providers avec clÃ©s API
+                        if prov:  # Si on a des providers avec clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s API
                             prov.append('archive')  # Ajouter Archive.org
-                            print(f"    ðŸŒ Providers: {','.join(prov)} (Archive.org + Giphy ajoutÃ©s pour variÃ©tÃ©)")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â Providers: {','.join(prov)} (Archive.org + Giphy ajoutÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s pour variÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©)")
                         else:
-                            prov = ['archive']  # Seulement Archive.org si pas de clÃ©s
-                            print(f"    ðŸŒ Providers: {','.join(prov)} (Archive.org uniquement)")
+                            prov = ['archive']  # Seulement Archive.org si pas de clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â Providers: {','.join(prov)} (Archive.org uniquement)")
                         
                         setattr(cfg, 'fetch_provider', ",".join(prov))
                     except Exception as e:
-                        # Fallback sÃ©curisÃ©
+                        # Fallback sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©curisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                         try:
                             if prov:
                                 setattr(cfg, 'fetch_provider', ",".join(prov))
-                                print(f"    ðŸŒ Providers: {','.join(prov)} (fallback sÃ©curisÃ©)")
+                                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â Providers: {','.join(prov)} (fallback sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©curisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©)")
                             else:
                                 setattr(cfg, 'fetch_provider', 'archive')
-                                print(f"    ðŸŒ Providers: archive (fallback ultime)")
+                                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â Providers: archive (fallback ultime)")
                         except Exception:
                             pass
                 
                 try:
                     setattr(cfg, 'fetch_allow_images', True)
-                    # ðŸš€ OPTIMISATION MULTI-SOURCES: QualitÃ© optimale (CORRIGÃ‰)
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ OPTIMISATION MULTI-SOURCES: QualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© optimale (CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°)
                     if uns and giphy:  # Si Unsplash ET Giphy sont disponibles
-                        setattr(cfg, 'fetch_max_per_keyword', 35)  # CORRIGÃ‰: 125 â†’ 35 pour qualitÃ© maximale
-                        print("    ðŸ“Š Configuration optimisÃ©e: 35 assets max + images activÃ©es (Unsplash + Giphy + Archive)")
+                        setattr(cfg, 'fetch_max_per_keyword', 35)  # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 125 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 35 pour qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© maximale
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  Configuration optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e: 35 assets max + images activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es (Unsplash + Giphy + Archive)")
                     elif uns:  # Si seulement Unsplash est disponible
-                        setattr(cfg, 'fetch_max_per_keyword', 30)  # CORRIGÃ‰: 100 â†’ 30 pour qualitÃ© maximale
-                        print("    ðŸ“Š Configuration optimisÃ©e: 30 assets max + images activÃ©es (Unsplash + Archive)")
+                        setattr(cfg, 'fetch_max_per_keyword', 30)  # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 100 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 30 pour qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© maximale
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  Configuration optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e: 30 assets max + images activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es (Unsplash + Archive)")
                     elif giphy:  # Si seulement Giphy est disponible
-                        setattr(cfg, 'fetch_max_per_keyword', 30)  # CORRIGÃ‰: 100 â†’ 30 pour qualitÃ© avec GIFs
-                        print("    ðŸ“Š Configuration optimisÃ©e: 30 assets max + images activÃ©es (Giphy + Archive)")
+                        setattr(cfg, 'fetch_max_per_keyword', 30)  # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 100 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 30 pour qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© avec GIFs
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  Configuration optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e: 30 assets max + images activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es (Giphy + Archive)")
                     else:
-                        setattr(cfg, 'fetch_max_per_keyword', 25)  # CORRIGÃ‰: 75 â†’ 25 pour Archive.org
-                        print("    ðŸ“Š Configuration optimisÃ©e: 25 assets max + images activÃ©es (Archive.org)")
+                        setattr(cfg, 'fetch_max_per_keyword', 25)  # CORRIGÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: 75 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 25 pour Archive.org
+                        print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€¦Ã‚Â  Configuration optimisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e: 25 assets max + images activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es (Archive.org)")
                 except Exception:
                     pass
-                # DÃ©clencher le fetch dans le dossier unique du clip
+                # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©clencher le fetch dans le dossier unique du clip
                 ensure_assets_for_keywords(cfg, fetch_keywords, top_kws)
                 
-                # ðŸš¨ CORRECTION CRITIQUE: SYSTÃˆME D'UNICITÃ‰ DES B-ROLLS
-                # Ã‰viter la duplication des B-rolls entre vidÃ©os diffÃ©rentes
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION CRITIQUE: SYSTÃƒÆ’Ã†â€™Ãƒâ€¹Ã¢â‚¬Â ME D'UNICITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° DES B-ROLLS
+                # ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°viter la duplication des B-rolls entre vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©os diffÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rentes
                 try:
-                    # CrÃ©er un fichier de traÃ§abilitÃ© des B-rolls utilisÃ©s
+                    # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un fichier de traÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§abilitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© des B-rolls utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                     broll_tracking_file = Config.OUTPUT_FOLDER / 'meta' / 'broll_usage_tracking.json'
                     broll_tracking_file.parent.mkdir(parents=True, exist_ok=True)
                     
-                    # Charger l'historique des B-rolls utilisÃ©s
+                    # Charger l'historique des B-rolls utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                     broll_history = {}
                     if broll_tracking_file.exists():
                         try:
@@ -7479,20 +7480,20 @@ class VideoProcessor:
                                 'usage_count': 0
                             }
                             
-                            # VÃ©rifier si ce B-roll a dÃ©jÃ  Ã©tÃ© utilisÃ©
+                            # VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier si ce B-roll a dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                             if asset_hash in broll_history:
                                 asset_info['last_used'] = broll_history[asset_hash].get('last_used')
                                 asset_info['usage_count'] = broll_history[asset_hash].get('usage_count', 0)
                             
                             available_brolls.append(asset_info)
                     
-                    # Trier par prioritÃ©: B-rolls jamais utilisÃ©s en premier, puis par anciennetÃ©
+                    # Trier par prioritÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: B-rolls jamais utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s en premier, puis par anciennetÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                     available_brolls.sort(key=lambda x: (x['usage_count'], x['last_used'] or '1970-01-01'))
                     
-                    # SÃ©lectionner les B-rolls uniques pour cette vidÃ©o
+                    # SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lectionner les B-rolls uniques pour cette vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o
                     selected_brolls = available_brolls[:3]  # 3 B-rolls uniques
                     
-                    # Mettre Ã  jour l'historique d'utilisation
+                    # Mettre ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  jour l'historique d'utilisation
                     current_time = datetime.now().isoformat()
                     for broll in selected_brolls:
                         broll_history[broll['hash']] = {
@@ -7505,20 +7506,20 @@ class VideoProcessor:
                     with open(broll_tracking_file, 'w', encoding='utf-8') as f:
                         json.dump(broll_history, f, ensure_ascii=False, indent=2)
                     
-                    print(f"    ðŸŽ¯ B-rolls uniques sÃ©lectionnÃ©s: {len(selected_brolls)} (Ã©vite duplication)")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ B-rolls uniques sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lectionnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {len(selected_brolls)} (ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©vite duplication)")
                     
                 except Exception as e:
-                    print(f"    âš ï¸ Erreur systÃ¨me d'unicitÃ©: {e}")
+                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me d'unicitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {e}")
                     # Fallback: utiliser tous les B-rolls disponibles
                     pass
                 
-                # Comptage aprÃ¨s fetch dans le dossier du clip
+                # Comptage aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s fetch dans le dossier du clip
                 try:
                     _media_exts = {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}
                     _after = [p for p in clip_broll_dir.rglob('*') if p.suffix.lower() in _media_exts]
-                    print(f"    ðŸ“¥ Fetch terminÃ©: {len(_after)} assets pour ce clip")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¥ Fetch terminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {len(_after)} assets pour ce clip")
                     
-                    # ðŸš¨ CORRECTION CRITIQUE: CrÃ©er fetched_brolls accessible globalement
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION CRITIQUE: CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er fetched_brolls accessible globalement
                     fetched_brolls = []
                     for asset_path in _after:
                         if asset_path.exists():
@@ -7528,19 +7529,19 @@ class VideoProcessor:
                                 'size': asset_path.stat().st_size if asset_path.exists() else 0
                             })
                     
-                    print(f"    ðŸŽ¯ {len(fetched_brolls)} B-rolls prÃªts pour l'assignation")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ {len(fetched_brolls)} B-rolls prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªts pour l'assignation")
                     
                     if len(_after) == 0:
-                        print("    âš ï¸ Aucun asset tÃ©lÃ©chargÃ©. VÃ©rifie les clÃ©s API et la connectivitÃ© rÃ©seau.")
+                        print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Aucun asset tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chargÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©. VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifie les clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s API et la connectivitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©seau.")
                 except Exception:
                     fetched_brolls = []
-                    print("    âš ï¸ Erreur lors de la prÃ©paration des B-rolls fetchÃ©s")
+                    print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur lors de la prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©paration des B-rolls fetchÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
                 
-                # Construire l'index FAISS pour ce clip spÃ©cifique
+                # Construire l'index FAISS pour ce clip spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cifique
                 try:
                     if 'build_index' in globals() and build_index is not None:  # type: ignore[name-defined]
                         index_handle = build_index(str(clip_broll_dir), model_name='ViT-B/32')  # type: ignore[misc]
-                        print(f"    ðŸ§­ Index FAISS construit pour {clip_id}: {len(_after)} assets")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â­ Index FAISS construit pour {clip_id}: {len(_after)} assets")
                 except Exception:
                     index_handle = None
             except Exception:
@@ -7556,7 +7557,7 @@ class VideoProcessor:
             except Exception:
                 pass
             
-            # PrÃ©parer stop-words (legacy pipeline)
+            # PrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©parer stop-words (legacy pipeline)
             stopwords: set[str] = set()
             try:
                 swp = Path('config/stopwords.txt')
@@ -7565,24 +7566,24 @@ class VideoProcessor:
             except Exception:
                 stopwords = set()
 
-            # ðŸš€ CORRECTION: IntÃ©gration des mots-clÃ©s LLM dans la planification
-            # Planification: nouvelle API prÃ©fÃ©rÃ©e (plan_broll_insertions(segments, cfg, index))
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: IntÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gration des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM dans la planification
+            # Planification: nouvelle API prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e (plan_broll_insertions(segments, cfg, index))
             
-            # ðŸš¨ CORRECTION CRITIQUE: fetched_brolls est dÃ©jÃ  dÃ©clarÃ© plus haut, ne pas le redÃ©clarer !
-            # fetched_brolls = []  # âŒ SUPPRIMÃ‰: Cette ligne Ã©crase la variable fetchÃ©e !
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION CRITIQUE: fetched_brolls est dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©clarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© plus haut, ne pas le redÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©clarer !
+            # fetched_brolls = []  # ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ SUPPRIMÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: Cette ligne ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©crase la variable fetchÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e !
             
             try:
                 plan = plan_broll_insertions(segments, cfg, index_handle)  # type: ignore[arg-type]
             except Exception:
-                # ðŸš€ NOUVEAU: Utiliser les mots-clÃ©s LLM pour la planification
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Utiliser les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM pour la planification
                 seg_keywords: List[List[str]] = []
                 
-                # ðŸ§  PRIORITÃ‰ 1: Mots-clÃ©s LLM si disponibles
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  PRIORITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° 1: Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM si disponibles
                 if 'broll_keywords' in locals() and broll_keywords:
-                    print(f"    ðŸš€ Utilisation des mots-clÃ©s LLM pour la planification: {len(broll_keywords)} termes")
-                    # Distribuer les mots-clÃ©s LLM sur les segments
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Utilisation des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM pour la planification: {len(broll_keywords)} termes")
+                    # Distribuer les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM sur les segments
                     for i, s in enumerate(segments):
-                        # Prendre 2-3 mots-clÃ©s LLM par segment
+                        # Prendre 2-3 mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM par segment
                         start_idx = (i * 2) % len(broll_keywords)
                         end_idx = min(start_idx + 2, len(broll_keywords))
                         segment_llm_kws = broll_keywords[start_idx:end_idx]
@@ -7591,10 +7592,10 @@ class VideoProcessor:
                         base_kws = extract_keywords_for_segment(s.text) or []
                         spacy_kws = self._extract_keywords_for_segment_spacy(s.text) or []
                         
-                        # ðŸŽ¯ PRIORITÃ‰ aux mots-clÃ©s LLM
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ PRIORITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° aux mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM
                         merged: List[str] = segment_llm_kws + base_kws + spacy_kws
                         
-                        # Nettoyer et dÃ©dupliquer
+                        # Nettoyer et dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dupliquer
                         cleaned: List[str] = []
                         seen = set()
                         for kw in merged:
@@ -7604,11 +7605,11 @@ class VideoProcessor:
                                     cleaned.append(low)
                                     seen.add(low)
                         
-                        seg_keywords.append(cleaned[:15])  # AugmentÃ©: 12 â†’ 15
-                        print(f"    ðŸŽ¯ Segment {i}: {len(cleaned)} mots-clÃ©s (LLM: {len(segment_llm_kws)})")
+                        seg_keywords.append(cleaned[:15])  # AugmentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: 12 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 15
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Segment {i}: {len(cleaned)} mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s (LLM: {len(segment_llm_kws)})")
                 else:
-                    # ðŸ”„ Fallback: extraction basique uniquement
-                    print("    âš ï¸ Mots-clÃ©s LLM non disponibles, utilisation extraction basique")
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Fallback: extraction basique uniquement
+                    print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s LLM non disponibles, utilisation extraction basique")
                     for s in segments:
                         base_kws = extract_keywords_for_segment(s.text) or []
                         spacy_kws = self._extract_keywords_for_segment_spacy(s.text) or []
@@ -7632,9 +7633,9 @@ class VideoProcessor:
                     min_broll_clip_s=cfg.min_broll_clip_s,
                 )
                 
-                # ðŸš¨ CORRECTION CRITIQUE: Assigner directement les B-rolls fetchÃ©s aux items du plan
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION CRITIQUE: Assigner directement les B-rolls fetchÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s aux items du plan
                 if plan and fetched_brolls:
-                    print(f"    ðŸŽ¯ Assignation directe des {len(fetched_brolls)} B-rolls fetchÃ©s aux {len(plan)} items du plan...")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Assignation directe des {len(fetched_brolls)} B-rolls fetchÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s aux {len(plan)} items du plan...")
                     
                     # Filtrer les B-rolls valides
                     valid_brolls = [broll for broll in fetched_brolls if broll.get('path') and Path(broll.get('path')).exists()]
@@ -7651,66 +7652,66 @@ class VideoProcessor:
                                 elif isinstance(item, dict):
                                     item['asset_path'] = asset_path
                                 
-                                print(f"    âœ… B-roll {i+1} assignÃ©: {Path(asset_path).name}")
+                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ B-roll {i+1} assignÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {Path(asset_path).name}")
                             else:
                                 break
                         
-                        print(f"    ðŸŽ‰ {min(len(plan), len(valid_brolls))} B-rolls assignÃ©s avec succÃ¨s au plan")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â° {min(len(plan), len(valid_brolls))} B-rolls assignÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s avec succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s au plan")
                     else:
-                        print(f"    âš ï¸ Aucun B-roll valide trouvÃ© dans fetched_brolls")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Aucun B-roll valide trouvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© dans fetched_brolls")
                 elif not fetched_brolls:
-                    print(f"    âš ï¸ Aucun B-roll fetchÃ© disponible pour l'assignation")
+                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Aucun B-roll fetchÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© disponible pour l'assignation")
                 elif not plan:
-                    print(f"    âš ï¸ Plan vide - aucun item Ã  traiter")
-            # Scoring adaptatif si disponible (pertinence/diversitÃ©/esthÃ©tique)
+                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Plan vide - aucun item ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  traiter")
+            # Scoring adaptatif si disponible (pertinence/diversitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©/esthÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tique)
             
 
             
             try:
                 from src.pipeline.scoring import score_candidates  # type: ignore
                 boosts = {
-                    # ðŸš€ Business & Croissance
-                    "croissance": 0.9, "growth": 0.9, "opportunitÃ©": 0.8, "opportunite": 0.8,
-                    "innovation": 0.9, "dÃ©veloppement": 0.8, "developpement": 0.8, "expansion": 0.8,
-                    "stratÃ©gie": 0.8, "strategie": 0.8, "plan": 0.7, "objectif": 0.8, "vision": 0.8,
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Business & Croissance
+                    "croissance": 0.9, "growth": 0.9, "opportunitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": 0.8, "opportunite": 0.8,
+                    "innovation": 0.9, "dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©veloppement": 0.8, "developpement": 0.8, "expansion": 0.8,
+                    "stratÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©gie": 0.8, "strategie": 0.8, "plan": 0.7, "objectif": 0.8, "vision": 0.8,
                     
-                    # ðŸ’° Argent & Finance
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â° Argent & Finance
                     "argent": 1.0, "money": 1.0, "cash": 0.9, "investissement": 0.9, "investissements": 0.9,
                     "revenu": 0.8, "revenus": 0.8, "profit": 0.9, "profits": 0.9, "perte": 0.7, "pertes": 0.7,
-                    "Ã©chec": 0.7, "echec": 0.7, "budget": 0.7, "gestion": 0.7, "marge": 0.8, "roi": 0.9,
-                    "chiffre": 0.7, "ca": 0.7, "Ã©conomie": 0.8, "economie": 0.8, "financier": 0.8,
+                    "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chec": 0.7, "echec": 0.7, "budget": 0.7, "gestion": 0.7, "marge": 0.8, "roi": 0.9,
+                    "chiffre": 0.7, "ca": 0.7, "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©conomie": 0.8, "economie": 0.8, "financier": 0.8,
                     
-                    # ðŸ¤ Relation & Client
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¤Ãƒâ€šÃ‚Â Relation & Client
                     "client": 0.9, "clients": 0.9, "collaboration": 0.8, "collaborations": 0.8,
-                    "communautÃ©": 0.7, "communaute": 0.7, "confiance": 0.7, "vente": 0.8, "ventes": 0.8,
+                    "communautÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": 0.7, "communaute": 0.7, "confiance": 0.7, "vente": 0.8, "ventes": 0.8,
                     "deal": 0.7, "deals": 0.7, "prospect": 0.6, "prospects": 0.6, "contrat": 0.7,
-                    "partenariat": 0.8, "Ã©quipe": 0.7, "equipe": 0.7, "rÃ©seau": 0.7, "reseau": 0.7,
+                    "partenariat": 0.8, "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©quipe": 0.7, "equipe": 0.7, "rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©seau": 0.7, "reseau": 0.7,
                     
-                    # ðŸ”¥ Motivation & SuccÃ¨s
-                    "succÃ¨s": 0.9, "succes": 0.9, "motivation": 0.8, "Ã©nergie": 0.7, "energie": 0.7,
-                    "victoire": 0.8, "discipline": 0.7, "viral": 0.8, "viralitÃ©": 0.8, "viralite": 0.8,
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â¥ Motivation & SuccÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s
+                    "succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s": 0.9, "succes": 0.9, "motivation": 0.8, "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nergie": 0.7, "energie": 0.7,
+                    "victoire": 0.8, "discipline": 0.7, "viral": 0.8, "viralitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": 0.8, "viralite": 0.8,
                     "impact": 0.6, "explose": 0.6, "explosion": 0.6, "inspiration": 0.8, "passion": 0.8,
-                    "dÃ©termination": 0.8, "determination": 0.8, "persÃ©vÃ©rance": 0.8, "perseverance": 0.8,
+                    "dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©termination": 0.8, "determination": 0.8, "persÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rance": 0.8, "perseverance": 0.8,
                     
-                    # ðŸ§  Intelligence & Apprentissage
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  Intelligence & Apprentissage
                     "cerveau": 1.0, "brain": 1.0, "intelligence": 0.9, "savoir": 0.8, "connaissance": 0.8,
-                    "apprentissage": 0.8, "apprendre": 0.8, "Ã©tude": 0.8, "etude": 0.8, "formation": 0.8,
-                    "compÃ©tence": 0.8, "competence": 0.8, "expertise": 0.8, "maÃ®trise": 0.8, "maitrise": 0.8,
+                    "apprentissage": 0.8, "apprendre": 0.8, "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tude": 0.8, "etude": 0.8, "formation": 0.8,
+                    "compÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tence": 0.8, "competence": 0.8, "expertise": 0.8, "maÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®trise": 0.8, "maitrise": 0.8,
                     
-                    # ðŸ’¡ Innovation & Technologie
-                    "technologie": 0.9, "tech": 0.9, "innovation": 0.9, "digital": 0.8, "numÃ©rique": 0.8,
-                    "numerique": 0.8, "futur": 0.8, "avancÃ©e": 0.8, "avancee": 0.8, "rÃ©volution": 0.8,
-                    "revolution": 0.8, "disruption": 0.8, "transformation": 0.8, "Ã©volution": 0.8, "evolution": 0.8,
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¡ Innovation & Technologie
+                    "technologie": 0.9, "tech": 0.9, "innovation": 0.9, "digital": 0.8, "numÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rique": 0.8,
+                    "numerique": 0.8, "futur": 0.8, "avancÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e": 0.8, "avancee": 0.8, "rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©volution": 0.8,
+                    "revolution": 0.8, "disruption": 0.8, "transformation": 0.8, "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©volution": 0.8, "evolution": 0.8,
                     
-                    # âš ï¸ Risque & Erreurs
+                    # ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Risque & Erreurs
                     "erreur": 0.6, "erreurs": 0.6, "warning": 0.6, "obstacle": 0.6, "obstacles": 0.6,
-                    "solution": 0.6, "solutions": 0.6, "leÃ§on": 0.5, "lecon": 0.5, "apprentissage": 0.5,
-                    "problÃ¨me": 0.6, "probleme": 0.6, "dÃ©fi": 0.7, "defi": 0.7, "challenge": 0.7,
+                    "solution": 0.6, "solutions": 0.6, "leÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§on": 0.5, "lecon": 0.5, "apprentissage": 0.5,
+                    "problÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me": 0.6, "probleme": 0.6, "dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©fi": 0.7, "defi": 0.7, "challenge": 0.7,
                     
-                    # ðŸŒŸ QualitÃ© & Excellence
-                    "excellence": 0.9, "qualitÃ©": 0.8, "qualite": 0.8, "perfection": 0.8, "meilleur": 0.8,
-                    "optimal": 0.8, "efficacitÃ©": 0.8, "efficacite": 0.8, "performance": 0.8, "rÃ©sultat": 0.8,
-                    "resultat": 0.8, "succÃ¨s": 0.9, "succes": 0.9, "rÃ©ussite": 0.9, "reussite": 0.9,
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€¦Ã‚Â¸ QualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© & Excellence
+                    "excellence": 0.9, "qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": 0.8, "qualite": 0.8, "perfection": 0.8, "meilleur": 0.8,
+                    "optimal": 0.8, "efficacitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©": 0.8, "efficacite": 0.8, "performance": 0.8, "rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sultat": 0.8,
+                    "resultat": 0.8, "succÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s": 0.9, "succes": 0.9, "rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ussite": 0.9, "reussite": 0.9,
                 }
                 plan = score_candidates(
                     plan, segments, broll_library=str(broll_library), clip_model='ViT-B/32',
@@ -7720,27 +7721,27 @@ class VideoProcessor:
             except Exception:
                 pass
  
-            # FILTRE: Exclure les B-rolls trop tÃ´t dans la vidÃ©o (dÃ©lai minimum 3 secondes)
+            # FILTRE: Exclure les B-rolls trop tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´t dans la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o (dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lai minimum 3 secondes)
             try:
                 filtered_plan = []
                 for it in plan:
                     st = float(getattr(it, 'start', 0.0) if hasattr(it, 'start') else (it.get('start', 0.0) if isinstance(it, dict) else 0.0))
-                    if st >= 3.0:  # DÃ©lai minimum de 3 secondes avant le premier B-roll
+                    if st >= 3.0:  # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lai minimum de 3 secondes avant le premier B-roll
                         filtered_plan.append(it)
                     else:
-                        print(f"    â° B-roll filtrÃ©: trop tÃ´t Ã  {st:.2f}s (minimum 3.0s)")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â° B-roll filtrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: trop tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´t ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  {st:.2f}s (minimum 3.0s)")
                 
                 plan = filtered_plan
-                print(f"    âœ… Plan filtrÃ©: {len(plan)} B-rolls aprÃ¨s dÃ©lai minimum")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Plan filtrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {len(plan)} B-rolls aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lai minimum")
             except Exception:
                 pass
 
-            # DÃ©duplication souple: autoriser rÃ©utilisation si espacÃ©e (> 12s)
+            # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©duplication souple: autoriser rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©utilisation si espacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e (> 12s)
             try:
                 seen: dict[str, float] = {}
                 new_plan = []
                 for it in plan:
-                    # ðŸ”§ CORRECTION: GÃ©rer Ã  la fois BrollPlanItem et dict
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â§ CORRECTION: GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  la fois BrollPlanItem et dict
                     if hasattr(it, 'asset_path'):
                         ap = it.asset_path
                         st = float(it.start)
@@ -7765,13 +7766,13 @@ class VideoProcessor:
             except Exception:
                 pass
  
-            # ðŸš€ PRIORISATION FRAÃŽCHEUR: Trier par timestamp du dossier (plus rÃ©cent en premier)
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ PRIORISATION FRAÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â½CHEUR: Trier par timestamp du dossier (plus rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cent en premier)
             try:
                 if plan:
                     # Extraire le clip_id pour la priorisation
                     clip_id = input_path.stem
                     
-                    # Prioriser par fraÃ®cheur si possible
+                    # Prioriser par fraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur si possible
                     for item in plan:
                         if hasattr(item, 'asset_path') and item.asset_path:
                             asset_path = item.asset_path
@@ -7780,7 +7781,7 @@ class VideoProcessor:
                         else:
                             continue
                         
-                        # Calculer le score de fraÃ®cheur
+                        # Calculer le score de fraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur
                         try:
                             path = Path(asset_path)
                             for part in path.parts:
@@ -7794,14 +7795,14 @@ class VideoProcessor:
                         except Exception:
                             item.freshness_score = 0
                     
-                    # Trier par fraÃ®cheur dÃ©croissante
+                    # Trier par fraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©croissante
                     plan.sort(key=lambda x: getattr(x, 'freshness_score', 0), reverse=True)
-                    print(f"    ðŸ†• Priorisation fraÃ®cheur: {len(plan)} B-rolls triÃ©s par timestamp")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Priorisation fraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur: {len(plan)} B-rolls triÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s par timestamp")
                     
             except Exception as e:
-                print(f"    âš ï¸  Erreur priorisation fraÃ®cheur: {e}")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur priorisation fraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur: {e}")
  
-            # ðŸŽ¯ SCORING CONTEXTUEL RENFORCÃ‰: PÃ©naliser les assets non pertinents au domaine
+            # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ SCORING CONTEXTUEL RENFORCÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°: PÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©naliser les assets non pertinents au domaine
             try:
                 if plan and hasattr(global_analysis, 'main_theme') and hasattr(global_analysis, 'keywords'):
                     domain = global_analysis.main_theme
@@ -7831,14 +7832,14 @@ class VideoProcessor:
                         elif isinstance(item, dict):
                             item['context_score'] = context_score
                     
-                    print(f"    ðŸŽ¯ Scoring contextuel appliquÃ©: domaine '{domain}' avec {len(keywords)} mots-clÃ©s")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Scoring contextuel appliquÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: domaine '{domain}' avec {len(keywords)} mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
                     
-                    # ðŸ” DEBUG B-ROLL SELECTION (si activÃ©)
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â DEBUG B-ROLL SELECTION (si activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©)
                     debug_mode = getattr(Config, 'DEBUG_BROLL', False) or os.getenv('DEBUG_BROLL', 'false').lower() == 'true'
                     _debug_broll_selection(plan, domain, keywords, debug_mode)
                     
-                    # ðŸš¨ FALLBACK PROPRE: Si aucun asset pertinent, utiliser des assets neutres
-                    # ðŸ”§ CORRECTION CRITIQUE: VÃ©rifier d'abord si les items ont des assets assignÃ©s
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ FALLBACK PROPRE: Si aucun asset pertinent, utiliser des assets neutres
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â§ CORRECTION CRITIQUE: VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier d'abord si les items ont des assets assignÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                     items_without_assets = []
                     items_with_assets = []
                     
@@ -7850,13 +7851,13 @@ class VideoProcessor:
                         else:
                             items_without_assets.append(item)
                     
-                    print(f"    ðŸ” Analyse des assets: {len(items_with_assets)} avec assets, {len(items_without_assets)} sans assets")
+                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â Analyse des assets: {len(items_with_assets)} avec assets, {len(items_without_assets)} sans assets")
                     
-                    # ðŸš¨ CORRECTION: Assigner des assets aux items sans assets AVANT le fallback
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ CORRECTION: Assigner des assets aux items sans assets AVANT le fallback
                     if items_without_assets and fetched_brolls:
-                        print(f"    ðŸŽ¯ Assignation d'assets aux {len(items_without_assets)} items sans assets...")
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Assignation d'assets aux {len(items_without_assets)} items sans assets...")
                         
-                        # Utiliser les B-rolls fetchÃ©s pour assigner aux items
+                        # Utiliser les B-rolls fetchÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s pour assigner aux items
                         available_assets = [broll.get('path', '') for broll in fetched_brolls if broll.get('path')]
                         
                         for i, item in enumerate(items_without_assets):
@@ -7867,21 +7868,21 @@ class VideoProcessor:
                                 elif isinstance(item, dict):
                                     item['asset_path'] = asset_path
                                 
-                                print(f"    âœ… Asset assignÃ© Ã  item {i+1}: {Path(asset_path).name}")
+                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Asset assignÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  item {i+1}: {Path(asset_path).name}")
                             else:
                                 break
                         
-                        # Recalculer les listes aprÃ¨s assignation
+                        # Recalculer les listes aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s assignation
                         items_with_assets = [item for item in plan if (hasattr(item, 'asset_path') and item.asset_path) or (isinstance(item, dict) and item.get('asset_path'))]
                         items_without_assets = [item for item in plan if not ((hasattr(item, 'asset_path') and item.asset_path) or (isinstance(item, dict) and item.get('asset_path')))]
                     
-                    # ðŸš¨ FALLBACK UNIQUEMENT SI VRAIMENT NÃ‰CESSAIRE
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ FALLBACK UNIQUEMENT SI VRAIMENT NÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°CESSAIRE
                     if not items_with_assets and items_without_assets:
-                        print(f"    âš ï¸  Aucun asset disponible, activation du fallback neutre")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Aucun asset disponible, activation du fallback neutre")
                         fallback_assets = _get_fallback_neutral_assets(broll_library, count=3)
                         if fallback_assets:
-                            print(f"    ðŸ†˜ Fallback neutre: {len(fallback_assets)} assets gÃ©nÃ©riques utilisÃ©s")
-                            # CrÃ©er des items de plan avec les assets de fallback
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Ãƒâ€¹Ã…â€œ Fallback neutre: {len(fallback_assets)} assets gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s")
+                            # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er des items de plan avec les assets de fallback
                             for i, asset_path in enumerate(fallback_assets):
                                 fallback_item = {
                                     'start': 3.0 + (i * 5.0),  # Espacer les fallbacks
@@ -7893,14 +7894,14 @@ class VideoProcessor:
                                 }
                                 plan.append(fallback_item)
                         else:
-                            print(f"    ðŸš¨ Aucun asset de fallback disponible")
+                            print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ Aucun asset de fallback disponible")
                     elif items_with_assets:
-                        print(f"    âœ… {len(items_with_assets)} items avec assets assignÃ©s - Pas de fallback nÃ©cessaire")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ {len(items_with_assets)} items avec assets assignÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s - Pas de fallback nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessaire")
                     else:
-                        print(f"    âš ï¸  Plan vide - Aucun item Ã  traiter")
+                        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Plan vide - Aucun item ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  traiter")
                     
             except Exception as e:
-                print(f"    âš ï¸  Erreur scoring contextuel: {e}")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur scoring contextuel: {e}")
  
                         # Affecter un asset_path pertinent via FAISS/CLIP si manquant
             try:
@@ -7909,15 +7910,15 @@ class VideoProcessor:
                 import faiss as _faiss  # type: ignore
                 from pathlib import Path as _P
                 
-                # ðŸš¨ NOUVEAU: Importer le systÃ¨me de scoring contextuel intelligent
+                # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Importer le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me de scoring contextuel intelligent
                 try:
                     from src.pipeline.broll_selector import get_contextual_broll_score
-                    print("    ðŸ§  SystÃ¨me de scoring contextuel intelligent activÃ©")
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Â  SystÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me de scoring contextuel intelligent activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©")
                 except ImportError:
-                    print("    âš ï¸ SystÃ¨me de scoring contextuel non disponible")
+                    print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â SystÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me de scoring contextuel non disponible")
                     get_contextual_broll_score = None
                 
-                # UTILISER LE DOSSIER SPÃ‰CIFIQUE DU CLIP (pas la librairie globale)
+                # UTILISER LE DOSSIER SPÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°CIFIQUE DU CLIP (pas la librairie globale)
                 clip_specific_dir = clip_broll_dir if 'clip_specific_dir' in locals() else broll_library
                 idx_bin = (clip_specific_dir / 'faiss.index')
                 idx_json = (clip_specific_dir / 'faiss.json')
@@ -7947,10 +7948,10 @@ class VideoProcessor:
                     local = " ".join(s.text for s in segments if float(s.start) <= en_e and float(s.end) >= st_e)[:400]
                     q = emb_text(local) if local else None
                     
-                    # ðŸš¨ NOUVEAU: Extraction des mots-clÃ©s pour le scoring contextuel
+                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Extraction des mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s pour le scoring contextuel
                     local_keywords = []
                     if local:
-                        # Extraire les mots-clÃ©s du texte local
+                        # Extraire les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s du texte local
                         words = local.lower().split()
                         local_keywords = [w for w in words if len(w) > 3 and w.isalpha()][:10]
                     
@@ -7958,10 +7959,10 @@ class VideoProcessor:
                     best_score = -1
                     
                     if index is not None and q is not None and paths:
-                        # ðŸš¨ NOUVEAU: Recherche Ã©tendue pour Ã©valuation contextuelle
-                        D,I = index.search(q.reshape(1,-1), 15)  # Augmenter de 5 Ã  15 candidats
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Recherche ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tendue pour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©valuation contextuelle
+                        D,I = index.search(q.reshape(1,-1), 15)  # Augmenter de 5 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  15 candidats
                         
-                        # ðŸš¨ NOUVEAU: Ã‰valuation contextuelle de tous les candidats
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°valuation contextuelle de tous les candidats
                         for idx in I[0].tolist():
                             if 0 <= idx < len(paths):
                                 p = paths[idx]
@@ -7971,45 +7972,45 @@ class VideoProcessor:
                                 if not cand.is_absolute():
                                     cand = (clip_specific_dir / p).resolve()
                                 if str(cand) not in used_recent and cand.exists():
-                                    # ðŸš¨ NOUVEAU: Calcul du score contextuel intelligent
+                                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Calcul du score contextuel intelligent
                                     contextual_score = 0.0
                                     if 'get_contextual_broll_score' in globals() and local_keywords:
                                         try:
                                             # Extraire les tokens et tags du fichier
                                             asset_name = cand.stem.lower()
                                             asset_tokens = asset_name.split('_')
-                                            asset_tags = asset_name.split('_')  # SimplifiÃ© pour l'exemple
+                                            asset_tags = asset_name.split('_')  # SimplifiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© pour l'exemple
                                             contextual_score = get_contextual_broll_score(local_keywords, asset_tokens, asset_tags)
                                         except Exception as e:
-                                            print(f"    âš ï¸ Erreur scoring contextuel: {e}")
+                                            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur scoring contextuel: {e}")
                                             contextual_score = 0.0
                                     
-                                    # ðŸš¨ NOUVEAU: Score combinÃ© FAISS + Contextuel
+                                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Score combinÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© FAISS + Contextuel
                                     faiss_score = float(D[0][I[0].tolist().index(idx)]) if idx in I[0] else 0.0
-                                    combined_score = faiss_score + (contextual_score * 2.0)  # Poids contextuel DOUBLÃ‰
+                                    combined_score = faiss_score + (contextual_score * 2.0)  # Poids contextuel DOUBLÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°
                                     
                                     if combined_score > best_score:
                                         best_score = combined_score
                                         chosen = str(cand)
                         
-                        # ðŸš¨ NOUVEAU: Log de la sÃ©lection contextuelle
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Log de la sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection contextuelle
                         if chosen and 'get_contextual_broll_score' in globals() and local_keywords:
                             try:
                                 asset_name = Path(chosen).stem.lower()
                                 asset_tokens = asset_name.split('_')
                                 asset_tags = asset_name.split('_')
                                 final_contextual_score = get_contextual_broll_score(local_keywords, asset_tokens, asset_tags)
-                                print(f"    ðŸŽ¯ SÃ©lection contextuelle: {Path(chosen).stem} | Score: {best_score:.3f} | Contexte: {final_contextual_score:.2f}")
+                                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ SÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection contextuelle: {Path(chosen).stem} | Score: {best_score:.3f} | Contexte: {final_contextual_score:.2f}")
                             except Exception:
                                 pass
                     
                     if chosen is None:
-                        # ðŸš¨ NOUVEAU: Fallback contextuel intelligent au lieu d'alÃ©atoire
-                        print(f"    ðŸ” Fallback contextuel pour segment: {local[:50]}...")
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: Fallback contextuel intelligent au lieu d'alÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©atoire
+                        print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â Fallback contextuel pour segment: {local[:50]}...")
                         for p in clip_specific_dir.rglob('*'):
                             if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}:
                                 if str(p.resolve()) not in used_recent and p.exists():
-                                    # ðŸš¨ NOUVEAU: Ã‰valuation contextuelle du fallback
+                                    # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ NOUVEAU: ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°valuation contextuelle du fallback
                                     if 'get_contextual_broll_score' in globals() and local_keywords:
                                         try:
                                             asset_name = p.stem.lower()
@@ -8018,7 +8019,7 @@ class VideoProcessor:
                                             fallback_score = get_contextual_broll_score(local_keywords, asset_tokens, asset_tags)
                                             if fallback_score > 2.0:  # Seuil contextuel minimum
                                                 chosen = str(p.resolve())
-                                                print(f"    âœ… Fallback contextuel: {p.stem} | Score: {fallback_score:.2f}")
+                                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Fallback contextuel: {p.stem} | Score: {fallback_score:.2f}")
                                                 break
                                         except Exception:
                                             pass
@@ -8038,14 +8039,14 @@ class VideoProcessor:
             except Exception:
                 pass
 
-            # VÃ©rification des asset_path avant normalisation + mini fallback non invasif
+            # VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification des asset_path avant normalisation + mini fallback non invasif
             try:
                 def _get_ap(x):
                     return (getattr(x, 'asset_path', None) if hasattr(x, 'asset_path') else (x.get('asset_path') if isinstance(x, dict) else None))
                 missing = [it for it in (plan or []) if not _get_ap(it)]
                 if plan and len(missing) == len(plan):
-                    # Aucun asset assignÃ© par FAISS â†’ mini fallback d'assignation sÃ©quentielle
-                    # UTILISER LE DOSSIER SPÃ‰CIFIQUE DU CLIP
+                    # Aucun asset assignÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© par FAISS ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ mini fallback d'assignation sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©quentielle
+                    # UTILISER LE DOSSIER SPÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°CIFIQUE DU CLIP
                     clip_specific_dir = clip_broll_dir if 'clip_specific_dir' in locals() else broll_library
                     lib_assets = [p for p in clip_specific_dir.rglob('*') if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}]
                     if lib_assets:
@@ -8065,7 +8066,7 @@ class VideoProcessor:
             except Exception:
                 pass
  
-             # Normaliser la timeline en Ã©vÃ©nements canonique et rendre
+             # Normaliser la timeline en ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nements canonique et rendre
             try:
                 with _VFC(str(input_path)) as _fpsprobe:
                     fps_probe = float(_fpsprobe.fps or 25.0)
@@ -8095,8 +8096,8 @@ class VideoProcessor:
 
             # Hard fail if no valid events
             if not events:
-                raise RuntimeError('Aucun B-roll valide aprÃ¨s planification/scoring. VÃ©rifier l\'index FAISS et la librairie. Aucun fallback synthÃ©tique appliquÃ©.')
-            # Valider que les mÃ©dias existent
+                raise RuntimeError('Aucun B-roll valide aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s planification/scoring. VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier l\'index FAISS et la librairie. Aucun fallback synthÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tique appliquÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©.')
+            # Valider que les mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dias existent
             from pathlib import Path as _Path
             valid_events = []
             for ev in events:
@@ -8113,27 +8114,27 @@ class VideoProcessor:
                     valid_events.append(ev)
             # Log count and sample
             try:
-                print(f"    ðŸ”Ž B-roll events valides: {len(valid_events)}")
+                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â½ B-roll events valides: {len(valid_events)}")
                 for _ev in valid_events[:3]:
-                    print(f"       â€¢ {_ev.start_s:.2f}-{_ev.end_s:.2f} â†’ {getattr(_ev, 'media_path','')}")
+                    print(f"       ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {_ev.start_s:.2f}-{_ev.end_s:.2f} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {getattr(_ev, 'media_path','')}")
             except Exception:
                 pass
             if not valid_events:
-                # Fallback legacy: construire un plan simple Ã  partir de la librairie existante
+                # Fallback legacy: construire un plan simple ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  partir de la librairie existante
                 try:
                     _media_exts = {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}
                     assets = [p for p in broll_library.rglob('*') if p.suffix.lower() in _media_exts]
                     assets.sort(key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
                     assets = assets[:20]
                     if assets:
-                        # Choisir des segments suffisamment longs (>2.0s) et espacÃ©s
+                        # Choisir des segments suffisamment longs (>2.0s) et espacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                         cands = []
                         for s in segments:
                             dur = float(getattr(s, 'end', 0.0) - getattr(s, 'start', 0.0))
                             if dur >= 2.0 and getattr(s, 'start', 0.0) >= 1.5:  # Plus flexible
                                 cands.append(s)
                         plan_simple = []
-                        gap = 6.0  # RÃ©duit: 8s â†’ 6s pour plus d'insertions
+                        gap = 6.0  # RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©duit: 8s ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 6s pour plus d'insertions
                         last = -1e9
                         ai = 0
                         for s in cands:
@@ -8141,7 +8142,7 @@ class VideoProcessor:
                             en = float(getattr(s,'end',0.0))
                             if st - last < gap:
                                 continue
-                            dur = min(7.0, max(2.5, en - st))  # DurÃ©e min: 2.5s, max: 7s
+                            dur = min(7.0, max(2.5, en - st))  # DurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e min: 2.5s, max: 7s
                             asset = assets[ai % len(assets)]
                             ai += 1
                             plan_simple.append({
@@ -8168,59 +8169,59 @@ class VideoProcessor:
                                 max_transition=0.45,
                                 cooldown_s=max(0.0, cooldown_window),
                             )
-                            print(f"    â™»ï¸ Fallback legacy appliquÃ©: {len(legacy_events)} events")
+                            print(f"    ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢Ãƒâ€šÃ‚Â»ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Fallback legacy appliquÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {len(legacy_events)} events")
                             valid_events = legacy_events
                             # Continue vers le rendu unique plus bas
                         else:
-                            raise RuntimeError('Librairie B-roll prÃ©sente mais aucun slot valide pour fallback legacy')
+                            raise RuntimeError('Librairie B-roll prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sente mais aucun slot valide pour fallback legacy')
                     else:
-                        raise RuntimeError('B-rolls planifiÃ©s, aucun media_path valide et aucune ressource en librairie pour fallback')
+                        raise RuntimeError('B-rolls planifiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s, aucun media_path valide et aucune ressource en librairie pour fallback')
                 except Exception as _e:
-                    raise RuntimeError('B-rolls planifiÃ©s, mais aucun media_path valide trouvÃ©. Fallback legacy impossible: ' + str(_e))
-            # Rendu unique avec les events valides (incl. fallback le cas Ã©chÃ©ant)
+                    raise RuntimeError('B-rolls planifiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s, mais aucun media_path valide trouvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©. Fallback legacy impossible: ' + str(_e))
+            # Rendu unique avec les events valides (incl. fallback le cas ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ant)
             render_video(cfg, segments, valid_events)
 
             inserted_count = len(valid_events)
             self._last_broll_insert_count = inserted_count
 
-            # VÃ‰RIFICATION ET NETTOYAGE INTELLIGENT DES B-ROLLS
+            # VÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°RIFICATION ET NETTOYAGE INTELLIGENT DES B-ROLLS
             try:
                 if getattr(Config, 'BROLL_DELETE_AFTER_USE', False):
-                    print("    ðŸ” VÃ©rification des B-rolls avant suppression...")
+                    print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification des B-rolls avant suppression...")
                     
-                    # Importer le systÃ¨me de vÃ©rification
+                    # Importer le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me de vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification
                     try:
                         from broll_verification_system import create_verification_system
                         verifier = create_verification_system()
                         
-                        # VÃ©rifier l'insertion des B-rolls
+                        # VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier l'insertion des B-rolls
                         verification_result = verifier.verify_broll_insertion(
                             video_path=cfg.output_video,
                             broll_plan=plan or [],
                             broll_library_path=str(clip_broll_dir) if 'clip_broll_dir' in locals() else "AI-B-roll/broll_library"
                         )
                         
-                        # ðŸš€ CORRECTION: VÃ©rifier le type du rÃ©sultat de vÃ©rification
+                        # ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ CORRECTION: VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rifier le type du rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sultat de vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification
                         if not isinstance(verification_result, dict):
-                            print(f"    âš ï¸ RÃ©sultat de vÃ©rification invalide (type: {type(verification_result)}) - Fallback vers vÃ©rification basique")
+                            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©sultat de vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification invalide (type: {type(verification_result)}) - Fallback vers vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification basique")
                             verification_result = {
-                                "verification_passed": True,  # Par dÃ©faut, autoriser la suppression
+                                "verification_passed": True,  # Par dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut, autoriser la suppression
                                 "issues": [],
                                 "recommendations": []
                             }
                         
-                        # DÃ©cider si la suppression est autorisÃ©e
+                        # DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cider si la suppression est autorisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e
                         if verification_result.get("verification_passed", False):
-                            print("    âœ… VÃ©rification rÃ©ussie - Suppression autorisÃ©e")
+                            print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ussie - Suppression autorisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e")
                             
-                            # Supprimer seulement les fichiers B-roll utilisÃ©s (pas le dossier)
+                            # Supprimer seulement les fichiers B-roll utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s (pas le dossier)
                             used_files: List[str] = []
                             for item in (plan or []):
                                 path = getattr(item, 'asset_path', None) if hasattr(item, 'asset_path') else (item.get('asset_path') if isinstance(item, dict) else None)
                                 if path and os.path.exists(path):
                                     used_files.append(path)
                             
-                            # Nettoyer les fichiers utilisÃ©s
+                            # Nettoyer les fichiers utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                             cleaned_count = 0
                             for p in used_files:
                                 try:
@@ -8229,36 +8230,36 @@ class VideoProcessor:
                                 except Exception:
                                     pass
                             
-                            # Marquer le dossier comme "utilisÃ©" mais le garder
+                            # Marquer le dossier comme "utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©" mais le garder
                             if 'clip_broll_dir' in locals() and clip_broll_dir.exists():
                                 try:
-                                    # CrÃ©er un fichier de statut pour indiquer que le clip est traitÃ©
+                                    # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un fichier de statut pour indiquer que le clip est traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
                                     status_file = clip_broll_dir / "STATUS_COMPLETED.txt"
-                                    status_file.write_text(f"Clip traitÃ© le {time.strftime('%Y-%m-%d %H:%M:%S')}\nB-rolls utilisÃ©s: {cleaned_count}\nVÃ©rification: PASSED\n", encoding='utf-8')
-                                    print(f"    ðŸ—‚ï¸ Dossier B-roll conservÃ©: {clip_broll_dir.name} (fichiers nettoyÃ©s: {cleaned_count})")
+                                    status_file.write_text(f"Clip traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© le {time.strftime('%Y-%m-%d %H:%M:%S')}\nB-rolls utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {cleaned_count}\nVÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification: PASSED\n", encoding='utf-8')
+                                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Dossier B-roll conservÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {clip_broll_dir.name} (fichiers nettoyÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {cleaned_count})")
                                 except Exception as e:
-                                    print(f"    âš ï¸ Erreur crÃ©ation statut: {e}")
+                                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ation statut: {e}")
                         else:
-                            print("    âŒ VÃ©rification Ã©chouÃ©e - Suppression REFUSÃ‰E")
-                            print("    ðŸ“‹ ProblÃ¨mes dÃ©tectÃ©s:")
+                            print("    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chouÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e - Suppression REFUSÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°E")
+                            print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ ProblÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨mes dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tectÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s:")
                             for issue in verification_result.get("issues", []):
-                                print(f"       â€¢ {issue}")
-                            print("    ðŸ’¡ Recommandations:")
+                                print(f"       ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {issue}")
+                            print("    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â¡ Recommandations:")
                             for rec in verification_result.get("recommendations", []):
-                                print(f"       â€¢ {rec}")
+                                print(f"       ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {rec}")
                             
-                            # CrÃ©er un fichier de statut d'Ã©chec
+                            # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un fichier de statut d'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chec
                             if 'clip_broll_dir' in locals() and clip_broll_dir.exists():
                                 try:
                                     status_file = clip_broll_dir / "STATUS_FAILED.txt"
-                                    status_file.write_text(f"Clip traitÃ© le {time.strftime('%Y-%m-%d %H:%M:%S')}\nVÃ©rification: FAILED\nProblÃ¨mes: {', '.join(verification_result.get('issues', []))}\n", encoding='utf-8')
-                                    print(f"    ðŸš¨ Dossier B-roll marquÃ© comme Ã©chec: {clip_broll_dir.name}")
+                                    status_file.write_text(f"Clip traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© le {time.strftime('%Y-%m-%d %H:%M:%S')}\nVÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification: FAILED\nProblÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨mes: {', '.join(verification_result.get('issues', []))}\n", encoding='utf-8')
+                                    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¨ Dossier B-roll marquÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© comme ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chec: {clip_broll_dir.name}")
                                 except Exception as e:
-                                    print(f"    âš ï¸ Erreur crÃ©ation statut d'Ã©chec: {e}")
+                                    print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ation statut d'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©chec: {e}")
                     
                     except ImportError:
-                        print("    âš ï¸ SystÃ¨me de vÃ©rification non disponible - Suppression sans vÃ©rification")
-                        # Fallback vers l'ancien systÃ¨me
+                        print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â SystÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me de vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification non disponible - Suppression sans vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification")
+                        # Fallback vers l'ancien systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me
                         used_files: List[str] = []
                         for item in (plan or []):
                             path = getattr(item, 'asset_path', None) if hasattr(item, 'asset_path') else (item.get('asset_path') if isinstance(item, dict) else None)
@@ -8276,13 +8277,13 @@ class VideoProcessor:
                         if 'clip_broll_dir' in locals() and clip_broll_dir.exists():
                             try:
                                 status_file = clip_broll_dir / "STATUS_COMPLETED_NO_VERIFICATION.txt"
-                                status_file.write_text(f"Clip traitÃ© le {time.strftime('%Y-%m-%d %H:%M:%S')}\nB-rolls utilisÃ©s: {cleaned_count}\nVÃ©rification: NON DISPONIBLE\n", encoding='utf-8')
-                                print(f"    ðŸ—‚ï¸ Dossier B-roll conservÃ©: {clip_broll_dir.name} (fichiers nettoyÃ©s: {cleaned_count})")
+                                status_file.write_text(f"Clip traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© le {time.strftime('%Y-%m-%d %H:%M:%S')}\nB-rolls utilisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {cleaned_count}\nVÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification: NON DISPONIBLE\n", encoding='utf-8')
+                                print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Dossier B-roll conservÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: {clip_broll_dir.name} (fichiers nettoyÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {cleaned_count})")
                             except Exception as e:
-                                print(f"    âš ï¸ Erreur crÃ©ation statut: {e}")
+                                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ation statut: {e}")
                     
             except Exception as e:
-                print(f"    âš ï¸ Erreur lors de la vÃ©rification/nettoyage: {e}")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur lors de la vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rification/nettoyage: {e}")
                 # En cas d'erreur, ne pas supprimer les B-rolls
                 pass
 
@@ -8297,50 +8298,50 @@ class VideoProcessor:
                 print(banner)
 
             if not output_exists:
-                print("    âš ï¸ Sortie B-roll introuvable, retour Ã  la vidÃ©o d'origine")
+                print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Sortie B-roll introuvable, retour ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  la vidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©o d'origine")
 
             return input_path
         except Exception as e:
-            print(f"    âŒ Erreur B-roll: {e}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur B-roll: {e}")
             return input_path
 
-    # Si densitÃ© trop faible aprÃ¨s planification, injecter quelques B-rolls gÃ©nÃ©riques
+    # Si densitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© trop faible aprÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨s planification, injecter quelques B-rolls gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques
     try:
         with _VFC(str(input_path)) as _tmp:
             _total = float(_tmp.duration or 0.0)
         cur_cov = sum(max(0.0, (float(getattr(it,'end', it.get('end',0.0))) - float(getattr(it,'start', it.get('start',0.0))))) for it in (plan or []))
-        if _total > 0 and (cur_cov / _total) < 0.20:  # AugmentÃ©: 15% â†’ 20% pour plus de B-rolls
+        if _total > 0 and (cur_cov / _total) < 0.20:  # AugmentÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©: 15% ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 20% pour plus de B-rolls
             _generics = []
             bank = [
                 "money", "handshake", "meeting", "audience", "lightbulb", "typing", "city", "success"
             ]
-            # Chercher quelques mÃ©dias gÃ©nÃ©riques existants
+            # Chercher quelques mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©dias gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques existants
             for p in broll_library.rglob('*'):
                 if p.suffix.lower() in {'.mp4','.mov','.mkv','.webm','.jpg','.jpeg','.png'}:
                     name = p.stem.lower()
                     if any(k in name for k in bank):
                         _generics.append(str(p.resolve()))
             if _generics:
-                # Injecter 2â€“4 gÃ©nÃ©riques espacÃ©s
+                # Injecter 2ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ4 gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques espacÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
                 inject_count = min(4, max(2, int(len(_generics)/5)))
                 st = 2.0
                 while inject_count > 0 and st < (_total - 3.5):
                     plan.append({'start': st, 'end': min(_total, st+3.5), 'asset_path': _generics[inject_count % len(_generics)], 'crossfade_frames': 2})
                     st += 10.0
                     inject_count -= 1
-                print("    âž• B-rolls gÃ©nÃ©riques injectÃ©s pour densitÃ© minimale")
+                print("    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¾ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ B-rolls gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques injectÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s pour densitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© minimale")
     except Exception:
         pass
 
 class PremiereProAutomation:
     """
     Classe pour l'automatisation Premiere Pro (optionnelle)
-    Utilise ExtendScript pour les utilisateurs avancÃ©s
+    Utilise ExtendScript pour les utilisateurs avancÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
     """
     
     @staticmethod
     def create_jsx_script(clip_path: str, output_path: str) -> str:
-        """GÃ©nÃ¨re un script ExtendScript pour Premiere Pro"""
+        """GÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨re un script ExtendScript pour Premiere Pro"""
         jsx_script = f'''
         // Script ExtendScript pour Premiere Pro
         var project = app.project;
@@ -8350,12 +8351,12 @@ class PremiereProAutomation:
         importOptions.file = new File("{clip_path}");
         var clip = project.importFiles([importOptions.file]);
         
-        // CrÃ©ation d'une sÃ©quence 9:16
+        // CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ation d'une sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©quence 9:16
         var sequence = project.createNewSequence("Vertical_Clip", "HDV-1080i25");
         sequence.videoTracks[0].insertClip(clip[0], 0);
         
         // Application de l'effet Auto Reframe (si disponible)
-        // Note: Ceci nÃ©cessite Premiere Pro 2019 ou plus rÃ©cent
+        // Note: Ceci nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cessite Premiere Pro 2019 ou plus rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cent
         
         // Export
         var encoder = app.encoder;
@@ -8365,7 +8366,7 @@ class PremiereProAutomation:
     
     @staticmethod 
     def run_premiere_script(jsx_script_content: str):
-        """ExÃ©cute un script ExtendScript dans Premiere Pro"""
+        """ExÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cute un script ExtendScript dans Premiere Pro"""
         try:
             # Sauvegarde du script temporaire
             script_path = Config.TEMP_FOLDER / "premiere_script.jsx"
@@ -8381,15 +8382,15 @@ class PremiereProAutomation:
                     f'tell application "Adobe Premiere Pro" to do script "{script_path}"'
                 ], check=True)
             elif system == 'Windows':
-                print("âš ï¸ ExÃ©cution ExtendScript automatisÃ©e non supportÃ©e nativement sous Windows dans ce pipeline.")
-                print("   Ouvrez Premiere Pro et exÃ©cutez le script manuellement: " + str(script_path))
+                print("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â ExÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cution ExtendScript automatisÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e non supportÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e nativement sous Windows dans ce pipeline.")
+                print("   Ouvrez Premiere Pro et exÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cutez le script manuellement: " + str(script_path))
             else:
-                print("âš ï¸ Plateforme non supportÃ©e pour l'exÃ©cution automatique de Premiere Pro.")
+                print("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Plateforme non supportÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e pour l'exÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cution automatique de Premiere Pro.")
             
-            logger.info("âœ… Script Premiere Pro traitÃ© (voir message ci-dessus)")
+            logger.info("ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Script Premiere Pro traitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© (voir message ci-dessus)")
             
         except Exception as e:
-            logger.error(f"âŒ Erreur Premiere Pro: {e}")
+            logger.error(f"ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Erreur Premiere Pro: {e}")
             raise
 
 # Helper: filter noisy prompt terms
@@ -8424,7 +8425,7 @@ __all__ = [
 ]
 
 def _prioritize_fresh_assets(broll_candidates, clip_id):
-    """Priorise les assets les plus rÃ©cents basÃ©s sur le timestamp du dossier."""
+    """Priorise les assets les plus rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cents basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s sur le timestamp du dossier."""
     if not broll_candidates:
         return broll_candidates
     
@@ -8445,16 +8446,16 @@ def _prioritize_fresh_assets(broll_candidates, clip_id):
             else:
                 candidate.folder_timestamp = 0
         
-        # Trier par timestamp dÃ©croissant (plus rÃ©cent en premier)
+        # Trier par timestamp dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©croissant (plus rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cent en premier)
         broll_candidates.sort(key=lambda x: getattr(x, 'folder_timestamp', 0), reverse=True)
         
     except Exception as e:
-        print(f"    âš ï¸  Erreur priorisation fraÃ®cheur: {e}")
+        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur priorisation fraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur: {e}")
     
     return broll_candidates
 
 def _score_contextual_relevance(asset_path, domain, keywords):
-    """Score de pertinence contextuelle basÃ© sur les tokens et le domaine."""
+    """Score de pertinence contextuelle basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur les tokens et le domaine."""
     try:
         if not asset_path or not domain or not keywords:
             return 0.5
@@ -8463,7 +8464,7 @@ def _score_contextual_relevance(asset_path, domain, keywords):
         filename = Path(asset_path).stem.lower()
         asset_tokens = set(re.split(r'[^a-z0-9]+', filename))
         
-        # Tokens du domaine et mots-clÃ©s
+        # Tokens du domaine et mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
         domain_tokens = set(domain.lower().split())
         keyword_tokens = set()
         for kw in keywords:
@@ -8478,7 +8479,7 @@ def _score_contextual_relevance(asset_path, domain, keywords):
         overlap = len(asset_tokens & relevant_tokens)
         total_relevant = len(relevant_tokens)
         
-        # Score basÃ© sur l'overlap (0.0 Ã  1.0)
+        # Score basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur l'overlap (0.0 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  1.0)
         base_score = min(1.0, overlap / max(1, total_relevant * 0.3))
         
         # Bonus pour les tokens de domaine
@@ -8489,17 +8490,17 @@ def _score_contextual_relevance(asset_path, domain, keywords):
         return final_score
         
     except Exception as e:
-        print(f"    âš ï¸  Erreur scoring contextuel: {e}")
+        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur scoring contextuel: {e}")
         return 0.5
 
 def _get_fallback_neutral_assets(broll_library, count=3):
-    """RÃ©cupÃ¨re des assets neutres/gÃ©nÃ©riques comme fallback."""
+    """RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cupÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨re des assets neutres/gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques comme fallback."""
     try:
         fallback_keywords = ['neutral', 'generic', 'background', 'abstract', 'minimal']
         fallback_assets = []
         
         for keyword in fallback_keywords:
-            # Chercher dans la librairie des assets avec ces mots-clÃ©s
+            # Chercher dans la librairie des assets avec ces mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s
             for ext in ['.mp4', '.mov', '.jpg', '.png']:
                 for asset_path in broll_library.rglob(f"*{keyword}*{ext}"):
                     if asset_path.exists() and asset_path not in fallback_assets:
@@ -8511,7 +8512,7 @@ def _get_fallback_neutral_assets(broll_library, count=3):
             if len(fallback_assets) >= count:
                 break
         
-        # Si pas assez d'assets spÃ©cifiques, prendre des assets gÃ©nÃ©riques
+        # Si pas assez d'assets spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cifiques, prendre des assets gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©riques
         if len(fallback_assets) < count:
             for ext in ['.mp4', '.mov', '.jpg', '.png']:
                 for asset_path in broll_library.rglob(f"*{ext}"):
@@ -8525,17 +8526,17 @@ def _get_fallback_neutral_assets(broll_library, count=3):
         return fallback_assets[:count]
         
     except Exception as e:
-        print(f"    âš ï¸  Erreur fallback neutre: {e}")
+        print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â  Erreur fallback neutre: {e}")
         return []
 
 def _debug_broll_selection(plan, domain, keywords, debug_mode=False):
-    """Log dÃ©taillÃ© de la sÃ©lection B-roll si debug activÃ©."""
+    """Log dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©taillÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© de la sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lection B-roll si debug activÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©."""
     if not debug_mode:
         return
     
-    print(f"    ðŸ” DEBUG B-ROLL SELECTION:")
+    print(f"    ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â DEBUG B-ROLL SELECTION:")
     print(f"       Domaine: {domain}")
-    print(f"       Mots-clÃ©s: {keywords[:5]}")
+    print(f"       Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s: {keywords[:5]}")
     print(f"       Plan: {len(plan)} items")
     
     for i, item in enumerate(plan[:3]):  # Afficher les 3 premiers
@@ -8553,20 +8554,20 @@ def _debug_broll_selection(plan, domain, keywords, debug_mode=False):
             continue
         
         print(f"       Item {i+1}: {Path(asset_path).name}")
-        print(f"         Score: {score}, Context: {context_score}, FraÃ®cheur: {freshness}")
+        print(f"         Score: {score}, Context: {context_score}, FraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â®cheur: {freshness}")
 
-# ðŸš€ NOUVEAU: Fonction de scoring mixte intelligent pour B-rolls
+# ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NOUVEAU: Fonction de scoring mixte intelligent pour B-rolls
 def score_broll_asset_mixed(asset_path: str, asset_tags: List[str], query_keywords: List[str], 
                            domain: Optional[str] = None, asset_metadata: Optional[Dict] = None) -> float:
     """
-    Score un asset B-roll avec le systÃ¨me mixte intelligent.
+    Score un asset B-roll avec le systÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨me mixte intelligent.
     
     Args:
         asset_path: Chemin vers l'asset
         asset_tags: Tags de l'asset
-        query_keywords: Mots-clÃ©s de la requÃªte
-        domain: Domaine dÃ©tectÃ© (optionnel)
-        asset_metadata: MÃ©tadonnÃ©es supplÃ©mentaires (optionnel)
+        query_keywords: Mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s de la requÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªte
+        domain: Domaine dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tectÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© (optionnel)
+        asset_metadata: MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es supplÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©mentaires (optionnel)
     
     Returns:
         Score final entre 0.0 et 1.0
@@ -8576,10 +8577,10 @@ def score_broll_asset_mixed(asset_path: str, asset_tags: List[str], query_keywor
             # Fallback vers scoring basique
             return _score_broll_asset_basic(asset_path, asset_tags, query_keywords)
         
-        # Utiliser le nouveau sÃ©lecteur si disponible
+        # Utiliser le nouveau sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur si disponible
         from broll_selector import Asset, ScoringFeatures
         
-        # CrÃ©er un asset simulÃ© pour le scoring
+        # CrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©er un asset simulÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© pour le scoring
         asset = Asset(
             id=f"asset_{hash(asset_path)}",
             file_path=asset_path,
@@ -8592,7 +8593,7 @@ def score_broll_asset_mixed(asset_path: str, asset_tags: List[str], query_keywor
             resolution=asset_metadata.get('resolution', '1920x1080') if asset_metadata else '1920x1080'
         )
         
-        # Normaliser les mots-clÃ©s de la requÃªte
+        # Normaliser les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s de la requÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªte
         normalized_keywords = set()
         for kw in query_keywords:
             if kw and isinstance(kw, str):
@@ -8615,7 +8616,7 @@ def score_broll_asset_mixed(asset_path: str, asset_tags: List[str], query_keywor
             domain_overlap = len(set(asset_tags) & set(domain_keywords))
             features.domain_match = min(1.0, domain_overlap / max(len(domain_keywords), 1))
         
-        # 3. Freshness (basÃ© sur la date de crÃ©ation du fichier)
+        # 3. Freshness (basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur la date de crÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©ation du fichier)
         try:
             file_path = Path(asset_path)
             if file_path.exists():
@@ -8623,15 +8624,15 @@ def score_broll_asset_mixed(asset_path: str, asset_tags: List[str], query_keywor
                 days_old = (time.time() - mtime) / (24 * 3600)
                 features.freshness = 1.0 / (1.0 + days_old / 60)  # Demi-vie de 60 jours
         except:
-            features.freshness = 0.5  # Valeur par dÃ©faut
+            features.freshness = 0.5  # Valeur par dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut
         
-        # 4. Quality score (basÃ© sur la rÃ©solution et l'extension)
+        # 4. Quality score (basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur la rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©solution et l'extension)
         features.quality_score = _calculate_quality_score(asset_path, asset_metadata)
         
-        # 5. Embedding similarity (placeholder - Ã  implÃ©menter avec FAISS)
-        features.embedding_similarity = 0.5  # Valeur par dÃ©faut
+        # 5. Embedding similarity (placeholder - ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  implÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©menter avec FAISS)
+        features.embedding_similarity = 0.5  # Valeur par dÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©faut
         
-        # Calculer le score final pondÃ©rÃ©
+        # Calculer le score final pondÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©
         weights = {
             'embedding': 0.4,
             'token': 0.2,
@@ -8652,14 +8653,14 @@ def score_broll_asset_mixed(asset_path: str, asset_tags: List[str], query_keywor
         return max(0.0, min(1.0, final_score))
         
     except Exception as e:
-        print(f"âš ï¸ Erreur scoring mixte: {e}")
+        print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur scoring mixte: {e}")
         # Fallback vers scoring basique
         return _score_broll_asset_basic(asset_path, asset_tags, query_keywords)
 
 def _score_broll_asset_basic(asset_path: str, asset_tags: List[str], query_keywords: List[str]) -> float:
     """Scoring basique de fallback"""
     try:
-        # Score simple basÃ© sur l'overlap de tags
+        # Score simple basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur l'overlap de tags
         if not asset_tags or not query_keywords:
             return 0.5
         
@@ -8675,11 +8676,11 @@ def _score_broll_asset_basic(asset_path: str, asset_tags: List[str], query_keywo
         return intersection / union if union > 0 else 0.0
         
     except Exception as e:
-        print(f"âš ï¸ Erreur scoring basique: {e}")
+        print(f"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur scoring basique: {e}")
         return 0.5
 
 def _get_domain_keywords(domain: str) -> List[str]:
-    """Retourne les mots-clÃ©s spÃ©cifiques au domaine"""
+    """Retourne les mots-clÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©s spÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©cifiques au domaine"""
     domain_keywords = {
         'health': ['medical', 'healthcare', 'wellness', 'fitness', 'medicine', 'hospital', 'doctor'],
         'technology': ['tech', 'digital', 'innovation', 'computer', 'ai', 'software', 'data'],
@@ -8691,11 +8692,11 @@ def _get_domain_keywords(domain: str) -> List[str]:
     return domain_keywords.get(domain.lower(), [domain])
 
 def _calculate_quality_score(asset_path: str, metadata: Optional[Dict] = None) -> float:
-    """Calcule un score de qualitÃ© basÃ© sur les mÃ©tadonnÃ©es"""
+    """Calcule un score de qualitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur les mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es"""
     try:
         score = 0.5  # Score de base
         
-        # Bonus pour la rÃ©solution
+        # Bonus pour la rÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©solution
         if metadata and 'resolution' in metadata:
             res = metadata['resolution']
             if '4k' in res or '3840' in res:
@@ -8703,13 +8704,13 @@ def _calculate_quality_score(asset_path: str, metadata: Optional[Dict] = None) -
             elif '1080' in res or '1920' in res:
                 score += 0.1
         
-        # Bonus pour la durÃ©e
+        # Bonus pour la durÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e
         if metadata and 'duration' in metadata:
             duration = metadata['duration']
-            if 2.0 <= duration <= 6.0:  # DurÃ©e optimale
+            if 2.0 <= duration <= 6.0:  # DurÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©e optimale
                 score += 0.1
         
-        # Bonus pour l'extension (prÃ©fÃ©rer MP4)
+        # Bonus pour l'extension (prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rer MP4)
         if asset_path.lower().endswith('.mp4'):
             score += 0.1
         
@@ -8719,27 +8720,27 @@ def _calculate_quality_score(asset_path: str, metadata: Optional[Dict] = None) -
         return 0.5
 
     def _load_broll_selector_config(self):
-        """Charge la configuration du sÃ©lecteur B-roll depuis le fichier YAML"""
+        """Charge la configuration du sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©lecteur B-roll depuis le fichier YAML"""
         try:
             import yaml
             if Config.BROLL_SELECTOR_CONFIG_PATH.exists():
                 with open(Config.BROLL_SELECTOR_CONFIG_PATH, 'r', encoding='utf-8') as f:
                     return yaml.safe_load(f) or {}
             else:
-                print(f"    âš ï¸ Fichier de configuration introuvable: {Config.BROLL_SELECTOR_CONFIG_PATH}")
+                print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Fichier de configuration introuvable: {Config.BROLL_SELECTOR_CONFIG_PATH}")
                 return {}
         except Exception as e:
-            print(f"    âš ï¸ Erreur chargement configuration: {e}")
+            print(f"    ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Erreur chargement configuration: {e}")
             return {}
 
     def _calculate_asset_hash(self, asset_path: Path) -> str:
-        """Calcule un hash unique pour un asset B-roll basÃ© sur son contenu et mÃ©tadonnÃ©es"""
+        """Calcule un hash unique pour un asset B-roll basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur son contenu et mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tadonnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es"""
         try:
             import hashlib
             import os
             from datetime import datetime
             
-            # Hash basÃ© sur le nom, la taille et la date de modification
+            # Hash basÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© sur le nom, la taille et la date de modification
             stat = asset_path.stat()
             hash_data = f"{asset_path.name}_{stat.st_size}_{stat.st_mtime}"
             return hashlib.md5(hash_data.encode()).hexdigest()
@@ -8815,12 +8816,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"[CLI] Done in {elapsed:.1f}s -> {result}")
     return 0
 def _dev_run_sanity_tests():
-    print("\\n[DEV] Sc�nario A (LLM OK) ===")
-    print("  ?? Source m�tadonn�es retenue: llm")
+    print("\\n[DEV] ScÃƒÂ©nario A (LLM OK) ===")
+    print("  ?? Source mÃƒÂ©tadonnÃƒÂ©es retenue: llm")
     print("  ??? Titre final: LLM: Strong specific title for the clip")
-    print("\\n[DEV] Sc�nario B (LLM g�n�rique) ===")
-    print("  ?? Source m�tadonn�es retenue: llm")
-    print("  ??? Titre final: Protocole lombalgie: 3 erreurs fr�quentes et comment les �vit�")
+    print("\\n[DEV] ScÃƒÂ©nario B (LLM gÃƒÂ©nÃƒÂ©rique) ===")
+    print("  ?? Source mÃƒÂ©tadonnÃƒÂ©es retenue: llm")
+    print("  ??? Titre final: Protocole lombalgie: 3 erreurs frÃƒÂ©quentes et comment les ÃƒÂ©vitÃ¢â‚¬Â¦")
 def _vp_maybe_utf8_console():
     """Safely set UTF-8 console encoding only on real TTY, never under pytest/capture."""
     import sys, os
@@ -8848,3 +8849,6 @@ if __name__ == '__main__':
         sys.exit(0)
     _vp_maybe_utf8_console()
     raise SystemExit(main())
+
+
+

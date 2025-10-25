@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Récupération Parallèle des B-rolls depuis les Sources Gratuites
-Système optimisé pour récupérer des assets de qualité depuis toutes les sources disponibles
+RÃƒÂ©cupÃƒÂ©ration ParallÃƒÂ¨le des B-rolls depuis les Sources Gratuites
+SystÃƒÂ¨me optimisÃƒÂ© pour rÃƒÂ©cupÃƒÂ©rer des assets de qualitÃƒÂ© depuis toutes les sources disponibles
 """
 
 import logging
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BrollAsset:
-    """Asset B-roll avec métadonnées complètes"""
+    """Asset B-roll avec mÃƒÂ©tadonnÃƒÂ©es complÃƒÂ¨tes"""
     id: str
     title: str
     description: str
@@ -35,7 +36,7 @@ class BrollAsset:
 
 @dataclass
 class FetchResult:
-    """Résultat de la récupération d'une source"""
+    """RÃƒÂ©sultat de la rÃƒÂ©cupÃƒÂ©ration d'une source"""
     source: str
     assets: List[BrollAsset]
     success: bool
@@ -44,7 +45,7 @@ class FetchResult:
     assets_count: int
 
 class EnhancedFreeFetcher:
-    """Récupérateur avancé pour sources gratuites"""
+    """RÃƒÂ©cupÃƒÂ©rateur avancÃƒÂ© pour sources gratuites"""
     
     def __init__(self, cache_dir: str = "cache/broll"):
         self.cache_dir = Path(cache_dir)
@@ -136,11 +137,11 @@ class EnhancedFreeFetcher:
             }
         }
         
-        # Cache des résultats
+        # Cache des rÃƒÂ©sultats
         self.cache = {}
         self.cache_ttl = 3600  # 1 heure
         
-        # Statistiques de récupération
+        # Statistiques de rÃƒÂ©cupÃƒÂ©ration
         self.stats = {
             "total_fetches": 0,
             "successful_fetches": 0,
@@ -152,12 +153,12 @@ class EnhancedFreeFetcher:
     
     async def fetch_candidates_from_free_providers(self, keywords: List[str], domain: str, 
                                                  max_assets: int = 50) -> List[BrollAsset]:
-        """Récupération parallèle depuis toutes les sources gratuites"""
+        """RÃƒÂ©cupÃƒÂ©ration parallÃƒÂ¨le depuis toutes les sources gratuites"""
         try:
-            logger.info(f"Début de la récupération parallèle pour: {keywords} (domaine: {domain})")
+            logger.info(f"DÃƒÂ©but de la rÃƒÂ©cupÃƒÂ©ration parallÃƒÂ¨le pour: {keywords} (domaine: {domain})")
             start_time = time.time()
             
-            # Vérifier le cache
+            # VÃƒÂ©rifier le cache
             cache_key = self._generate_cache_key(keywords, domain)
             if cache_key in self.cache:
                 cached_result = self.cache[cache_key]
@@ -168,21 +169,21 @@ class EnhancedFreeFetcher:
             
             self.stats["cache_misses"] += 1
             
-            # Préparer les tâches de récupération
+            # PrÃƒÂ©parer les tÃƒÂ¢ches de rÃƒÂ©cupÃƒÂ©ration
             tasks = []
             for source_name, source_config in self.free_sources.items():
                 if source_config["enabled"]:
                     task = self._fetch_from_source(source_name, source_config, keywords, domain, max_assets)
                     tasks.append(task)
             
-            # Exécution parallèle avec timeout
+            # ExÃƒÂ©cution parallÃƒÂ¨le avec timeout
             timeout = 30  # 30 secondes max par source
             results = await asyncio.wait_for(
                 asyncio.gather(*tasks, return_exceptions=True),
                 timeout=timeout * len(tasks)
             )
             
-            # Traitement des résultats
+            # Traitement des rÃƒÂ©sultats
             all_assets = []
             for result in results:
                 if isinstance(result, FetchResult) and result.success:
@@ -192,9 +193,9 @@ class EnhancedFreeFetcher:
                 else:
                     self.stats["failed_fetches"] += 1
                     if isinstance(result, Exception):
-                        logger.error(f"Erreur lors de la récupération: {result}")
+                        logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration: {result}")
             
-            # Déduplication et tri par qualité
+            # DÃƒÂ©duplication et tri par qualitÃƒÂ©
             unique_assets = self._deduplicate_assets(all_assets)
             sorted_assets = sorted(unique_assets, key=lambda x: x.quality_score, reverse=True)
             
@@ -207,30 +208,30 @@ class EnhancedFreeFetcher:
                 "timestamp": time.time()
             }
             
-            # Mettre à jour les statistiques
+            # Mettre ÃƒÂ  jour les statistiques
             self.stats["total_fetches"] += 1
             fetch_time = time.time() - start_time
             
-            logger.info(f"Récupération terminée: {len(final_assets)} assets en {fetch_time:.2f}s")
+            logger.info(f"RÃƒÂ©cupÃƒÂ©ration terminÃƒÂ©e: {len(final_assets)} assets en {fetch_time:.2f}s")
             logger.info(f"Statistiques: {self.stats}")
             
             return final_assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération parallèle: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration parallÃƒÂ¨le: {e}")
             return []
     
     async def _fetch_from_source(self, source_name: str, source_config: Dict, 
                                 keywords: List[str], domain: str, max_assets: int) -> FetchResult:
-        """Récupération depuis une source spécifique"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis une source spÃƒÂ©cifique"""
         try:
             start_time = time.time()
-            logger.info(f"Début récupération depuis {source_name}")
+            logger.info(f"DÃƒÂ©but rÃƒÂ©cupÃƒÂ©ration depuis {source_name}")
             
-            # Construire la requête optimisée
+            # Construire la requÃƒÂªte optimisÃƒÂ©e
             query = self._build_optimized_query(keywords, domain, source_name)
             
-            # Récupérer les assets selon le type de source
+            # RÃƒÂ©cupÃƒÂ©rer les assets selon le type de source
             if source_name in ["pexels", "pixabay", "unsplash"]:
                 assets = await self._fetch_from_photo_api(source_name, source_config, query, max_assets)
             elif source_name == "giphy":
@@ -258,7 +259,7 @@ class EnhancedFreeFetcher:
             )
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis {source_name}: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis {source_name}: {e}")
             return FetchResult(
                 source=source_name,
                 assets=[],
@@ -269,43 +270,43 @@ class EnhancedFreeFetcher:
             )
     
     def _build_optimized_query(self, keywords: List[str], domain: str, source: str) -> str:
-        """Construction de requêtes optimisées selon la source et le domaine"""
+        """Construction de requÃƒÂªtes optimisÃƒÂ©es selon la source et le domaine"""
         try:
-            # Expansion des mots-clés selon le domaine
+            # Expansion des mots-clÃƒÂ©s selon le domaine
             from enhanced_keyword_expansion import expand_keywords_with_synonyms
             expanded_keywords = expand_keywords_with_synonyms(keywords[0], domain)
             
-            # Sélection des mots-clés les plus pertinents pour la source
+            # SÃƒÂ©lection des mots-clÃƒÂ©s les plus pertinents pour la source
             if source in ["pexels", "pixabay", "unsplash"]:
-                # Sources photo : privilégier les concepts visuels
+                # Sources photo : privilÃƒÂ©gier les concepts visuels
                 visual_keywords = [kw for kw in expanded_keywords if len(kw.split()) <= 2]
                 selected_keywords = visual_keywords[:3]
             elif source == "giphy":
-                # Giphy : privilégier les concepts dynamiques
+                # Giphy : privilÃƒÂ©gier les concepts dynamiques
                 dynamic_keywords = [kw for kw in expanded_keywords if kw in ["innovation", "progress", "development", "growth"]]
                 selected_keywords = dynamic_keywords[:2] if dynamic_keywords else expanded_keywords[:2]
             else:
-                # Sources générales : mots-clés principaux
+                # Sources gÃƒÂ©nÃƒÂ©rales : mots-clÃƒÂ©s principaux
                 selected_keywords = expanded_keywords[:3]
             
-            # Construction de la requête
+            # Construction de la requÃƒÂªte
             query = " ".join(selected_keywords)
-            logger.info(f"Requête optimisée pour {source}: '{query}'")
+            logger.info(f"RequÃƒÂªte optimisÃƒÂ©e pour {source}: '{query}'")
             
             return query
             
         except Exception as e:
-            logger.error(f"Erreur lors de la construction de la requête: {e}")
+            logger.error(f"Erreur lors de la construction de la requÃƒÂªte: {e}")
             return " ".join(keywords[:3])
     
     async def _fetch_from_photo_api(self, source_name: str, source_config: Dict, 
                                    query: str, max_assets: int) -> List[BrollAsset]:
-        """Récupération depuis les APIs photo (Pexels, Pixabay, Unsplash)"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis les APIs photo (Pexels, Pixabay, Unsplash)"""
         try:
-            # Simulation de récupération (remplacer par les vraies APIs)
+            # Simulation de rÃƒÂ©cupÃƒÂ©ration (remplacer par les vraies APIs)
             assets = []
             
-            # Créer des assets simulés pour la démonstration
+            # CrÃƒÂ©er des assets simulÃƒÂ©s pour la dÃƒÂ©monstration
             for i in range(min(max_assets, 10)):
                 asset = BrollAsset(
                     id=f"{source_name}_{i}",
@@ -328,15 +329,15 @@ class EnhancedFreeFetcher:
             return assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis {source_name}: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis {source_name}: {e}")
             return []
     
     async def _fetch_from_giphy(self, source_config: Dict, query: str, max_assets: int) -> List[BrollAsset]:
-        """Récupération depuis Giphy"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis Giphy"""
         try:
             assets = []
             
-            # Simulation de récupération Giphy
+            # Simulation de rÃƒÂ©cupÃƒÂ©ration Giphy
             for i in range(min(max_assets, 8)):
                 asset = BrollAsset(
                     id=f"giphy_{i}",
@@ -359,15 +360,15 @@ class EnhancedFreeFetcher:
             return assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis Giphy: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis Giphy: {e}")
             return []
     
     async def _fetch_from_archive_org(self, source_config: Dict, query: str, max_assets: int) -> List[BrollAsset]:
-        """Récupération depuis Archive.org"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis Archive.org"""
         try:
             assets = []
             
-            # Simulation de récupération Archive.org
+            # Simulation de rÃƒÂ©cupÃƒÂ©ration Archive.org
             for i in range(min(max_assets, 6)):
                 asset = BrollAsset(
                     id=f"archive_{i}",
@@ -390,15 +391,15 @@ class EnhancedFreeFetcher:
             return assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis Archive.org: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis Archive.org: {e}")
             return []
     
     async def _fetch_from_wikimedia(self, source_config: Dict, query: str, max_assets: int) -> List[BrollAsset]:
-        """Récupération depuis Wikimedia Commons"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis Wikimedia Commons"""
         try:
             assets = []
             
-            # Simulation de récupération Wikimedia
+            # Simulation de rÃƒÂ©cupÃƒÂ©ration Wikimedia
             for i in range(min(max_assets, 5)):
                 asset = BrollAsset(
                     id=f"wikimedia_{i}",
@@ -421,15 +422,15 @@ class EnhancedFreeFetcher:
             return assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis Wikimedia: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis Wikimedia: {e}")
             return []
     
     async def _fetch_from_nasa(self, source_config: Dict, query: str, max_assets: int) -> List[BrollAsset]:
-        """Récupération depuis NASA Images"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis NASA Images"""
         try:
             assets = []
             
-            # Simulation de récupération NASA
+            # Simulation de rÃƒÂ©cupÃƒÂ©ration NASA
             for i in range(min(max_assets, 4)):
                 asset = BrollAsset(
                     id=f"nasa_{i}",
@@ -452,15 +453,15 @@ class EnhancedFreeFetcher:
             return assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis NASA: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis NASA: {e}")
             return []
     
     async def _fetch_from_wellcome(self, source_config: Dict, query: str, max_assets: int) -> List[BrollAsset]:
-        """Récupération depuis Wellcome Collection"""
+        """RÃƒÂ©cupÃƒÂ©ration depuis Wellcome Collection"""
         try:
             assets = []
             
-            # Simulation de récupération Wellcome
+            # Simulation de rÃƒÂ©cupÃƒÂ©ration Wellcome
             for i in range(min(max_assets, 3)):
                 asset = BrollAsset(
                     id=f"wellcome_{i}",
@@ -483,22 +484,22 @@ class EnhancedFreeFetcher:
             return assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération depuis Wellcome: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration depuis Wellcome: {e}")
             return []
     
     def _deduplicate_assets(self, assets: List[BrollAsset]) -> List[BrollAsset]:
-        """Déduplication des assets basée sur l'URL et le titre"""
+        """DÃƒÂ©duplication des assets basÃƒÂ©e sur l'URL et le titre"""
         try:
             seen_urls = set()
             seen_titles = set()
             unique_assets = []
             
             for asset in assets:
-                # Vérifier l'URL
+                # VÃƒÂ©rifier l'URL
                 if asset.url in seen_urls:
                     continue
                 
-                # Vérifier le titre (normalisé)
+                # VÃƒÂ©rifier le titre (normalisÃƒÂ©)
                 normalized_title = asset.title.lower().strip()
                 if normalized_title in seen_titles:
                     continue
@@ -508,43 +509,44 @@ class EnhancedFreeFetcher:
                 seen_titles.add(normalized_title)
                 unique_assets.append(asset)
             
-            logger.info(f"Déduplication: {len(assets)} → {len(unique_assets)} assets uniques")
+            logger.info(f"DÃƒÂ©duplication: {len(assets)} Ã¢â€ â€™ {len(unique_assets)} assets uniques")
             return unique_assets
             
         except Exception as e:
-            logger.error(f"Erreur lors de la déduplication: {e}")
+            logger.error(f"Erreur lors de la dÃƒÂ©duplication: {e}")
             return assets
     
     def _generate_cache_key(self, keywords: List[str], domain: str) -> str:
-        """Génération de la clé de cache"""
+        """GÃƒÂ©nÃƒÂ©ration de la clÃƒÂ© de cache"""
         try:
-            # Combiner les mots-clés et le domaine
+            # Combiner les mots-clÃƒÂ©s et le domaine
             key_string = f"{domain}:{':'.join(sorted(keywords))}"
             
-            # Générer un hash MD5
+            # GÃƒÂ©nÃƒÂ©rer un hash MD5
             return hashlib.md5(key_string.encode()).hexdigest()
             
         except Exception as e:
-            logger.error(f"Erreur lors de la génération de la clé de cache: {e}")
+            logger.error(f"Erreur lors de la gÃƒÂ©nÃƒÂ©ration de la clÃƒÂ© de cache: {e}")
             return f"{domain}_{hash(str(keywords))}"
     
     def get_stats(self) -> Dict[str, Any]:
-        """Récupère les statistiques de récupération"""
+        """RÃƒÂ©cupÃƒÂ¨re les statistiques de rÃƒÂ©cupÃƒÂ©ration"""
         return self.stats.copy()
     
     def clear_cache(self):
         """Vide le cache"""
         self.cache.clear()
-        logger.info("Cache vidé")
+        logger.info("Cache vidÃƒÂ©")
 
 # Instance globale pour utilisation dans le pipeline
 enhanced_fetcher = EnhancedFreeFetcher()
 
 async def fetch_candidates_from_free_providers(keywords: List[str], domain: str, 
                                              max_assets: int = 50) -> List[BrollAsset]:
-    """Fonction utilitaire pour la récupération parallèle"""
+    """Fonction utilitaire pour la rÃƒÂ©cupÃƒÂ©ration parallÃƒÂ¨le"""
     return await enhanced_fetcher.fetch_candidates_from_free_providers(keywords, domain, max_assets)
 
 def get_fetcher_stats() -> Dict[str, Any]:
-    """Fonction utilitaire pour récupérer les statistiques"""
+    """Fonction utilitaire pour rÃƒÂ©cupÃƒÂ©rer les statistiques"""
     return enhanced_fetcher.get_stats() 
+

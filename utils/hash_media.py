@@ -1,6 +1,6 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Module utilitaire pour le hachage des fichiers mÃ©dia
+Module utilitaire pour le hachage des fichiers mÃƒÂ©dia
 """
 
 import hashlib
@@ -11,13 +11,13 @@ from typing import Optional
 
 def hash_media(path: str) -> str:
     """
-    GÃ©nÃ¨re un hash SHA-256 d'un fichier mÃ©dia
+    GÃƒÂ©nÃƒÂ¨re un hash SHA-256 d'un fichier mÃƒÂ©dia
     
     Args:
-        path: Chemin vers le fichier mÃ©dia
+        path: Chemin vers le fichier mÃƒÂ©dia
         
     Returns:
-        Hash SHA-256 en hexadÃ©cimal
+        Hash SHA-256 en hexadÃƒÂ©cimal
         
     Raises:
         FileNotFoundError: Si le fichier n'existe pas
@@ -34,7 +34,7 @@ def hash_media(path: str) -> str:
         # Hash SHA-256
         sha256_hash = hashlib.sha256()
         
-        # Lecture par blocs pour Ã©viter la mÃ©moire
+        # Lecture par blocs pour ÃƒÂ©viter la mÃƒÂ©moire
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(chunk)
@@ -48,20 +48,20 @@ def hash_media(path: str) -> str:
 
 def hash_string(text: str) -> str:
     """
-    GÃ©nÃ¨re un hash SHA-256 d'une chaÃ®ne de texte
+    GÃƒÂ©nÃƒÂ¨re un hash SHA-256 d'une chaÃƒÂ®ne de texte
     
     Args:
-        text: Texte Ã  hasher
+        text: Texte ÃƒÂ  hasher
         
     Returns:
-        Hash SHA-256 en hexadÃ©cimal
+        Hash SHA-256 en hexadÃƒÂ©cimal
     """
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
 def get_file_info(path: str) -> Optional[dict]:
     """
-    RÃ©cupÃ¨re les informations d'un fichier mÃ©dia
+    RÃƒÂ©cupÃƒÂ¨re les informations d'un fichier mÃƒÂ©dia
     
     Args:
         path: Chemin vers le fichier
@@ -85,6 +85,7 @@ def get_file_info(path: str) -> Optional[dict]:
         }
         
     except Exception as e:
-        print(f"âš ï¸ Erreur lors de la rÃ©cupÃ©ration des infos de {path}: {e}")
+        print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur lors de la rÃƒÂ©cupÃƒÂ©ration des infos de {path}: {e}")
         return None 
+
 

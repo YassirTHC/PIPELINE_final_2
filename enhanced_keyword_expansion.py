@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Expansion Intelligente des Mots-Clés par Domaine
-Système d'expansion sémantique pour améliorer la récupération des B-rolls
+Expansion Intelligente des Mots-ClÃƒÂ©s par Domaine
+SystÃƒÂ¨me d'expansion sÃƒÂ©mantique pour amÃƒÂ©liorer la rÃƒÂ©cupÃƒÂ©ration des B-rolls
 """
 
 import logging
@@ -11,17 +12,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DomainKeywords:
-    """Configuration des mots-clés par domaine"""
+    """Configuration des mots-clÃƒÂ©s par domaine"""
     synonyms: List[str]
     related_concepts: List[str]
     visual_metaphors: List[str]
     search_variants: List[str]
 
 class IntelligentKeywordExpander:
-    """Expansion intelligente des mots-clés par domaine"""
+    """Expansion intelligente des mots-clÃƒÂ©s par domaine"""
     
     def __init__(self):
-        # Configuration complète des domaines
+        # Configuration complÃƒÂ¨te des domaines
         self.domain_keywords = {
             "neuroscience": DomainKeywords(
                 synonyms=["brain science", "cognitive science", "mental research", "brain study", "neural research"],
@@ -61,14 +62,14 @@ class IntelligentKeywordExpander:
             )
         }
         
-        # Mots-clés génériques à filtrer
+        # Mots-clÃƒÂ©s gÃƒÂ©nÃƒÂ©riques ÃƒÂ  filtrer
         self.generic_words = {
             "background", "nature", "people", "abstract", "business", "office", 
             "city", "street", "technology", "very", "much", "many", "good", "bad",
             "new", "old", "big", "small", "fast", "slow", "reflexes", "speed"
         }
         
-        # Mots-clés prioritaires par domaine
+        # Mots-clÃƒÂ©s prioritaires par domaine
         self.priority_words = {
             "neuroscience": ["brain", "neural", "cognitive", "mental", "research", "laboratory"],
             "technology": ["innovation", "digital", "future", "progress", "development"],
@@ -79,7 +80,7 @@ class IntelligentKeywordExpander:
         }
     
     def expand_keywords(self, primary_keyword: str, domain: str = "general") -> List[str]:
-        """Expansion complète des mots-clés pour un domaine donné"""
+        """Expansion complÃƒÂ¨te des mots-clÃƒÂ©s pour un domaine donnÃƒÂ©"""
         try:
             # Normaliser le domaine
             domain = domain.lower().strip()
@@ -87,33 +88,33 @@ class IntelligentKeywordExpander:
             # Si le domaine n'est pas reconnu, utiliser "general"
             if domain not in self.domain_keywords:
                 domain = "general"
-                logger.info(f"Domaine '{domain}' non reconnu, utilisation du mode général")
+                logger.info(f"Domaine '{domain}' non reconnu, utilisation du mode gÃƒÂ©nÃƒÂ©ral")
             
-            # Expansion basée sur le domaine
+            # Expansion basÃƒÂ©e sur le domaine
             if domain in self.domain_keywords:
                 domain_data = self.domain_keywords[domain]
                 
-                # Combiner tous les types de mots-clés
+                # Combiner tous les types de mots-clÃƒÂ©s
                 expanded = [primary_keyword]
                 expanded.extend(domain_data.synonyms)
                 expanded.extend(domain_data.related_concepts)
                 expanded.extend(domain_data.visual_metaphors)
                 expanded.extend(domain_data.search_variants)
                 
-                # Filtrer les doublons et mots génériques
+                # Filtrer les doublons et mots gÃƒÂ©nÃƒÂ©riques
                 filtered = self._filter_keywords(expanded, domain)
                 
-                # Limiter à 8-10 variantes optimales
+                # Limiter ÃƒÂ  8-10 variantes optimales
                 final_keywords = filtered[:10]
                 
-                logger.info(f"Expansion pour '{primary_keyword}' (domaine: {domain}): {len(final_keywords)} mots-clés")
+                logger.info(f"Expansion pour '{primary_keyword}' (domaine: {domain}): {len(final_keywords)} mots-clÃƒÂ©s")
                 return final_keywords
             
             else:
-                # Mode général : expansion basique
+                # Mode gÃƒÂ©nÃƒÂ©ral : expansion basique
                 general_keywords = self._general_expansion(primary_keyword)
                 
-                # GARANTIE ABSOLUE : minimum 4 mots-clés quoi qu'il arrive
+                # GARANTIE ABSOLUE : minimum 4 mots-clÃƒÂ©s quoi qu'il arrive
                 if len(general_keywords) < 4:
                     generic_pool = ["innovation", "technology", "development", "research", "strategy", "health", "growth", "solution", "platform", "system"]
                     i = 0
@@ -122,12 +123,12 @@ class IntelligentKeywordExpander:
                         if g.lower() not in [kw.lower() for kw in general_keywords]:
                             general_keywords.append(g)
                         i += 1
-                    logger.info(f"Garantie absolue activée dans expand_keywords: {len(general_keywords)} mots-clés (minimum 4 garanti)")
+                    logger.info(f"Garantie absolue activÃƒÂ©e dans expand_keywords: {len(general_keywords)} mots-clÃƒÂ©s (minimum 4 garanti)")
                 
                 return general_keywords
                 
         except Exception as e:
-            logger.error(f"Erreur lors de l'expansion des mots-clés: {e}")
+            logger.error(f"Erreur lors de l'expansion des mots-clÃƒÂ©s: {e}")
             return [primary_keyword]
     
     def expand_keywords_multi_domain(self, primary_keyword: str, keywords: List[str] = None) -> List[str]:
@@ -139,87 +140,87 @@ class IntelligentKeywordExpander:
             if keywords is None:
                 keywords = [primary_keyword]
             
-            # 1) Détection primaire des domaines
+            # 1) DÃƒÂ©tection primaire des domaines
             domain_confidences = self.analyze_multiple_domains_from_keywords(keywords)
             
             # 2) Fallback token-level si vide ou faible confiance max
             max_conf = max(domain_confidences.values(), default=0.0)
             if not domain_confidences or max_conf < 0.20:
-                logger.info("Fallback token-level activé")
+                logger.info("Fallback token-level activÃƒÂ©")
                 token_confidences = self._fallback_domain_confidences_from_tokens(keywords, self.analyze_domain_from_keywords)
-                # merge: garder les valeurs les plus élevées (token_confidences forcé à 0.75 si présent)
+                # merge: garder les valeurs les plus ÃƒÂ©levÃƒÂ©es (token_confidences forcÃƒÂ© ÃƒÂ  0.75 si prÃƒÂ©sent)
                 for d, c in token_confidences.items():
                     domain_confidences[d] = max(domain_confidences.get(d, 0.0), c)
-                logger.info(f"Fallback token-level réussi: {token_confidences}")
+                logger.info(f"Fallback token-level rÃƒÂ©ussi: {token_confidences}")
             
-            # 3) Fallback intelligent renforcé : assigner des domaines par défaut
+            # 3) Fallback intelligent renforcÃƒÂ© : assigner des domaines par dÃƒÂ©faut
             if not domain_confidences:
-                logger.info("Fallback intelligent renforcé activé")
+                logger.info("Fallback intelligent renforcÃƒÂ© activÃƒÂ©")
                 default_domains = self._assign_default_domains(keywords)
                 if default_domains:
                     domain_confidences = default_domains
-                    logger.info(f"Domaines par défaut activés: {default_domains}")
+                    logger.info(f"Domaines par dÃƒÂ©faut activÃƒÂ©s: {default_domains}")
             
-            # 4) Si toujours rien → dernier filet : expansion simple
+            # 4) Si toujours rien Ã¢â€ â€™ dernier filet : expansion simple
             if not domain_confidences:
-                logger.info("Fallback ultime → expansion simple")
+                logger.info("Fallback ultime Ã¢â€ â€™ expansion simple")
                 return self.expand_keywords(primary_keyword, "general")
             
-            # 5) Sélection finale des domaines (équilibres inclus)
+            # 5) SÃƒÂ©lection finale des domaines (ÃƒÂ©quilibres inclus)
             selected_domains = self._select_domains(domain_confidences, k=2)
-            logger.info(f"Domaines sélectionnés: {selected_domains}")
+            logger.info(f"Domaines sÃƒÂ©lectionnÃƒÂ©s: {selected_domains}")
             
             # 6) Dernier filet : si pas de domaines non-general, prendre les meilleurs (non-general) depuis domain_confidences
             if not selected_domains:
                 ordered = [d for d, s in sorted(domain_confidences.items(), key=lambda x: x[1], reverse=True) if d != "general"]
                 selected_domains = ordered[:2]
-                logger.info(f"Dernier filet: domaines sélectionnés {selected_domains}")
+                logger.info(f"Dernier filet: domaines sÃƒÂ©lectionnÃƒÂ©s {selected_domains}")
             
             # 7) Expansion par domaine avec minima garantis
             expanded_keywords = [primary_keyword]
             
             for idx, domain in enumerate(selected_domains):
                 confidence = domain_confidences.get(domain, 0.30)
-                expansion_count = max(self._expansion_factor(confidence, idx), 2)  # Minimum 2 mots-clés
+                expansion_count = max(self._expansion_factor(confidence, idx), 2)  # Minimum 2 mots-clÃƒÂ©s
                 
                 domain_data = self.domain_keywords.get(domain)
                 if domain_data:
-                    # Expansion basée sur le facteur calculé
+                    # Expansion basÃƒÂ©e sur le facteur calculÃƒÂ©
                     if expansion_count >= 4:  # Expansion forte
                         expanded_keywords.extend(domain_data.synonyms[:4])
                         expanded_keywords.extend(domain_data.related_concepts[:3])
                         expanded_keywords.extend(domain_data.visual_metaphors[:3])
                         expanded_keywords.extend(domain_data.search_variants[:3])
-                        logger.info(f"Expansion forte domaine '{domain}' (rang {idx+1}, confiance {confidence:.2f}): +{4+3+3+3} mots-clés")
+                        logger.info(f"Expansion forte domaine '{domain}' (rang {idx+1}, confiance {confidence:.2f}): +{4+3+3+3} mots-clÃƒÂ©s")
                     
-                    elif expansion_count >= 3:  # Expansion modérée
+                    elif expansion_count >= 3:  # Expansion modÃƒÂ©rÃƒÂ©e
                         expanded_keywords.extend(domain_data.synonyms[:3])
                         expanded_keywords.extend(domain_data.related_concepts[:2])
                         expanded_keywords.extend(domain_data.visual_metaphors[:2])
-                        logger.info(f"Expansion modérée domaine '{domain}' (rang {idx+1}, confiance {confidence:.2f}): +{3+2+2} mots-clés")
+                        logger.info(f"Expansion modÃƒÂ©rÃƒÂ©e domaine '{domain}' (rang {idx+1}, confiance {confidence:.2f}): +{3+2+2} mots-clÃƒÂ©s")
                     
-                    else:  # Expansion minimale (≥2)
+                    else:  # Expansion minimale (Ã¢â€°Â¥2)
                         expanded_keywords.extend(domain_data.synonyms[:2])
                         expanded_keywords.extend(domain_data.related_concepts[:1])
-                        logger.info(f"Expansion minimale domaine '{domain}' (rang {idx+1}, confiance {confidence:.2f}): +{2+1} mots-clés")
+                        logger.info(f"Expansion minimale domaine '{domain}' (rang {idx+1}, confiance {confidence:.2f}): +{2+1} mots-clÃƒÂ©s")
                     
-                    # Garantir au moins 2 mots-clés par domaine
+                    # Garantir au moins 2 mots-clÃƒÂ©s par domaine
                     current_domain_keywords = [kw for kw in expanded_keywords if kw != primary_keyword]
                     if len(current_domain_keywords) < 2:
                         additional_keywords = domain_data.synonyms[2:4] if len(domain_data.synonyms) > 2 else []
                         if additional_keywords:
                             expanded_keywords.extend(additional_keywords[:2])
-                            logger.info(f"Garantie d'expansion minimale: +{len(additional_keywords[:2])} mots-clés supplémentaires")
+                            logger.info(f"Garantie d'expansion minimale: +{len(additional_keywords[:2])} mots-clÃƒÂ©s supplÃƒÂ©mentaires")
             
-            # 8) Ajouter des mots-clés croisés entre domaines
+            # 8) Ajouter des mots-clÃƒÂ©s croisÃƒÂ©s entre domaines
             if len(selected_domains) > 1:
                 cross_domain_keywords = self._generate_cross_domain_keywords(
                     [(domain, domain_confidences.get(domain, 0)) for domain in selected_domains]
                 )
                 expanded_keywords.extend(cross_domain_keywords)
-                logger.info(f"Expansion croisée multi-domaines: +{len(cross_domain_keywords)} mots-clés")
+                logger.info(f"Expansion croisÃƒÂ©e multi-domaines: +{len(cross_domain_keywords)} mots-clÃƒÂ©s")
             
-            # 9) Normalisation et dédoublonnage
+            # 9) Normalisation et dÃƒÂ©doublonnage
             seen = set()
             deduped = []
             for kw in expanded_keywords:
@@ -239,9 +240,9 @@ class IntelligentKeywordExpander:
                         deduped.append(g)
                         seen.add(g)
                     i += 1
-                logger.info(f"Garantie absolue activée: {len(deduped)} mots-clés (minimum {absolute_min_total} garanti)")
+                logger.info(f"Garantie absolue activÃƒÂ©e: {len(deduped)} mots-clÃƒÂ©s (minimum {absolute_min_total} garanti)")
             
-            logger.info(f"Expansion multi-domaines pour '{primary_keyword}': {len(deduped)} mots-clés totaux (dédupliqués)")
+            logger.info(f"Expansion multi-domaines pour '{primary_keyword}': {len(deduped)} mots-clÃƒÂ©s totaux (dÃƒÂ©dupliquÃƒÂ©s)")
             return deduped
             
         except Exception as e:
@@ -250,7 +251,7 @@ class IntelligentKeywordExpander:
             return self.expand_keywords(primary_keyword, "general")
     
     def _generate_cross_domain_keywords(self, top_domains: List[tuple]) -> List[str]:
-        """Génère des mots-clés croisés entre domaines"""
+        """GÃƒÂ©nÃƒÂ¨re des mots-clÃƒÂ©s croisÃƒÂ©s entre domaines"""
         try:
             cross_keywords = []
             
@@ -258,7 +259,7 @@ class IntelligentKeywordExpander:
                 domain1, confidence1 = top_domains[0]
                 domain2, confidence2 = top_domains[1]
                 
-                # Combinaisons croisées intelligentes
+                # Combinaisons croisÃƒÂ©es intelligentes
                 if domain1 == "technology" and domain2 == "neuroscience":
                     cross_keywords.extend(["brain-computer interface", "neural technology", "cognitive computing", "AI neuroscience"])
                 elif domain1 == "technology" and domain2 == "business":
@@ -274,21 +275,21 @@ class IntelligentKeywordExpander:
                 elif domain1 == "neuroscience" and domain2 == "education":
                     cross_keywords.extend(["cognitive education", "brain-based learning", "neural education", "cognitive training"])
                 else:
-                    # Combinaison générique
+                    # Combinaison gÃƒÂ©nÃƒÂ©rique
                     cross_keywords.extend([f"{domain1} {domain2}", f"{domain2} {domain1}", f"{domain1} and {domain2}"])
             
             return cross_keywords
             
         except Exception as e:
-            logger.error(f"Erreur lors de la génération de mots-clés croisés: {e}")
+            logger.error(f"Erreur lors de la gÃƒÂ©nÃƒÂ©ration de mots-clÃƒÂ©s croisÃƒÂ©s: {e}")
             return []
     
     def _close_domains(self, domain_scores: dict, delta: float = 0.25, ratio: float = 0.75, min_conf: float = 0.15) -> list:
         """
-        Retourne les domaines 'proches' du max, avec critères permissifs :
-          - écart absolu < delta (par défaut 0.25)
-          - score >= ratio * max_score (par défaut 0.75)
-          - score >= min_conf (par défaut 0.15)
+        Retourne les domaines 'proches' du max, avec critÃƒÂ¨res permissifs :
+          - ÃƒÂ©cart absolu < delta (par dÃƒÂ©faut 0.25)
+          - score >= ratio * max_score (par dÃƒÂ©faut 0.75)
+          - score >= min_conf (par dÃƒÂ©faut 0.15)
         """
         if not domain_scores:
             return []
@@ -300,10 +301,10 @@ class IntelligentKeywordExpander:
 
     def _select_domains(self, domain_scores: dict, k: int = 2) -> list:
         """
-        Sélectionne jusqu'à k domaines avec équilibrage hybride forcé et diversité intelligente :
-        - Si plusieurs domaines 'proches', on prend les meilleurs jusqu'à k
-        - Sinon on prend top-1 et on force le n°2 si >= 0.25
-        - Si on n'a qu'un seul domaine → forcer la diversité basée sur des catégories complémentaires
+        SÃƒÂ©lectionne jusqu'ÃƒÂ  k domaines avec ÃƒÂ©quilibrage hybride forcÃƒÂ© et diversitÃƒÂ© intelligente :
+        - Si plusieurs domaines 'proches', on prend les meilleurs jusqu'ÃƒÂ  k
+        - Sinon on prend top-1 et on force le nÃ‚Â°2 si >= 0.25
+        - Si on n'a qu'un seul domaine Ã¢â€ â€™ forcer la diversitÃƒÂ© basÃƒÂ©e sur des catÃƒÂ©gories complÃƒÂ©mentaires
         """
         if not domain_scores:
             return []
@@ -312,44 +313,44 @@ class IntelligentKeywordExpander:
         if candidates:
             return sorted(candidates, key=lambda d: domain_scores[d], reverse=True)[:k]
 
-        # Aucun domaine 'proche' → prendre le meilleur
+        # Aucun domaine 'proche' Ã¢â€ â€™ prendre le meilleur
         ordered = sorted(domain_scores.items(), key=lambda x: x[1], reverse=True)
         selected = [ordered[0][0]]
 
-        # Diversité forcée si un 2e domaine est raisonnable
+        # DiversitÃƒÂ© forcÃƒÂ©e si un 2e domaine est raisonnable
         if len(ordered) > 1 and ordered[1][1] >= 0.25:
             selected.append(ordered[1][0])
         
-        # DIVERSITÉ INTELLIGENTE : si on n'a qu'un seul domaine, forcer un domaine complémentaire
+        # DIVERSITÃƒâ€° INTELLIGENTE : si on n'a qu'un seul domaine, forcer un domaine complÃƒÂ©mentaire
         if len(selected) < 2:
             complementary_domain = self._get_complementary_domain(selected[0], domain_scores)
             if complementary_domain:
                 selected.append(complementary_domain)
-                logger.info(f"Diversité intelligente forcée: {selected[0]} + {complementary_domain}")
+                logger.info(f"DiversitÃƒÂ© intelligente forcÃƒÂ©e: {selected[0]} + {complementary_domain}")
             elif len(ordered) > 1:
-                # Fallback : prendre le second meilleur même avec un score faible
+                # Fallback : prendre le second meilleur mÃƒÂªme avec un score faible
                 second_best = ordered[1][0]
                 if second_best not in selected:
                     selected.append(second_best)
-                    logger.info(f"Diversité fallback forcée: {selected}")
+                    logger.info(f"DiversitÃƒÂ© fallback forcÃƒÂ©e: {selected}")
 
         return selected
 
     def _fallback_domain_confidences_from_tokens(self, tokens: list, analyze_one: callable) -> dict:
         """
-        Fallback amélioré qui :
+        Fallback amÃƒÂ©liorÃƒÂ© qui :
           - analyse mot par mot avec `analyze_one(token)` -> domain | 'general'
-          - donne une confiance élevée (0.75) aux domaines trouvés pour forcer l'inclusion
-          - si aucun domaine trouvé, fait une heuristique lexicale pour assigner healthcare/business/tech
+          - donne une confiance ÃƒÂ©levÃƒÂ©e (0.75) aux domaines trouvÃƒÂ©s pour forcer l'inclusion
+          - si aucun domaine trouvÃƒÂ©, fait une heuristique lexicale pour assigner healthcare/business/tech
         """
         agg = {}
         for t in tokens:
             dom = analyze_one(t)
             if dom and dom != "general":
-                # confiance élevée pour forcer l'inclusion
+                # confiance ÃƒÂ©levÃƒÂ©e pour forcer l'inclusion
                 agg[dom] = max(agg.get(dom, 0.0), 0.75)
 
-        # Heuristique lexicale si rien n'a été détecté
+        # Heuristique lexicale si rien n'a ÃƒÂ©tÃƒÂ© dÃƒÂ©tectÃƒÂ©
         if not agg:
             for t in tokens:
                 w = t.lower()
@@ -364,8 +365,8 @@ class IntelligentKeywordExpander:
 
     def _assign_default_domains(self, keywords: list) -> dict:
         """
-        Assigne des domaines par défaut basés sur le vocabulaire des mots-clés.
-        Mapping intelligent pour éviter le fallback vers 'general'.
+        Assigne des domaines par dÃƒÂ©faut basÃƒÂ©s sur le vocabulaire des mots-clÃƒÂ©s.
+        Mapping intelligent pour ÃƒÂ©viter le fallback vers 'general'.
         """
         mapping = {
             "ai": "technology", "software": "technology", "cloud": "technology", "digital": "technology",
@@ -383,21 +384,21 @@ class IntelligentKeywordExpander:
                 if token in kw_lower:
                     assigned[domain] = assigned.get(domain, 0) + 0.5
         
-        # Normaliser les scores et retourner si des domaines ont été assignés
+        # Normaliser les scores et retourner si des domaines ont ÃƒÂ©tÃƒÂ© assignÃƒÂ©s
         if assigned:
-            # Normaliser à des confiances exploitables
+            # Normaliser ÃƒÂ  des confiances exploitables
             for domain in assigned:
                 assigned[domain] = min(assigned[domain], 0.75)
-            logger.info(f"Domaines par défaut assignés: {assigned}")
+            logger.info(f"Domaines par dÃƒÂ©faut assignÃƒÂ©s: {assigned}")
         
         return assigned if assigned else None
 
     def _get_complementary_domain(self, primary_domain: str, available_domains: dict) -> str:
         """
-        Trouve un domaine complémentaire intelligent basé sur des catégories logiques.
-        Évite la sélection aléatoire et favorise les domaines qui apportent une vraie diversité.
+        Trouve un domaine complÃƒÂ©mentaire intelligent basÃƒÂ© sur des catÃƒÂ©gories logiques.
+        Ãƒâ€°vite la sÃƒÂ©lection alÃƒÂ©atoire et favorise les domaines qui apportent une vraie diversitÃƒÂ©.
         """
-        # Mapping de domaines complémentaires par catégorie
+        # Mapping de domaines complÃƒÂ©mentaires par catÃƒÂ©gorie
         complementary_mapping = {
             # Business + Technology (innovation digitale)
             "business": ["technology", "innovation"],
@@ -422,31 +423,31 @@ class IntelligentKeywordExpander:
             "development": ["technology", "business"]
         }
         
-        # Chercher un domaine complémentaire dans le mapping
+        # Chercher un domaine complÃƒÂ©mentaire dans le mapping
         if primary_domain in complementary_mapping:
             for complementary in complementary_mapping[primary_domain]:
                 if complementary in available_domains:
-                    logger.info(f"Domaine complémentaire trouvé: {primary_domain} → {complementary}")
+                    logger.info(f"Domaine complÃƒÂ©mentaire trouvÃƒÂ©: {primary_domain} Ã¢â€ â€™ {complementary}")
                     return complementary
         
         # Si pas de mapping, chercher un domaine avec un score raisonnable
         for domain, score in available_domains.items():
             if domain != primary_domain and score >= 0.15:  # Seuil plus permissif
-                logger.info(f"Domaine alternatif sélectionné: {primary_domain} → {domain} (score: {score})")
+                logger.info(f"Domaine alternatif sÃƒÂ©lectionnÃƒÂ©: {primary_domain} Ã¢â€ â€™ {domain} (score: {score})")
                 return domain
         
         # Dernier recours : prendre le meilleur score restant
         remaining_domains = [(d, s) for d, s in available_domains.items() if d != primary_domain]
         if remaining_domains:
             best_remaining = max(remaining_domains, key=lambda x: x[1])
-            logger.info(f"Dernier recours diversité: {primary_domain} → {best_remaining[0]} (score: {best_remaining[1]})")
+            logger.info(f"Dernier recours diversitÃƒÂ©: {primary_domain} Ã¢â€ â€™ {best_remaining[0]} (score: {best_remaining[1]})")
             return best_remaining[0]
         
         return None
 
     def _expansion_factor(self, conf: float, rank: int) -> int:
         """
-        Détermine le nombre d'items d'expansion à générer par domaine.
+        DÃƒÂ©termine le nombre d'items d'expansion ÃƒÂ  gÃƒÂ©nÃƒÂ©rer par domaine.
         Rank 0 -> domaine principal, rank 1 -> secondaire, etc.
         """
         if conf >= 0.70:
@@ -461,33 +462,33 @@ class IntelligentKeywordExpander:
 
     def _compute_expansion_factor(self, confidence: float, domain_rank: int) -> int:
         """
-        Calcule un facteur d'expansion stable basé sur la confiance et le rang du domaine.
-        Garantit une expansion minimale cohérente pour éviter les cas à 1 seul mot-clé.
+        Calcule un facteur d'expansion stable basÃƒÂ© sur la confiance et le rang du domaine.
+        Garantit une expansion minimale cohÃƒÂ©rente pour ÃƒÂ©viter les cas ÃƒÂ  1 seul mot-clÃƒÂ©.
         """
         if confidence >= 0.6:
             return 4  # Expansion forte
         elif confidence >= 0.4:
-            return 3 if domain_rank == 1 else 2  # Expansion modérée
+            return 3 if domain_rank == 1 else 2  # Expansion modÃƒÂ©rÃƒÂ©e
         elif confidence >= 0.25:
             return 2  # Expansion minimale
         else:
             return 1  # Expansion quasi-nulle
     
     def _filter_keywords(self, keywords: List[str], domain: str) -> List[str]:
-        """Filtrage intelligent des mots-clés"""
+        """Filtrage intelligent des mots-clÃƒÂ©s"""
         filtered = []
         seen = set()
         
-        # Prioriser les mots-clés du domaine
+        # Prioriser les mots-clÃƒÂ©s du domaine
         priority_words = self.priority_words.get(domain, [])
         
-        # 1. Ajouter d'abord les mots-clés prioritaires
+        # 1. Ajouter d'abord les mots-clÃƒÂ©s prioritaires
         for keyword in keywords:
             if keyword.lower() in priority_words and keyword.lower() not in seen:
                 filtered.append(keyword)
                 seen.add(keyword.lower())
         
-        # 2. Ajouter les autres mots-clés valides
+        # 2. Ajouter les autres mots-clÃƒÂ©s valides
         for keyword in keywords:
             if (keyword.lower() not in seen and 
                 keyword.lower() not in self.generic_words and
@@ -498,8 +499,8 @@ class IntelligentKeywordExpander:
         return filtered
     
     def _general_expansion(self, primary_keyword: str) -> List[str]:
-        """Expansion générale pour domaines non reconnus avec garantie absolue"""
-        # Expansion basique avec synonymes génériques
+        """Expansion gÃƒÂ©nÃƒÂ©rale pour domaines non reconnus avec garantie absolue"""
+        # Expansion basique avec synonymes gÃƒÂ©nÃƒÂ©riques
         basic_expansions = {
             "innovation": ["progress", "advancement", "development", "growth"],
             "research": ["study", "investigation", "analysis", "exploration"],
@@ -512,7 +513,7 @@ class IntelligentKeywordExpander:
         if primary_keyword.lower() in basic_expansions:
             expanded.extend(basic_expansions[primary_keyword.lower()])
         
-        # GARANTIE ABSOLUE : minimum 4 mots-clés quoi qu'il arrive
+        # GARANTIE ABSOLUE : minimum 4 mots-clÃƒÂ©s quoi qu'il arrive
         if len(expanded) < 4:
             generic_pool = ["innovation", "technology", "development", "research", "strategy", "health", "growth", "solution", "platform", "system"]
             i = 0
@@ -521,47 +522,47 @@ class IntelligentKeywordExpander:
                 if g.lower() not in [kw.lower() for kw in expanded]:
                     expanded.append(g)
                 i += 1
-            logger.info(f"Garantie absolue activée dans _general_expansion: {len(expanded)} mots-clés (minimum 4 garanti)")
+            logger.info(f"Garantie absolue activÃƒÂ©e dans _general_expansion: {len(expanded)} mots-clÃƒÂ©s (minimum 4 garanti)")
         
-        return expanded[:max(5, len(expanded))]  # Limiter à 5 ou plus si garantie absolue activée
+        return expanded[:max(5, len(expanded))]  # Limiter ÃƒÂ  5 ou plus si garantie absolue activÃƒÂ©e
     
     def get_search_queries(self, keywords: List[str], domain: str) -> List[str]:
-        """Génère des requêtes de recherche optimisées"""
+        """GÃƒÂ©nÃƒÂ¨re des requÃƒÂªtes de recherche optimisÃƒÂ©es"""
         try:
-            # Expansion des mots-clés
+            # Expansion des mots-clÃƒÂ©s
             expanded = self.expand_keywords(keywords[0], domain)
             
-            # Génération de requêtes de recherche
+            # GÃƒÂ©nÃƒÂ©ration de requÃƒÂªtes de recherche
             queries = []
             
-            # 1. Requête principale avec mots-clés prioritaires
+            # 1. RequÃƒÂªte principale avec mots-clÃƒÂ©s prioritaires
             priority_words = [kw for kw in expanded[:3] if kw.lower() in self.priority_words.get(domain, [])]
             if priority_words:
                 queries.append(" ".join(priority_words))
             
-            # 2. Requêtes avec combinaisons intelligentes
+            # 2. RequÃƒÂªtes avec combinaisons intelligentes
             for i in range(0, len(expanded), 2):
                 if i + 1 < len(expanded):
                     query = f"{expanded[i]} {expanded[i+1]}"
                     queries.append(query)
             
-            # 3. Requêtes avec métaphores visuelles
+            # 3. RequÃƒÂªtes avec mÃƒÂ©taphores visuelles
             if domain in self.domain_keywords:
                 visual_words = self.domain_keywords[domain].visual_metaphors[:3]
                 if visual_words:
                     queries.append(" ".join(visual_words))
             
-            # Limiter à 5 requêtes optimales
+            # Limiter ÃƒÂ  5 requÃƒÂªtes optimales
             return queries[:5]
             
         except Exception as e:
-            logger.error(f"Erreur lors de la génération des requêtes: {e}")
+            logger.error(f"Erreur lors de la gÃƒÂ©nÃƒÂ©ration des requÃƒÂªtes: {e}")
             return [" ".join(keywords[:3])]  # Fallback basique
     
     def analyze_domain_from_keywords(self, keywords: List[str]) -> str:
-        """Analyse automatique du domaine à partir des mots-clés - VERSION AMÉLIORÉE"""
+        """Analyse automatique du domaine ÃƒÂ  partir des mots-clÃƒÂ©s - VERSION AMÃƒâ€°LIORÃƒâ€°E"""
         try:
-            # Mots-clés étendus pour une meilleure détection
+            # Mots-clÃƒÂ©s ÃƒÂ©tendus pour une meilleure dÃƒÂ©tection
             extended_domain_keywords = {
                 "neuroscience": {
                     "primary": ["brain", "neural", "cognitive", "mental", "neuroscience", "neurology"],
@@ -609,15 +610,15 @@ class IntelligentKeywordExpander:
                 for keyword in keywords:
                     keyword_lower = keyword.lower()
                     
-                    # Score pour mots-clés primaires (poids élevé)
+                    # Score pour mots-clÃƒÂ©s primaires (poids ÃƒÂ©levÃƒÂ©)
                     if keyword_lower in [kw.lower() for kw in domain_data["primary"]]:
                         score += 5
                     
-                    # Score pour mots-clés secondaires
+                    # Score pour mots-clÃƒÂ©s secondaires
                     if keyword_lower in [kw.lower() for kw in domain_data["secondary"]]:
                         score += 3
                     
-                    # Score pour concepts liés
+                    # Score pour concepts liÃƒÂ©s
                     if keyword_lower in [kw.lower() for kw in domain_data["related"]]:
                         score += 2
                     
@@ -631,17 +632,17 @@ class IntelligentKeywordExpander:
                             if keyword_lower in kw.lower() or kw.lower() in keyword_lower:
                                 score += 1
             
-            # Retourner le domaine avec le score le plus élevé
+            # Retourner le domaine avec le score le plus ÃƒÂ©levÃƒÂ©
             if domain_scores:
                 best_domain = max(domain_scores, key=domain_scores.get)
-                if domain_scores[best_domain] > 2:  # Seuil plus bas pour plus de sensibilité
+                if domain_scores[best_domain] > 2:  # Seuil plus bas pour plus de sensibilitÃƒÂ©
                     return best_domain
             
-            # Si aucun domaine clair, essayer de détecter par contexte
+            # Si aucun domaine clair, essayer de dÃƒÂ©tecter par contexte
             for keyword in keywords:
                 keyword_lower = keyword.lower()
                 
-                # Détection par mots-clés spécifiques (plus sensible)
+                # DÃƒÂ©tection par mots-clÃƒÂ©s spÃƒÂ©cifiques (plus sensible)
                 if any(word in keyword_lower for word in ["brain", "neural", "cognitive", "neural network"]):
                     return "neuroscience"
                 elif any(word in keyword_lower for word in ["computer", "digital", "software", "artificial", "intelligence", "machine", "learning", "quantum", "blockchain", "virtual", "reality", "cybersecurity", "data science", "internet of things"]):
@@ -662,9 +663,9 @@ class IntelligentKeywordExpander:
             return "general"
     
     def analyze_multiple_domains_from_keywords(self, keywords: List[str]) -> Dict[str, float]:
-        """Analyse multi-domaines avec scores de confiance - NOUVELLE FONCTIONNALITÉ CRITIQUE"""
+        """Analyse multi-domaines avec scores de confiance - NOUVELLE FONCTIONNALITÃƒâ€° CRITIQUE"""
         try:
-            # Mots-clés étendus pour une meilleure détection
+            # Mots-clÃƒÂ©s ÃƒÂ©tendus pour une meilleure dÃƒÂ©tection
             extended_domain_keywords = {
                 "neuroscience": {
                     "primary": ["brain", "neural", "cognitive", "mental", "neuroscience", "neurology"],
@@ -713,15 +714,15 @@ class IntelligentKeywordExpander:
                 for keyword in keywords:
                     keyword_lower = keyword.lower()
                     
-                    # Score pour mots-clés primaires (poids élevé)
+                    # Score pour mots-clÃƒÂ©s primaires (poids ÃƒÂ©levÃƒÂ©)
                     if keyword_lower in [kw.lower() for kw in domain_data["primary"]]:
                         score += 5.0
                     
-                    # Score pour mots-clés secondaires
+                    # Score pour mots-clÃƒÂ©s secondaires
                     if keyword_lower in [kw.lower() for kw in domain_data["secondary"]]:
                         score += 3.0
                     
-                    # Score pour concepts liés
+                    # Score pour concepts liÃƒÂ©s
                     if keyword_lower in [kw.lower() for kw in domain_data["related"]]:
                         score += 2.0
                     
@@ -743,18 +744,18 @@ class IntelligentKeywordExpander:
                 if total_score > 0:
                     # Normaliser les scores et calculer la confiance relative
                     for domain in domain_scores:
-                        # Score normalisé par rapport au total (pas seulement au maximum)
+                        # Score normalisÃƒÂ© par rapport au total (pas seulement au maximum)
                         normalized_score = domain_scores[domain] / total_score
-                        # Confiance basée sur la contribution relative du domaine
-                        confidence = min(normalized_score * 2.0, 1.0)  # Facteur 2 pour étendre la plage
+                        # Confiance basÃƒÂ©e sur la contribution relative du domaine
+                        confidence = min(normalized_score * 2.0, 1.0)  # Facteur 2 pour ÃƒÂ©tendre la plage
                         domain_scores[domain] = confidence
                 
-                # Nouveaux seuils adaptatifs basés sur la distribution des scores
+                # Nouveaux seuils adaptatifs basÃƒÂ©s sur la distribution des scores
                 if len(domain_scores) > 1:
-                    # Pour les cas multi-domaines, être plus permissif
+                    # Pour les cas multi-domaines, ÃƒÂªtre plus permissif
                     min_confidence = 0.2  # Seuil plus bas pour capturer les domaines secondaires
                 else:
-                    # Pour les cas mono-domaine, maintenir un seuil élevé
+                    # Pour les cas mono-domaine, maintenir un seuil ÃƒÂ©levÃƒÂ©
                     min_confidence = 0.4
                 
                 # Filtrer les domaines avec une confiance suffisante
@@ -764,16 +765,16 @@ class IntelligentKeywordExpander:
                 if not confident_domains and len(domain_scores) >= 2:
                     sorted_domains = sorted(domain_scores.items(), key=lambda x: x[1], reverse=True)
                     confident_domains = {domain: score for domain, score in sorted_domains[:2]}
-                    logger.info(f"Fallback: sélection des 2 domaines principaux avec scores {confident_domains}")
+                    logger.info(f"Fallback: sÃƒÂ©lection des 2 domaines principaux avec scores {confident_domains}")
             else:
                 confident_domains = {}
             
-            # Si aucun domaine confiant, essayer la détection par contexte
+            # Si aucun domaine confiant, essayer la dÃƒÂ©tection par contexte
             if not confident_domains:
                 for keyword in keywords:
                     keyword_lower = keyword.lower()
                     
-                    # Détection par mots-clés spécifiques (plus sensible)
+                    # DÃƒÂ©tection par mots-clÃƒÂ©s spÃƒÂ©cifiques (plus sensible)
                     if any(word in keyword_lower for word in ["brain", "neural", "cognitive", "neural network"]):
                         confident_domains["neuroscience"] = 0.8
                     elif any(word in keyword_lower for word in ["computer", "digital", "software", "artificial", "intelligence", "machine", "learning", "quantum", "blockchain", "virtual", "reality", "cybersecurity", "data science", "internet of things", "natural language", "processing", "autonomous", "vehicle", "perception", "big data", "analytics", "platform", "cloud computing", "infrastructure", "mobile app", "development", "web application", "security"]):
@@ -797,11 +798,11 @@ class IntelligentKeywordExpander:
 keyword_expander = IntelligentKeywordExpander()
 
 def expand_keywords_with_synonyms(primary_keyword: str, domain: str = "general") -> List[str]:
-    """Fonction utilitaire pour l'expansion des mots-clés"""
+    """Fonction utilitaire pour l'expansion des mots-clÃƒÂ©s"""
     return keyword_expander.expand_keywords(primary_keyword, domain)
 
 def get_search_queries_for_keywords(keywords: List[str], domain: str = "general") -> List[str]:
-    """Fonction utilitaire pour générer des requêtes de recherche"""
+    """Fonction utilitaire pour gÃƒÂ©nÃƒÂ©rer des requÃƒÂªtes de recherche"""
     return keyword_expander.get_search_queries(keywords, domain)
 
 def analyze_domain_from_keywords(keywords: List[str]) -> str:
@@ -815,3 +816,4 @@ def analyze_multiple_domains_from_keywords(keywords: List[str]) -> Dict[str, flo
 def expand_keywords_multi_domain(primary_keyword: str, keywords: List[str] = None) -> List[str]:
     """Fonction utilitaire pour l'expansion multi-domaines"""
     return keyword_expander.expand_keywords_multi_domain(primary_keyword, keywords) 
+

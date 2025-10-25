@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Pipeline de Sélection B-roll Générique
-Module réutilisable pour n'importe quel clip vidéo/domaine
+Pipeline de SÃƒÂ©lection B-roll GÃƒÂ©nÃƒÂ©rique
+Module rÃƒÂ©utilisable pour n'importe quel clip vidÃƒÂ©o/domaine
 """
 
 import json
@@ -15,32 +16,32 @@ from collections import defaultdict
 import re
 import requests
 
-# 🚀 NOUVEAU: Cache global pour éviter le rechargement des modèles
+# Ã°Å¸Å¡â‚¬ NOUVEAU: Cache global pour ÃƒÂ©viter le rechargement des modÃƒÂ¨les
 _BROLL_MODEL_CACHE = {}
 
 def get_cached_sentence_transformer(model_name: str):
-    """Récupère un modèle SentenceTransformer depuis le cache ou le charge"""
+    """RÃƒÂ©cupÃƒÂ¨re un modÃƒÂ¨le SentenceTransformer depuis le cache ou le charge"""
     if model_name not in _BROLL_MODEL_CACHE:
-        print(f"    🔄 Chargement initial du modèle B-roll: {model_name}")
+        print(f"    Ã°Å¸â€â€ž Chargement initial du modÃƒÂ¨le B-roll: {model_name}")
         try:
             from sentence_transformers import SentenceTransformer
             _BROLL_MODEL_CACHE[model_name] = SentenceTransformer(model_name)
-            print(f"    ✅ Modèle B-roll {model_name} chargé et mis en cache")
+            print(f"    Ã¢Å“â€¦ ModÃƒÂ¨le B-roll {model_name} chargÃƒÂ© et mis en cache")
         except Exception as e:
-            print(f"    ❌ Erreur chargement modèle B-roll {model_name}: {e}")
+            print(f"    Ã¢ÂÅ’ Erreur chargement modÃƒÂ¨le B-roll {model_name}: {e}")
             return None
     else:
-        print(f"    ♻️ Modèle B-roll {model_name} récupéré du cache")
+        print(f"    Ã¢â„¢Â»Ã¯Â¸Â ModÃƒÂ¨le B-roll {model_name} rÃƒÂ©cupÃƒÂ©rÃƒÂ© du cache")
     
     return _BROLL_MODEL_CACHE[model_name]
 
-# Fallback imports pour éviter les erreurs
+# Fallback imports pour ÃƒÂ©viter les erreurs
 try:
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-    print("⚠️ SentenceTransformers non disponible - fallback vers scoring lexical")
+    print("Ã¢Å¡Â Ã¯Â¸Â SentenceTransformers non disponible - fallback vers scoring lexical")
 
 try:
     import nltk
@@ -49,13 +50,13 @@ try:
     NLTK_AVAILABLE = True
 except ImportError:
     NLTK_AVAILABLE = False
-    print("⚠️ NLTK non disponible - fallback vers normalisation basique")
+    print("Ã¢Å¡Â Ã¯Â¸Â NLTK non disponible - fallback vers normalisation basique")
 
 logger = logging.getLogger(__name__)
 
 @dataclass
 class Asset:
-    """Représentation d'un asset B-roll"""
+    """ReprÃƒÂ©sentation d'un asset B-roll"""
     id: str
     file_path: str
     tags: List[str]
@@ -101,14 +102,14 @@ class BrollCandidate:
             'score': self.score,
             'features': self.features.to_dict(),
             'excluded_reason': self.excluded_reason,
-            'asset': self.asset.to_dict()  # Ajouter asset complet pour éviter erreur sérialisation
+            'asset': self.asset.to_dict()  # Ajouter asset complet pour ÃƒÂ©viter erreur sÃƒÂ©rialisation
         }
 
 class BrollSelector:
-    """Sélecteur B-roll générique avec scoring mixte et fallback hiérarchique"""
+    """SÃƒÂ©lecteur B-roll gÃƒÂ©nÃƒÂ©rique avec scoring mixte et fallback hiÃƒÂ©rarchique"""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """Initialise le sélecteur avec configuration"""
+        """Initialise le sÃƒÂ©lecteur avec configuration"""
         self.config = self._get_default_config()
         if config:
             self.config.update(config)
@@ -116,54 +117,54 @@ class BrollSelector:
         # Initialiser le logger avant toute utilisation
         self.logger = logging.getLogger(__name__)
 
-        # 🚀 NOUVEAU: Mode DIRECT - utilise directement les résultats API
-        self.direct_api_mode = self.config.get('direct_api_mode', False)  # HYBRIDE INTELLIGENT PAR DÉFAUT
+        # Ã°Å¸Å¡â‚¬ NOUVEAU: Mode DIRECT - utilise directement les rÃƒÂ©sultats API
+        self.direct_api_mode = self.config.get('direct_api_mode', False)  # HYBRIDE INTELLIGENT PAR DÃƒâ€°FAUT
 
         if self.direct_api_mode:
-            self.logger.info("🎯 MODE DIRECT API ACTIVÉ - Téléchargement automatique depuis Pexels/Pixabay")
-            self.logger.info("    📡 FETCH par API = Téléchargement automatique de vidéos B-roll depuis Internet")
+            self.logger.info("Ã°Å¸Å½Â¯ MODE DIRECT API ACTIVÃƒâ€° - TÃƒÂ©lÃƒÂ©chargement automatique depuis Pexels/Pixabay")
+            self.logger.info("    Ã°Å¸â€œÂ¡ FETCH par API = TÃƒÂ©lÃƒÂ©chargement automatique de vidÃƒÂ©os B-roll depuis Internet")
             self.logger.info("    Sources: Pexels (videos), Pixabay (videos)")
-            self.logger.info("    🔄 Process: Mots-clés -> Recherche API -> Téléchargement -> Insertion dans vidéo")
+            self.logger.info("    Ã°Å¸â€â€ž Process: Mots-clÃƒÂ©s -> Recherche API -> TÃƒÂ©lÃƒÂ©chargement -> Insertion dans vidÃƒÂ©o")
         else:
-            self.logger.info("🔍 MODE SÉLECTION ACTIVÉ - Re-scoring des résultats API")
+            self.logger.info("Ã°Å¸â€Â MODE SÃƒâ€°LECTION ACTIVÃƒâ€° - Re-scoring des rÃƒÂ©sultats API")
         
-        # Initialiser les modèles si disponibles
+        # Initialiser les modÃƒÂ¨les si disponibles
         self.embedding_model = None
         self.lemmatizer = None
         
         if SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
-                # 🚀 OPTIMISATION: Utiliser le cache pour éviter le rechargement
+                # Ã°Å¸Å¡â‚¬ OPTIMISATION: Utiliser le cache pour ÃƒÂ©viter le rechargement
                 self.embedding_model = get_cached_sentence_transformer('all-MiniLM-L6-v2')
                 if self.embedding_model is not None:
-                    self.logger.info("✅ Modèle d'embeddings chargé")
+                    self.logger.info("Ã¢Å“â€¦ ModÃƒÂ¨le d'embeddings chargÃƒÂ©")
                 else:
-                    self.logger.warning("⚠️ Échec chargement modèle d'embeddings")
+                    self.logger.warning("Ã¢Å¡Â Ã¯Â¸Â Ãƒâ€°chec chargement modÃƒÂ¨le d'embeddings")
             except Exception as e:
-                self.logger.warning(f"⚠️ Erreur chargement embeddings: {e}")
+                self.logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Erreur chargement embeddings: {e}")
         
         if NLTK_AVAILABLE:
             try:
                 self.lemmatizer = WordNetLemmatizer()
-                # Télécharger WordNet si nécessaire
+                # TÃƒÂ©lÃƒÂ©charger WordNet si nÃƒÂ©cessaire
                 try:
                     wordnet.ensure_loaded()
                 except:
                     pass
-                self.logger.info("✅ Lemmatiseur NLTK chargé")
+                self.logger.info("Ã¢Å“â€¦ Lemmatiseur NLTK chargÃƒÂ©")
             except Exception as e:
-                self.logger.warning(f"⚠️ Erreur chargement NLTK: {e}")
+                self.logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Erreur chargement NLTK: {e}")
     
     def _get_default_config(self) -> Dict[str, Any]:
-        """Configuration par défaut pour le sélecteur B-roll"""
+        """Configuration par dÃƒÂ©faut pour le sÃƒÂ©lecteur B-roll"""
         return {
             # Performance et seuils
             'thresholds': {
                 'min_score': 0.3,
-                'min_delay_seconds': 1.5,  # Réduit de 2.0s à 1.5s
+                'min_delay_seconds': 1.5,  # RÃƒÂ©duit de 2.0s ÃƒÂ  1.5s
                 'quality_threshold': 0.5
             },
-            'desired_broll_count': 5,  # Réduit de 7 à 5
+            'desired_broll_count': 5,  # RÃƒÂ©duit de 7 ÃƒÂ  5
             'max_candidates': 50,
             
             # Poids pour le scoring mixte
@@ -176,19 +177,19 @@ class BrollSelector:
                 'diversity': 0.05
             },
             
-            # 🚀 NOUVEAU: Configuration du mode direct
-            'direct_api_mode': False,  # Utiliser directement les résultats API
-            'direct_api_limit': 5,    # Nombre de B-rolls à prendre directement
+            # Ã°Å¸Å¡â‚¬ NOUVEAU: Configuration du mode direct
+            'direct_api_mode': False,  # Utiliser directement les rÃƒÂ©sultats API
+            'direct_api_limit': 5,    # Nombre de B-rolls ÃƒÂ  prendre directement
             'smart_crop_mode': True,  # Recadrage intelligent pour 9:16
             
-            # Fallback et diversité
+            # Fallback et diversitÃƒÂ©
             'enable_fallback': True,
             'fallback_tiers': ['high_quality', 'medium_quality', 'any_available'],
             'diversity_penalty_factor': 0.1
         }
     
     def normalize_keywords(self, keywords: List[str]) -> Set[str]:
-        """Normalise et nettoie les mots-clés"""
+        """Normalise et nettoie les mots-clÃƒÂ©s"""
         if not keywords:
             return set()
         
@@ -214,11 +215,11 @@ class BrollSelector:
                 
                 normalized.add(clean)
         
-        self.logger.info(f"🔑 Mots-clés normalisés: {len(normalized)} -> {list(normalized)[:10]}")
+        self.logger.info(f"Ã°Å¸â€â€˜ Mots-clÃƒÂ©s normalisÃƒÂ©s: {len(normalized)} -> {list(normalized)[:10]}")
         return normalized
     
     def expand_keywords(self, keywords: List[str], domain: Optional[str] = None, max_expansions: int = 15) -> List[str]:
-        """Étend les mots-clés avec synonymes et termes proches"""
+        """Ãƒâ€°tend les mots-clÃƒÂ©s avec synonymes et termes proches"""
         if not keywords:
             return []
         
@@ -226,7 +227,7 @@ class BrollSelector:
         
         # Expansion via WordNet si disponible
         if NLTK_AVAILABLE and self.lemmatizer:
-            for keyword in keywords[:5]:  # Limiter pour éviter l'explosion
+            for keyword in keywords[:5]:  # Limiter pour ÃƒÂ©viter l'explosion
                 try:
                     # Chercher des synonymes
                     synsets = wordnet.synsets(keyword)
@@ -234,21 +235,21 @@ class BrollSelector:
                         for lemma in synset.lemmas()[:2]:  # Top 2 lemmas
                             expanded.add(lemma.name().lower())
                 except Exception as e:
-                    self.logger.debug(f"⚠️ Erreur expansion WordNet pour '{keyword}': {e}")
+                    self.logger.debug(f"Ã¢Å¡Â Ã¯Â¸Â Erreur expansion WordNet pour '{keyword}': {e}")
         
-        # Expansion par domaine si spécifié
+        # Expansion par domaine si spÃƒÂ©cifiÃƒÂ©
         if domain:
             domain_expansions = self._get_domain_expansions(domain)
             expanded.update(domain_expansions)
         
         # Limiter le nombre d'expansions
         result = list(expanded)[:max_expansions]
-        self.logger.info(f"🔍 Mots-clés étendus: {len(keywords)} -> {len(result)}")
+        self.logger.info(f"Ã°Å¸â€Â Mots-clÃƒÂ©s ÃƒÂ©tendus: {len(keywords)} -> {len(result)}")
         
         return result
     
     def _get_domain_expansions(self, domain: str) -> List[str]:
-        """Retourne des expansions spécifiques au domaine"""
+        """Retourne des expansions spÃƒÂ©cifiques au domaine"""
         domain_keywords = {
             'health': ['medical', 'wellness', 'fitness', 'care', 'treatment', 'doctor', 'hospital', 'medicine'],
             'finance': ['money', 'business', 'investment', 'banking', 'economy', 'trading', 'wealth'],
@@ -260,111 +261,111 @@ class BrollSelector:
         return domain_keywords.get(domain.lower(), [])
     
     def fetch_assets(self, keywords: List[str], limit: int = 200) -> List[Asset]:
-        """Récupère les assets disponibles depuis les dossiers B-roll réels"""
+        """RÃƒÂ©cupÃƒÂ¨re les assets disponibles depuis les dossiers B-roll rÃƒÂ©els"""
         assets = []
         
-        print(f"🔍 DEBUG: fetch_assets appelé avec {len(keywords)} mots-clés")
-        print(f"🔍 DEBUG: Mots-clés: {keywords[:5]}")
+        print(f"Ã°Å¸â€Â DEBUG: fetch_assets appelÃƒÂ© avec {len(keywords)} mots-clÃƒÂ©s")
+        print(f"Ã°Å¸â€Â DEBUG: Mots-clÃƒÂ©s: {keywords[:5]}")
         
-        # Chercher dans les dossiers B-roll réels
+        # Chercher dans les dossiers B-roll rÃƒÂ©els
         # D'abord dans AI-B-roll/broll_library
         broll_dirs = list(Path("AI-B-roll/broll_library").glob("clip_reframed_*"))
-        # 🚀 CORRECTION: PRIORISER le dossier le plus récent
-        broll_dirs = sorted(broll_dirs, key=lambda p: p.name, reverse=True)  # Plus récent en premier
-        print(f"🔍 DEBUG: Dossiers clip_reframed_* trouvés: {len(broll_dirs)}")
+        # Ã°Å¸Å¡â‚¬ CORRECTION: PRIORISER le dossier le plus rÃƒÂ©cent
+        broll_dirs = sorted(broll_dirs, key=lambda p: p.name, reverse=True)  # Plus rÃƒÂ©cent en premier
+        print(f"Ã°Å¸â€Â DEBUG: Dossiers clip_reframed_* trouvÃƒÂ©s: {len(broll_dirs)}")
         if broll_dirs:
-            print(f"🎯 DEBUG: Dossier prioritaire (plus récent): {broll_dirs[0].name}")
+            print(f"Ã°Å¸Å½Â¯ DEBUG: Dossier prioritaire (plus rÃƒÂ©cent): {broll_dirs[0].name}")
         
-        # Si pas trouvé, chercher dans output/clips
+        # Si pas trouvÃƒÂ©, chercher dans output/clips
         if not broll_dirs:
-            print("🔍 DEBUG: Aucun dossier clip_reframed_* trouvé, recherche dans output/clips")
+            print("Ã°Å¸â€Â DEBUG: Aucun dossier clip_reframed_* trouvÃƒÂ©, recherche dans output/clips")
             output_dirs = list(Path("output/clips").glob("*"))
-            print(f"🔍 DEBUG: Dossiers output/clips trouvés: {len(output_dirs)}")
+            print(f"Ã°Å¸â€Â DEBUG: Dossiers output/clips trouvÃƒÂ©s: {len(output_dirs)}")
             for output_dir in output_dirs:
                 if output_dir.is_dir():
-                    print(f"🔍 DEBUG: Exploration de {output_dir}")
+                    print(f"Ã°Å¸â€Â DEBUG: Exploration de {output_dir}")
                     # Chercher des fichiers B-roll dans les sous-dossiers
                     for subdir in output_dir.iterdir():
                         if subdir.is_dir() and "broll" in subdir.name.lower():
-                            print(f"🔍 DEBUG: Dossier B-roll trouvé: {subdir}")
+                            print(f"Ã°Å¸â€Â DEBUG: Dossier B-roll trouvÃƒÂ©: {subdir}")
                             broll_dirs.append(subdir)
         
-        # Si toujours pas trouvé, chercher dans le dossier racine
+        # Si toujours pas trouvÃƒÂ©, chercher dans le dossier racine
         if not broll_dirs:
-            print("🔍 DEBUG: Aucun dossier B-roll trouvé, recherche dans le dossier racine")
+            print("Ã°Å¸â€Â DEBUG: Aucun dossier B-roll trouvÃƒÂ©, recherche dans le dossier racine")
             # Chercher seulement des dossiers, pas des fichiers
             root_dirs = [d for d in Path(".").glob("*broll*") if d.is_dir()]
-            print(f"🔍 DEBUG: Dossiers *broll* trouvés: {len(root_dirs)}")
+            print(f"Ã°Å¸â€Â DEBUG: Dossiers *broll* trouvÃƒÂ©s: {len(root_dirs)}")
             broll_dirs.extend(root_dirs)
         
-        # Si toujours pas trouvé, chercher dans test_clip
+        # Si toujours pas trouvÃƒÂ©, chercher dans test_clip
         if not broll_dirs:
-            print("🔍 DEBUG: Aucun dossier B-roll trouvé, recherche dans test_clip")
+            print("Ã°Å¸â€Â DEBUG: Aucun dossier B-roll trouvÃƒÂ©, recherche dans test_clip")
             test_dir = Path("AI-B-roll/broll_library/test_clip")
             if test_dir.exists():
-                print(f"🔍 DEBUG: Dossier test_clip trouvé: {test_dir}")
+                print(f"Ã°Å¸â€Â DEBUG: Dossier test_clip trouvÃƒÂ©: {test_dir}")
                 broll_dirs.append(test_dir)
         
-        # 🚀 NOUVEAU: Si pas de dossiers B-roll, TÉLÉCHARGER depuis les APIs
+        # Ã°Å¸Å¡â‚¬ NOUVEAU: Si pas de dossiers B-roll, TÃƒâ€°LÃƒâ€°CHARGER depuis les APIs
         if not broll_dirs:
-            print("🔍 DEBUG: Aucun dossier B-roll trouvé, TÉLÉCHARGEMENT depuis APIs...")
+            print("Ã°Å¸â€Â DEBUG: Aucun dossier B-roll trouvÃƒÂ©, TÃƒâ€°LÃƒâ€°CHARGEMENT depuis APIs...")
             return self._fetch_from_apis(keywords, limit)
         
-        print(f"🔍 DEBUG: Total dossiers B-roll trouvés: {len(broll_dirs)}")
+        print(f"Ã°Å¸â€Â DEBUG: Total dossiers B-roll trouvÃƒÂ©s: {len(broll_dirs)}")
         
-        # 🚀 CORRECTION: Utiliser SEULEMENT le dossier le plus récent s'il a des assets
+        # Ã°Å¸Å¡â‚¬ CORRECTION: Utiliser SEULEMENT le dossier le plus rÃƒÂ©cent s'il a des assets
         prioritized_dirs = []
         if broll_dirs:
-            latest_dir = broll_dirs[0]  # Le plus récent grâce au tri
+            latest_dir = broll_dirs[0]  # Le plus rÃƒÂ©cent grÃƒÂ¢ce au tri
             latest_fetched = latest_dir / "fetched"
             if latest_fetched.exists() and len(list(latest_fetched.rglob("*.mp4"))) > 0:
-                print(f"🎯 DEBUG: Utilisation exclusive du dossier récent: {latest_dir.name}")
-                prioritized_dirs = [latest_dir]  # SEULEMENT le plus récent
+                print(f"Ã°Å¸Å½Â¯ DEBUG: Utilisation exclusive du dossier rÃƒÂ©cent: {latest_dir.name}")
+                prioritized_dirs = [latest_dir]  # SEULEMENT le plus rÃƒÂ©cent
             else:
-                print(f"⚠️ DEBUG: Dossier récent vide, utilisation de tous les dossiers")
-                prioritized_dirs = broll_dirs  # Fallback vers tous si récent vide
+                print(f"Ã¢Å¡Â Ã¯Â¸Â DEBUG: Dossier rÃƒÂ©cent vide, utilisation de tous les dossiers")
+                prioritized_dirs = broll_dirs  # Fallback vers tous si rÃƒÂ©cent vide
         else:
             prioritized_dirs = broll_dirs
             
         for broll_dir in prioritized_dirs:
             if not broll_dir.exists():
-                print(f"🔍 DEBUG: Dossier {broll_dir} n'existe pas")
+                print(f"Ã°Å¸â€Â DEBUG: Dossier {broll_dir} n'existe pas")
                 continue
                 
-            print(f"🔍 DEBUG: Exploration du dossier: {broll_dir}")
+            print(f"Ã°Å¸â€Â DEBUG: Exploration du dossier: {broll_dir}")
             
-            # Chercher des fichiers vidéo dans ce dossier
+            # Chercher des fichiers vidÃƒÂ©o dans ce dossier
             video_files = []
             
             # Chercher dans fetched/ si existe
             fetched_dir = broll_dir / "fetched"
             if fetched_dir.exists():
-                print(f"🔍 DEBUG: Dossier fetched trouvé: {fetched_dir}")
+                print(f"Ã°Å¸â€Â DEBUG: Dossier fetched trouvÃƒÂ©: {fetched_dir}")
                 for provider_dir in fetched_dir.iterdir():
                     if provider_dir.is_dir():
-                        print(f"🔍 DEBUG: Provider trouvé: {provider_dir}")
+                        print(f"Ã°Å¸â€Â DEBUG: Provider trouvÃƒÂ©: {provider_dir}")
                         for theme_dir in provider_dir.iterdir():
                             if theme_dir.is_dir():
-                                print(f"🔍 DEBUG: Theme trouvé: {theme_dir}")
+                                print(f"Ã°Å¸â€Â DEBUG: Theme trouvÃƒÂ©: {theme_dir}")
                                 for asset_file in theme_dir.glob("*.mp4"):
-                                    print(f"🔍 DEBUG: Fichier vidéo trouvé: {asset_file}")
+                                    print(f"Ã°Å¸â€Â DEBUG: Fichier vidÃƒÂ©o trouvÃƒÂ©: {asset_file}")
                                     video_files.append(asset_file)
             else:
-                print(f"🔍 DEBUG: Dossier fetched non trouvé dans {broll_dir}")
+                print(f"Ã°Å¸â€Â DEBUG: Dossier fetched non trouvÃƒÂ© dans {broll_dir}")
             
             # Si pas de fetched/, chercher directement
             if not video_files:
-                print(f"🔍 DEBUG: Aucun fichier dans fetched/, recherche directe")
+                print(f"Ã°Å¸â€Â DEBUG: Aucun fichier dans fetched/, recherche directe")
                 for asset_file in broll_dir.rglob("*.mp4"):
-                    print(f"🔍 DEBUG: Fichier vidéo trouvé (recherche directe): {asset_file}")
+                    print(f"Ã°Å¸â€Â DEBUG: Fichier vidÃƒÂ©o trouvÃƒÂ© (recherche directe): {asset_file}")
                     video_files.append(asset_file)
             
-            print(f"🔍 DEBUG: Fichiers vidéo trouvés dans {broll_dir.name}: {len(video_files)}")
+            print(f"Ã°Å¸â€Â DEBUG: Fichiers vidÃƒÂ©o trouvÃƒÂ©s dans {broll_dir.name}: {len(video_files)}")
             
             for asset_file in video_files[:10]:  # Limiter par dossier
                 try:
-                    print(f"🔍 DEBUG: Création asset pour {asset_file}")
-                    # Créer un asset
+                    print(f"Ã°Å¸â€Â DEBUG: CrÃƒÂ©ation asset pour {asset_file}")
+                    # CrÃƒÂ©er un asset
                     asset = Asset(
                         id=f"asset_{len(assets)}",
                         file_path=str(asset_file),
@@ -377,52 +378,52 @@ class BrollSelector:
                         resolution="1920x1080"
                     )
                     assets.append(asset)
-                    print(f"🔍 DEBUG: Asset créé avec succès: {asset.id}")
+                    print(f"Ã°Å¸â€Â DEBUG: Asset crÃƒÂ©ÃƒÂ© avec succÃƒÂ¨s: {asset.id}")
                     
                     if len(assets) >= limit:
                         break
                         
                 except Exception as e:
-                    print(f"🔍 DEBUG: Erreur création asset {asset_file}: {e}")
+                    print(f"Ã°Å¸â€Â DEBUG: Erreur crÃƒÂ©ation asset {asset_file}: {e}")
         
-        print(f"🔍 DEBUG: Total assets récupérés: {len(assets)}")
+        print(f"Ã°Å¸â€Â DEBUG: Total assets rÃƒÂ©cupÃƒÂ©rÃƒÂ©s: {len(assets)}")
         
-        # 🚀 AMÉLIORATION: Télécharger aussi si mots-clés spécifiques et peu d'assets
+        # Ã°Å¸Å¡â‚¬ AMÃƒâ€°LIORATION: TÃƒÂ©lÃƒÂ©charger aussi si mots-clÃƒÂ©s spÃƒÂ©cifiques et peu d'assets
         specialized_keywords = [kw for kw in keywords if '_' in kw or any(term in kw.lower() for term in ['brain', 'neural', 'adrenaline', 'chemical', 'medical'])]
         
-        # 🚀 CORRECTION CRITIQUE: Vérifier si le dossier ACTUEL est vide
-        # Compter seulement les assets du dossier le plus récent
+        # Ã°Å¸Å¡â‚¬ CORRECTION CRITIQUE: VÃƒÂ©rifier si le dossier ACTUEL est vide
+        # Compter seulement les assets du dossier le plus rÃƒÂ©cent
         latest_clip_assets = 0
         if broll_dirs:
             latest_clip_dir = max(broll_dirs, key=lambda p: p.name)
             latest_fetched = latest_clip_dir / "fetched"
             if latest_fetched.exists():
                 latest_clip_assets = len(list(latest_fetched.rglob("*.mp4")))
-                print(f"🔍 DEBUG: Assets dans dossier actuel {latest_clip_dir.name}: {latest_clip_assets}")
+                print(f"Ã°Å¸â€Â DEBUG: Assets dans dossier actuel {latest_clip_dir.name}: {latest_clip_assets}")
         
         should_download = (
             len(assets) == 0 or  # Aucun asset global
             latest_clip_assets == 0 or  # Dossier actuel vide
-            (len(specialized_keywords) > 0 and latest_clip_assets < 5)  # Peu d'assets spécifiques au dossier actuel
+            (len(specialized_keywords) > 0 and latest_clip_assets < 5)  # Peu d'assets spÃƒÂ©cifiques au dossier actuel
         )
         
         if should_download:
             if len(assets) == 0:
-                print("🔍 DEBUG: Aucun asset trouvé dans le cache local")
+                print("Ã°Å¸â€Â DEBUG: Aucun asset trouvÃƒÂ© dans le cache local")
             else:
-                print(f"🔍 DEBUG: {len(specialized_keywords)} mots-clés spécialisés détectés, téléchargement complémentaire")
-                print(f"    🎯 Mots-clés spécialisés: {specialized_keywords[:3]}")
+                print(f"Ã°Å¸â€Â DEBUG: {len(specialized_keywords)} mots-clÃƒÂ©s spÃƒÂ©cialisÃƒÂ©s dÃƒÂ©tectÃƒÂ©s, tÃƒÂ©lÃƒÂ©chargement complÃƒÂ©mentaire")
+                print(f"    Ã°Å¸Å½Â¯ Mots-clÃƒÂ©s spÃƒÂ©cialisÃƒÂ©s: {specialized_keywords[:3]}")
             
-            print("📥 Lancement téléchargement depuis APIs...")
+            print("Ã°Å¸â€œÂ¥ Lancement tÃƒÂ©lÃƒÂ©chargement depuis APIs...")
             api_assets = self._fetch_from_apis(keywords, limit)
             assets.extend(api_assets)
-            print(f"📥 Total après téléchargement: {len(assets)} assets")
+            print(f"Ã°Å¸â€œÂ¥ Total aprÃƒÂ¨s tÃƒÂ©lÃƒÂ©chargement: {len(assets)} assets")
         
-        self.logger.info(f"📥 Assets récupérés: {len(assets)}")
+        self.logger.info(f"Ã°Å¸â€œÂ¥ Assets rÃƒÂ©cupÃƒÂ©rÃƒÂ©s: {len(assets)}")
         return assets
     
     def _fetch_from_apis(self, keywords: List[str], limit: int = 200) -> List[Asset]:
-        """Télécharge des B-rolls depuis les APIs externes"""
+        """TÃƒÂ©lÃƒÂ©charge des B-rolls depuis les APIs externes"""
         try:
             import requests
             import os
@@ -430,30 +431,30 @@ class BrollSelector:
             
             assets = []
             
-            # Configuration des clés API
+            # Configuration des clÃƒÂ©s API
             pexels_key = os.getenv('PEXELS_API_KEY') or 'pwhBa9K7fa9IQJCmfCy0NfHFWy8QyqoCkGnWLK3NC2SbDTtUeuhxpDoD'
             pixabay_key = os.getenv('PIXABAY_API_KEY') or '51724939-ee09a81ccfce0f5623df46a69'
             
             if not pexels_key and not pixabay_key:
-                print("❌ Pas de clé API (Pexels/Pixabay) pour le téléchargement")
+                print("Ã¢ÂÅ’ Pas de clÃƒÂ© API (Pexels/Pixabay) pour le tÃƒÂ©lÃƒÂ©chargement")
                 return self._create_fallback_assets(keywords)
             
-            # 🚀 CORRECTION: Télécharger dans le dossier clip le plus récent
-            # Trouver le dossier clip le plus récent (celui qui vient d'être créé)
+            # Ã°Å¸Å¡â‚¬ CORRECTION: TÃƒÂ©lÃƒÂ©charger dans le dossier clip le plus rÃƒÂ©cent
+            # Trouver le dossier clip le plus rÃƒÂ©cent (celui qui vient d'ÃƒÂªtre crÃƒÂ©ÃƒÂ©)
             broll_dirs = list(Path("AI-B-roll/broll_library").glob("clip_reframed_*"))
             if broll_dirs:
-                # Prendre le plus récent (tri par nom qui contient timestamp)
+                # Prendre le plus rÃƒÂ©cent (tri par nom qui contient timestamp)
                 latest_clip_dir = max(broll_dirs, key=lambda p: p.name)
                 fetch_dir = latest_clip_dir / "fetched"
-                print(f"🎯 Téléchargement dans: {latest_clip_dir.name}/fetched/")
+                print(f"Ã°Å¸Å½Â¯ TÃƒÂ©lÃƒÂ©chargement dans: {latest_clip_dir.name}/fetched/")
             else:
-                # Fallback vers dossier générique si pas de clip trouvé
+                # Fallback vers dossier gÃƒÂ©nÃƒÂ©rique si pas de clip trouvÃƒÂ©
                 fetch_dir = Path("AI-B-roll/broll_library/fetched")
-                print("⚠️ Aucun dossier clip trouvé, utilisation dossier générique")
+                print("Ã¢Å¡Â Ã¯Â¸Â Aucun dossier clip trouvÃƒÂ©, utilisation dossier gÃƒÂ©nÃƒÂ©rique")
             
             fetch_dir.mkdir(parents=True, exist_ok=True)
             
-            print(f"📥 Téléchargement B-rolls depuis APIs pour {len(keywords)} mots-clés...")
+            print(f"Ã°Å¸â€œÂ¥ TÃƒÂ©lÃƒÂ©chargement B-rolls depuis APIs pour {len(keywords)} mots-clÃƒÂ©s...")
             
             # Essayer tous les providers (Pexels/Pixabay uniquement)
             providers = []
@@ -464,19 +465,19 @@ class BrollSelector:
             if not providers:
                 print('WARNING: no API provider (Pexels/Pixabay)')
 
-            # 🚀 NOUVEAU: Simplifier les mots-clés pour APIs externes
+            # Ã°Å¸Å¡â‚¬ NOUVEAU: Simplifier les mots-clÃƒÂ©s pour APIs externes
             simplified_keywords = []
-            for keyword in keywords[:5]:  # Plus de mots-clés pour augmenter les chances
-                # Simplifier les mots-clés LLM pour les APIs
+            for keyword in keywords[:5]:  # Plus de mots-clÃƒÂ©s pour augmenter les chances
+                # Simplifier les mots-clÃƒÂ©s LLM pour les APIs
                 simplified = self._simplify_keyword_for_api(keyword)
                 if simplified and simplified not in simplified_keywords:
                     simplified_keywords.append(simplified)
             
             # Limiter et afficher
             simplified_keywords = simplified_keywords[:3]
-            print(f"🔍 Mots-clés simplifiés pour APIs: {simplified_keywords}")
+            print(f"Ã°Å¸â€Â Mots-clÃƒÂ©s simplifiÃƒÂ©s pour APIs: {simplified_keywords}")
             
-            # 🚀 OPTIMISATION VALIDÉE: Téléchargement parallèle des APIs
+            # Ã°Å¸Å¡â‚¬ OPTIMISATION VALIDÃƒâ€°E: TÃƒÂ©lÃƒÂ©chargement parallÃƒÂ¨le des APIs
             from concurrent.futures import ThreadPoolExecutor, as_completed
             import threading
             
@@ -499,65 +500,65 @@ class BrollSelector:
                         break
                     fetch_tasks.append((keyword, provider, api_key, fetch_dir))
             
-            print(f"🚀 Téléchargement parallèle: {len(fetch_tasks)} tâches sur {len(providers)} APIs")
+            print(f"Ã°Å¸Å¡â‚¬ TÃƒÂ©lÃƒÂ©chargement parallÃƒÂ¨le: {len(fetch_tasks)} tÃƒÂ¢ches sur {len(providers)} APIs")
             
-            # Exécution parallèle avec maximum 4 threads (optimisation réseau)
+            # ExÃƒÂ©cution parallÃƒÂ¨le avec maximum 4 threads (optimisation rÃƒÂ©seau)
             with ThreadPoolExecutor(max_workers=min(4, len(fetch_tasks))) as executor:
-                # Soumettre toutes les tâches
+                # Soumettre toutes les tÃƒÂ¢ches
                 future_to_task = {
                     executor.submit(fetch_from_provider, keyword, provider, api_key, fetch_dir): (keyword, provider)
                     for keyword, provider, api_key, fetch_dir in fetch_tasks
                 }
                 
-                # Récupérer les résultats au fur et à mesure
+                # RÃƒÂ©cupÃƒÂ©rer les rÃƒÂ©sultats au fur et ÃƒÂ  mesure
                 for future in as_completed(future_to_task):
                     keyword, provider = future_to_task[future]
                     try:
                         provider_assets = future.result(timeout=30)  # Timeout 30s par provider
                         if provider_assets:
                             assets.extend(provider_assets)
-                            print(f"   ✅ {provider}: {len(provider_assets)} assets pour '{keyword}'")
+                            print(f"   Ã¢Å“â€¦ {provider}: {len(provider_assets)} assets pour '{keyword}'")
                         
-                        # Arrêter si limite atteinte
+                        # ArrÃƒÂªter si limite atteinte
                         if len(assets) >= limit:
-                            print(f"   🎯 Limite atteinte: {len(assets)} assets")
+                            print(f"   Ã°Å¸Å½Â¯ Limite atteinte: {len(assets)} assets")
                             break
                             
                     except Exception as e:
-                        print(f"   ❌ {provider} échoué pour '{keyword}': {e}")
+                        print(f"   Ã¢ÂÅ’ {provider} ÃƒÂ©chouÃƒÂ© pour '{keyword}': {e}")
             
-            print(f"⚡ Téléchargement parallèle terminé: {len(assets)} assets obtenus")
+            print(f"Ã¢Å¡Â¡ TÃƒÂ©lÃƒÂ©chargement parallÃƒÂ¨le terminÃƒÂ©: {len(assets)} assets obtenus")
                 
 
             
-            print(f"✅ {len(assets)} B-rolls téléchargés depuis les APIs")
+            print(f"Ã¢Å“â€¦ {len(assets)} B-rolls tÃƒÂ©lÃƒÂ©chargÃƒÂ©s depuis les APIs")
             
-            # Si pas d'assets téléchargés, fallback
+            # Si pas d'assets tÃƒÂ©lÃƒÂ©chargÃƒÂ©s, fallback
             if not assets:
-                print("🔄 Aucun téléchargement réussi, utilisation fallback")
+                print("Ã°Å¸â€â€ž Aucun tÃƒÂ©lÃƒÂ©chargement rÃƒÂ©ussi, utilisation fallback")
                 return self._create_fallback_assets(keywords)
             
             return assets
             
         except Exception as e:
-            print(f"❌ Erreur téléchargement APIs: {e}")
+            print(f"Ã¢ÂÅ’ Erreur tÃƒÂ©lÃƒÂ©chargement APIs: {e}")
             return self._create_fallback_assets(keywords)
     
     def _simplify_keyword_for_api(self, keyword: str) -> str:
-        """Simplifie un mot-clé LLM pour les APIs externes en préservant la spécificité"""
+        """Simplifie un mot-clÃƒÂ© LLM pour les APIs externes en prÃƒÂ©servant la spÃƒÂ©cificitÃƒÂ©"""
         # Convertir underscore en espace pour les APIs
         simplified = keyword.replace('_', ' ')
         
-        # 🚀 AMÉLIORATION: Préserver la spécificité des mots-clés LLM
+        # Ã°Å¸Å¡â‚¬ AMÃƒâ€°LIORATION: PrÃƒÂ©server la spÃƒÂ©cificitÃƒÂ© des mots-clÃƒÂ©s LLM
         concept_mapping = {
-            # 🧠 Cerveau & Neuroscience - PRÉSERVER LA SPÉCIFICITÉ
+            # Ã°Å¸Â§Â  Cerveau & Neuroscience - PRÃƒâ€°SERVER LA SPÃƒâ€°CIFICITÃƒâ€°
             'brain neural networks': 'brain neurons neural network',
             'brain adrenaline buffer': 'brain neurotransmitter adrenaline',
             'brain neural connections': 'brain synapses neural',
             'brain internal reward': 'brain dopamine reward system',
             'neural networks': 'brain neural network',
             
-            # 👤 Actions humaines - GARDER LE CONTEXTE
+            # Ã°Å¸â€˜Â¤ Actions humaines - GARDER LE CONTEXTE
             'person thinking concept': 'person thinking meditation',
             'person celebrating achievement': 'person celebrating success',
             'person achieving goal': 'person achievement success',
@@ -566,13 +567,13 @@ class BrollSelector:
             'person achieving objective': 'person goal achievement',
             'person celebrating win': 'person victory celebration',
             
-            # 💼 Business - ENRICHIR AU LIEU DE SIMPLIFIER
+            # Ã°Å¸â€™Â¼ Business - ENRICHIR AU LIEU DE SIMPLIFIER
             'business handshake deal': 'business handshake partnership',
             'entrepreneur presenting idea': 'entrepreneur presentation business',
             'team brainstorming session': 'team meeting brainstorming',
             'data visualization reward': 'data visualization charts',
             
-            # Anciens mappings (maintenir compatibilité)
+            # Anciens mappings (maintenir compatibilitÃƒÂ©)
             'process direction visual': 'business process',
             'internal motivation concept': 'motivation psychology',
             'brain focus concept': 'brain thinking',
@@ -588,13 +589,13 @@ class BrollSelector:
         simplified_lower = simplified.lower()
         for complex_term, enhanced_term in concept_mapping.items():
             if complex_term in simplified_lower:
-                print(f"    🎯 Mapping spécialisé: {keyword} → {enhanced_term}")
+                print(f"    Ã°Å¸Å½Â¯ Mapping spÃƒÂ©cialisÃƒÂ©: {keyword} Ã¢â€ â€™ {enhanced_term}")
                 return enhanced_term
         
-        # 🚀 AMÉLIORATION: Traitement intelligent des mots-clés structurés
+        # Ã°Å¸Å¡â‚¬ AMÃƒâ€°LIORATION: Traitement intelligent des mots-clÃƒÂ©s structurÃƒÂ©s
         words = simplified.lower().split()
         if len(words) >= 2:
-            # Identifier et enrichir les domaines spécialisés
+            # Identifier et enrichir les domaines spÃƒÂ©cialisÃƒÂ©s
             domain_enrichment = {
                 'brain': ['neuroscience', 'cognitive'],
                 'person': ['human', 'individual'],
@@ -602,7 +603,7 @@ class BrollSelector:
                 'data': ['analytics', 'visualization']
             }
             
-            # Construire une requête enrichie
+            # Construire une requÃƒÂªte enrichie
             enhanced_terms = []
             for word in words:
                 if word in domain_enrichment:
@@ -613,20 +614,20 @@ class BrollSelector:
             
             if enhanced_terms:
                 result = ' '.join(enhanced_terms[:4])  # Max 4 mots pour l'API
-                print(f"    🧠 Enrichissement intelligent: {keyword} → {result}")
+                print(f"    Ã°Å¸Â§Â  Enrichissement intelligent: {keyword} Ã¢â€ â€™ {result}")
                 return result
         
-        # Fallback amélioré : garder la spécificité
+        # Fallback amÃƒÂ©liorÃƒÂ© : garder la spÃƒÂ©cificitÃƒÂ©
         if len(simplified) > 2:
             return simplified
         else:
             return 'professional business'
     
     def _fetch_from_pexels(self, keyword: str, api_key: str, fetch_dir: Path) -> List[Asset]:
-        """Télécharge des B-rolls depuis Pexels"""
+        """TÃƒÂ©lÃƒÂ©charge des B-rolls depuis Pexels"""
         assets = []
         try:
-            print(f"🔍 Recherche Pexels: '{keyword}'")
+            print(f"Ã°Å¸â€Â Recherche Pexels: '{keyword}'")
             
             # Appel API Pexels
             headers = {"Authorization": api_key}
@@ -637,7 +638,7 @@ class BrollSelector:
             )
             
             if response.status_code != 200:
-                print(f"⚠️ Erreur API Pexels pour '{keyword}': {response.status_code}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur API Pexels pour '{keyword}': {response.status_code}")
                 return assets
             
             data = response.json()
@@ -649,7 +650,7 @@ class BrollSelector:
                     if not video_files:
                         continue
                     
-                    # Choisir la qualité medium ou HD
+                    # Choisir la qualitÃƒÂ© medium ou HD
                     suitable_files = [vf for vf in video_files if vf.get('quality') in ['hd', 'medium']]
                     if not suitable_files:
                         suitable_files = video_files[:1]
@@ -661,12 +662,12 @@ class BrollSelector:
                     filename = f"{keyword}_{video['id']}_{i}.mp4"
                     file_path = fetch_dir / filename
                     
-                    # Créer le dossier
+                    # CrÃƒÂ©er le dossier
                     fetch_dir.mkdir(parents=True, exist_ok=True)
                     
-                    print(f"📥 Téléchargement Pexels: {filename}")
+                    print(f"Ã°Å¸â€œÂ¥ TÃƒÂ©lÃƒÂ©chargement Pexels: {filename}")
                     
-                    # Télécharger
+                    # TÃƒÂ©lÃƒÂ©charger
                     download_response = requests.get(download_url, stream=True, timeout=30)
                     download_response.raise_for_status()
                     
@@ -681,16 +682,16 @@ class BrollSelector:
                                 if downloaded_size > max_size:
                                     break
                     
-                    # 🚀 VALIDATION: Vérifier l'intégrité du fichier téléchargé
+                    # Ã°Å¸Å¡â‚¬ VALIDATION: VÃƒÂ©rifier l'intÃƒÂ©gritÃƒÂ© du fichier tÃƒÂ©lÃƒÂ©chargÃƒÂ©
                     if file_path.exists() and file_path.stat().st_size > 1000:
-                        # Validation basique de l'intégrité vidéo
+                        # Validation basique de l'intÃƒÂ©gritÃƒÂ© vidÃƒÂ©o
                         is_valid = True
                         try:
                             if filename.endswith(('.mp4', '.mov', '.avi', '.mkv')):
                                 # Test d'ouverture rapide avec MoviePy
                                 from moviepy.editor import VideoFileClip
                                 with VideoFileClip(str(file_path)) as test_clip:
-                                    # Vérifier que la durée est cohérente
+                                    # VÃƒÂ©rifier que la durÃƒÂ©e est cohÃƒÂ©rente
                                     if test_clip.duration <= 0 or test_clip.duration > 300:  # Max 5 minutes
                                         is_valid = False
                         except Exception:
@@ -702,38 +703,38 @@ class BrollSelector:
                                 file_path=str(file_path),
                                 tags=[keyword, 'pexels', 'video'] + keyword.split('_'),
                                 title=f"Pexels {keyword} {video['id']}",
-                                description=f"B-roll téléchargé depuis Pexels pour {keyword}",
+                                description=f"B-roll tÃƒÂ©lÃƒÂ©chargÃƒÂ© depuis Pexels pour {keyword}",
                                 source="pexels_api",
                                 fetched_at=datetime.now(),
                                 duration=float(video.get('duration', 3.0)),
                                 resolution=f"{video_file.get('width', 1920)}x{video_file.get('height', 1080)}"
                             )
                             assets.append(asset)
-                            print(f"✅ Téléchargé Pexels: {filename} ({file_path.stat().st_size / 1024 / 1024:.1f}MB)")
+                            print(f"Ã¢Å“â€¦ TÃƒÂ©lÃƒÂ©chargÃƒÂ© Pexels: {filename} ({file_path.stat().st_size / 1024 / 1024:.1f}MB)")
                         else:
-                            print(f"⚠️ Fichier Pexels corrompu ignoré: {filename}")
+                            print(f"Ã¢Å¡Â Ã¯Â¸Â Fichier Pexels corrompu ignorÃƒÂ©: {filename}")
                             try:
                                 file_path.unlink()  # Supprimer le fichier corrompu
                             except:
                                 pass
                     
-                    if len(assets) >= 2:  # Limiter à 2 par mot-clé par provider
+                    if len(assets) >= 2:  # Limiter ÃƒÂ  2 par mot-clÃƒÂ© par provider
                         break
                         
                 except Exception as e:
-                    print(f"⚠️ Erreur téléchargement Pexels {i}: {e}")
+                    print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur tÃƒÂ©lÃƒÂ©chargement Pexels {i}: {e}")
                     continue
                     
         except Exception as e:
-            print(f"⚠️ Erreur recherche Pexels '{keyword}': {e}")
+            print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur recherche Pexels '{keyword}': {e}")
         
         return assets
     
     def _fetch_from_pixabay(self, keyword: str, api_key: str, fetch_dir: Path) -> List[Asset]:
-        """Télécharge des B-rolls depuis Pixabay avec format officiel"""
+        """TÃƒÂ©lÃƒÂ©charge des B-rolls depuis Pixabay avec format officiel"""
         assets = []
         try:
-            print(f"🔍 Recherche Pixabay: '{keyword}'")
+            print(f"Ã°Å¸â€Â Recherche Pixabay: '{keyword}'")
             
             # URL officielle exacte de la documentation Pixabay
             # Pixabay accepte per_page entre 3-200, pas 2
@@ -742,14 +743,14 @@ class BrollSelector:
             response = requests.get(url, timeout=15)
             
             if response.status_code != 200:
-                print(f"⚠️ Erreur API Pixabay pour '{keyword}': {response.status_code}")
-                print(f"   Réponse: {response.text[:100]}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur API Pixabay pour '{keyword}': {response.status_code}")
+                print(f"   RÃƒÂ©ponse: {response.text[:100]}")
                 return assets
             
             data = response.json()
             videos = data.get('hits', [])
             
-            print(f"📹 Pixabay trouvé: {len(videos)} vidéos pour '{keyword}'")
+            print(f"Ã°Å¸â€œÂ¹ Pixabay trouvÃƒÂ©: {len(videos)} vidÃƒÂ©os pour '{keyword}'")
             
             for i, video in enumerate(videos):
                 try:
@@ -757,8 +758,8 @@ class BrollSelector:
                     if not video_files:
                         continue
                     
-                    # Choisir la meilleure qualité disponible
-                    quality_order = ['medium', 'small', 'tiny']  # medium = 1280x720 généralement
+                    # Choisir la meilleure qualitÃƒÂ© disponible
+                    quality_order = ['medium', 'small', 'tiny']  # medium = 1280x720 gÃƒÂ©nÃƒÂ©ralement
                     selected_quality = None
                     
                     for quality in quality_order:
@@ -767,7 +768,7 @@ class BrollSelector:
                             break
                     
                     if not selected_quality:
-                        print(f"⚠️ Aucune qualité disponible pour Pixabay video {video['id']}")
+                        print(f"Ã¢Å¡Â Ã¯Â¸Â Aucune qualitÃƒÂ© disponible pour Pixabay video {video['id']}")
                         continue
                     
                     video_info = video_files[selected_quality]
@@ -777,12 +778,12 @@ class BrollSelector:
                     filename = f"{keyword}_{video['id']}_{i}.mp4"
                     file_path = fetch_dir / filename
                     
-                    # Créer le dossier
+                    # CrÃƒÂ©er le dossier
                     fetch_dir.mkdir(parents=True, exist_ok=True)
                     
-                    print(f"📥 Téléchargement Pixabay: {filename} ({selected_quality})")
+                    print(f"Ã°Å¸â€œÂ¥ TÃƒÂ©lÃƒÂ©chargement Pixabay: {filename} ({selected_quality})")
                     
-                    # Télécharger
+                    # TÃƒÂ©lÃƒÂ©charger
                     download_response = requests.get(download_url, stream=True, timeout=30)
                     download_response.raise_for_status()
                     
@@ -797,16 +798,16 @@ class BrollSelector:
                                 if downloaded_size > max_size:
                                     break
                     
-                    # 🚀 VALIDATION: Vérifier l'intégrité du fichier téléchargé
+                    # Ã°Å¸Å¡â‚¬ VALIDATION: VÃƒÂ©rifier l'intÃƒÂ©gritÃƒÂ© du fichier tÃƒÂ©lÃƒÂ©chargÃƒÂ©
                     if file_path.exists() and file_path.stat().st_size > 1000:
-                        # Validation basique de l'intégrité vidéo
+                        # Validation basique de l'intÃƒÂ©gritÃƒÂ© vidÃƒÂ©o
                         is_valid = True
                         try:
                             if filename.endswith(('.mp4', '.mov', '.avi', '.mkv')):
                                 # Test d'ouverture rapide avec MoviePy
                                 from moviepy.editor import VideoFileClip
                                 with VideoFileClip(str(file_path)) as test_clip:
-                                    # Vérifier que la durée est cohérente
+                                    # VÃƒÂ©rifier que la durÃƒÂ©e est cohÃƒÂ©rente
                                     if test_clip.duration <= 0 or test_clip.duration > 300:  # Max 5 minutes
                                         is_valid = False
                         except Exception:
@@ -818,38 +819,38 @@ class BrollSelector:
                                 file_path=str(file_path),
                                 tags=[keyword, 'pixabay', 'video'] + video.get('tags', '').split(', '),
                                 title=f"Pixabay {keyword} {video['id']}",
-                                description=f"B-roll téléchargé depuis Pixabay pour {keyword}",
+                                description=f"B-roll tÃƒÂ©lÃƒÂ©chargÃƒÂ© depuis Pixabay pour {keyword}",
                                 source="pixabay_api",
                                 fetched_at=datetime.now(),
                                 duration=float(video.get('duration', 3.0)),
                                 resolution=f"{video_info.get('width', 1280)}x{video_info.get('height', 720)}"
                             )
                             assets.append(asset)
-                            print(f"✅ Téléchargé Pixabay: {filename} ({file_path.stat().st_size / 1024 / 1024:.1f}MB)")
+                            print(f"Ã¢Å“â€¦ TÃƒÂ©lÃƒÂ©chargÃƒÂ© Pixabay: {filename} ({file_path.stat().st_size / 1024 / 1024:.1f}MB)")
                         else:
-                            print(f"⚠️ Fichier Pixabay corrompu ignoré: {filename}")
+                            print(f"Ã¢Å¡Â Ã¯Â¸Â Fichier Pixabay corrompu ignorÃƒÂ©: {filename}")
                             try:
                                 file_path.unlink()  # Supprimer le fichier corrompu
                             except:
                                 pass
                     
-                    if len(assets) >= 2:  # Limiter à 2 par mot-clé par provider
+                    if len(assets) >= 2:  # Limiter ÃƒÂ  2 par mot-clÃƒÂ© par provider
                         break
                         
                 except Exception as e:
-                    print(f"⚠️ Erreur téléchargement Pixabay {i}: {e}")
+                    print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur tÃƒÂ©lÃƒÂ©chargement Pixabay {i}: {e}")
                     continue
                     
         except Exception as e:
-            print(f"⚠️ Erreur recherche Pixabay '{keyword}': {e}")
+            print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur recherche Pixabay '{keyword}': {e}")
         
         return assets
     
     def _fetch_from_unsplash(self, keyword: str, access_key: str, app_id: str, fetch_dir: Path) -> List[Asset]:
-        """Télécharge des images depuis Unsplash (photos haute qualité)"""
+        """TÃƒÂ©lÃƒÂ©charge des images depuis Unsplash (photos haute qualitÃƒÂ©)"""
         assets = []
         try:
-            print(f"🔍 Recherche Unsplash: '{keyword}'")
+            print(f"Ã°Å¸â€Â Recherche Unsplash: '{keyword}'")
             
             # API Unsplash pour les photos
             headers = {
@@ -857,7 +858,7 @@ class BrollSelector:
                 "Accept-Version": "v1"
             }
             
-            # Recherche de photos avec le mot-clé
+            # Recherche de photos avec le mot-clÃƒÂ©
             response = requests.get(
                 f"https://api.unsplash.com/search/photos?query={keyword}&per_page=3&orientation=landscape",
                 headers=headers,
@@ -865,17 +866,17 @@ class BrollSelector:
             )
             
             if response.status_code != 200:
-                print(f"⚠️ Erreur API Unsplash pour '{keyword}': {response.status_code}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur API Unsplash pour '{keyword}': {response.status_code}")
                 return assets
             
             data = response.json()
             photos = data.get('results', [])
             
-            print(f"📸 Unsplash trouvé: {len(photos)} photos pour '{keyword}'")
+            print(f"Ã°Å¸â€œÂ¸ Unsplash trouvÃƒÂ©: {len(photos)} photos pour '{keyword}'")
             
             for i, photo in enumerate(photos):
                 try:
-                    # Choisir la qualité regular (1080p) ou full (haute résolution)
+                    # Choisir la qualitÃƒÂ© regular (1080p) ou full (haute rÃƒÂ©solution)
                     urls = photo.get('urls', {})
                     download_url = urls.get('regular') or urls.get('full') or urls.get('small')
                     
@@ -886,12 +887,12 @@ class BrollSelector:
                     filename = f"{keyword}_{photo['id']}_{i}.jpg"
                     file_path = fetch_dir / filename
                     
-                    # Créer le dossier
+                    # CrÃƒÂ©er le dossier
                     fetch_dir.mkdir(parents=True, exist_ok=True)
                     
-                    print(f"📥 Téléchargement Unsplash: {filename}")
+                    print(f"Ã°Å¸â€œÂ¥ TÃƒÂ©lÃƒÂ©chargement Unsplash: {filename}")
                     
-                    # Télécharger l'image
+                    # TÃƒÂ©lÃƒÂ©charger l'image
                     download_response = requests.get(download_url, stream=True, timeout=30)
                     download_response.raise_for_status()
                     
@@ -906,7 +907,7 @@ class BrollSelector:
                                 if downloaded_size > max_size:
                                     break
                     
-                    # Créer l'asset
+                    # CrÃƒÂ©er l'asset
                     if file_path.exists() and file_path.stat().st_size > 1000:
                         # Extraire les tags depuis la description/alt_description
                         photo_tags = [keyword, 'unsplash', 'photo']
@@ -923,32 +924,32 @@ class BrollSelector:
                             description=photo.get('alt_description') or photo.get('description') or f"Photo Unsplash pour {keyword}",
                             source="unsplash_api",
                             fetched_at=datetime.now(),
-                            duration=3.0,  # Image statique, durée par défaut pour Ken Burns
+                            duration=3.0,  # Image statique, durÃƒÂ©e par dÃƒÂ©faut pour Ken Burns
                             resolution=f"{photo.get('width', 1920)}x{photo.get('height', 1080)}"
                         )
                         assets.append(asset)
-                        print(f"✅ Téléchargé Unsplash: {filename} ({file_path.stat().st_size / 1024:.1f}KB)")
+                        print(f"Ã¢Å“â€¦ TÃƒÂ©lÃƒÂ©chargÃƒÂ© Unsplash: {filename} ({file_path.stat().st_size / 1024:.1f}KB)")
                     
-                    if len(assets) >= 3:  # Limiter à 3 par mot-clé pour Unsplash
+                    if len(assets) >= 3:  # Limiter ÃƒÂ  3 par mot-clÃƒÂ© pour Unsplash
                         break
                         
                 except Exception as e:
-                    print(f"⚠️ Erreur téléchargement Unsplash {i}: {e}")
+                    print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur tÃƒÂ©lÃƒÂ©chargement Unsplash {i}: {e}")
                     continue
                     
         except Exception as e:
-            print(f"⚠️ Erreur recherche Unsplash '{keyword}': {e}")
+            print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur recherche Unsplash '{keyword}': {e}")
         
         return assets
     
     def _fetch_from_archive_org(self, keyword: str, fetch_dir: Path) -> List[Asset]:
-        """Télécharge des vidéos depuis Archive.org (gratuit, domaine public)"""
+        """TÃƒÂ©lÃƒÂ©charge des vidÃƒÂ©os depuis Archive.org (gratuit, domaine public)"""
         assets = []
         try:
-            print(f"🔍 Recherche Archive.org: '{keyword}'")
+            print(f"Ã°Å¸â€Â Recherche Archive.org: '{keyword}'")
             
             # API de recherche Archive.org
-            # Recherche dans la collection de vidéos open source
+            # Recherche dans la collection de vidÃƒÂ©os open source
             search_query = f"collection:opensource_movies AND ({keyword})"
             
             response = requests.get(
@@ -964,13 +965,13 @@ class BrollSelector:
             )
             
             if response.status_code != 200:
-                print(f"⚠️ Erreur API Archive.org pour '{keyword}': {response.status_code}")
+                print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur API Archive.org pour '{keyword}': {response.status_code}")
                 return assets
             
             data = response.json()
             items = data.get('response', {}).get('docs', [])
             
-            print(f"📹 Archive.org trouvé: {len(items)} items pour '{keyword}'")
+            print(f"Ã°Å¸â€œÂ¹ Archive.org trouvÃƒÂ©: {len(items)} items pour '{keyword}'")
             
             for i, item in enumerate(items):
                 try:
@@ -978,7 +979,7 @@ class BrollSelector:
                     if not identifier:
                         continue
                     
-                    # Obtenir les détails de l'item pour trouver des fichiers MP4
+                    # Obtenir les dÃƒÂ©tails de l'item pour trouver des fichiers MP4
                     details_response = requests.get(
                         f"https://archive.org/metadata/{identifier}",
                         timeout=15
@@ -1002,23 +1003,23 @@ class BrollSelector:
                     if not video_files:
                         continue
                     
-                    # Prendre le premier fichier vidéo valide
+                    # Prendre le premier fichier vidÃƒÂ©o valide
                     video_file = video_files[0]
                     filename_original = video_file['name']
                     
-                    # Construire l'URL de téléchargement
+                    # Construire l'URL de tÃƒÂ©lÃƒÂ©chargement
                     download_url = f"https://archive.org/download/{identifier}/{filename_original}"
                     
                     # Nom du fichier local
                     filename = f"{keyword}_{identifier}_{i}.mp4"
                     file_path = fetch_dir / filename
                     
-                    # Créer le dossier
+                    # CrÃƒÂ©er le dossier
                     fetch_dir.mkdir(parents=True, exist_ok=True)
                     
-                    print(f"📥 Téléchargement Archive.org: {filename}")
+                    print(f"Ã°Å¸â€œÂ¥ TÃƒÂ©lÃƒÂ©chargement Archive.org: {filename}")
                     
-                    # Télécharger (avec limite de taille)
+                    # TÃƒÂ©lÃƒÂ©charger (avec limite de taille)
                     download_response = requests.get(download_url, stream=True, timeout=45)
                     download_response.raise_for_status()
                     
@@ -1031,10 +1032,10 @@ class BrollSelector:
                                 f.write(chunk)
                                 downloaded_size += len(chunk)
                                 if downloaded_size > max_size:
-                                    print(f"   ⚠️ Téléchargement arrêté à 20MB")
+                                    print(f"   Ã¢Å¡Â Ã¯Â¸Â TÃƒÂ©lÃƒÂ©chargement arrÃƒÂªtÃƒÂ© ÃƒÂ  20MB")
                                     break
                     
-                    # Créer l'asset
+                    # CrÃƒÂ©er l'asset
                     if file_path.exists() and file_path.stat().st_size > 100000:  # Au moins 100KB
                         # Extraire des tags depuis le titre et la description
                         archive_tags = [keyword, 'archive', 'video', 'creative_commons']
@@ -1047,29 +1048,29 @@ class BrollSelector:
                             file_path=str(file_path),
                             tags=archive_tags,
                             title=title or f"Archive.org {keyword} {identifier}",
-                            description=item.get('description', f"Vidéo Archive.org pour {keyword}"),
+                            description=item.get('description', f"VidÃƒÂ©o Archive.org pour {keyword}"),
                             source="archive_org",
                             fetched_at=datetime.now(),
                             duration=float(video_file.get('length', '10.0') or '10.0'),
                             resolution="unknown"
                         )
                         assets.append(asset)
-                        print(f"✅ Téléchargé Archive.org: {filename} ({file_path.stat().st_size / 1024 / 1024:.1f}MB)")
+                        print(f"Ã¢Å“â€¦ TÃƒÂ©lÃƒÂ©chargÃƒÂ© Archive.org: {filename} ({file_path.stat().st_size / 1024 / 1024:.1f}MB)")
                     
-                    if len(assets) >= 2:  # Limiter à 2 par mot-clé pour Archive.org
+                    if len(assets) >= 2:  # Limiter ÃƒÂ  2 par mot-clÃƒÂ© pour Archive.org
                         break
                         
                 except Exception as e:
-                    print(f"⚠️ Erreur téléchargement Archive.org {i}: {e}")
+                    print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur tÃƒÂ©lÃƒÂ©chargement Archive.org {i}: {e}")
                     continue
                     
         except Exception as e:
-            print(f"⚠️ Erreur recherche Archive.org '{keyword}': {e}")
+            print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur recherche Archive.org '{keyword}': {e}")
         
         return assets
     
     def _create_fallback_assets(self, keywords: List[str]) -> List[Asset]:
-        """Crée des assets de fallback si le téléchargement échoue"""
+        """CrÃƒÂ©e des assets de fallback si le tÃƒÂ©lÃƒÂ©chargement ÃƒÂ©choue"""
         assets = []
         
         for i, keyword in enumerate(keywords[:3]):
@@ -1107,7 +1108,7 @@ class BrollSelector:
             if tag and len(tag) > 2 and tag not in ['clip', 'reframed', 'fetched', 'broll', 'library']:
                 clean_tags.append(tag)
         
-        return clean_tags[:10]  # Limiter à 10 tags
+        return clean_tags[:10]  # Limiter ÃƒÂ  10 tags
     
     def score_asset(self, asset: Asset, query_keywords: Set[str], domain: Optional[str] = None) -> ScoringFeatures:
         """Calcule le score complet d'un asset"""
@@ -1130,7 +1131,7 @@ class BrollSelector:
         # 2. Embedding similarity (si disponible)
         if self.embedding_model:
             try:
-                # Créer un texte de recherche depuis les mots-clés
+                # CrÃƒÂ©er un texte de recherche depuis les mots-clÃƒÂ©s
                 query_text = " ".join(query_keywords)
                 asset_text = " ".join([asset.title, asset.description] + asset.tags)
                 
@@ -1138,17 +1139,17 @@ class BrollSelector:
                 query_embedding = self.embedding_model.encode([query_text])
                 asset_embedding = self.embedding_model.encode([asset_text])
                 
-                # Calculer la similarité cosinus
+                # Calculer la similaritÃƒÂ© cosinus
                 import numpy as np
                 similarity = np.dot(query_embedding[0], asset_embedding[0]) / (
                     np.linalg.norm(query_embedding[0]) * np.linalg.norm(asset_embedding[0])
                 )
                 features.embedding_similarity = max(0.0, min(1.0, similarity))
             except Exception as e:
-                self.logger.debug(f"⚠️ Erreur embedding similarity: {e}")
-                # Fallback basé sur les tags pour les assets Pexels
+                self.logger.debug(f"Ã¢Å¡Â Ã¯Â¸Â Erreur embedding similarity: {e}")
+                # Fallback basÃƒÂ© sur les tags pour les assets Pexels
                 if asset.source == "pexels_api":
-                    features.embedding_similarity = 0.7  # Score élevé pour Pexels
+                    features.embedding_similarity = 0.7  # Score ÃƒÂ©levÃƒÂ© pour Pexels
                 else:
                     features.embedding_similarity = 0.3
         
@@ -1166,19 +1167,19 @@ class BrollSelector:
         
         # 5. Quality score
         if asset.source == "pexels_api":
-            features.quality_score = 0.9  # Score élevé pour Pexels (qualité garantie)
+            features.quality_score = 0.9  # Score ÃƒÂ©levÃƒÂ© pour Pexels (qualitÃƒÂ© garantie)
         elif "1920x1080" in asset.resolution or "hd" in asset.resolution.lower():
             features.quality_score = 0.8  # HD quality
         else:
             features.quality_score = 0.6  # Standard quality
         
-        # 6. Diversity penalty (sera calculé plus tard)
+        # 6. Diversity penalty (sera calculÃƒÂ© plus tard)
         features.diversity_penalty = 0.0
         
         return features
     
     def calculate_final_score(self, features: ScoringFeatures) -> float:
-        """Calcule le score final pondéré"""
+        """Calcule le score final pondÃƒÂ©rÃƒÂ©"""
         weights = self.config['weights']
         
         score = (
@@ -1194,19 +1195,19 @@ class BrollSelector:
     
     def _should_use_direct_mode(self, keywords: List[str], domain: Optional[str] = None) -> bool:
         """
-        Décide intelligemment si utiliser le mode direct ou la sélection
+        DÃƒÂ©cide intelligemment si utiliser le mode direct ou la sÃƒÂ©lection
         
         UTILISE MODE DIRECT pour:
-        - Mots-clés spécifiques et visuels concrets
-        - Domaines où les APIs excellent (santé, business, tech)
+        - Mots-clÃƒÂ©s spÃƒÂ©cifiques et visuels concrets
+        - Domaines oÃƒÂ¹ les APIs excellent (santÃƒÂ©, business, tech)
         
-        UTILISE SÉLECTION pour:
+        UTILISE SÃƒâ€°LECTION pour:
         - Concepts abstraits
-        - Mots-clés génériques
-        - Besoin de cohérence narrative
+        - Mots-clÃƒÂ©s gÃƒÂ©nÃƒÂ©riques
+        - Besoin de cohÃƒÂ©rence narrative
         """
         
-        # 🎯 CRITÈRES POUR MODE DIRECT (High confidence)
+        # Ã°Å¸Å½Â¯ CRITÃƒË†RES POUR MODE DIRECT (High confidence)
         concrete_indicators = {
             'professional_actions': ['talking', 'presenting', 'meeting', 'consultation', 'interview'],
             'specific_professions': ['doctor', 'therapist', 'teacher', 'engineer', 'lawyer'],
@@ -1214,17 +1215,17 @@ class BrollSelector:
             'defined_settings': ['office', 'hospital', 'classroom', 'laboratory', 'clinic']
         }
         
-        # 🚨 CRITÈRES CONTRE MODE DIRECT (Requires smart selection)
+        # Ã°Å¸Å¡Â¨ CRITÃƒË†RES CONTRE MODE DIRECT (Requires smart selection)
         abstract_indicators = {
             'emotions': ['happiness', 'success', 'motivation', 'growth', 'inspiration'],
             'concepts': ['achievement', 'progress', 'innovation', 'excellence', 'quality'],
             'vague_terms': ['content', 'media', 'general', 'various', 'different']
         }
         
-        # Analyser les mots-clés
+        # Analyser les mots-clÃƒÂ©s
         keyword_text = ' '.join(keywords).lower()
         
-        # Score de concrétude
+        # Score de concrÃƒÂ©tude
         concrete_score = 0
         abstract_score = 0
         
@@ -1238,22 +1239,22 @@ class BrollSelector:
                 if term in keyword_text:
                     abstract_score += 1
         
-        # Bonus pour mots-clés structurés (person_doing_something)
+        # Bonus pour mots-clÃƒÂ©s structurÃƒÂ©s (person_doing_something)
         structured_keywords = [kw for kw in keywords if '_' in kw and len(kw.split('_')) >= 2]
         if structured_keywords:
             concrete_score += len(structured_keywords) * 1.5
         
-        # Bonus pour domaines où APIs excellent
+        # Bonus pour domaines oÃƒÂ¹ APIs excellent
         api_friendly_domains = ['healthcare', 'business', 'technology', 'education']
         if domain and domain.lower() in api_friendly_domains:
             concrete_score += 3
         
-        # Décision
+        # DÃƒÂ©cision
         use_direct = concrete_score > abstract_score and concrete_score >= 4
         
-        print(f"🤖 DÉCISION INTELLIGENTE:")
+        print(f"Ã°Å¸Â¤â€“ DÃƒâ€°CISION INTELLIGENTE:")
         print(f"   Concret: {concrete_score:.1f} | Abstrait: {abstract_score:.1f}")
-        print(f"   Mode: {'DIRECT API' if use_direct else 'SÉLECTION INTELLIGENTE'}")
+        print(f"   Mode: {'DIRECT API' if use_direct else 'SÃƒâ€°LECTION INTELLIGENTE'}")
         print(f"   Raison: {'APIs excellent pour ce contenu' if use_direct else 'Besoin de curation contextuelle'}")
         
         return use_direct
@@ -1261,18 +1262,18 @@ class BrollSelector:
     def select_brolls(self, keywords: List[str], domain: Optional[str] = None, 
                       min_delay: float = 4.0, desired_count: int = 3) -> Dict[str, Any]:
         """
-        Sélection intelligente : décide automatiquement entre direct et sélection
+        SÃƒÂ©lection intelligente : dÃƒÂ©cide automatiquement entre direct et sÃƒÂ©lection
         """
         try:
-            print(f"🎬 Sélection B-roll: {len(keywords)} mots-clés, domaine: {domain or 'général'}")
+            print(f"Ã°Å¸Å½Â¬ SÃƒÂ©lection B-roll: {len(keywords)} mots-clÃƒÂ©s, domaine: {domain or 'gÃƒÂ©nÃƒÂ©ral'}")
             
-            # 🧠 DÉCISION INTELLIGENTE basée sur le contenu
+            # Ã°Å¸Â§Â  DÃƒâ€°CISION INTELLIGENTE basÃƒÂ©e sur le contenu
             if self.direct_api_mode:
-                # Forcer le mode direct si explicitement demandé
+                # Forcer le mode direct si explicitement demandÃƒÂ©
                 use_direct = True
-                print("🔒 MODE DIRECT FORCÉ par configuration")
+                print("Ã°Å¸â€â€™ MODE DIRECT FORCÃƒâ€° par configuration")
             else:
-                # Décision intelligente automatique
+                # DÃƒÂ©cision intelligente automatique
                 use_direct = self._should_use_direct_mode(keywords, domain)
             
             if use_direct:
@@ -1281,20 +1282,20 @@ class BrollSelector:
                 return self._select_brolls_smart_selection(keywords, domain, min_delay, desired_count)
             
         except Exception as e:
-            print(f"❌ Erreur sélection B-roll: {e}")
+            print(f"Ã¢ÂÅ’ Erreur sÃƒÂ©lection B-roll: {e}")
             return self._create_empty_report()
 
     def _select_brolls_smart_selection(self, keywords: List[str], domain: Optional[str], 
                                       min_delay: float, desired_count: int) -> Dict[str, Any]:
-        """Mode SÉLECTION INTELLIGENTE : curation contextuelle pour concepts abstraits"""
-        print("🧠 MODE SÉLECTION INTELLIGENTE : Curation contextuelle pour votre contenu")
+        """Mode SÃƒâ€°LECTION INTELLIGENTE : curation contextuelle pour concepts abstraits"""
+        print("Ã°Å¸Â§Â  MODE SÃƒâ€°LECTION INTELLIGENTE : Curation contextuelle pour votre contenu")
             
-        # Récupérer plus de candidats pour avoir le choix
+        # RÃƒÂ©cupÃƒÂ©rer plus de candidats pour avoir le choix
         api_limit = self.config.get('direct_api_limit', 5) * 3  # 3x plus de candidats
         candidate_assets = self._fetch_from_apis(keywords, limit=api_limit)
             
         if not candidate_assets:
-            print("⚠️ Aucun asset trouvé via APIs - Fallback vers librairie locale")
+            print("Ã¢Å¡Â Ã¯Â¸Â Aucun asset trouvÃƒÂ© via APIs - Fallback vers librairie locale")
             return self._create_fallback_report(desired_count)
             
         # Appliquer scoring intelligent
@@ -1312,19 +1313,19 @@ class BrollSelector:
             )
             scored_candidates.append(candidate)
             
-        # Trier et sélectionner les meilleurs
+        # Trier et sÃƒÂ©lectionner les meilleurs
         scored_candidates.sort(key=lambda x: x.score, reverse=True)
             
         # Seuil adaptatif
         min_score = self._calculate_adaptive_threshold(scored_candidates)
         selected = [c for c in scored_candidates if c.score >= min_score]
             
-        # Assurer diversité
+        # Assurer diversitÃƒÂ©
         final_selection = self.ensure_diversity(selected, desired_count)
             
-        print(f"✅ SÉLECTION INTELLIGENTE : {len(final_selection)} B-rolls curés")
-        print(f"   📊 Candidats évalués: {len(candidate_assets)} → Sélectionnés: {len(final_selection)}")
-        print(f"   🎯 Seuil qualité: {min_score:.2f}")
+        print(f"Ã¢Å“â€¦ SÃƒâ€°LECTION INTELLIGENTE : {len(final_selection)} B-rolls curÃƒÂ©s")
+        print(f"   Ã°Å¸â€œÅ  Candidats ÃƒÂ©valuÃƒÂ©s: {len(candidate_assets)} Ã¢â€ â€™ SÃƒÂ©lectionnÃƒÂ©s: {len(final_selection)}")
+        print(f"   Ã°Å¸Å½Â¯ Seuil qualitÃƒÂ©: {min_score:.2f}")
         
         return {
             'selected': [c.to_dict() for c in final_selection],
@@ -1344,27 +1345,27 @@ class BrollSelector:
 
     def _select_brolls_direct_api(self, keywords: List[str], domain: Optional[str], 
                                  min_delay: float, desired_count: int) -> Dict[str, Any]:
-        """Mode DIRECT : utilise directement les meilleurs résultats API"""
-        print("🚀 MODE DIRECT API : Utilisation directe des résultats Pexels/Pixabay")
+        """Mode DIRECT : utilise directement les meilleurs rÃƒÂ©sultats API"""
+        print("Ã°Å¸Å¡â‚¬ MODE DIRECT API : Utilisation directe des rÃƒÂ©sultats Pexels/Pixabay")
         
-        # Récupérer directement depuis les APIs
+        # RÃƒÂ©cupÃƒÂ©rer directement depuis les APIs
         api_limit = self.config.get('direct_api_limit', 5)
         direct_assets = self._fetch_from_apis(keywords, limit=api_limit)
         
         if not direct_assets:
-            print("⚠️ Aucun asset trouvé via APIs - Fallback vers librairie locale")
+            print("Ã¢Å¡Â Ã¯Â¸Â Aucun asset trouvÃƒÂ© via APIs - Fallback vers librairie locale")
             return self._create_fallback_report(desired_count)
         
         # Prendre directement les X premiers (pas de re-scoring complexe)
         selected_count = min(desired_count, len(direct_assets))
         selected_assets = direct_assets[:selected_count]
         
-        # Créer des candidats simples
+        # CrÃƒÂ©er des candidats simples
         selected_candidates = []
         for i, asset in enumerate(selected_assets):
             candidate = BrollCandidate(
                 asset=asset,
-                score=1.0 - (i * 0.1),  # Score décroissant simple
+                score=1.0 - (i * 0.1),  # Score dÃƒÂ©croissant simple
                 features=ScoringFeatures(
                     token_overlap=1.0,
                     embedding_similarity=0.9,
@@ -1375,7 +1376,7 @@ class BrollSelector:
             )
             selected_candidates.append(candidate)
         
-        print(f"✅ MODE DIRECT : {len(selected_candidates)} B-rolls sélectionnés directement")
+        print(f"Ã¢Å“â€¦ MODE DIRECT : {len(selected_candidates)} B-rolls sÃƒÂ©lectionnÃƒÂ©s directement")
         for i, candidate in enumerate(selected_candidates):
             print(f"   {i+1}. {Path(candidate.asset.file_path).name} (source: {candidate.asset.source})")
         
@@ -1397,8 +1398,8 @@ class BrollSelector:
 
     def _select_brolls_classic(self, keywords: List[str], domain: Optional[str], 
                               min_delay: float, desired_count: int) -> Dict[str, Any]:
-        """Mode classique avec re-sélection et scoring complexe"""
-        print("🔍 MODE CLASSIQUE : Re-scoring des résultats avec sélection intelligente")
+        """Mode classique avec re-sÃƒÂ©lection et scoring complexe"""
+        print("Ã°Å¸â€Â MODE CLASSIQUE : Re-scoring des rÃƒÂ©sultats avec sÃƒÂ©lection intelligente")
         
         # Ancien comportement (votre code existant)
         normalized_keywords = self.normalize_keywords(keywords)
@@ -1427,23 +1428,23 @@ class BrollSelector:
         # (votre code existant pour le scoring complexe)
         return self._create_selection_report([], candidates, keywords, domain, 0.3)
     
-    # 🚀 NOUVEAU: Fonction de compatibilité pour le pipeline existant
+    # Ã°Å¸Å¡â‚¬ NOUVEAU: Fonction de compatibilitÃƒÂ© pour le pipeline existant
     def find_broll_matches(self, keywords: List[str], domain: Optional[str] = None, 
                           max_results: int = 10) -> List[Dict[str, Any]]:
         """
-        Fonction de compatibilité pour le pipeline existant.
+        Fonction de compatibilitÃƒÂ© pour le pipeline existant.
         Retourne les correspondances B-roll dans le format attendu.
         
         Args:
-            keywords: Mots-clés de recherche
-            domain: Domaine détecté
-            max_results: Nombre maximum de résultats
+            keywords: Mots-clÃƒÂ©s de recherche
+            domain: Domaine dÃƒÂ©tectÃƒÂ©
+            max_results: Nombre maximum de rÃƒÂ©sultats
         
         Returns:
             Liste des correspondances au format pipeline
         """
         try:
-            # Utiliser la logique de sélection principale
+            # Utiliser la logique de sÃƒÂ©lection principale
             selection_report = self.select_brolls(
                 keywords=keywords,
                 domain=domain,
@@ -1469,14 +1470,14 @@ class BrollSelector:
             return matches
             
         except Exception as e:
-            self.logger.error(f"❌ Erreur find_broll_matches: {e}")
+            self.logger.error(f"Ã¢ÂÅ’ Erreur find_broll_matches: {e}")
             return []
     
     def _apply_fallback_hierarchy(self, candidates: List[BrollCandidate], 
                                  selected: List[BrollCandidate], desired_count: int,
                                  min_delay: float) -> Tuple[bool, Optional[str], List[BrollCandidate]]:
-        """Applique le fallback hiérarchique"""
-        self.logger.info("🆘 Activation du fallback hiérarchique")
+        """Applique le fallback hiÃƒÂ©rarchique"""
+        self.logger.info("Ã°Å¸â€ Ëœ Activation du fallback hiÃƒÂ©rarchique")
         
         # Tier A: Domain-broad (expansion forte)
         tier_a_candidates = self._get_tier_a_candidates(candidates, selected, min_delay)
@@ -1499,14 +1500,14 @@ class BrollSelector:
     def _get_tier_a_candidates(self, candidates: List[BrollCandidate], 
                               selected: List[BrollCandidate], min_delay: float) -> List[BrollCandidate]:
         """Tier A: Domain-broad (expansion forte)"""
-        # Filtrer les candidats déjà sélectionnés et respectant le délai
+        # Filtrer les candidats dÃƒÂ©jÃƒÂ  sÃƒÂ©lectionnÃƒÂ©s et respectant le dÃƒÂ©lai
         available = [c for c in candidates if c not in selected]
         return self._filter_by_timing(available, min_delay)
     
     def _get_tier_b_candidates(self, candidates: List[BrollCandidate], 
                               selected: List[BrollCandidate], min_delay: float) -> List[BrollCandidate]:
-        """Tier B: Contextual semi-relevant (actions, émotions, gestes)"""
-        # Chercher des assets avec des tags génériques mais sûrs
+        """Tier B: Contextual semi-relevant (actions, ÃƒÂ©motions, gestes)"""
+        # Chercher des assets avec des tags gÃƒÂ©nÃƒÂ©riques mais sÃƒÂ»rs
         safe_tags = {'people', 'family', 'walking', 'talking', 'working', 'thinking'}
         
         available = []
@@ -1521,7 +1522,7 @@ class BrollSelector:
     def _get_tier_c_candidates(self, candidates: List[BrollCandidate], 
                               selected: List[BrollCandidate], min_delay: float) -> List[BrollCandidate]:
         """Tier C: Neutral scenic (paysages, textures)"""
-        # Éviter les termes fortement hors-sujet
+        # Ãƒâ€°viter les termes fortement hors-sujet
         neutral_tags = {'landscape', 'texture', 'abstract', 'nature', 'city'}
         
         available = []
@@ -1549,7 +1550,7 @@ class BrollSelector:
                        candidates: List[BrollCandidate], selected: List[BrollCandidate],
                        fallback_used: bool, fallback_tier: Optional[str],
                        top_score: float, min_score: float) -> Dict[str, Any]:
-        """Crée le rapport JSON détaillé"""
+        """CrÃƒÂ©e le rapport JSON dÃƒÂ©taillÃƒÂ©"""
         return {
             'video_id': f"video_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             'timestamp': datetime.now().isoformat(),
@@ -1569,7 +1570,7 @@ class BrollSelector:
         }
     
     def _create_empty_report(self) -> Dict[str, Any]:
-        """Crée un rapport vide en cas d'erreur"""
+        """CrÃƒÂ©e un rapport vide en cas d'erreur"""
         return {
             'video_id': f"video_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             'timestamp': datetime.now().isoformat(),
@@ -1588,7 +1589,7 @@ class BrollSelector:
         }
 
     def _create_fallback_report(self, desired_count: int) -> Dict[str, Any]:
-        """Crée un rapport de fallback quand aucun asset n'est trouvé"""
+        """CrÃƒÂ©e un rapport de fallback quand aucun asset n'est trouvÃƒÂ©"""
         return {
             'selected': [],
             'excluded': [],
@@ -1608,7 +1609,7 @@ class BrollSelector:
     
     def _create_selection_report(self, selected: List[BrollCandidate], candidates: List[BrollCandidate],
                                 keywords: List[str], domain: Optional[str], min_score: float) -> Dict[str, Any]:
-        """Crée le rapport de sélection complet"""
+        """CrÃƒÂ©e le rapport de sÃƒÂ©lection complet"""
         return {
             'selected': selected,
             'excluded': [c for c in candidates if c not in selected],
@@ -1627,7 +1628,7 @@ class BrollSelector:
         }
     
     def _calculate_adaptive_threshold(self, candidates: List[BrollCandidate]) -> float:
-        """Calcule le seuil adaptatif basé sur les scores"""
+        """Calcule le seuil adaptatif basÃƒÂ© sur les scores"""
         if not candidates:
             return 0.0
         
@@ -1638,11 +1639,11 @@ class BrollSelector:
         return max(global_min, top_score * relative_factor)
     
     def ensure_diversity(self, selected: List[BrollCandidate], desired_count: int) -> List[BrollCandidate]:
-        """Assure la diversité des sources et du contenu"""
+        """Assure la diversitÃƒÂ© des sources et du contenu"""
         if len(selected) <= desired_count:
             return selected
         
-        # Prioriser la diversité des sources
+        # Prioriser la diversitÃƒÂ© des sources
         diverse_selection = []
         used_sources = set()
         
@@ -1654,7 +1655,7 @@ class BrollSelector:
                 diverse_selection.append(candidate)
                 used_sources.add(candidate.asset.source)
         
-        # Compléter avec les meilleurs scores si nécessaire
+        # ComplÃƒÂ©ter avec les meilleurs scores si nÃƒÂ©cessaire
         while len(diverse_selection) < desired_count and len(selected) > len(diverse_selection):
             for candidate in selected:
                 if candidate not in diverse_selection:
@@ -1663,20 +1664,20 @@ class BrollSelector:
         
         return diverse_selection[:desired_count]
 
-# Instance globale paresseuse pour compatibilité
+# Instance globale paresseuse pour compatibilitÃƒÂ©
 _broll_selector_instance: Optional[BrollSelector] = None
 
 
 def get_broll_selector(config: Optional[Dict[str, Any]] = None, *, force_reload: bool = False) -> BrollSelector:
-    """Retourne une instance partagée du :class:`BrollSelector`.
+    """Retourne une instance partagÃƒÂ©e du :class:`BrollSelector`.
 
-    Cette fonction instancie le sélecteur uniquement lors de la première
-    utilisation, évitant ainsi les effets de bord (logs, téléchargements,
-    initialisations coûteuses) pendant l'import du module.
+    Cette fonction instancie le sÃƒÂ©lecteur uniquement lors de la premiÃƒÂ¨re
+    utilisation, ÃƒÂ©vitant ainsi les effets de bord (logs, tÃƒÂ©lÃƒÂ©chargements,
+    initialisations coÃƒÂ»teuses) pendant l'import du module.
 
     Args:
-        config: Configuration optionnelle à fusionner lors de la création ou à
-            appliquer dynamiquement si l'instance existe déjà.
+        config: Configuration optionnelle ÃƒÂ  fusionner lors de la crÃƒÂ©ation ou ÃƒÂ 
+            appliquer dynamiquement si l'instance existe dÃƒÂ©jÃƒÂ .
         force_reload: Si ``True``, remplace l'instance existante par une
             nouvelle en utilisant la configuration fournie.
     """
@@ -1686,14 +1687,14 @@ def get_broll_selector(config: Optional[Dict[str, Any]] = None, *, force_reload:
     if force_reload or _broll_selector_instance is None:
         _broll_selector_instance = BrollSelector(config)
     elif config:
-        # Mettre à jour dynamiquement la configuration existante
+        # Mettre ÃƒÂ  jour dynamiquement la configuration existante
         _broll_selector_instance.config.update(config)
 
     return _broll_selector_instance
 
 
 class _BrollSelectorProxy:
-    """Proxy léger conservant la compatibilité avec l'ancienne API module."""
+    """Proxy lÃƒÂ©ger conservant la compatibilitÃƒÂ© avec l'ancienne API module."""
 
     def __call__(self, config: Optional[Dict[str, Any]] = None, *, force_reload: bool = False) -> BrollSelector:
         return get_broll_selector(config, force_reload=force_reload)
@@ -1710,23 +1711,23 @@ class _BrollSelectorProxy:
 
 broll_selector = _BrollSelectorProxy()
 
-# 🚀 FONCTION DE COMPATIBILITÉ MANQUANTE
+# Ã°Å¸Å¡â‚¬ FONCTION DE COMPATIBILITÃƒâ€° MANQUANTE
 def find_broll_matches(keywords: List[str], max_count: int = 10, 
                        min_duration: float = 2.0, max_duration: float = 15.0,
                        **kwargs) -> List[Dict[str, Any]]:
     """
-    Fonction de compatibilité pour l'ancien système
-    Utilise le nouveau BrollSelector pour maintenir la compatibilité
+    Fonction de compatibilitÃƒÂ© pour l'ancien systÃƒÂ¨me
+    Utilise le nouveau BrollSelector pour maintenir la compatibilitÃƒÂ©
     """
     try:
         # Utiliser l'instance globale du BrollSelector
         selector = get_broll_selector()
         
-        # Normaliser et étendre les mots-clés
+        # Normaliser et ÃƒÂ©tendre les mots-clÃƒÂ©s
         normalized_keywords = selector.normalize_keywords(keywords)
         expanded_keywords = selector.expand_keywords(list(normalized_keywords))
 
-        # Sélectionner les B-rolls
+        # SÃƒÂ©lectionner les B-rolls
         result = selector.select_brolls(
             keywords=expanded_keywords,
             desired_count=max_count
@@ -1747,19 +1748,19 @@ def find_broll_matches(keywords: List[str], max_count: int = 10,
         return matches
         
     except Exception as e:
-        print(f"⚠️ Erreur dans find_broll_matches: {e}")
+        print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur dans find_broll_matches: {e}")
         return []
 
-# 🚀 FONCTION CONTEXTUELLE CORRIGÉE
+# Ã°Å¸Å¡â‚¬ FONCTION CONTEXTUELLE CORRIGÃƒâ€°E
 def get_contextual_broll_score(keywords: List[str], asset_tokens: List[str], asset_tags: List[str]) -> float:
     """
-    Calcule un score contextuel intelligent pour la sélection B-roll
-    Compatibilité avec l'ancien système - CORRIGÉ pour retourner des scores réels
+    Calcule un score contextuel intelligent pour la sÃƒÂ©lection B-roll
+    CompatibilitÃƒÂ© avec l'ancien systÃƒÂ¨me - CORRIGÃƒâ€° pour retourner des scores rÃƒÂ©els
     """
     try:
         score = 0.0
         
-        # Mapping contextuel simplifié pour compatibilité
+        # Mapping contextuel simplifiÃƒÂ© pour compatibilitÃƒÂ©
         CONTEXTUAL_MAPPING = {
             'technology': {
                 'keywords': ['ai', 'artificial', 'intelligence', 'tech', 'digital', 'smartphone', 'computer', 'software', 'app', 'online', 'automation'],
@@ -1788,22 +1789,22 @@ def get_contextual_broll_score(keywords: List[str], asset_tokens: List[str], ass
             }
         }
         
-        # 🚨 CORRECTION: Normaliser les tokens et tags pour comparaison
+        # Ã°Å¸Å¡Â¨ CORRECTION: Normaliser les tokens et tags pour comparaison
         asset_tokens_lower = [token.lower().strip() for token in asset_tokens if token]
         asset_tags_lower = [tag.lower().strip() for tag in asset_tags if tag]
         keywords_lower = [kw.lower().strip() for kw in keywords if kw]
         
-        # Analyser le contexte des mots-clés
+        # Analyser le contexte des mots-clÃƒÂ©s
         context_matches = []
         for keyword in keywords_lower:
-            # Vérifier le mapping contextuel
+            # VÃƒÂ©rifier le mapping contextuel
             for context, mapping in CONTEXTUAL_MAPPING.items():
                 if keyword in mapping['keywords']:
                     context_matches.append(context)
-                    # Score de base selon la priorité du contexte
+                    # Score de base selon la prioritÃƒÂ© du contexte
                     score += mapping['priority']
                     
-                    # 🚨 CORRECTION: Bonus pour les thèmes B-roll correspondants
+                    # Ã°Å¸Å¡Â¨ CORRECTION: Bonus pour les thÃƒÂ¨mes B-roll correspondants
                     asset_text_combined = ' '.join(asset_tokens_lower + asset_tags_lower)
                     theme_matches = 0
                     for theme in mapping['broll_themes']:
@@ -1811,27 +1812,27 @@ def get_contextual_broll_score(keywords: List[str], asset_tokens: List[str], ass
                             theme_matches += 1
                             score += 5.0  # Bonus majeur pour correspondance parfaite
                     
-                    # 🚨 CORRECTION: Bonus pour les tags correspondants directs
+                    # Ã°Å¸Å¡Â¨ CORRECTION: Bonus pour les tags correspondants directs
                     tag_matches = 0
                     for tag in asset_tags_lower:
                         if any(kw in tag for kw in mapping['keywords']):
                             tag_matches += 1
                             score += 3.0  # Bonus pour correspondance de tags
                     
-                    # 🚨 NOUVEAU: Bonus pour correspondance directe mot-clé
+                    # Ã°Å¸Å¡Â¨ NOUVEAU: Bonus pour correspondance directe mot-clÃƒÂ©
                     if keyword in asset_text_combined:
-                        score += 10.0  # Bonus très élevé pour correspondance exacte
+                        score += 10.0  # Bonus trÃƒÂ¨s ÃƒÂ©levÃƒÂ© pour correspondance exacte
                     
                     break
         
-        # 🚨 NOUVEAU: Bonus de diversité contextuelle
+        # Ã°Å¸Å¡Â¨ NOUVEAU: Bonus de diversitÃƒÂ© contextuelle
         unique_contexts = len(set(context_matches))
         if unique_contexts > 1:
-            score += unique_contexts * 2.0  # Bonus pour diversité
+            score += unique_contexts * 2.0  # Bonus pour diversitÃƒÂ©
         
-        # 🚨 NOUVEAU: Fallback scoring pour mots-clés non mappés
+        # Ã°Å¸Å¡Â¨ NOUVEAU: Fallback scoring pour mots-clÃƒÂ©s non mappÃƒÂ©s
         if score == 0.0:
-            # Score basique basé sur correspondances lexicales
+            # Score basique basÃƒÂ© sur correspondances lexicales
             for keyword in keywords_lower:
                 # Correspondance exacte dans tokens/tags
                 if keyword in asset_tokens_lower or keyword in asset_tags_lower:
@@ -1840,45 +1841,47 @@ def get_contextual_broll_score(keywords: List[str], asset_tokens: List[str], ass
                 elif any(keyword in token for token in asset_tokens_lower + asset_tags_lower):
                     score += 1.0
         
-        # 🚨 NOUVEAU: Bonus pour mots-clés spécifiques avec underscores
+        # Ã°Å¸Å¡Â¨ NOUVEAU: Bonus pour mots-clÃƒÂ©s spÃƒÂ©cifiques avec underscores
         for keyword in keywords_lower:
-            if '_' in keyword:  # Mots-clés format "person_talking_to_therapist"
-                # Ces mots-clés sont très spécifiques, bonus majeur
+            if '_' in keyword:  # Mots-clÃƒÂ©s format "person_talking_to_therapist"
+                # Ces mots-clÃƒÂ©s sont trÃƒÂ¨s spÃƒÂ©cifiques, bonus majeur
                 score += 15.0
                 
-                # Décomposer et chercher les parties
+                # DÃƒÂ©composer et chercher les parties
                 parts = keyword.split('_')
                 for part in parts:
                     if part in asset_text_combined:
-                        score += 5.0  # Bonus pour chaque partie trouvée
+                        score += 5.0  # Bonus pour chaque partie trouvÃƒÂ©e
         
-        # 🧠 NOUVEAU: Bonus pour concepts directs importants (cerveau, science, etc.)
+        # Ã°Å¸Â§Â  NOUVEAU: Bonus pour concepts directs importants (cerveau, science, etc.)
         concept_terms = ['brain', 'neurons', 'neural', 'science', 'medical', 'technology', 'business', 'education', 'adrenaline', 'chemical', 'hormone', 'neurotransmitter']
         for keyword in keywords_lower:
             for concept in concept_terms:
                 if concept in keyword and concept in asset_text_combined:
-                    score += 20.0  # Bonus très élevé pour concepts spécialisés
-                    print(f"    🎯 Bonus concept spécialisé: {concept} → +20.0")
-                    break  # Un seul bonus par mot-clé
+                    score += 20.0  # Bonus trÃƒÂ¨s ÃƒÂ©levÃƒÂ© pour concepts spÃƒÂ©cialisÃƒÂ©s
+                    print(f"    Ã°Å¸Å½Â¯ Bonus concept spÃƒÂ©cialisÃƒÂ©: {concept} Ã¢â€ â€™ +20.0")
+                    break  # Un seul bonus par mot-clÃƒÂ©
         
-        # 🔬 NOUVEAU: Super bonus pour mots-clés très spécifiques
+        # Ã°Å¸â€Â¬ NOUVEAU: Super bonus pour mots-clÃƒÂ©s trÃƒÂ¨s spÃƒÂ©cifiques
         specialized_terms = ['brain_scan', 'neural_networks', 'adrenaline_concept', 'chemical_reaction', 'medical_research']
         for keyword in keywords_lower:
             for specialized in specialized_terms:
                 if specialized in keyword:
-                    score += 25.0  # Super bonus pour termes très spécialisés
-                    print(f"    🚀 Super bonus spécialisé: {specialized} → +25.0")
+                    score += 25.0  # Super bonus pour termes trÃƒÂ¨s spÃƒÂ©cialisÃƒÂ©s
+                    print(f"    Ã°Å¸Å¡â‚¬ Super bonus spÃƒÂ©cialisÃƒÂ©: {specialized} Ã¢â€ â€™ +25.0")
                     break
         
-        # 🚨 CORRECTION: S'assurer qu'on retourne un score > 0 si pertinent
+        # Ã°Å¸Å¡Â¨ CORRECTION: S'assurer qu'on retourne un score > 0 si pertinent
         final_score = max(0.0, score)
         
         # Debug logging pour diagnostiquer
         if final_score > 0:
-            print(f"    🎯 Score contextuel: {final_score:.1f} | Mots-clés: {keywords_lower[:3]} | Contextes: {set(context_matches)}")
+            print(f"    Ã°Å¸Å½Â¯ Score contextuel: {final_score:.1f} | Mots-clÃƒÂ©s: {keywords_lower[:3]} | Contextes: {set(context_matches)}")
         
         return final_score
         
     except Exception as e:
-        print(f"❌ Erreur calcul score contextuel: {e}")
-        return 1.0  # 🚨 CORRECTION: Retour fallback > 0 au lieu de 0.0 
+        print(f"Ã¢ÂÅ’ Erreur calcul score contextuel: {e}")
+        return 1.0  # Ã°Å¸Å¡Â¨ CORRECTION: Retour fallback > 0 au lieu de 0.0 
+
+

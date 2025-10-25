@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Version corrigée de la fonction LLM pour éviter les erreurs d'indentation
+Version corrigÃƒÂ©e de la fonction LLM pour ÃƒÂ©viter les erreurs d'indentation
 """
 
 import time
@@ -11,7 +12,7 @@ from typing import Optional, Dict
 def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[str, object]]:
     """Use local LLM to generate viral-ready title, description, hashtags and B-roll keywords as JSON. Returns dict or None on failure."""
     
-    # Configuration LLM centralisée avec fallback
+    # Configuration LLM centralisÃƒÂ©e avec fallback
     try:
         import yaml
         with open("config/llm_config.yaml", "r", encoding="utf-8") as f:
@@ -22,7 +23,7 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
         log_response_time = llm_config["llm"]["log_response_time"]
         log_response_size = llm_config["llm"]["log_response_size"]
     except Exception as e:
-        print(f"    ⚠️ Erreur chargement config LLM: {e}")
+        print(f"    Ã¢Å¡Â Ã¯Â¸Â Erreur chargement config LLM: {e}")
         json_retry_attempts = 3
         enforce_json_output = True
         log_prompt = True
@@ -39,7 +40,7 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
     if len(text) > 2000:
         text = text[:2000]
     
-    # 🚀 NOUVEAU: Prompt enrichi et optimisé pour inclure les mots-clés B-roll
+    # Ã°Å¸Å¡â‚¬ NOUVEAU: Prompt enrichi et optimisÃƒÂ© pour inclure les mots-clÃƒÂ©s B-roll
     prompt = (
         "You are a social media strategist and B-roll content expert for TikTok and Instagram.\n"
         "From this transcript, produce elements optimized for virality AND B-roll video content selection.\n"
@@ -68,19 +69,19 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
         "JSON:"
     )
     
-    # 🚀 NOUVEAU: Monitoring du prompt
+    # Ã°Å¸Å¡â‚¬ NOUVEAU: Monitoring du prompt
     if log_prompt:
-        print(f"    📝 [LLM] Prompt envoyé ({len(prompt)} caractères)")
-        print(f"    🎯 [LLM] Modèle cible: {model}")
+        print(f"    Ã°Å¸â€œÂ [LLM] Prompt envoyÃƒÂ© ({len(prompt)} caractÃƒÂ¨res)")
+        print(f"    Ã°Å¸Å½Â¯ [LLM] ModÃƒÂ¨le cible: {model}")
     
-    # 🚀 NOUVEAU: Tentatives multiples avec validation JSON
+    # Ã°Å¸Å¡â‚¬ NOUVEAU: Tentatives multiples avec validation JSON
     for attempt in range(json_retry_attempts):
         try:
             url = base.rstrip("/") + "/api/generate"
             payload = {"model": model, "prompt": prompt, "temperature": 0.7, "stream": False}
             
-            # 🚀 NOUVEAU: Timeout plus long pour Ollama (génération complexe)
-            print(f"    🤖 [LLM] Génération avec Ollama ({model}) - Tentative {attempt + 1}/{json_retry_attempts}...")
+            # Ã°Å¸Å¡â‚¬ NOUVEAU: Timeout plus long pour Ollama (gÃƒÂ©nÃƒÂ©ration complexe)
+            print(f"    Ã°Å¸Â¤â€“ [LLM] GÃƒÂ©nÃƒÂ©ration avec Ollama ({model}) - Tentative {attempt + 1}/{json_retry_attempts}...")
             
             start_time = time.time()
             r = requests.post(url, json=payload, timeout=120)  # 2 minutes au lieu de 60s
@@ -91,24 +92,24 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
             raw = data.get("response", "") if isinstance(data, dict) else ""
             
             if not raw:
-                print(f"    ⚠️ [LLM] Réponse vide d'Ollama")
+                print(f"    Ã¢Å¡Â Ã¯Â¸Â [LLM] RÃƒÂ©ponse vide d'Ollama")
                 if attempt < json_retry_attempts - 1:
-                    print(f"    🔄 Nouvelle tentative dans 2s...")
+                    print(f"    Ã°Å¸â€â€ž Nouvelle tentative dans 2s...")
                     time.sleep(2)
                     continue
                 return None
             
-            # 🚀 NOUVEAU: Monitoring de la réponse
+            # Ã°Å¸Å¡â‚¬ NOUVEAU: Monitoring de la rÃƒÂ©ponse
             response_time = end_time - start_time
             if log_response_time:
-                print(f"    ⏱️ [LLM] Temps de réponse: {response_time:.1f}s")
+                print(f"    Ã¢ÂÂ±Ã¯Â¸Â [LLM] Temps de rÃƒÂ©ponse: {response_time:.1f}s")
             if log_response_size:
-                print(f"    📊 [LLM] Taille réponse: {len(raw)} caractères")
+                print(f"    Ã°Å¸â€œÅ  [LLM] Taille rÃƒÂ©ponse: {len(raw)} caractÃƒÂ¨res")
             
-            # 🚀 NOUVEAU: Validation JSON stricte
+            # Ã°Å¸Å¡â‚¬ NOUVEAU: Validation JSON stricte
             if enforce_json_output:
                 try:
-                    # Nettoyer la réponse pour extraire le JSON
+                    # Nettoyer la rÃƒÂ©ponse pour extraire le JSON
                     raw_str = raw.strip()
                     sidx = raw_str.find("{")
                     eidx = raw_str.rfind("}")
@@ -118,34 +119,34 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
                     # Tester si c'est du JSON valide
                     test_obj = _json.loads(raw_str)
                     if not isinstance(test_obj, dict):
-                        raise ValueError("La réponse n'est pas un objet JSON valide")
+                        raise ValueError("La rÃƒÂ©ponse n'est pas un objet JSON valide")
                     
-                    print(f"    ✅ [LLM] JSON valide détecté à la tentative {attempt + 1}")
+                    print(f"    Ã¢Å“â€¦ [LLM] JSON valide dÃƒÂ©tectÃƒÂ© ÃƒÂ  la tentative {attempt + 1}")
                     break  # Sortir de la boucle si JSON valide
                     
                 except (_json.JSONDecodeError, ValueError) as json_error:
-                    print(f"    ❌ [LLM] JSON invalide à la tentative {attempt + 1}: {json_error}")
+                    print(f"    Ã¢ÂÅ’ [LLM] JSON invalide ÃƒÂ  la tentative {attempt + 1}: {json_error}")
                     if attempt < json_retry_attempts - 1:
-                        print(f"    🔄 Nouvelle tentative avec prompt renforcé...")
+                        print(f"    Ã°Å¸â€â€ž Nouvelle tentative avec prompt renforcÃƒÂ©...")
                         # Renforcer le prompt pour la prochaine tentative
                         prompt = prompt + "\n\nIMPORTANT: Output ONLY valid JSON. No explanations, no text outside JSON."
                         time.sleep(2)
                         continue
                     else:
-                        print(f"    🚨 [LLM] Échec de validation JSON après {json_retry_attempts} tentatives")
+                        print(f"    Ã°Å¸Å¡Â¨ [LLM] Ãƒâ€°chec de validation JSON aprÃƒÂ¨s {json_retry_attempts} tentatives")
                         return None
             else:
-                print(f"    ✅ [LLM] Réponse reçue ({len(raw)} caractères)")
+                print(f"    Ã¢Å“â€¦ [LLM] RÃƒÂ©ponse reÃƒÂ§ue ({len(raw)} caractÃƒÂ¨res)")
                 break
                 
         except Exception as e:
-            print(f"    ❌ [LLM] Erreur à la tentative {attempt + 1}: {e}")
+            print(f"    Ã¢ÂÅ’ [LLM] Erreur ÃƒÂ  la tentative {attempt + 1}: {e}")
             if attempt < json_retry_attempts - 1:
-                print(f"    🔄 Nouvelle tentative dans 2s...")
+                print(f"    Ã°Å¸â€â€ž Nouvelle tentative dans 2s...")
                 time.sleep(2)
                 continue
             else:
-                print(f"    🚨 [LLM] Échec après {json_retry_attempts} tentatives")
+                print(f"    Ã°Å¸Å¡Â¨ [LLM] Ãƒâ€°chec aprÃƒÂ¨s {json_retry_attempts} tentatives")
                 return None
     
     # Try parse JSON from raw (may include surrounding text)
@@ -163,21 +164,21 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
         tags = obj.get("hashtags") or []
         tags = [t.strip() for t in tags if isinstance(t, str) and t.strip()]
         
-        # 🚀 NOUVEAU: Extraction des mots-clés B-roll
+        # Ã°Å¸Å¡â‚¬ NOUVEAU: Extraction des mots-clÃƒÂ©s B-roll
         broll_keywords = obj.get("broll_keywords") or []
         broll_keywords = [kw.strip().lower() for kw in broll_keywords if isinstance(kw, str) and kw.strip()]
         
-        # Validation et fallback pour les mots-clés B-roll
+        # Validation et fallback pour les mots-clÃƒÂ©s B-roll
         if not broll_keywords:
-            # Fallback: extraire des mots-clés basiques du titre et de la description
+            # Fallback: extraire des mots-clÃƒÂ©s basiques du titre et de la description
             fallback_text = f"{title} {description}".lower()
             fallback_keywords = [word for word in fallback_text.split() if len(word) > 3 and word.isalpha()]
-            broll_keywords = list(set(fallback_keywords))[:10]  # Limiter à 10 mots-clés de fallback
+            broll_keywords = list(set(fallback_keywords))[:10]  # Limiter ÃƒÂ  10 mots-clÃƒÂ©s de fallback
         
         if not (title or description or tags):
             return None
         
-        # 🚀 NOUVEAU: Retourner aussi les mots-clés B-roll
+        # Ã°Å¸Å¡â‚¬ NOUVEAU: Retourner aussi les mots-clÃƒÂ©s B-roll
         return {
             "title": title, 
             "description": description, 
@@ -186,7 +187,7 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
         }
         
     except Exception as e:
-        print(f"⚠️ Erreur génération LLM: {e}")
+        print(f"Ã¢Å¡Â Ã¯Â¸Â Erreur gÃƒÂ©nÃƒÂ©ration LLM: {e}")
         return None
 
 if __name__ == "__main__":
@@ -194,10 +195,11 @@ if __name__ == "__main__":
     test_transcript = "EMDR movement sensation reprocessing lateralized movements people doing clinic"
     result = _llm_generate_caption_hashtags_fixed(test_transcript)
     if result:
-        print("✅ Test réussi!")
+        print("Ã¢Å“â€¦ Test rÃƒÂ©ussi!")
         print(f"Title: {result.get('title')}")
         print(f"Description: {result.get('description')}")
         print(f"Hashtags: {result.get('hashtags')}")
         print(f"B-roll keywords: {result.get('broll_keywords')}")
     else:
-        print("❌ Test échoué") 
+        print("Ã¢ÂÅ’ Test ÃƒÂ©chouÃƒÂ©") 
+

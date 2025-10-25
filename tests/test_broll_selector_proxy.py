@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import pytest
@@ -39,7 +39,7 @@ class _DummySelector:
 def test_find_broll_matches_forwards_keywords_and_formats(monkeypatch):
     selector = _DummySelector()
 
-    # empÃªcher l'initialisation lourde et renvoyer notre stub
+    # empÃƒÂªcher l'initialisation lourde et renvoyer notre stub
     module = pytest.importorskip("broll_selector")
     monkeypatch.setattr(module, "get_broll_selector", lambda *_, **__: selector)
 
@@ -55,4 +55,5 @@ def test_find_broll_matches_forwards_keywords_and_formats(monkeypatch):
             "source": "pexels",
         }
     ]
+
 

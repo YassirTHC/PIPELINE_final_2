@@ -1,4 +1,5 @@
-﻿from utils.optimized_llm import OptimizedLLM
+﻿ï»¿# -*- coding: utf-8 -*-
+from utils.optimized_llm import OptimizedLLM
 
 llm = OptimizedLLM()
 transcript = 'The first thing that occurs when people start to realize that rewards are all internal'
@@ -13,7 +14,7 @@ if success:
     print(f'Hashtags: {meta.get("hashtags")}')
     print(f'Keywords: {meta.get("keywords")}')
 else:
-    print('ÉCHEC - Pas de métadonnées générées')
+    print('Ã‰CHEC - Pas de mÃ©tadonnÃ©es gÃ©nÃ©rÃ©es')
 
 print('\n=== TEST PROMPT COMPLEXE (avec B-roll) ===')
 # Test avec le prompt COMPLEXE
@@ -24,4 +25,6 @@ if success2:
     print(f'Broll keywords: {meta2.get("broll_keywords")}')
     print(f'Search queries: {meta2.get("search_queries")}')
 else:
-    print('ÉCHEC - Pas de métadonnées B-roll générées')
+    print('Ã‰CHEC - Pas de mÃ©tadonnÃ©es B-roll gÃ©nÃ©rÃ©es')
+
+

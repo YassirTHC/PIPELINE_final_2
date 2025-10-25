@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """CLI to run the targeted pytest suite that validates the LLM environment."""
 from __future__ import annotations
 
@@ -71,4 +71,5 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation helper
     raise SystemExit(main())
+
 

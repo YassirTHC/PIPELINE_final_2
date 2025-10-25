@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Shared configuration dataclasses for the modular video pipeline.
 
 These helpers centralise the defaults we want to reuse while we
@@ -546,6 +546,7 @@ def _current_settings() -> Optional["Settings"]:
     except Exception:  # pragma: no cover - defensive guardrail
         logger.debug("[CONFIG] typed settings unavailable", exc_info=True)
         return None
+
 
 
 

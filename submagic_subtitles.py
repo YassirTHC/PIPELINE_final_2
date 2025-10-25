@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Système de sous-titres dynamiques style Submagic
-Basé sur l'analyse approfondie de JEVEUXCA.mp4 et des images fournies
+SystÃƒÂ¨me de sous-titres dynamiques style Submagic
+BasÃƒÂ© sur l'analyse approfondie de JEVEUXCA.mp4 et des images fournies
 """
 
 import os
@@ -22,34 +23,34 @@ class SubmagicConfig:
     def __init__(self):
         # Polices et tailles
         self.font_base_size = 45         # Taille de base
-        self.font_keyword_size = 55      # Taille pour mots-clés
+        self.font_keyword_size = 55      # Taille pour mots-clÃƒÂ©s
         self.font_emphasis_size = 65     # Taille pour emphase maximum
-        self.font_family = "Arial Black"  # Police très grasse
+        self.font_family = "Arial Black"  # Police trÃƒÂ¨s grasse
         
-        # NOUVELLE PALETTE 6 COULEURS - SYSTÈME AVANCÉ
-        self.color_white = (255, 255, 255)      # ⚪ Blanc - RARE maintenant
-        self.color_green = (50, 255, 50)        # 🟢 Vert - Actions/Succès
-        self.color_red = (255, 50, 50)          # 🔴 Rouge - Questions/Problèmes
-        self.color_yellow = (255, 255, 50)      # 🟡 Jaune - Temps/Important
-        self.color_orange = (255, 165, 0)       # 🟠 Orange - Argent/Résultats
-        self.color_blue = (50, 150, 255)        # 🔵 Bleu - Émotions/Social
-        self.color_purple = (150, 50, 255)      # 🟣 Violet - Tech/Innovation
-        self.color_light_gray = (180, 180, 180) # 🔘 Gris clair - Mots neutres
+        # NOUVELLE PALETTE 6 COULEURS - SYSTÃƒË†ME AVANCÃƒâ€°
+        self.color_white = (255, 255, 255)      # Ã¢Å¡Âª Blanc - RARE maintenant
+        self.color_green = (50, 255, 50)        # Ã°Å¸Å¸Â¢ Vert - Actions/SuccÃƒÂ¨s
+        self.color_red = (255, 50, 50)          # Ã°Å¸â€Â´ Rouge - Questions/ProblÃƒÂ¨mes
+        self.color_yellow = (255, 255, 50)      # Ã°Å¸Å¸Â¡ Jaune - Temps/Important
+        self.color_orange = (255, 165, 0)       # Ã°Å¸Å¸Â  Orange - Argent/RÃƒÂ©sultats
+        self.color_blue = (50, 150, 255)        # Ã°Å¸â€Âµ Bleu - Ãƒâ€°motions/Social
+        self.color_purple = (150, 50, 255)      # Ã°Å¸Å¸Â£ Violet - Tech/Innovation
+        self.color_light_gray = (180, 180, 180) # Ã°Å¸â€Ëœ Gris clair - Mots neutres
         
         # Contours et effets
-        self.stroke_width = 4                   # Contour noir épais
+        self.stroke_width = 4                   # Contour noir ÃƒÂ©pais
         self.stroke_color = (0, 0, 0)          # Noir
-        self.shadow_offset = 2                  # Ombre portée
+        self.shadow_offset = 2                  # Ombre portÃƒÂ©e
         self.glow_radius = 3                    # Effet glow
         
         # Positionnement
         self.bottom_margin = 0.15               # 15% du bas
-        self.horizontal_center = True           # Centré horizontalement
+        self.horizontal_center = True           # CentrÃƒÂ© horizontalement
         self.max_width_percent = 0.9            # 90% de la largeur max
         
         # Animations et timing
-        self.word_appear_duration = 0.3         # Durée apparition mot
-        self.bounce_intensity = 0.2             # Intensité rebond
+        self.word_appear_duration = 0.3         # DurÃƒÂ©e apparition mot
+        self.bounce_intensity = 0.2             # IntensitÃƒÂ© rebond
         self.color_transition_speed = 0.5       # Vitesse transition couleur
         self.persistence_enabled = True         # Les mots restent visibles
         
@@ -58,39 +59,39 @@ class SubmagicConfig:
         self.emoji_size_ratio = 0.8             # 80% de la taille du texte
         self.emoji_spacing = 10                 # Espacement emoji-texte
 
-# Mappings emojis contextuels (basés sur l'analyse)
+# Mappings emojis contextuels (basÃƒÂ©s sur l'analyse)
 SUBMAGIC_EMOJI_MAP = {
     # Mouvement et action
-    'run': '🏃', 'running': '🏃', 'walk': '🚶', 'move': '🚶', 'go': '🚶',
-    'lift': '🏋️', 'exercise': '🏋️', 'workout': '💪', 'train': '💪', 'gym': '🏋️',
+    'run': 'Ã°Å¸ÂÆ’', 'running': 'Ã°Å¸ÂÆ’', 'walk': 'Ã°Å¸Å¡Â¶', 'move': 'Ã°Å¸Å¡Â¶', 'go': 'Ã°Å¸Å¡Â¶',
+    'lift': 'Ã°Å¸Ââ€¹Ã¯Â¸Â', 'exercise': 'Ã°Å¸Ââ€¹Ã¯Â¸Â', 'workout': 'Ã°Å¸â€™Âª', 'train': 'Ã°Å¸â€™Âª', 'gym': 'Ã°Å¸Ââ€¹Ã¯Â¸Â',
     
-    # Émotions et réactions
-    'behavior': '🎭', 'act': '🎭', 'react': '🎭', 'feel': '❤️',
-    'quit': '❌', 'stop': '⛔', 'end': '🔚', 'finish': '✅',
+    # Ãƒâ€°motions et rÃƒÂ©actions
+    'behavior': 'Ã°Å¸Å½Â­', 'act': 'Ã°Å¸Å½Â­', 'react': 'Ã°Å¸Å½Â­', 'feel': 'Ã¢ÂÂ¤Ã¯Â¸Â',
+    'quit': 'Ã¢ÂÅ’', 'stop': 'Ã¢â€ºâ€', 'end': 'Ã°Å¸â€Å¡', 'finish': 'Ã¢Å“â€¦',
     
-    # Questions et réflexion
-    'why': '❓', 'what': '❓', 'how': '❓', 'when': '❓', 'where': '❓',
-    'think': '🤔', 'know': '🧠', 'understand': '💡', 'learn': '📚',
+    # Questions et rÃƒÂ©flexion
+    'why': 'Ã¢Ââ€œ', 'what': 'Ã¢Ââ€œ', 'how': 'Ã¢Ââ€œ', 'when': 'Ã¢Ââ€œ', 'where': 'Ã¢Ââ€œ',
+    'think': 'Ã°Å¸Â¤â€', 'know': 'Ã°Å¸Â§Â ', 'understand': 'Ã°Å¸â€™Â¡', 'learn': 'Ã°Å¸â€œÅ¡',
     
-    # Intensité et emphase
-    'every': '💯', 'all': '💯', 'always': '💯', 'never': '❌',
-    'time': '⏰', 'moment': '⏱️', 'now': '⚡', 'today': '📅',
+    # IntensitÃƒÂ© et emphase
+    'every': 'Ã°Å¸â€™Â¯', 'all': 'Ã°Å¸â€™Â¯', 'always': 'Ã°Å¸â€™Â¯', 'never': 'Ã¢ÂÅ’',
+    'time': 'Ã¢ÂÂ°', 'moment': 'Ã¢ÂÂ±Ã¯Â¸Â', 'now': 'Ã¢Å¡Â¡', 'today': 'Ã°Å¸â€œâ€¦',
     
-    # Argent et succès
-    'money': '💰', 'rich': '💸', 'success': '🏆', 'win': '🥇',
-    'lose': '😞', 'fail': '❌', 'problem': '⚠️',
+    # Argent et succÃƒÂ¨s
+    'money': 'Ã°Å¸â€™Â°', 'rich': 'Ã°Å¸â€™Â¸', 'success': 'Ã°Å¸Ââ€ ', 'win': 'Ã°Å¸Â¥â€¡',
+    'lose': 'Ã°Å¸ËœÅ¾', 'fail': 'Ã¢ÂÅ’', 'problem': 'Ã¢Å¡Â Ã¯Â¸Â',
     
     # Communication
-    'say': '💬', 'tell': '💬', 'speak': '🗣️', 'listen': '👂',
-    'look': '👀', 'see': '👁️', 'watch': '📺', 'show': '👆',
+    'say': 'Ã°Å¸â€™Â¬', 'tell': 'Ã°Å¸â€™Â¬', 'speak': 'Ã°Å¸â€”Â£Ã¯Â¸Â', 'listen': 'Ã°Å¸â€˜â€š',
+    'look': 'Ã°Å¸â€˜â‚¬', 'see': 'Ã°Å¸â€˜ÂÃ¯Â¸Â', 'watch': 'Ã°Å¸â€œÂº', 'show': 'Ã°Å¸â€˜â€ ',
     
-    # États et sentiments
-    'happy': '😊', 'sad': '😢', 'angry': '😠', 'surprised': '😲',
-    'love': '❤️', 'hate': '💔', 'like': '👍', 'dislike': '👎',
+    # Ãƒâ€°tats et sentiments
+    'happy': 'Ã°Å¸ËœÅ ', 'sad': 'Ã°Å¸ËœÂ¢', 'angry': 'Ã°Å¸ËœÂ ', 'surprised': 'Ã°Å¸ËœÂ²',
+    'love': 'Ã¢ÂÂ¤Ã¯Â¸Â', 'hate': 'Ã°Å¸â€™â€', 'like': 'Ã°Å¸â€˜Â', 'dislike': 'Ã°Å¸â€˜Å½',
 }
 
 def get_system_fonts():
-    """Récupère les polices système disponibles"""
+    """RÃƒÂ©cupÃƒÂ¨re les polices systÃƒÂ¨me disponibles"""
     font_paths = []
     
     # Windows
@@ -125,7 +126,7 @@ def get_system_fonts():
     return font_paths
 
 def get_submagic_font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
-    """Récupère une police style Submagic (grasse et moderne)"""
+    """RÃƒÂ©cupÃƒÂ¨re une police style Submagic (grasse et moderne)"""
     font_paths = get_system_fonts()
     
     for font_path in font_paths:
@@ -134,18 +135,18 @@ def get_submagic_font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
         except Exception:
             continue
     
-    # Fallback vers police par défaut
+    # Fallback vers police par dÃƒÂ©faut
     try:
         return ImageFont.load_default()
     except Exception:
         return ImageFont.load_default()
 
 def detect_keyword_type(word: str, context: str = "") -> str:
-    """Détecte le type de mot pour appliquer le bon style - SYSTÈME AMÉLIORÉ"""
+    """DÃƒÂ©tecte le type de mot pour appliquer le bon style - SYSTÃƒË†ME AMÃƒâ€°LIORÃƒâ€°"""
     word_lower = word.lower().strip()
     context_lower = context.lower()
     
-    # 🟢 VERT - Actions/Mouvements/Succès/Positif
+    # Ã°Å¸Å¸Â¢ VERT - Actions/Mouvements/SuccÃƒÂ¨s/Positif
     action_success_words = {
         'run', 'running', 'walk', 'move', 'go', 'come', 'lift', 'exercise', 
         'work', 'play', 'dance', 'jump', 'climb', 'swim', 'drive', 'behavior',
@@ -154,7 +155,7 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         'power', 'strong', 'energy', 'force', 'push', 'pull', 'grab'
     }
     
-    # 🔴 ROUGE - Questions/Problèmes/Urgence/Négatif
+    # Ã°Å¸â€Â´ ROUGE - Questions/ProblÃƒÂ¨mes/Urgence/NÃƒÂ©gatif
     question_problem_words = {
         'why', 'what', 'how', 'when', 'where', 'who', 'which',
         'problem', 'issue', 'wrong', 'bad', 'terrible', 'awful', 'hate',
@@ -163,7 +164,7 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         'pain', 'hurt', 'struggle', 'fight', 'war', 'battle', 'against'
     }
     
-    # 🟡 JAUNE - Temps/Chiffres/Transition/Important
+    # Ã°Å¸Å¸Â¡ JAUNE - Temps/Chiffres/Transition/Important
     time_transition_words = {
         'time', 'moment', 'day', 'week', 'month', 'year', 'today', 'tomorrow',
         'now', 'then', 'after', 'before', 'during', 'while', 'when',
@@ -172,7 +173,7 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         'next', 'previous', 'future', 'past', 'always', 'sometimes', 'often'
     }
     
-    # 🟠 ORANGE - Argent/Bénéfices/Résultats/Conclusion
+    # Ã°Å¸Å¸Â  ORANGE - Argent/BÃƒÂ©nÃƒÂ©fices/RÃƒÂ©sultats/Conclusion
     money_benefit_words = {
         'money', 'cash', 'dollar', 'euro', 'price', 'cost', 'pay', 'buy',
         'sell', 'profit', 'income', 'salary', 'rich', 'wealth', 'expensive',
@@ -181,7 +182,7 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         'finally', 'conclusion', 'summary', 'total', 'complete', 'done'
     }
     
-    # 🔵 BLEU - Émotions/Relations/Personnel/Social
+    # Ã°Å¸â€Âµ BLEU - Ãƒâ€°motions/Relations/Personnel/Social
     emotion_social_words = {
         'feel', 'feeling', 'emotion', 'happy', 'sad', 'angry', 'excited',
         'love', 'like', 'enjoy', 'fun', 'funny', 'laugh', 'smile', 'cry',
@@ -190,7 +191,7 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         'me', 'you', 'we', 'us', 'they', 'them', 'everyone', 'someone'
     }
     
-    # 🟣 VIOLET - Innovation/Futur/Technique/Spécialisé
+    # Ã°Å¸Å¸Â£ VIOLET - Innovation/Futur/Technique/SpÃƒÂ©cialisÃƒÂ©
     tech_innovation_words = {
         'technology', 'tech', 'digital', 'online', 'internet', 'app', 'software',
         'ai', 'artificial', 'intelligence', 'robot', 'machine', 'computer',
@@ -199,26 +200,26 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         'future', 'tomorrow', 'evolution', 'revolution', 'transformation'
     }
     
-    # Analyse contextuelle pour affiner la détection
+    # Analyse contextuelle pour affiner la dÃƒÂ©tection
     word_length = len(word)
     is_caps = word.isupper() and word_length > 2
     is_number = word.isdigit()
     
-    # Priorités de détection (ordre important)
+    # PrioritÃƒÂ©s de dÃƒÂ©tection (ordre important)
     if word_lower in question_problem_words or is_caps:
-        return 'emphasis'  # ROUGE - Questions/Problèmes/Emphase
+        return 'emphasis'  # ROUGE - Questions/ProblÃƒÂ¨mes/Emphase
     elif word_lower in action_success_words:
-        return 'action'   # VERT - Actions/Succès
+        return 'action'   # VERT - Actions/SuccÃƒÂ¨s
     elif word_lower in money_benefit_words:
-        return 'money'    # ORANGE - Argent/Bénéfices
+        return 'money'    # ORANGE - Argent/BÃƒÂ©nÃƒÂ©fices
     elif word_lower in emotion_social_words:
-        return 'social'   # BLEU - Émotions/Social
+        return 'social'   # BLEU - Ãƒâ€°motions/Social
     elif word_lower in tech_innovation_words:
         return 'tech'     # VIOLET - Tech/Innovation
     elif word_lower in time_transition_words or is_number:
         return 'important' # JAUNE - Temps/Important
     else:
-        # RÉDUCTION DRASTIQUE DU BLANC - Analyse contextuelle avancée
+        # RÃƒâ€°DUCTION DRASTIQUE DU BLANC - Analyse contextuelle avancÃƒÂ©e
         
         # Si le mot est dans un contexte d'action, le marquer comme action
         if any(action in context_lower for action in ['run', 'move', 'go', 'do', 'make']):
@@ -232,7 +233,7 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         if any(t in context_lower for t in ['time', 'when', 'now', 'today']):
             return 'important'
         
-        # Mots courts fréquents - leur donner une couleur selon position
+        # Mots courts frÃƒÂ©quents - leur donner une couleur selon position
         if word_lower in ['the', 'and', 'or', 'but', 'so', 'if', 'is', 'are', 'was', 'were']:
             return 'neutral'  # GRIS CLAIR au lieu de blanc
         
@@ -240,18 +241,18 @@ def detect_keyword_type(word: str, context: str = "") -> str:
         if word_lower in ['do', 'did', 'does', 'get', 'got', 'have', 'had', 'take', 'took']:
             return 'action'
         
-        # Adverbes d'intensité - les marquer comme emphase
+        # Adverbes d'intensitÃƒÂ© - les marquer comme emphase
         if word_lower in ['very', 'really', 'super', 'totally', 'completely', 'absolutely']:
             return 'emphasis'
         
-        # Par défaut, plus de couleur, moins de blanc
+        # Par dÃƒÂ©faut, plus de couleur, moins de blanc
         if word_length >= 5:  # Mots longs = importants
             return 'important'
         else:
             return 'neutral'  # GRIS au lieu de blanc pur
 
 def get_contextual_emoji(word: str, word_type: str) -> Optional[str]:
-    """Récupère un emoji contextuel pour un mot"""
+    """RÃƒÂ©cupÃƒÂ¨re un emoji contextuel pour un mot"""
     word_lower = word.lower().strip()
     
     # Chercher dans le mapping direct
@@ -260,41 +261,41 @@ def get_contextual_emoji(word: str, word_type: str) -> Optional[str]:
     
     # Chercher par type de mot
     if word_type == 'action':
-        action_emojis = ['💪', '🏃', '⚡', '🚀', '🎯']
+        action_emojis = ['Ã°Å¸â€™Âª', 'Ã°Å¸ÂÆ’', 'Ã¢Å¡Â¡', 'Ã°Å¸Å¡â‚¬', 'Ã°Å¸Å½Â¯']
         return random.choice(action_emojis)
     elif word_type == 'emphasis':
-        emphasis_emojis = ['❗', '🔥', '💯', '⚠️', '❓']
+        emphasis_emojis = ['Ã¢Ââ€”', 'Ã°Å¸â€Â¥', 'Ã°Å¸â€™Â¯', 'Ã¢Å¡Â Ã¯Â¸Â', 'Ã¢Ââ€œ']
         return random.choice(emphasis_emojis)
     
     return None
 
 def calculate_word_style(word: str, word_type: str, config: SubmagicConfig) -> Dict:
-    """Calcule le style complet pour un mot - SYSTÈME 6 COULEURS"""
+    """Calcule le style complet pour un mot - SYSTÃƒË†ME 6 COULEURS"""
     
-    # Nouvelle palette étendue
+    # Nouvelle palette ÃƒÂ©tendue
     if word_type == 'action':
-        color = config.color_green        # 🟢 VERT - Actions/Succès
+        color = config.color_green        # Ã°Å¸Å¸Â¢ VERT - Actions/SuccÃƒÂ¨s
         font_size = config.font_keyword_size
     elif word_type == 'emphasis':
-        color = config.color_red          # 🔴 ROUGE - Questions/Problèmes
+        color = config.color_red          # Ã°Å¸â€Â´ ROUGE - Questions/ProblÃƒÂ¨mes
         font_size = config.font_emphasis_size
     elif word_type == 'money':
-        color = config.color_orange       # 🟠 ORANGE - Argent/Bénéfices
+        color = config.color_orange       # Ã°Å¸Å¸Â  ORANGE - Argent/BÃƒÂ©nÃƒÂ©fices
         font_size = config.font_keyword_size
     elif word_type == 'social':
-        color = getattr(config, 'color_blue', (50, 150, 255))  # 🔵 BLEU - Émotions/Social
+        color = getattr(config, 'color_blue', (50, 150, 255))  # Ã°Å¸â€Âµ BLEU - Ãƒâ€°motions/Social
         font_size = config.font_keyword_size
     elif word_type == 'tech':
-        color = getattr(config, 'color_purple', (150, 50, 255))  # 🟣 VIOLET - Tech/Innovation
+        color = getattr(config, 'color_purple', (150, 50, 255))  # Ã°Å¸Å¸Â£ VIOLET - Tech/Innovation
         font_size = config.font_keyword_size
     elif word_type == 'important':
-        color = config.color_yellow       # 🟡 JAUNE - Temps/Transition
+        color = config.color_yellow       # Ã°Å¸Å¸Â¡ JAUNE - Temps/Transition
         font_size = config.font_keyword_size
     elif word_type == 'neutral':
         color = getattr(config, 'color_light_gray', (180, 180, 180))  # Gris clair au lieu de blanc
         font_size = config.font_base_size
     else:
-        color = config.color_white        # ⚪ BLANC - Très rare maintenant
+        color = config.color_white        # Ã¢Å¡Âª BLANC - TrÃƒÂ¨s rare maintenant
         font_size = config.font_base_size
     
     return {
@@ -306,7 +307,7 @@ def calculate_word_style(word: str, word_type: str, config: SubmagicConfig) -> D
     }
 
 def create_submagic_frame(words_data: List[Dict], video_size: tuple, config: SubmagicConfig) -> Image.Image:
-    """Crée une frame de sous-titres style Submagic"""
+    """CrÃƒÂ©e une frame de sous-titres style Submagic"""
     width, height = video_size
     
     # Image transparente
@@ -349,7 +350,7 @@ def create_submagic_frame(words_data: List[Dict], video_size: tuple, config: Sub
         word_width = bbox[2] - bbox[0]
         word_height = bbox[3] - bbox[1]
         
-        # Ajouter espace pour emoji si présent
+        # Ajouter espace pour emoji si prÃƒÂ©sent
         emoji_width = 0
         if word_info['emoji']:
             emoji_width = int(word_info['style']['font_size'] * config.emoji_size_ratio) + config.emoji_spacing
@@ -366,7 +367,7 @@ def create_submagic_frame(words_data: List[Dict], video_size: tuple, config: Sub
         total_width += word_width + emoji_width + 20  # Espacement entre mots
         line_height = max(line_height, word_height)
     
-    # Position de départ centrée
+    # Position de dÃƒÂ©part centrÃƒÂ©e
     start_x = (width - total_width) // 2
     current_x = start_x
     
@@ -377,15 +378,15 @@ def create_submagic_frame(words_data: List[Dict], video_size: tuple, config: Sub
         font = word_pos['font']
         emoji = word_pos['emoji']
         
-        # Position Y centrée sur la ligne
+        # Position Y centrÃƒÂ©e sur la ligne
         word_y = y_position - line_height // 2
         
-        # Dessiner l'emoji d'abord si présent
+        # Dessiner l'emoji d'abord si prÃƒÂ©sent
         if emoji:
             emoji_size = int(style['font_size'] * config.emoji_size_ratio)
-            emoji_y = word_y - emoji_size // 4  # Légèrement au-dessus
+            emoji_y = word_y - emoji_size // 4  # LÃƒÂ©gÃƒÂ¨rement au-dessus
             
-            # Dessiner l'emoji (simplifié - remplacer par une vraie image d'emoji si possible)
+            # Dessiner l'emoji (simplifiÃƒÂ© - remplacer par une vraie image d'emoji si possible)
             emoji_font = get_submagic_font(emoji_size)
             draw.text((current_x, emoji_y), emoji, font=emoji_font, fill=(255, 255, 255, 255))
             current_x += emoji_size + config.emoji_spacing
@@ -411,7 +412,7 @@ def create_submagic_frame(words_data: List[Dict], video_size: tuple, config: Sub
 
 def create_submagic_word_clip(word_data: Dict, start_time: float, end_time: float, 
                              video_size: tuple, config: SubmagicConfig) -> VideoClip:
-    """Crée un clip animé pour un mot style Submagic"""
+    """CrÃƒÂ©e un clip animÃƒÂ© pour un mot style Submagic"""
     duration = end_time - start_time
     
     def make_frame(t):
@@ -425,17 +426,17 @@ def create_submagic_word_clip(word_data: Dict, start_time: float, end_time: floa
             scale = 1.0
             opacity = 1.0
         
-        # Créer la frame avec le mot
+        # CrÃƒÂ©er la frame avec le mot
         frame_img = create_submagic_frame([word_data], video_size, config)
         
-        # Appliquer l'échelle et l'opacité
+        # Appliquer l'ÃƒÂ©chelle et l'opacitÃƒÂ©
         if scale != 1.0 or opacity != 1.0:
-            # Redimensionner si nécessaire
+            # Redimensionner si nÃƒÂ©cessaire
             if scale != 1.0:
                 new_size = (int(frame_img.width * scale), int(frame_img.height * scale))
                 frame_img = frame_img.resize(new_size, Image.Resampling.LANCZOS)
             
-            # Appliquer l'opacité
+            # Appliquer l'opacitÃƒÂ©
             if opacity != 1.0:
                 # Ajuster le canal alpha
                 alpha = frame_img.split()[-1]
@@ -449,7 +450,7 @@ def create_submagic_word_clip(word_data: Dict, start_time: float, end_time: floa
             rgb = rgba_array[:, :, :3]
             alpha = rgba_array[:, :, 3] / 255.0
             
-            # Créer fond transparent (noir)
+            # CrÃƒÂ©er fond transparent (noir)
             background = np.zeros_like(rgb)
             
             # Blending avec alpha
@@ -459,7 +460,7 @@ def create_submagic_word_clip(word_data: Dict, start_time: float, end_time: floa
         else:
             return rgba_array
     
-    # Créer le clip
+    # CrÃƒÂ©er le clip
     clip = VideoClip(make_frame, duration=duration)
     clip = clip.set_start(start_time).set_position((0, 0))
     
@@ -474,7 +475,7 @@ def parse_transcript_to_words(transcription_data: List[Dict]) -> List[Dict]:
         seg_start = float(segment.get('start', 0))
         seg_end = float(segment.get('end', seg_start))
         
-        # Découper en mots
+        # DÃƒÂ©couper en mots
         words = re.findall(r'\b\w+\b', text)
         if not words:
             continue
@@ -486,7 +487,7 @@ def parse_transcript_to_words(transcription_data: List[Dict]) -> List[Dict]:
             word_start = seg_start + i * word_duration
             word_end = word_start + word_duration
             
-            # Déterminer le type de mot
+            # DÃƒÂ©terminer le type de mot
             word_type = detect_keyword_type(word, text)
             
             words_timeline.append({
@@ -502,47 +503,47 @@ def parse_transcript_to_words(transcription_data: List[Dict]) -> List[Dict]:
 def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict], 
                           output_video_path: str, config: SubmagicConfig = None) -> str:
     """
-    Ajoute des sous-titres style Submagic à une vidéo
+    Ajoute des sous-titres style Submagic ÃƒÂ  une vidÃƒÂ©o
     
     Args:
-        input_video_path: Chemin vers la vidéo source
-        transcription_data: Données de transcription avec timecodes
+        input_video_path: Chemin vers la vidÃƒÂ©o source
+        transcription_data: DonnÃƒÂ©es de transcription avec timecodes
         output_video_path: Chemin de sortie
         config: Configuration Submagic (optionnel)
     
     Returns:
-        str: Chemin du fichier généré
+        str: Chemin du fichier gÃƒÂ©nÃƒÂ©rÃƒÂ©
     """
     if config is None:
         config = SubmagicConfig()
     
-    print("🎬 Génération sous-titres style Submagic...")
+    print("Ã°Å¸Å½Â¬ GÃƒÂ©nÃƒÂ©ration sous-titres style Submagic...")
     
-    # Charger la vidéo
+    # Charger la vidÃƒÂ©o
     video = VideoFileClip(input_video_path)
     video_size = video.size
     
-    print(f"📊 Vidéo: {video_size[0]}x{video_size[1]}, {video.duration:.1f}s")
+    print(f"Ã°Å¸â€œÅ  VidÃƒÂ©o: {video_size[0]}x{video_size[1]}, {video.duration:.1f}s")
     
     # Parser la transcription
     words_timeline = parse_transcript_to_words(transcription_data)
-    print(f"📝 {len(words_timeline)} mots à animer")
+    print(f"Ã°Å¸â€œÂ {len(words_timeline)} mots ÃƒÂ  animer")
     
-    # Créer les clips de sous-titres
+    # CrÃƒÂ©er les clips de sous-titres
     subtitle_clips = []
     
     if config.persistence_enabled:
         # MODE HYBRIDE : Persistance + Animations bounce individuelles
-        print("✨ Mode persistance avec animations bounce...")
+        print("Ã¢Å“Â¨ Mode persistance avec animations bounce...")
         
         for i, word_data in enumerate(words_timeline):
-            # Mots déjà affichés (statiques)
+            # Mots dÃƒÂ©jÃƒÂ  affichÃƒÂ©s (statiques)
             previous_words = words_timeline[:i] if i > 0 else []
             
             # Mot actuel (avec animation)
             current_word = word_data
             
-            # Durée d'affichage : jusqu'au prochain mot ou fin
+            # DurÃƒÂ©e d'affichage : jusqu'au prochain mot ou fin
             start_time = word_data['start']
             if i < len(words_timeline) - 1:
                 end_time = words_timeline[i + 1]['start']
@@ -554,13 +555,13 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
             def make_hybrid_frame(t, prev_words=previous_words.copy(), curr_word=current_word, word_duration=duration):
                 """Frame avec persistance + animation du nouveau mot"""
                 
-                # Créer une image vide
+                # CrÃƒÂ©er une image vide
                 img = Image.new('RGBA', video_size, (0, 0, 0, 0))
                 draw = ImageDraw.Draw(img)
                 
                 all_words_to_display = []
                 
-                # 1. Ajouter les mots précédents (STATIQUES, sans animation)
+                # 1. Ajouter les mots prÃƒÂ©cÃƒÂ©dents (STATIQUES, sans animation)
                 for prev_word in prev_words:
                     all_words_to_display.append({
                         'word': prev_word['word'],
@@ -570,7 +571,7 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
                         'opacity': 1.0
                     })
                 
-                # 2. Ajouter le mot actuel (ANIMÉ avec bounce)
+                # 2. Ajouter le mot actuel (ANIMÃƒâ€° avec bounce)
                 # Animation du mot actuel
                 if t <= config.word_appear_duration:
                     progress = t / config.word_appear_duration
@@ -597,8 +598,8 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
             subtitle_clips.append(clip)
     
     else:
-        # Mode classique : un mot à la fois avec animations complètes
-        print("✨ Mode classique avec animations individuelles...")
+        # Mode classique : un mot ÃƒÂ  la fois avec animations complÃƒÂ¨tes
+        print("Ã¢Å“Â¨ Mode classique avec animations individuelles...")
         for word_data in words_timeline:
             clip = create_submagic_word_clip(
                 word_data, word_data['start'], word_data['end'], 
@@ -606,11 +607,11 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
             )
             subtitle_clips.append(clip)
     
-    # Composer la vidéo finale
-    print("🎨 Composition de la vidéo finale...")
+    # Composer la vidÃƒÂ©o finale
+    print("Ã°Å¸Å½Â¨ Composition de la vidÃƒÂ©o finale...")
     
     if subtitle_clips:
-        # CORRECTION: Assurer compatibilité RGB pour tous les clips
+        # CORRECTION: Assurer compatibilitÃƒÂ© RGB pour tous les clips
         final_video = CompositeVideoClip([video] + subtitle_clips, size=video_size)
         final_video = final_video.set_audio(video.audio)
     else:
@@ -620,7 +621,7 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
     output_path = Path(output_video_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    print(f"💾 Export vers: {output_path}")
+    print(f"Ã°Å¸â€™Â¾ Export vers: {output_path}")
     
     try:
         final_video.write_videofile(
@@ -633,10 +634,10 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
             verbose=False,
             logger=None
         )
-        print("✅ Export Submagic terminé !")
+        print("Ã¢Å“â€¦ Export Submagic terminÃƒÂ© !")
         
     except Exception as e:
-        print(f"❌ Erreur export: {e}")
+        print(f"Ã¢ÂÅ’ Erreur export: {e}")
         # Fallback
         final_video.write_videofile(
             str(output_path),
@@ -653,10 +654,10 @@ def add_submagic_subtitles(input_video_path: str, transcription_data: List[Dict]
     return str(output_path)
 
 def render_mixed_words_frame(words_display_data: List[Dict], video_size: tuple, config: SubmagicConfig, draw) -> np.ndarray:
-    """Rend une frame avec un mélange de mots statiques et animés"""
+    """Rend une frame avec un mÃƒÂ©lange de mots statiques et animÃƒÂ©s"""
     width, height = video_size
     
-    # Créer l'image
+    # CrÃƒÂ©er l'image
     img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
@@ -704,7 +705,7 @@ def render_mixed_words_frame(words_display_data: List[Dict], video_size: tuple, 
         total_width += word_width + emoji_width + 20
         line_height = max(line_height, word_height)
     
-    # Position centrée
+    # Position centrÃƒÂ©e
     y_position = height - int(height * config.bottom_margin)
     start_x = (width - total_width) // 2
     current_x = start_x
@@ -718,7 +719,7 @@ def render_mixed_words_frame(words_display_data: List[Dict], video_size: tuple, 
         
         word_y = y_position - line_height // 2
         
-        # Dessiner emoji si présent
+        # Dessiner emoji si prÃƒÂ©sent
         if style['emoji']:
             emoji_size = int(style['font_size'] * config.emoji_size_ratio)
             emoji_font = get_submagic_font(emoji_size)
@@ -754,7 +755,7 @@ def render_mixed_words_frame(words_display_data: List[Dict], video_size: tuple, 
     else:
         return rgba_array
 
-# Fonctions de configuration personnalisée
+# Fonctions de configuration personnalisÃƒÂ©e
 def create_submagic_config(
     font_base_size: int = 45,
     font_keyword_size: int = 55, 
@@ -763,7 +764,7 @@ def create_submagic_config(
     emoji_enabled: bool = True,
     persistence_enabled: bool = True
 ) -> SubmagicConfig:
-    """Crée une configuration Submagic personnalisée"""
+    """CrÃƒÂ©e une configuration Submagic personnalisÃƒÂ©e"""
     config = SubmagicConfig()
     config.font_base_size = font_base_size
     config.font_keyword_size = font_keyword_size
@@ -774,10 +775,10 @@ def create_submagic_config(
     return config
 
 def test_submagic_style():
-    """Test du système Submagic avec données d'exemple"""
-    print("🧪 Test style Submagic...")
+    """Test du systÃƒÂ¨me Submagic avec donnÃƒÂ©es d'exemple"""
+    print("Ã°Å¸Â§Âª Test style Submagic...")
     
-    # Données de test basées sur vos images
+    # DonnÃƒÂ©es de test basÃƒÂ©es sur vos images
     test_data = [
         {'text': 'AT ANY BEHAVIOR', 'start': 0.0, 'end': 2.0},
         {'text': 'I CAN\'T LIFT', 'start': 2.5, 'end': 4.0},
@@ -789,20 +790,20 @@ def test_submagic_style():
     # Test de parsing
     words = parse_transcript_to_words(test_data)
     
-    print(f"📊 {len(words)} mots analysés:")
+    print(f"Ã°Å¸â€œÅ  {len(words)} mots analysÃƒÂ©s:")
     for word in words[:10]:  # Premiers 10 mots
         print(f"  '{word['word']}' ({word['type']}) {word['start']:.1f}s-{word['end']:.1f}s")
     
-    # Test de détection emojis
+    # Test de dÃƒÂ©tection emojis
     test_words = ['BEHAVIOR', 'LIFT', 'RUNNING', 'WHY', 'QUIT']
-    print("\n🎭 Emojis détectés:")
+    print("\nÃ°Å¸Å½Â­ Emojis dÃƒÂ©tectÃƒÂ©s:")
     for word in test_words:
         word_type = detect_keyword_type(word)
         emoji = get_contextual_emoji(word, word_type)
-        print(f"  '{word}' ({word_type}) → {emoji}")
+        print(f"  '{word}' ({word_type}) Ã¢â€ â€™ {emoji}")
 
 def diagnose_video_issue(video_path: str) -> Dict:
-    """Diagnostic rapide d'une vidéo générée"""
+    """Diagnostic rapide d'une vidÃƒÂ©o gÃƒÂ©nÃƒÂ©rÃƒÂ©e"""
     from pathlib import Path
     import os
     
@@ -825,26 +826,28 @@ def diagnose_video_issue(video_path: str) -> Dict:
             if file_size < 1000:  # Moins de 1KB
                 diagnosis['issues'].append("Fichier trop petit (probable corruption)")
             elif file_size > 500 * 1024 * 1024:  # Plus de 500MB
-                diagnosis['issues'].append("Fichier très volumineux")
+                diagnosis['issues'].append("Fichier trÃƒÂ¨s volumineux")
             
-            # Essayer de lire la durée avec moviepy
+            # Essayer de lire la durÃƒÂ©e avec moviepy
             try:
                 from moviepy.editor import VideoFileClip
                 with VideoFileClip(str(video_file)) as clip:
                     diagnosis['duration'] = round(clip.duration, 1)
                     if clip.duration < 1:
-                        diagnosis['issues'].append("Durée très courte")
+                        diagnosis['issues'].append("DurÃƒÂ©e trÃƒÂ¨s courte")
                     elif clip.duration > 300:
-                        diagnosis['issues'].append("Durée très longue")
+                        diagnosis['issues'].append("DurÃƒÂ©e trÃƒÂ¨s longue")
             except Exception as e:
-                diagnosis['issues'].append(f"Erreur lecture vidéo: {str(e)[:50]}")
+                diagnosis['issues'].append(f"Erreur lecture vidÃƒÂ©o: {str(e)[:50]}")
             
         except Exception as e:
             diagnosis['issues'].append(f"Erreur analyse: {str(e)[:50]}")
     else:
-        diagnosis['issues'].append("Fichier non trouvé")
+        diagnosis['issues'].append("Fichier non trouvÃƒÂ©")
     
     return diagnosis
 
 if __name__ == "__main__":
     test_submagic_style() 
+
+

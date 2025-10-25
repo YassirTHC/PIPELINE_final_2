@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import pytest
 
 from pipeline_core import llm_service
@@ -68,4 +68,5 @@ def test_full_fallback_to_tfidf(_patch_env):
     assert len(result["broll_keywords"]) == 8
     assert len(result["queries"]) == 12
     assert result["broll_keywords"][0] == "city skyline"
+
 

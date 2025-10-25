@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-SOLUTION DÉFINITIVE SUBMAGIC - TextClip NATIF MoviePy
-Résout le problème de vidéo noire en utilisant UNIQUEMENT les TextClip natifs
+SOLUTION DÃƒâ€°FINITIVE SUBMAGIC - TextClip NATIF MoviePy
+RÃƒÂ©sout le problÃƒÂ¨me de vidÃƒÂ©o noire en utilisant UNIQUEMENT les TextClip natifs
 """
 
 import re
@@ -40,7 +41,7 @@ class SubmagicNativeConfig:
         self.persistence_enabled = True
 
 def classify_word_simple(word: str) -> str:
-    """Classification simplifiée"""
+    """Classification simplifiÃƒÂ©e"""
     word_lower = word.lower().strip()
     
     # Actions (VERT)
@@ -51,11 +52,11 @@ def classify_word_simple(word: str) -> str:
     elif word_lower in ['why', 'what', 'how', 'quit', 'stop', 'never', 'problem', 'wrong'] or word.isupper():
         return 'emphasis'
     
-    # Argent/Résultats (ORANGE)
+    # Argent/RÃƒÂ©sultats (ORANGE)
     elif word_lower in ['money', 'profit', 'rich', 'success', 'result', 'benefit', 'advantage']:
         return 'money'
     
-    # Social/Émotions (BLEU)
+    # Social/Ãƒâ€°motions (BLEU)
     elif word_lower in ['people', 'love', 'feel', 'happy', 'friend', 'you', 'we', 'together']:
         return 'social'
     
@@ -119,9 +120,9 @@ def create_bounce_effect(clip: TextClip, duration: float, config: SubmagicNative
 def create_word_textclip(word: str, style: Dict, start_time: float, duration: float, 
                         video_size: tuple, config: SubmagicNativeConfig, 
                         with_animation: bool = True) -> TextClip:
-    """Crée un TextClip natif pour un mot"""
+    """CrÃƒÂ©e un TextClip natif pour un mot"""
     
-    # Créer TextClip natif (AUCUNE conversion PIL/numpy)
+    # CrÃƒÂ©er TextClip natif (AUCUNE conversion PIL/numpy)
     text_clip = TextClip(
         word,
         fontsize=style['fontsize'],
@@ -131,16 +132,16 @@ def create_word_textclip(word: str, style: Dict, start_time: float, duration: fl
         stroke_width=3
     ).set_duration(duration)
     
-    # Position centrée en bas
+    # Position centrÃƒÂ©e en bas
     width, height = video_size
     bottom_y = height * (1 - config.bottom_margin)
     text_clip = text_clip.set_position(('center', bottom_y))
     
-    # Animation bounce si demandée
+    # Animation bounce si demandÃƒÂ©e
     if with_animation:
         text_clip = create_bounce_effect(text_clip, duration, config)
     
-    # Définir timing
+    # DÃƒÂ©finir timing
     text_clip = text_clip.set_start(start_time)
     
     return text_clip
@@ -174,48 +175,48 @@ def parse_words_native(transcription_data: List[Dict]) -> List[Dict]:
 def add_submagic_native(input_video_path: str, transcription_data: List[Dict], 
                        output_video_path: str) -> str:
     """
-    SOLUTION DÉFINITIVE - TextClip natifs MoviePy SEULEMENT
-    Garantit préservation de la vidéo source
+    SOLUTION DÃƒâ€°FINITIVE - TextClip natifs MoviePy SEULEMENT
+    Garantit prÃƒÂ©servation de la vidÃƒÂ©o source
     """
     config = SubmagicNativeConfig()
     
-    print("🎬 SUBMAGIC NATIF - TextClip MoviePy pur...")
+    print("Ã°Å¸Å½Â¬ SUBMAGIC NATIF - TextClip MoviePy pur...")
     
-    # Charger vidéo source
+    # Charger vidÃƒÂ©o source
     try:
         main_video = VideoFileClip(input_video_path)
         video_size = main_video.size
         video_duration = main_video.duration
         
-        print(f"📊 Source: {video_size[0]}x{video_size[1]}, {video_duration:.1f}s")
+        print(f"Ã°Å¸â€œÅ  Source: {video_size[0]}x{video_size[1]}, {video_duration:.1f}s")
         
     except Exception as e:
-        print(f"❌ Erreur chargement: {e}")
+        print(f"Ã¢ÂÅ’ Erreur chargement: {e}")
         return input_video_path
     
     # Parser mots
     words_timeline = parse_words_native(transcription_data)
-    print(f"📝 {len(words_timeline)} mots à traiter")
+    print(f"Ã°Å¸â€œÂ {len(words_timeline)} mots ÃƒÂ  traiter")
     
     if not words_timeline:
         main_video.close()
         return input_video_path
     
-    # APPROCHE NATIVE : Créer TextClips purs
+    # APPROCHE NATIVE : CrÃƒÂ©er TextClips purs
     all_text_clips = []
     
-    print("✨ Création TextClips natifs (persistance + animations)...")
+    print("Ã¢Å“Â¨ CrÃƒÂ©ation TextClips natifs (persistance + animations)...")
     
     for i, word_data in enumerate(words_timeline):
         current_word = word_data['word']
         word_start = word_data['start']
         
-        # Calculer durée d'affichage
+        # Calculer durÃƒÂ©e d'affichage
         if i < len(words_timeline) - 1:
             # Jusqu'au prochain mot
             display_duration = words_timeline[i + 1]['start'] - word_start
         else:
-            # Jusqu'à la fin
+            # Jusqu'ÃƒÂ  la fin
             display_duration = min(video_duration - word_start, 3.0)
         
         if display_duration <= 0:
@@ -237,52 +238,52 @@ def add_submagic_native(input_video_path: str, transcription_data: List[Dict],
         
         all_text_clips.append(main_clip)
         
-        # PERSISTANCE : Mots précédents (statiques)
+        # PERSISTANCE : Mots prÃƒÂ©cÃƒÂ©dents (statiques)
         if config.persistence_enabled and i > 0:
-            # Afficher aussi les mots précédents pendant ce mot
-            for j in range(max(0, i-3), i):  # 3 mots précédents max
+            # Afficher aussi les mots prÃƒÂ©cÃƒÂ©dents pendant ce mot
+            for j in range(max(0, i-3), i):  # 3 mots prÃƒÂ©cÃƒÂ©dents max
                 prev_word_data = words_timeline[j]
                 prev_style = get_text_style_native(prev_word_data['word'], config)
                 
-                # Position décalée pour éviter superposition
+                # Position dÃƒÂ©calÃƒÂ©e pour ÃƒÂ©viter superposition
                 prev_clip = TextClip(
                     prev_word_data['word'],
-                    fontsize=int(prev_style['fontsize'] * 0.9),  # Légèrement plus petit
+                    fontsize=int(prev_style['fontsize'] * 0.9),  # LÃƒÂ©gÃƒÂ¨rement plus petit
                     color=prev_style['color'],
                     font=config.font_name,
                     stroke_color='black',
                     stroke_width=2
                 ).set_duration(display_duration)
                 
-                # Position latérale
-                offset_x = (j - i) * 200  # Décalage horizontal
-                bottom_y = video_size[1] * (1 - config.bottom_margin) + 30  # Légèrement plus haut
+                # Position latÃƒÂ©rale
+                offset_x = (j - i) * 200  # DÃƒÂ©calage horizontal
+                bottom_y = video_size[1] * (1 - config.bottom_margin) + 30  # LÃƒÂ©gÃƒÂ¨rement plus haut
                 prev_clip = prev_clip.set_position(('center', bottom_y))
                 prev_clip = prev_clip.set_start(word_start).set_opacity(0.7)
                 
                 all_text_clips.append(prev_clip)
     
     # COMPOSITION FINALE : Approche native garantie
-    print("🎨 Composition finale native...")
+    print("Ã°Å¸Å½Â¨ Composition finale native...")
     
     try:
         if all_text_clips:
-            # MÉTHODE NATIVE : Video de base + TextClips overlay
+            # MÃƒâ€°THODE NATIVE : Video de base + TextClips overlay
             final_video = CompositeVideoClip(
                 [main_video] + all_text_clips,
                 size=video_size
             )
             
-            # Préserver audio
+            # PrÃƒÂ©server audio
             final_video = final_video.set_audio(main_video.audio)
         else:
             final_video = main_video
         
-        # Export avec paramètres optimaux
+        # Export avec paramÃƒÂ¨tres optimaux
         output_path = Path(output_video_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        print(f"💾 Export: {output_path.name}")
+        print(f"Ã°Å¸â€™Â¾ Export: {output_path.name}")
         
         final_video.write_videofile(
             str(output_path),
@@ -295,11 +296,11 @@ def add_submagic_native(input_video_path: str, transcription_data: List[Dict],
             logger=None
         )
         
-        print("✅ SUCCÈS TOTAL - Vidéo native générée !")
+        print("Ã¢Å“â€¦ SUCCÃƒË†S TOTAL - VidÃƒÂ©o native gÃƒÂ©nÃƒÂ©rÃƒÂ©e !")
         return str(output_path)
         
     except Exception as e:
-        print(f"❌ Erreur export: {e}")
+        print(f"Ã¢ÂÅ’ Erreur export: {e}")
         return input_video_path
         
     finally:
@@ -313,8 +314,8 @@ def add_submagic_native(input_video_path: str, transcription_data: List[Dict],
 
 # Test rapide
 def test_native_system():
-    """Test système natif"""
-    print("🧪 TEST SYSTÈME NATIF MoviePy")
+    """Test systÃƒÂ¨me natif"""
+    print("Ã°Å¸Â§Âª TEST SYSTÃƒË†ME NATIF MoviePy")
     print("=" * 50)
     
     test_data = [
@@ -322,14 +323,16 @@ def test_native_system():
     ]
     
     words = parse_words_native(test_data)
-    print(f"📝 {len(words)} mots parsés")
+    print(f"Ã°Å¸â€œÂ {len(words)} mots parsÃƒÂ©s")
     
     config = SubmagicNativeConfig()
     for word in words:
         style = get_text_style_native(word['word'], config)
-        print(f"  '{word['word']}' → {style['color']} ({style['fontsize']}px)")
+        print(f"  '{word['word']}' Ã¢â€ â€™ {style['color']} ({style['fontsize']}px)")
     
-    print("✅ Système natif prêt!")
+    print("Ã¢Å“â€¦ SystÃƒÂ¨me natif prÃƒÂªt!")
 
 if __name__ == "__main__":
     test_native_system() 
+
+

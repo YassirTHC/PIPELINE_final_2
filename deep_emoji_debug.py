@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Debug approfondi du problème emoji avec PIL
+Debug approfondi du problÃƒÂ¨me emoji avec PIL
 """
 
 import sys
@@ -11,7 +12,7 @@ import numpy as np
 def test_font_emoji_support():
     """Tester si la police supporte vraiment les emojis"""
     
-    print("🔍 TEST SUPPORT EMOJI POLICE")
+    print("Ã°Å¸â€Â TEST SUPPORT EMOJI POLICE")
     print("=" * 35)
     
     sys.path.append('.')
@@ -19,23 +20,23 @@ def test_font_emoji_support():
     
     # Charger la police
     font = get_emoji_font(60)
-    print(f"✅ Police chargée: {font}")
+    print(f"Ã¢Å“â€¦ Police chargÃƒÂ©e: {font}")
     
-    # Tests avec différents caractères
+    # Tests avec diffÃƒÂ©rents caractÃƒÂ¨res
     test_cases = [
         ("Texte simple", "HELLO"),
-        ("Emoji seul", "💯"),
-        ("Emoji fire", "🔥"),
-        ("Emoji target", "🎯"),
-        ("Emoji sparkles", "✨"),
-        ("Texte + emoji", "HELLO 💯"),
-        ("Unicode explicit", "\U0001F4AF"),  # 💯 en unicode
+        ("Emoji seul", "Ã°Å¸â€™Â¯"),
+        ("Emoji fire", "Ã°Å¸â€Â¥"),
+        ("Emoji target", "Ã°Å¸Å½Â¯"),
+        ("Emoji sparkles", "Ã¢Å“Â¨"),
+        ("Texte + emoji", "HELLO Ã°Å¸â€™Â¯"),
+        ("Unicode explicit", "\U0001F4AF"),  # Ã°Å¸â€™Â¯ en unicode
     ]
     
     for desc, text in test_cases:
-        print(f"\n📝 Test: {desc} - '{text}'")
+        print(f"\nÃ°Å¸â€œÂ Test: {desc} - '{text}'")
         
-        # Créer image test
+        # CrÃƒÂ©er image test
         img = Image.new('RGB', (300, 100), 'black')
         draw = ImageDraw.Draw(img)
         
@@ -43,7 +44,7 @@ def test_font_emoji_support():
             # Tester le rendu
             draw.text((10, 30), text, font=font, fill='white')
             
-            # Analyser le résultat
+            # Analyser le rÃƒÂ©sultat
             arr = np.array(img)
             pixels = np.sum(arr > 0)
             
@@ -51,21 +52,21 @@ def test_font_emoji_support():
             filename = f"test_{desc.replace(' ', '_').lower()}.png"
             img.save(filename)
             
-            print(f"   📊 Pixels visibles: {pixels}")
-            print(f"   💾 Sauvé: {filename}")
+            print(f"   Ã°Å¸â€œÅ  Pixels visibles: {pixels}")
+            print(f"   Ã°Å¸â€™Â¾ SauvÃƒÂ©: {filename}")
             
             if pixels > 100:
-                print("   ✅ Rendu réussi")
+                print("   Ã¢Å“â€¦ Rendu rÃƒÂ©ussi")
             else:
-                print("   ❌ Rendu échoué (trop peu de pixels)")
+                print("   Ã¢ÂÅ’ Rendu ÃƒÂ©chouÃƒÂ© (trop peu de pixels)")
                 
         except Exception as e:
-            print(f"   ❌ Erreur: {e}")
+            print(f"   Ã¢ÂÅ’ Erreur: {e}")
 
 def test_different_fonts():
-    """Tester différentes polices pour emojis"""
+    """Tester diffÃƒÂ©rentes polices pour emojis"""
     
-    print("\n🔍 TEST DIFFÉRENTES POLICES")
+    print("\nÃ°Å¸â€Â TEST DIFFÃƒâ€°RENTES POLICES")
     print("=" * 35)
     
     fonts_to_test = [
@@ -74,27 +75,27 @@ def test_different_fonts():
         ("Segoe UI Symbol", r"C:\Windows\Fonts\seguisym.ttf"),
         ("Arial Unicode MS", r"C:\Windows\Fonts\arialuni.ttf"),
         ("Noto Color Emoji", r"C:\Windows\Fonts\NotoColorEmoji.ttf"),
-        ("Default", None),  # Police par défaut PIL
+        ("Default", None),  # Police par dÃƒÂ©faut PIL
     ]
     
-    test_text = "TEST 💯 EMOJI"
+    test_text = "TEST Ã°Å¸â€™Â¯ EMOJI"
     
     for name, path in fonts_to_test:
-        print(f"\n📝 Test police: {name}")
+        print(f"\nÃ°Å¸â€œÂ Test police: {name}")
         
         try:
             # Charger la police
             if path and Path(path).exists():
                 font = ImageFont.truetype(path, 60)
-                print(f"   ✅ Police chargée: {path}")
+                print(f"   Ã¢Å“â€¦ Police chargÃƒÂ©e: {path}")
             elif path is None:
                 font = ImageFont.load_default()
-                print("   ✅ Police par défaut chargée")
+                print("   Ã¢Å“â€¦ Police par dÃƒÂ©faut chargÃƒÂ©e")
             else:
-                print(f"   ❌ Police introuvable: {path}")
+                print(f"   Ã¢ÂÅ’ Police introuvable: {path}")
                 continue
             
-            # Créer image test
+            # CrÃƒÂ©er image test
             img = Image.new('RGB', (400, 100), 'black')
             draw = ImageDraw.Draw(img)
             
@@ -109,26 +110,26 @@ def test_different_fonts():
             filename = f"font_test_{name.replace(' ', '_').lower()}.png"
             img.save(filename)
             
-            print(f"   📊 Pixels: {pixels}")
-            print(f"   💾 Sauvé: {filename}")
+            print(f"   Ã°Å¸â€œÅ  Pixels: {pixels}")
+            print(f"   Ã°Å¸â€™Â¾ SauvÃƒÂ©: {filename}")
             
             if pixels > 1000:
-                print("   ✅ Police semble fonctionner")
+                print("   Ã¢Å“â€¦ Police semble fonctionner")
             else:
-                print("   ❌ Police ne rend pas bien")
+                print("   Ã¢ÂÅ’ Police ne rend pas bien")
                 
         except Exception as e:
-            print(f"   ❌ Erreur: {e}")
+            print(f"   Ã¢ÂÅ’ Erreur: {e}")
 
 def test_unicode_methods():
-    """Tester différentes méthodes pour rendre les emojis"""
+    """Tester diffÃƒÂ©rentes mÃƒÂ©thodes pour rendre les emojis"""
     
-    print("\n🔍 TEST MÉTHODES UNICODE")
+    print("\nÃ°Å¸â€Â TEST MÃƒâ€°THODES UNICODE")
     print("=" * 30)
     
-    # Différentes façons d'encoder l'emoji 💯
+    # DiffÃƒÂ©rentes faÃƒÂ§ons d'encoder l'emoji Ã°Å¸â€™Â¯
     emoji_methods = [
-        ("Direct", "💯"),
+        ("Direct", "Ã°Å¸â€™Â¯"),
         ("Unicode escape", "\U0001F4AF"),
         ("Surrogates", "\ud83d\udcaf"),
         ("Bytes decode", b'\xf0\x9f\x92\xaf'.decode('utf-8')),
@@ -140,7 +141,7 @@ def test_unicode_methods():
     font = get_emoji_font(60)
     
     for name, emoji_text in emoji_methods:
-        print(f"\n📝 Méthode: {name}")
+        print(f"\nÃ°Å¸â€œÂ MÃƒÂ©thode: {name}")
         print(f"   Texte: '{emoji_text}'")
         
         try:
@@ -155,23 +156,23 @@ def test_unicode_methods():
             filename = f"unicode_{name.lower()}.png"
             img.save(filename)
             
-            print(f"   📊 Pixels: {pixels}")
-            print(f"   💾 Sauvé: {filename}")
+            print(f"   Ã°Å¸â€œÅ  Pixels: {pixels}")
+            print(f"   Ã°Å¸â€™Â¾ SauvÃƒÂ©: {filename}")
             
         except Exception as e:
-            print(f"   ❌ Erreur: {e}")
+            print(f"   Ã¢ÂÅ’ Erreur: {e}")
 
 def check_system_emoji_support():
-    """Vérifier le support système des emojis"""
+    """VÃƒÂ©rifier le support systÃƒÂ¨me des emojis"""
     
-    print("\n🔍 SUPPORT SYSTÈME EMOJI")
+    print("\nÃ°Å¸â€Â SUPPORT SYSTÃƒË†ME EMOJI")
     print("=" * 30)
     
     import platform
-    print(f"🖥️ OS: {platform.system()} {platform.release()}")
-    print(f"🐍 Python: {platform.python_version()}")
+    print(f"Ã°Å¸â€“Â¥Ã¯Â¸Â OS: {platform.system()} {platform.release()}")
+    print(f"Ã°Å¸ÂÂ Python: {platform.python_version()}")
     
-    # Vérifier les polices disponibles
+    # VÃƒÂ©rifier les polices disponibles
     common_emoji_fonts = [
         r"C:\Windows\Fonts\segoeui.ttf",
         r"C:\Windows\Fonts\seguiemj.ttf", 
@@ -180,18 +181,18 @@ def check_system_emoji_support():
         r"C:\Windows\Fonts\NotoColorEmoji.ttf",
     ]
     
-    print("\n📁 Polices emoji disponibles:")
+    print("\nÃ°Å¸â€œÂ Polices emoji disponibles:")
     for font_path in common_emoji_fonts:
         if Path(font_path).exists():
             size = Path(font_path).stat().st_size / (1024*1024)
-            print(f"   ✅ {Path(font_path).name} ({size:.1f} MB)")
+            print(f"   Ã¢Å“â€¦ {Path(font_path).name} ({size:.1f} MB)")
         else:
-            print(f"   ❌ {Path(font_path).name} - introuvable")
+            print(f"   Ã¢ÂÅ’ {Path(font_path).name} - introuvable")
 
 def main():
     """Debug principal"""
     
-    print("🔍 DEBUG APPROFONDI EMOJI PIL")
+    print("Ã°Å¸â€Â DEBUG APPROFONDI EMOJI PIL")
     print("=" * 50)
     
     test_font_emoji_support()
@@ -199,18 +200,19 @@ def main():
     test_unicode_methods()
     check_system_emoji_support()
     
-    print("\n🎯 ANALYSE FINALE:")
+    print("\nÃ°Å¸Å½Â¯ ANALYSE FINALE:")
     print("=" * 25)
-    print("Vérifiez les images générées:")
-    print("• font_test_*.png - test polices différentes")
-    print("• test_*.png - test caractères différents") 
-    print("• unicode_*.png - test méthodes unicode")
+    print("VÃƒÂ©rifiez les images gÃƒÂ©nÃƒÂ©rÃƒÂ©es:")
+    print("Ã¢â‚¬Â¢ font_test_*.png - test polices diffÃƒÂ©rentes")
+    print("Ã¢â‚¬Â¢ test_*.png - test caractÃƒÂ¨res diffÃƒÂ©rents") 
+    print("Ã¢â‚¬Â¢ unicode_*.png - test mÃƒÂ©thodes unicode")
     
-    print("\n💡 SOLUTIONS POSSIBLES:")
-    print("1. Si aucune police ne marche → Problème système")
-    print("2. Si une police marche → Changer dans get_emoji_font")
-    print("3. Si unicode marche → Problème encodage")
-    print("4. Si tout échoue → Utiliser images emoji externes")
+    print("\nÃ°Å¸â€™Â¡ SOLUTIONS POSSIBLES:")
+    print("1. Si aucune police ne marche Ã¢â€ â€™ ProblÃƒÂ¨me systÃƒÂ¨me")
+    print("2. Si une police marche Ã¢â€ â€™ Changer dans get_emoji_font")
+    print("3. Si unicode marche Ã¢â€ â€™ ProblÃƒÂ¨me encodage")
+    print("4. Si tout ÃƒÂ©choue Ã¢â€ â€™ Utiliser images emoji externes")
 
 if __name__ == "__main__":
     main() 
+

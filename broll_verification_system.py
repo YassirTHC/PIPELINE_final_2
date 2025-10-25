@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Système de vérification des B-rolls avant suppression
-Assure la traçabilité, la qualité et évite le gaspillage
+SystÃƒÂ¨me de vÃƒÂ©rification des B-rolls avant suppression
+Assure la traÃƒÂ§abilitÃƒÂ©, la qualitÃƒÂ© et ÃƒÂ©vite le gaspillage
 """
 
 import json
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class BrollVerificationSystem:
     """
-    Système de vérification des B-rolls avant suppression
+    SystÃƒÂ¨me de vÃƒÂ©rification des B-rolls avant suppression
     """
     
     def __init__(self, config: Dict = None):
@@ -35,21 +36,21 @@ class BrollVerificationSystem:
     def verify_broll_insertion(self, video_path: str, broll_plan: List[Dict], 
                               broll_library_path: str) -> Dict[str, any]:
         """
-        Vérifie que les B-rolls ont été correctement insérés avant suppression
+        VÃƒÂ©rifie que les B-rolls ont ÃƒÂ©tÃƒÂ© correctement insÃƒÂ©rÃƒÂ©s avant suppression
         
         Args:
-            video_path: Chemin vers la vidéo finale avec B-rolls
+            video_path: Chemin vers la vidÃƒÂ©o finale avec B-rolls
             broll_plan: Plan d'insertion des B-rolls
-            broll_library_path: Chemin vers la bibliothèque B-roll
+            broll_library_path: Chemin vers la bibliothÃƒÂ¨que B-roll
             
         Returns:
-            Dict avec résultats de vérification
+            Dict avec rÃƒÂ©sultats de vÃƒÂ©rification
         """
-        logger.info("🔍 VÉRIFICATION DES B-ROLLS AVANT SUPPRESSION")
+        logger.info("Ã°Å¸â€Â VÃƒâ€°RIFICATION DES B-ROLLS AVANT SUPPRESSION")
         
         verification_result = {
             "timestamp": datetime.now().isoformat(),
-            "video_path": str(video_path),  # 🔧 CORRECTION: Convertir Path en string
+            "video_path": str(video_path),  # Ã°Å¸â€Â§ CORRECTION: Convertir Path en string
             "broll_count": len(broll_plan),
             "verification_passed": False,
             "issues": [],
@@ -61,132 +62,132 @@ class BrollVerificationSystem:
         }
         
         try:
-            # 1. Vérifier l'existence de la vidéo finale
+            # 1. VÃƒÂ©rifier l'existence de la vidÃƒÂ©o finale
             if not self._verify_video_exists(video_path):
-                verification_result["issues"].append("Vidéo finale introuvable")
+                verification_result["issues"].append("VidÃƒÂ©o finale introuvable")
                 return verification_result
             
-            # 2. Vérifier l'insertion des B-rolls dans la vidéo
+            # 2. VÃƒÂ©rifier l'insertion des B-rolls dans la vidÃƒÂ©o
             insertion_verification = self._verify_broll_insertion_in_video(video_path, broll_plan)
             verification_result["insertion_verification"] = insertion_verification
             
-            # 3. Détecter les doublons visuels
+            # 3. DÃƒÂ©tecter les doublons visuels
             duplicate_detection = self._detect_visual_duplicates(video_path, broll_plan)
             verification_result["duplicate_detection"] = duplicate_detection
             
-            # 4. Évaluer la qualité des B-rolls
+            # 4. Ãƒâ€°valuer la qualitÃƒÂ© des B-rolls
             quality_scores = self._evaluate_broll_quality(video_path, broll_plan)
             verification_result["broll_quality_scores"] = quality_scores
             
-            # 5. Vérifier la pertinence contextuelle
+            # 5. VÃƒÂ©rifier la pertinence contextuelle
             context_relevance = self._verify_context_relevance(broll_plan)
             verification_result["context_relevance"] = context_relevance
             
-            # 6. Décider si la suppression est autorisée
+            # 6. DÃƒÂ©cider si la suppression est autorisÃƒÂ©e
             can_delete = self._decide_deletion_authorization(verification_result)
             verification_result["verification_passed"] = can_delete
             
-            # 7. Générer les recommandations
+            # 7. GÃƒÂ©nÃƒÂ©rer les recommandations
             recommendations = self._generate_recommendations(verification_result)
             verification_result["recommendations"] = recommendations
             
-            # 8. Sauvegarder les métadonnées de traçabilité
+            # 8. Sauvegarder les mÃƒÂ©tadonnÃƒÂ©es de traÃƒÂ§abilitÃƒÂ©
             self._save_traceability_metadata(verification_result, broll_library_path)
             
-            logger.info(f"✅ Vérification terminée: {'AUTORISÉE' if can_delete else 'REFUSÉE'}")
+            logger.info(f"Ã¢Å“â€¦ VÃƒÂ©rification terminÃƒÂ©e: {'AUTORISÃƒâ€°E' if can_delete else 'REFUSÃƒâ€°E'}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur lors de la vérification: {e}")
-            verification_result["issues"].append(f"Erreur de vérification: {str(e)}")
+            logger.error(f"Ã¢ÂÅ’ Erreur lors de la vÃƒÂ©rification: {e}")
+            verification_result["issues"].append(f"Erreur de vÃƒÂ©rification: {str(e)}")
             verification_result["verification_passed"] = False
         
         return verification_result
 
-    # MÉTHODES CRITIQUES MANQUANTES - IMPLÉMENTATION IMMÉDIATE
+    # MÃƒâ€°THODES CRITIQUES MANQUANTES - IMPLÃƒâ€°MENTATION IMMÃƒâ€°DIATE
     def detect_visual_duplicates(self, video_path: str, broll_plan: List[Dict]) -> List[Dict]:
-        """Détection de doublons visuels - Interface standard (SYNCHRONE)"""
+        """DÃƒÂ©tection de doublons visuels - Interface standard (SYNCHRONE)"""
         try:
-            logger.info(f"Détection synchrone de doublons visuels pour {len(broll_plan)} B-rolls")
+            logger.info(f"DÃƒÂ©tection synchrone de doublons visuels pour {len(broll_plan)} B-rolls")
             
-            # Utiliser la méthode existante _detect_visual_duplicates
+            # Utiliser la mÃƒÂ©thode existante _detect_visual_duplicates
             if hasattr(self, '_detect_visual_duplicates'):
                 return self._detect_visual_duplicates(video_path, broll_plan)
             else:
-                # Implémentation de fallback
+                # ImplÃƒÂ©mentation de fallback
                 return self._detect_duplicates_fallback(video_path, broll_plan)
                 
         except Exception as e:
-            logger.error(f"Erreur lors de la détection de doublons visuels: {e}")
+            logger.error(f"Erreur lors de la dÃƒÂ©tection de doublons visuels: {e}")
             return []
 
     def evaluate_broll_quality(self, video_path: str, broll_plan: List[Dict]) -> Dict[str, Any]:
-        """Évaluation de la qualité B-roll - Interface standard (SYNCHRONE)"""
+        """Ãƒâ€°valuation de la qualitÃƒÂ© B-roll - Interface standard (SYNCHRONE)"""
         try:
-            logger.info(f"Évaluation synchrone de la qualité pour {len(broll_plan)} B-rolls")
+            logger.info(f"Ãƒâ€°valuation synchrone de la qualitÃƒÂ© pour {len(broll_plan)} B-rolls")
             
-            # Utiliser la méthode existante _evaluate_broll_quality
+            # Utiliser la mÃƒÂ©thode existante _evaluate_broll_quality
             if hasattr(self, '_evaluate_broll_quality'):
                 return self._evaluate_broll_quality(video_path, broll_plan)
             else:
-                # Implémentation de fallback
+                # ImplÃƒÂ©mentation de fallback
                 return self._evaluate_quality_fallback(video_path, broll_plan)
                 
         except Exception as e:
-            logger.error(f"Erreur lors de l'évaluation de la qualité B-roll: {e}")
+            logger.error(f"Erreur lors de l'ÃƒÂ©valuation de la qualitÃƒÂ© B-roll: {e}")
             return {}
 
     def verify_context_relevance(self, broll_plan: List[Dict]) -> bool:
-        """Vérification de la pertinence contextuelle - Interface standard (SYNCHRONE)"""
+        """VÃƒÂ©rification de la pertinence contextuelle - Interface standard (SYNCHRONE)"""
         try:
-            logger.info(f"Vérification synchrone de la pertinence contextuelle pour {len(broll_plan)} B-rolls")
+            logger.info(f"VÃƒÂ©rification synchrone de la pertinence contextuelle pour {len(broll_plan)} B-rolls")
             
-            # Utiliser la méthode existante _verify_context_relevance
+            # Utiliser la mÃƒÂ©thode existante _verify_context_relevance
             if hasattr(self, '_verify_context_relevance'):
                 return self._verify_context_relevance(broll_plan)
             else:
-                # Implémentation de fallback
+                # ImplÃƒÂ©mentation de fallback
                 return self._verify_context_fallback(broll_plan)
                 
         except Exception as e:
-            logger.error(f"Erreur lors de la vérification de pertinence contextuelle: {e}")
+            logger.error(f"Erreur lors de la vÃƒÂ©rification de pertinence contextuelle: {e}")
             return False
 
-    # MÉTHODES DE FALLBACK POUR LES INTERFACES STANDARD
+    # MÃƒâ€°THODES DE FALLBACK POUR LES INTERFACES STANDARD
     def _detect_duplicates_fallback(self, video_path: str, broll_plan: List[Dict]) -> List[Dict]:
-        """Détection de doublons visuels - Fallback"""
+        """DÃƒÂ©tection de doublons visuels - Fallback"""
         try:
             duplicates = []
             
-            # Analyse basique des doublons basée sur les métadonnées
+            # Analyse basique des doublons basÃƒÂ©e sur les mÃƒÂ©tadonnÃƒÂ©es
             for i, broll1 in enumerate(broll_plan):
                 for j, broll2 in enumerate(broll_plan[i+1:], i+1):
-                    # Vérifier la similarité des métadonnées
+                    # VÃƒÂ©rifier la similaritÃƒÂ© des mÃƒÂ©tadonnÃƒÂ©es
                     if self._are_brolls_similar(broll1, broll2):
                         duplicates.append({
                             'broll1_index': i,
                             'broll2_index': j,
                             'similarity_score': 0.8,
                             'duplicate_type': 'metadata_similarity',
-                            'recommendation': 'Considérer la suppression d\'un des deux'
+                            'recommendation': 'ConsidÃƒÂ©rer la suppression d\'un des deux'
                         })
             
-            logger.info(f"Fallback: {len(duplicates)} doublons potentiels détectés")
+            logger.info(f"Fallback: {len(duplicates)} doublons potentiels dÃƒÂ©tectÃƒÂ©s")
             return duplicates
             
         except Exception as e:
-            logger.warning(f"Erreur dans la détection de doublons fallback: {e}")
+            logger.warning(f"Erreur dans la dÃƒÂ©tection de doublons fallback: {e}")
             return []
 
     def _evaluate_quality_fallback(self, video_path: str, broll_plan: List[Dict]) -> Dict[str, Any]:
-        """Évaluation de la qualité B-roll - Fallback"""
+        """Ãƒâ€°valuation de la qualitÃƒÂ© B-roll - Fallback"""
         try:
             quality_scores = {}
             
             for i, broll in enumerate(broll_plan):
-                # Score de qualité basique basé sur les métadonnées
-                quality_score = 0.7  # Score par défaut
+                # Score de qualitÃƒÂ© basique basÃƒÂ© sur les mÃƒÂ©tadonnÃƒÂ©es
+                quality_score = 0.7  # Score par dÃƒÂ©faut
                 
-                # Ajuster basé sur la durée
+                # Ajuster basÃƒÂ© sur la durÃƒÂ©e
                 if 'duration' in broll:
                     duration = broll['duration']
                     if 2.0 <= duration <= 8.0:
@@ -194,7 +195,7 @@ class BrollVerificationSystem:
                     elif duration > 8.0:
                         quality_score -= 0.1
                 
-                # Ajuster basé sur la résolution
+                # Ajuster basÃƒÂ© sur la rÃƒÂ©solution
                 if 'resolution' in broll:
                     resolution = broll['resolution']
                     if isinstance(resolution, (list, tuple)) and len(resolution) >= 2:
@@ -212,26 +213,26 @@ class BrollVerificationSystem:
                     'color_score': 0.7
                 }
             
-            logger.info(f"Fallback: Scores de qualité calculés pour {len(quality_scores)} B-rolls")
+            logger.info(f"Fallback: Scores de qualitÃƒÂ© calculÃƒÂ©s pour {len(quality_scores)} B-rolls")
             return quality_scores
             
         except Exception as e:
-            logger.warning(f"Erreur dans l'évaluation de qualité fallback: {e}")
+            logger.warning(f"Erreur dans l'ÃƒÂ©valuation de qualitÃƒÂ© fallback: {e}")
             return {}
 
     def _verify_context_fallback(self, broll_plan: List[Dict]) -> bool:
-        """Vérification de pertinence contextuelle - Fallback"""
+        """VÃƒÂ©rification de pertinence contextuelle - Fallback"""
         try:
-            # Vérification basique basée sur la présence de métadonnées
+            # VÃƒÂ©rification basique basÃƒÂ©e sur la prÃƒÂ©sence de mÃƒÂ©tadonnÃƒÂ©es
             relevant_count = 0
             total_count = len(broll_plan)
             
             for broll in broll_plan:
-                # Vérifier la présence de métadonnées de base
+                # VÃƒÂ©rifier la prÃƒÂ©sence de mÃƒÂ©tadonnÃƒÂ©es de base
                 if 'keywords' in broll or 'tags' in broll or 'description' in broll:
                     relevant_count += 1
             
-            # Considérer comme pertinent si au moins 70% ont des métadonnées
+            # ConsidÃƒÂ©rer comme pertinent si au moins 70% ont des mÃƒÂ©tadonnÃƒÂ©es
             relevance_threshold = 0.7
             is_relevant = (relevant_count / total_count) >= relevance_threshold if total_count > 0 else True
             
@@ -239,13 +240,13 @@ class BrollVerificationSystem:
             return is_relevant
             
         except Exception as e:
-            logger.warning(f"Erreur dans la vérification de pertinence fallback: {e}")
-            return True  # Par défaut, considérer comme pertinent
+            logger.warning(f"Erreur dans la vÃƒÂ©rification de pertinence fallback: {e}")
+            return True  # Par dÃƒÂ©faut, considÃƒÂ©rer comme pertinent
 
     def _are_brolls_similar(self, broll1: Dict, broll2: Dict) -> bool:
-        """Vérifie si deux B-rolls sont similaires (fallback)"""
+        """VÃƒÂ©rifie si deux B-rolls sont similaires (fallback)"""
         try:
-            # Comparaison basique des métadonnées
+            # Comparaison basique des mÃƒÂ©tadonnÃƒÂ©es
             if 'keywords' in broll1 and 'keywords' in broll2:
                 keywords1 = set(broll1['keywords'])
                 keywords2 = set(broll2['keywords'])
@@ -258,10 +259,10 @@ class BrollVerificationSystem:
                 if tags1.intersection(tags2):
                     return True
             
-            # Comparaison de la durée
+            # Comparaison de la durÃƒÂ©e
             if 'duration' in broll1 and 'duration' in broll2:
                 duration_diff = abs(broll1['duration'] - broll2['duration'])
-                if duration_diff < 0.5:  # Différence de moins de 0.5s
+                if duration_diff < 0.5:  # DiffÃƒÂ©rence de moins de 0.5s
                     return True
             
             return False
@@ -271,40 +272,40 @@ class BrollVerificationSystem:
             return False
     
     def _verify_video_exists(self, video_path: str) -> bool:
-        """Vérifie que la vidéo finale existe et est accessible"""
+        """VÃƒÂ©rifie que la vidÃƒÂ©o finale existe et est accessible"""
         try:
             path = Path(video_path)
             if not path.exists():
-                logger.error(f"❌ Vidéo finale introuvable: {video_path}")
+                logger.error(f"Ã¢ÂÅ’ VidÃƒÂ©o finale introuvable: {video_path}")
                 return False
             
-            # Vérifier que c'est un fichier vidéo valide
+            # VÃƒÂ©rifier que c'est un fichier vidÃƒÂ©o valide
             cap = cv2.VideoCapture(str(path))
             if not cap.isOpened():
-                logger.error(f"❌ Fichier vidéo corrompu: {video_path}")
+                logger.error(f"Ã¢ÂÅ’ Fichier vidÃƒÂ©o corrompu: {video_path}")
                 return False
             
-            # Vérifier les propriétés de base
+            # VÃƒÂ©rifier les propriÃƒÂ©tÃƒÂ©s de base
             fps = cap.get(cv2.CAP_PROP_FPS)
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             duration = frame_count / fps if fps > 0 else 0
             
             cap.release()
             
-            if duration < 1.0:  # Vidéo trop courte
-                logger.warning(f"⚠️ Vidéo très courte: {duration:.2f}s")
+            if duration < 1.0:  # VidÃƒÂ©o trop courte
+                logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â VidÃƒÂ©o trÃƒÂ¨s courte: {duration:.2f}s")
                 return False
             
-            logger.info(f"✅ Vidéo finale vérifiée: {duration:.2f}s, {frame_count} frames")
+            logger.info(f"Ã¢Å“â€¦ VidÃƒÂ©o finale vÃƒÂ©rifiÃƒÂ©e: {duration:.2f}s, {frame_count} frames")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erreur vérification vidéo: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur vÃƒÂ©rification vidÃƒÂ©o: {e}")
             return False
     
     def _verify_broll_insertion_in_video(self, video_path: str, broll_plan: List) -> Dict:
-        """Vérifie que les B-rolls sont effectivement présents dans la vidéo"""
-        logger.info("🔍 Vérification de l'insertion des B-rolls...")
+        """VÃƒÂ©rifie que les B-rolls sont effectivement prÃƒÂ©sents dans la vidÃƒÂ©o"""
+        logger.info("Ã°Å¸â€Â VÃƒÂ©rification de l'insertion des B-rolls...")
         
         verification = {
             "total_brolls_expected": len(broll_plan),
@@ -317,18 +318,18 @@ class BrollVerificationSystem:
         try:
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
-                verification["issues"] = ["Impossible d'ouvrir la vidéo"]
+                verification["issues"] = ["Impossible d'ouvrir la vidÃƒÂ©o"]
                 return verification
             
             fps = cap.get(cv2.CAP_PROP_FPS)
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Analyser les changements de scène pour détecter les B-rolls
+            # Analyser les changements de scÃƒÂ¨ne pour dÃƒÂ©tecter les B-rolls
             scene_changes = self._detect_scene_changes(cap, fps, frame_count)
             
             # Comparer avec le plan d'insertion
             for broll in broll_plan:
-                # 🔧 CORRECTION: Gérer à la fois BrollPlanItem et dict
+                # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer ÃƒÂ  la fois BrollPlanItem et dict
                 if hasattr(broll, 'start') and hasattr(broll, 'end'):
                     # Objet BrollPlanItem
                     start_time = float(broll.start)
@@ -342,7 +343,7 @@ class BrollVerificationSystem:
                     start_time = float(getattr(broll, 'start', 0))
                     end_time = float(getattr(broll, 'end', 0))
                 
-                # Chercher un changement de scène dans la fenêtre de temps
+                # Chercher un changement de scÃƒÂ¨ne dans la fenÃƒÂªtre de temps
                 scene_found = False
                 for scene in scene_changes:
                     if start_time - 0.5 <= scene['timestamp'] <= end_time + 0.5:
@@ -357,7 +358,7 @@ class BrollVerificationSystem:
                 if scene_found:
                     verification["brolls_detected"] += 1
                 else:
-                    # 🔧 CORRECTION: Gérer asset_path pour BrollPlanItem et dict
+                    # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer asset_path pour BrollPlanItem et dict
                     if hasattr(broll, 'asset_path'):
                         asset_path = broll.asset_path
                     elif isinstance(broll, dict):
@@ -379,16 +380,16 @@ class BrollVerificationSystem:
                     verification["brolls_detected"] / verification["total_brolls_expected"]
                 )
             
-            logger.info(f"✅ B-rolls détectés: {verification['brolls_detected']}/{verification['total_brolls_expected']}")
+            logger.info(f"Ã¢Å“â€¦ B-rolls dÃƒÂ©tectÃƒÂ©s: {verification['brolls_detected']}/{verification['total_brolls_expected']}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur vérification insertion: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur vÃƒÂ©rification insertion: {e}")
             verification["issues"] = [f"Erreur: {str(e)}"]
         
         return verification
     
     def _detect_scene_changes(self, cap: cv2.VideoCapture, fps: float, frame_count: int) -> List[Dict]:
-        """Détecte les changements de scène dans la vidéo"""
+        """DÃƒÂ©tecte les changements de scÃƒÂ¨ne dans la vidÃƒÂ©o"""
         scene_changes = []
         prev_frame = None
         
@@ -403,11 +404,11 @@ class BrollVerificationSystem:
                 continue
             
             if prev_frame is not None:
-                # Calculer la différence entre frames
+                # Calculer la diffÃƒÂ©rence entre frames
                 diff = cv2.absdiff(prev_frame, frame)
                 mean_diff = np.mean(diff)
                 
-                # Détecter les changements significatifs
+                # DÃƒÂ©tecter les changements significatifs
                 if mean_diff > 50:  # Seuil ajustable
                     timestamp = frame_idx / fps
                     scene_changes.append({
@@ -421,8 +422,8 @@ class BrollVerificationSystem:
         return scene_changes
     
     def _detect_visual_duplicates(self, video_path: str, broll_plan: List[Dict]) -> List[Dict]:
-        """Détecte les doublons visuels entre B-rolls"""
-        logger.info("🔍 Détection des doublons visuels...")
+        """DÃƒÂ©tecte les doublons visuels entre B-rolls"""
+        logger.info("Ã°Å¸â€Â DÃƒÂ©tection des doublons visuels...")
         
         duplicate_list = []
         
@@ -436,7 +437,7 @@ class BrollVerificationSystem:
             
             # Extraire des frames de chaque B-roll pour comparaison
             for i, broll in enumerate(broll_plan):
-                # 🔧 CORRECTION: Gérer à la fois BrollPlanItem et dict
+                # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer ÃƒÂ  la fois BrollPlanItem et dict
                 if hasattr(broll, 'start'):
                     start_time = float(broll.start)
                 elif isinstance(broll, dict):
@@ -455,7 +456,7 @@ class BrollVerificationSystem:
                     frame_hash = hashlib.md5(gray.tobytes()).hexdigest()
                     
                     if frame_hash in frame_hashes:
-                        # 🔧 CORRECTION: Gérer start_time pour BrollPlanItem et dict
+                        # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer start_time pour BrollPlanItem et dict
                         if hasattr(broll_plan[frame_hashes[frame_hash]], 'start'):
                             timestamp1 = float(broll_plan[frame_hashes[frame_hash]].start)
                         elif isinstance(broll_plan[frame_hashes[frame_hash]], dict):
@@ -470,23 +471,23 @@ class BrollVerificationSystem:
                             "timestamp2": start_time,
                             "similarity_score": 0.9,
                             "duplicate_type": "visual_similarity",
-                            "recommendation": "Considérer la suppression d'un des deux B-rolls"
+                            "recommendation": "ConsidÃƒÂ©rer la suppression d'un des deux B-rolls"
                         })
                     else:
                         frame_hashes[frame_hash] = i
             
             cap.release()
             
-            logger.info(f"🔍 Doublons détectés: {len(duplicate_list)}")
+            logger.info(f"Ã°Å¸â€Â Doublons dÃƒÂ©tectÃƒÂ©s: {len(duplicate_list)}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur détection doublons: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur dÃƒÂ©tection doublons: {e}")
         
         return duplicate_list
     
     def _evaluate_broll_quality(self, video_path: str, broll_plan: List[Dict]) -> Dict:
-        """Évalue la qualité des B-rolls insérés"""
-        logger.info("🔍 Évaluation de la qualité des B-rolls...")
+        """Ãƒâ€°value la qualitÃƒÂ© des B-rolls insÃƒÂ©rÃƒÂ©s"""
+        logger.info("Ã°Å¸â€Â Ãƒâ€°valuation de la qualitÃƒÂ© des B-rolls...")
         
         quality_scores = {
             "overall_quality": 0.0,
@@ -503,7 +504,7 @@ class BrollVerificationSystem:
             total_score = 0.0
             
             for i, broll in enumerate(broll_plan):
-                # 🔧 CORRECTION: Gérer à la fois BrollPlanItem et dict
+                # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer ÃƒÂ  la fois BrollPlanItem et dict
                 if hasattr(broll, 'start') and hasattr(broll, 'end'):
                     start_time = float(broll.start)
                     end_time = float(broll.end)
@@ -524,7 +525,7 @@ class BrollVerificationSystem:
                 ret, frame = cap.read()
                 
                 if ret:
-                    # Évaluer la qualité de l'image
+                    # Ãƒâ€°valuer la qualitÃƒÂ© de l'image
                     quality_score = self._calculate_frame_quality(frame)
                     quality_scores["individual_scores"][i] = {
                         "timestamp": start_time,
@@ -535,7 +536,7 @@ class BrollVerificationSystem:
                     
                     total_score += quality_score
                     
-                    # Classer par niveau de qualité
+                    # Classer par niveau de qualitÃƒÂ©
                     level = self._get_quality_level(quality_score)
                     quality_scores["quality_distribution"][level] += 1
             
@@ -545,36 +546,36 @@ class BrollVerificationSystem:
             if quality_scores["individual_scores"]:
                 quality_scores["overall_quality"] = total_score / len(quality_scores["individual_scores"])
             
-            logger.info(f"✅ Qualité globale: {quality_scores['overall_quality']:.2f}")
+            logger.info(f"Ã¢Å“â€¦ QualitÃƒÂ© globale: {quality_scores['overall_quality']:.2f}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur évaluation qualité: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur ÃƒÂ©valuation qualitÃƒÂ©: {e}")
         
         return quality_scores
     
     def _calculate_frame_quality(self, frame: np.ndarray) -> float:
-        """Calcule un score de qualité pour une frame"""
+        """Calcule un score de qualitÃƒÂ© pour une frame"""
         try:
             # Convertir en niveaux de gris
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
-            # Calculer la variance (plus de variance = plus de détails)
+            # Calculer la variance (plus de variance = plus de dÃƒÂ©tails)
             variance = np.var(gray)
             
-            # Calculer la netteté (Laplacien)
+            # Calculer la nettetÃƒÂ© (Laplacien)
             laplacian = cv2.Laplacian(gray, cv2.CV_64F)
             sharpness = np.var(laplacian)
             
-            # Score combiné (0-100)
+            # Score combinÃƒÂ© (0-100)
             quality_score = min(100.0, (variance * 0.3 + sharpness * 0.7) / 10.0)
             
             return max(0.0, quality_score)
             
         except Exception:
-            return 50.0  # Score par défaut
+            return 50.0  # Score par dÃƒÂ©faut
     
     def _get_quality_level(self, score: float) -> str:
-        """Convertit un score numérique en niveau de qualité"""
+        """Convertit un score numÃƒÂ©rique en niveau de qualitÃƒÂ©"""
         if score >= 80:
             return "excellent"
         elif score >= 60:
@@ -585,8 +586,8 @@ class BrollVerificationSystem:
             return "poor"
     
     def _verify_context_relevance(self, broll_plan: List[Dict]) -> Dict[str, Any]:
-        """Vérifie la pertinence contextuelle des B-rolls"""
-        logger.info("🔍 Vérification de la pertinence contextuelle...")
+        """VÃƒÂ©rifie la pertinence contextuelle des B-rolls"""
+        logger.info("Ã°Å¸â€Â VÃƒÂ©rification de la pertinence contextuelle...")
         
         context_info = {
             "total_brolls": len(broll_plan),
@@ -597,7 +598,7 @@ class BrollVerificationSystem:
         
         try:
             for i, broll in enumerate(broll_plan):
-                # 🔧 CORRECTION: Gérer à la fois BrollPlanItem et dict
+                # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer ÃƒÂ  la fois BrollPlanItem et dict
                 if hasattr(broll, 'keywords'):
                     keywords = broll.keywords
                 elif isinstance(broll, dict):
@@ -608,7 +609,7 @@ class BrollVerificationSystem:
                 if not keywords:
                     continue
                 
-                # 🔧 CORRECTION: Gérer start_time et end_time
+                # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer start_time et end_time
                 if hasattr(broll, 'start') and hasattr(broll, 'end'):
                     start_time = float(broll.start)
                     end_time = float(broll.end)
@@ -621,8 +622,8 @@ class BrollVerificationSystem:
                 
                 duration = end_time - start_time
                 
-                # Vérifier si le B-roll a des métadonnées contextuelles
-                # 🔧 CORRECTION: Gérer à la fois BrollPlanItem et dict
+                # VÃƒÂ©rifier si le B-roll a des mÃƒÂ©tadonnÃƒÂ©es contextuelles
+                # Ã°Å¸â€Â§ CORRECTION: GÃƒÂ©rer ÃƒÂ  la fois BrollPlanItem et dict
                 if isinstance(broll, dict):
                     has_context = any(key in broll for key in ['keywords', 'tags', 'context', 'theme'])
                     context_data = {k: v for k, v in broll.items() if k in ['keywords', 'tags', 'context', 'theme']}
@@ -645,7 +646,7 @@ class BrollVerificationSystem:
                     context_info["relevance_details"].append({
                         "broll_index": i,
                         "has_context": False,
-                        "recommendation": "Ajouter des métadonnées contextuelles"
+                        "recommendation": "Ajouter des mÃƒÂ©tadonnÃƒÂ©es contextuelles"
                     })
         
             # Calculer le score de pertinence
@@ -654,124 +655,124 @@ class BrollVerificationSystem:
                     context_info["contextually_relevant"] / context_info["total_brolls"]
                 )
             
-            logger.info(f"✅ Pertinence contextuelle: {context_info['context_score']:.2f}")
+            logger.info(f"Ã¢Å“â€¦ Pertinence contextuelle: {context_info['context_score']:.2f}")
             
-            # 🔧 CORRECTION: Retourner le dict complet au lieu d'un bool
+            # Ã°Å¸â€Â§ CORRECTION: Retourner le dict complet au lieu d'un bool
             return context_info
             
         except Exception as e:
-            logger.error(f"❌ Erreur vérification pertinence contextuelle: {e}")
-            # En cas d'erreur, retourner un dict par défaut
+            logger.error(f"Ã¢ÂÅ’ Erreur vÃƒÂ©rification pertinence contextuelle: {e}")
+            # En cas d'erreur, retourner un dict par dÃƒÂ©faut
             return {
                 "total_brolls": len(broll_plan),
-                "contextually_relevant": len(broll_plan),  # Considérer tous comme pertinents par défaut
-                "context_score": 1.0,  # Score parfait par défaut
+                "contextually_relevant": len(broll_plan),  # ConsidÃƒÂ©rer tous comme pertinents par dÃƒÂ©faut
+                "context_score": 1.0,  # Score parfait par dÃƒÂ©faut
                 "relevance_details": [],
                 "error": str(e)
             }
     
     def _decide_deletion_authorization(self, verification_result: Dict) -> bool:
-        """Décide si la suppression des B-rolls est autorisée"""
-        logger.info("🔍 Décision d'autorisation de suppression...")
+        """DÃƒÂ©cide si la suppression des B-rolls est autorisÃƒÂ©e"""
+        logger.info("Ã°Å¸â€Â DÃƒÂ©cision d'autorisation de suppression...")
         
-        # Critères de refus - ASSOUPLIS pour éviter l'échec systématique
+        # CritÃƒÂ¨res de refus - ASSOUPLIS pour ÃƒÂ©viter l'ÃƒÂ©chec systÃƒÂ©matique
         critical_issues = []
         
-        # 1. Vérifier l'insertion des B-rolls - ASSOUPLI de 50% à 30%
+        # 1. VÃƒÂ©rifier l'insertion des B-rolls - ASSOUPLI de 50% ÃƒÂ  30%
         insertion_verification = verification_result.get("insertion_verification", {})
         insertion_confidence = insertion_verification.get("insertion_confidence", 0.0)
         
         if insertion_confidence < 0.3:  # ASSOUPLI: 30% au lieu de 50%
             critical_issues.append(f"Insertion insuffisante: {insertion_confidence:.2f}")
         
-        # 2. Vérifier les doublons - ASSOUPLI de 50% à 70%
+        # 2. VÃƒÂ©rifier les doublons - ASSOUPLI de 50% ÃƒÂ  70%
         duplicate_detection = verification_result.get("duplicate_detection", [])
-        # 🔧 CORRECTION: duplicate_detection est une liste, pas un dict
+        # Ã°Å¸â€Â§ CORRECTION: duplicate_detection est une liste, pas un dict
         if isinstance(duplicate_detection, list):
-            duplicate_score = len(duplicate_detection) / max(1, len(duplicate_detection))  # Score basé sur le nombre
+            duplicate_score = len(duplicate_detection) / max(1, len(duplicate_detection))  # Score basÃƒÂ© sur le nombre
         else:
             duplicate_score = duplicate_detection.get("duplicate_score", 0.0)
         
         if duplicate_score > 0.7:  # ASSOUPLI: 70% au lieu de 50%
             critical_issues.append(f"Trop de doublons: {duplicate_score:.2f}")
         
-        # 3. Vérifier la qualité globale - ASSOUPLI de 25 à 15
+        # 3. VÃƒÂ©rifier la qualitÃƒÂ© globale - ASSOUPLI de 25 ÃƒÂ  15
         quality_scores = verification_result.get("broll_quality_scores", {})
         overall_quality = quality_scores.get("overall_quality", 0.0)
         
         if overall_quality < 15.0:  # ASSOUPLI: 15/100 au lieu de 25/100
-            critical_issues.append(f"Qualité insuffisante: {overall_quality:.2f}")
+            critical_issues.append(f"QualitÃƒÂ© insuffisante: {overall_quality:.2f}")
         
-        # 4. Vérifier la pertinence contextuelle - ASSOUPLI de 30% à 20%
+        # 4. VÃƒÂ©rifier la pertinence contextuelle - ASSOUPLI de 30% ÃƒÂ  20%
         context_relevance = verification_result.get("context_relevance", {})
         context_score = context_relevance.get("context_score", 0.0)
         
         if context_score < 0.2:  # ASSOUPLI: 20% au lieu de 30%
             critical_issues.append(f"Pertinence contextuelle faible: {context_score:.2f}")
         
-        # Décision finale
+        # DÃƒÂ©cision finale
         if critical_issues:
-            logger.warning(f"❌ Suppression REFUSÉE - Problèmes critiques: {', '.join(critical_issues)}")
+            logger.warning(f"Ã¢ÂÅ’ Suppression REFUSÃƒâ€°E - ProblÃƒÂ¨mes critiques: {', '.join(critical_issues)}")
             return False
         else:
-            logger.info("✅ Suppression AUTORISÉE - Tous les critères respectés")
+            logger.info("Ã¢Å“â€¦ Suppression AUTORISÃƒâ€°E - Tous les critÃƒÂ¨res respectÃƒÂ©s")
             return True
     
     def _generate_recommendations(self, verification_result: Dict) -> List[str]:
-        """Génère des recommandations basées sur les résultats de vérification"""
+        """GÃƒÂ©nÃƒÂ¨re des recommandations basÃƒÂ©es sur les rÃƒÂ©sultats de vÃƒÂ©rification"""
         recommendations = []
         
-        # Recommandations basées sur l'insertion - ASSOUPLIES
+        # Recommandations basÃƒÂ©es sur l'insertion - ASSOUPLIES
         insertion_verification = verification_result.get("insertion_verification", {})
         insertion_confidence = insertion_verification.get("insertion_confidence", 0.0)
         
         if insertion_confidence < 0.3:  # ASSOUPLI: 30% au lieu de 50%
-            recommendations.append("Améliorer le taux d'insertion des B-rolls")
+            recommendations.append("AmÃƒÂ©liorer le taux d'insertion des B-rolls")
         
-        # Recommandations basées sur les doublons - ASSOUPLIES
+        # Recommandations basÃƒÂ©es sur les doublons - ASSOUPLIES
         duplicate_detection = verification_result.get("duplicate_detection", [])
-        # 🔧 CORRECTION: duplicate_detection est une liste, pas un dict
+        # Ã°Å¸â€Â§ CORRECTION: duplicate_detection est une liste, pas un dict
         if isinstance(duplicate_detection, list):
-            duplicate_score = len(duplicate_detection) / max(1, len(duplicate_detection))  # Score basé sur le nombre
+            duplicate_score = len(duplicate_detection) / max(1, len(duplicate_detection))  # Score basÃƒÂ© sur le nombre
         else:
             duplicate_score = duplicate_detection.get("duplicate_score", 0.0)
         
         if duplicate_score > 0.6:  # ASSOUPLI: 60% au lieu de 40%
-            recommendations.append("Réduire les doublons visuels entre B-rolls")
+            recommendations.append("RÃƒÂ©duire les doublons visuels entre B-rolls")
         
-        # Recommandations basées sur la qualité - ASSOUPLIES
+        # Recommandations basÃƒÂ©es sur la qualitÃƒÂ© - ASSOUPLIES
         quality_scores = verification_result.get("broll_quality_scores", {})
         overall_quality = quality_scores.get("overall_quality", 0.0)
         
         if overall_quality < 25.0:  # ASSOUPLI: 25/100 au lieu de 40/100
-            recommendations.append("Améliorer la qualité globale des B-rolls")
+            recommendations.append("AmÃƒÂ©liorer la qualitÃƒÂ© globale des B-rolls")
         
-        # Recommandations basées sur la pertinence - ASSOUPLIES
+        # Recommandations basÃƒÂ©es sur la pertinence - ASSOUPLIES
         context_relevance = verification_result.get("context_relevance", {})
         context_score = context_relevance.get("context_score", 0.0)
         
         if context_score < 0.3:  # ASSOUPLI: 30% au lieu de 50%
-            recommendations.append("Améliorer la pertinence contextuelle des B-rolls")
+            recommendations.append("AmÃƒÂ©liorer la pertinence contextuelle des B-rolls")
         
         if not recommendations:
-            recommendations.append("Pipeline B-roll optimal - Aucune amélioration nécessaire")
+            recommendations.append("Pipeline B-roll optimal - Aucune amÃƒÂ©lioration nÃƒÂ©cessaire")
         
         return recommendations
     
     def _save_traceability_metadata(self, verification_result: Dict, broll_library_path: str):
-        """Sauvegarde les métadonnées de traçabilité"""
+        """Sauvegarde les mÃƒÂ©tadonnÃƒÂ©es de traÃƒÂ§abilitÃƒÂ©"""
         try:
-            # Créer le dossier de métadonnées
+            # CrÃƒÂ©er le dossier de mÃƒÂ©tadonnÃƒÂ©es
             metadata_dir = Path(broll_library_path) / "verification_metadata"
             metadata_dir.mkdir(exist_ok=True)
             
-            # Nom du fichier basé sur le timestamp
+            # Nom du fichier basÃƒÂ© sur le timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             metadata_file = metadata_dir / f"broll_verification_{timestamp}.json"
             
-            # 🔧 CORRECTION: Convertir tous les Path en string pour JSON
+            # Ã°Å¸â€Â§ CORRECTION: Convertir tous les Path en string pour JSON
             def convert_paths_to_strings(obj):
-                """Convertit récursivement tous les objets Path en strings"""
+                """Convertit rÃƒÂ©cursivement tous les objets Path en strings"""
                 if isinstance(obj, Path):
                     return str(obj)
                 elif isinstance(obj, dict):
@@ -783,31 +784,32 @@ class BrollVerificationSystem:
                 else:
                     return obj
             
-            # Sauvegarder les résultats avec conversion des Path
+            # Sauvegarder les rÃƒÂ©sultats avec conversion des Path
             json_safe_result = convert_paths_to_strings(verification_result)
             with open(metadata_file, 'w', encoding='utf-8') as f:
                 json.dump(json_safe_result, f, indent=2, ensure_ascii=False)
             
-            logger.info(f"✅ Métadonnées de traçabilité sauvegardées: {metadata_file}")
+            logger.info(f"Ã¢Å“â€¦ MÃƒÂ©tadonnÃƒÂ©es de traÃƒÂ§abilitÃƒÂ© sauvegardÃƒÂ©es: {metadata_file}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur sauvegarde métadonnées: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur sauvegarde mÃƒÂ©tadonnÃƒÂ©es: {e}")
 
 def create_verification_system(config: Dict = None) -> BrollVerificationSystem:
-    """Factory function pour créer un système de vérification"""
+    """Factory function pour crÃƒÂ©er un systÃƒÂ¨me de vÃƒÂ©rification"""
     return BrollVerificationSystem(config)
 
 # Exemple d'utilisation
 if __name__ == "__main__":
-    # Test du système
+    # Test du systÃƒÂ¨me
     verifier = create_verification_system()
     
-    # Exemple de vérification
+    # Exemple de vÃƒÂ©rification
     test_result = verifier.verify_broll_insertion(
         video_path="output/final/final_8.mp4",
         broll_plan=[],  # Plan d'insertion vide pour le test
         broll_library_path="AI-B-roll/broll_library"
     )
     
-    print("Résultats de vérification:")
+    print("RÃƒÂ©sultats de vÃƒÂ©rification:")
     print(json.dumps(test_result, indent=2, ensure_ascii=False)) 
+

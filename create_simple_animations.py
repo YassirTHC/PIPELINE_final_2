@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Crée des animations simples pour le dossier animations_assets
+CrÃƒÂ©e des animations simples pour le dossier animations_assets
 """
 
 import sys
@@ -10,21 +11,21 @@ from moviepy.editor import ColorClip, CompositeVideoClip
 import numpy as np
 
 def create_simple_glow_animation(filename: str, color: tuple = (255, 255, 0)):
-    """Crée une animation glow simple"""
-    print(f"🎬 Création animation: {filename}")
+    """CrÃƒÂ©e une animation glow simple"""
+    print(f"Ã°Å¸Å½Â¬ CrÃƒÂ©ation animation: {filename}")
     
-    # Créer un fond noir
+    # CrÃƒÂ©er un fond noir
     background = ColorClip(size=(400, 200), color=(0, 0, 0), duration=3)
     
-    # Créer un cercle coloré avec effet de pulsation
+    # CrÃƒÂ©er un cercle colorÃƒÂ© avec effet de pulsation
     def create_circle_frame(t):
-        # Créer une image avec un cercle qui pulse
+        # CrÃƒÂ©er une image avec un cercle qui pulse
         size = 400 + int(50 * np.sin(t * 2))  # Pulsation
         circle_clip = ColorClip(size=(size, size), color=color, duration=0.1)
         circle_clip = circle_clip.set_position('center')
         return circle_clip
     
-    # Créer plusieurs frames pour l'animation
+    # CrÃƒÂ©er plusieurs frames pour l'animation
     frames = []
     for t in np.arange(0, 3, 0.1):
         frame = create_circle_frame(t)
@@ -39,11 +40,11 @@ def create_simple_glow_animation(filename: str, color: tuple = (255, 255, 0)):
     final_clip.write_videofile(str(output_path), fps=10, codec='libx264')
     final_clip.close()
     
-    print(f"✅ Animation créée: {filename}")
+    print(f"Ã¢Å“â€¦ Animation crÃƒÂ©ÃƒÂ©e: {filename}")
 
 def create_all_simple_animations():
-    """Crée toutes les animations simples"""
-    print("🎬 Création des animations simples...")
+    """CrÃƒÂ©e toutes les animations simples"""
+    print("Ã°Å¸Å½Â¬ CrÃƒÂ©ation des animations simples...")
     
     animations = [
         ("brain_glow.mp4", (255, 100, 100)),
@@ -63,7 +64,9 @@ def create_all_simple_animations():
     for filename, color in animations:
         create_simple_glow_animation(filename, color)
     
-    print("✅ Toutes les animations simples ont été créées !")
+    print("Ã¢Å“â€¦ Toutes les animations simples ont ÃƒÂ©tÃƒÂ© crÃƒÂ©ÃƒÂ©es !")
 
 if __name__ == "__main__":
     create_all_simple_animations() 
+
+

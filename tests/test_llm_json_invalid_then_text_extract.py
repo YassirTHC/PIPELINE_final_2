@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import json
 
 import pytest
@@ -67,4 +67,5 @@ def test_json_invalid_then_text_extract(_patch_client):
     assert result["hashtags"] == ["#One", "#Two", "#Three", "#Four", "#Five"]
     assert result["broll_keywords"][0] == "forest trail"
     assert len(result["queries"]) == 12
+
 

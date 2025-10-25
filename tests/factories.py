@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Test helpers for constructing deterministic B-roll clips."""
 
 from __future__ import annotations
@@ -43,4 +43,5 @@ def plan_from_tuples(
             )
         )
     return clips
+
 

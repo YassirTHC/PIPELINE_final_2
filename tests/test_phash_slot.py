@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from pipeline_core.fetchers import RemoteAssetCandidate
 import pytest
 
@@ -20,4 +20,5 @@ def test_phash_slot_and_repr():
     assert "_phash" not in repr(c)
     with pytest.raises(AttributeError):
         c.new_field = 1
+
 

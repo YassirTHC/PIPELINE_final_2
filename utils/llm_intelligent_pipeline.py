@@ -1,6 +1,6 @@
-﻿# -*- coding: utf-8 -*-
-# ðŸš€ PIPELINE INTELLIGENT AVEC LLM DIRECT
-# IntÃ©gration des modules LLM pour une vraie comprÃ©hension contextuelle
+﻿ï»¿# -*- coding: utf-8 -*-
+# Ã°Å¸Å¡â‚¬ PIPELINE INTELLIGENT AVEC LLM DIRECT
+# IntÃƒÂ©gration des modules LLM pour une vraie comprÃƒÂ©hension contextuelle
 
 import logging
 import time
@@ -15,12 +15,12 @@ from .llm_metadata_generator import create_llm_metadata_generator
 logger = logging.getLogger(__name__)
 
 class LLMIntelligentPipeline:
-    """Pipeline intelligent utilisant directement le LLM pour une vraie comprÃ©hension"""
+    """Pipeline intelligent utilisant directement le LLM pour une vraie comprÃƒÂ©hension"""
     
     def __init__(self, model: str = "gemma3:4b"):
         self.model = model
         
-        # ðŸ§  Initialisation des composants LLM
+        # Ã°Å¸Â§Â  Initialisation des composants LLM
         self.broll_generator = create_llm_broll_generator(model)
         self.metadata_generator = create_llm_metadata_generator(model)
         
@@ -32,66 +32,66 @@ class LLMIntelligentPipeline:
             'confidence_threshold': 0.7
         }
         
-        logger.info(f"ðŸš€ Pipeline intelligent LLM initialisÃ© - ModÃ¨le: {model}")
-        print(f"ðŸ§  [PIPELINE INTELLIGENT] InitialisÃ© avec {model}")
+        logger.info(f"Ã°Å¸Å¡â‚¬ Pipeline intelligent LLM initialisÃƒÂ© - ModÃƒÂ¨le: {model}")
+        print(f"Ã°Å¸Â§Â  [PIPELINE INTELLIGENT] InitialisÃƒÂ© avec {model}")
     
     def process_video_intelligent(self, transcript: str, video_id: str = None) -> Dict[str, Any]:
-        """Traitement intelligent d'une vidÃ©o avec le LLM"""
+        """Traitement intelligent d'une vidÃƒÂ©o avec le LLM"""
         
         if not video_id:
             video_id = f"video_{int(time.time())}"
         
-        print(f"\nðŸ§  [PIPELINE INTELLIGENT] Traitement de {video_id}")
-        print(f"ðŸ“ Transcript: {len(transcript)} caractÃ¨res")
-        print(f"ðŸŽ¯ ModÃ¨le LLM: {self.model}")
+        print(f"\nÃ°Å¸Â§Â  [PIPELINE INTELLIGENT] Traitement de {video_id}")
+        print(f"Ã°Å¸â€œÂ Transcript: {len(transcript)} caractÃƒÂ¨res")
+        print(f"Ã°Å¸Å½Â¯ ModÃƒÂ¨le LLM: {self.model}")
         print("=" * 60)
         
         start_time = time.time()
         
         try:
-            # ðŸŽ¯ Ã‰TAPE 1: GÃ©nÃ©ration B-roll intelligente avec LLM
-            print("ðŸŽ¬ [Ã‰TAPE 1] GÃ©nÃ©ration B-roll intelligente...")
+            # Ã°Å¸Å½Â¯ Ãƒâ€°TAPE 1: GÃƒÂ©nÃƒÂ©ration B-roll intelligente avec LLM
+            print("Ã°Å¸Å½Â¬ [Ãƒâ€°TAPE 1] GÃƒÂ©nÃƒÂ©ration B-roll intelligente...")
             broll_result = self.broll_generator.generate_broll_keywords(transcript)
             
             if not broll_result.get('success', False):
-                print(f"âŒ [B-ROLL] Ã‰chec de la gÃ©nÃ©ration")
-                return self._create_error_response("Ã‰chec gÃ©nÃ©ration B-roll", video_id)
+                print(f"Ã¢ÂÅ’ [B-ROLL] Ãƒâ€°chec de la gÃƒÂ©nÃƒÂ©ration")
+                return self._create_error_response("Ãƒâ€°chec gÃƒÂ©nÃƒÂ©ration B-roll", video_id)
             
             broll_keywords = broll_result.get('keywords', [])
             detected_domain = broll_result.get('domain', 'unknown')
             broll_time = broll_result.get('processing_time', 0)
             
-            print(f"âœ… [B-ROLL] {len(broll_keywords)} mots-clÃ©s gÃ©nÃ©rÃ©s")
-            print(f"ðŸŒ Domaine dÃ©tectÃ©: {detected_domain}")
-            print(f"â±ï¸ Temps: {broll_time:.1f}s")
+            print(f"Ã¢Å“â€¦ [B-ROLL] {len(broll_keywords)} mots-clÃƒÂ©s gÃƒÂ©nÃƒÂ©rÃƒÂ©s")
+            print(f"Ã°Å¸Å’Â Domaine dÃƒÂ©tectÃƒÂ©: {detected_domain}")
+            print(f"Ã¢ÂÂ±Ã¯Â¸Â Temps: {broll_time:.1f}s")
             
-            # ðŸ“ Ã‰TAPE 2: GÃ©nÃ©ration mÃ©tadonnÃ©es virales avec LLM
-            print("\nðŸ“ [Ã‰TAPE 2] GÃ©nÃ©ration mÃ©tadonnÃ©es virales...")
+            # Ã°Å¸â€œÂ Ãƒâ€°TAPE 2: GÃƒÂ©nÃƒÂ©ration mÃƒÂ©tadonnÃƒÂ©es virales avec LLM
+            print("\nÃ°Å¸â€œÂ [Ãƒâ€°TAPE 2] GÃƒÂ©nÃƒÂ©ration mÃƒÂ©tadonnÃƒÂ©es virales...")
             metadata_result = self.metadata_generator.generate_viral_metadata(transcript)
             
             if not metadata_result.get('success', False):
-                print(f"âŒ [MÃ‰TADONNÃ‰ES] Ã‰chec de la gÃ©nÃ©ration")
-                return self._create_error_response("Ã‰chec gÃ©nÃ©ration mÃ©tadonnÃ©es", video_id)
+                print(f"Ã¢ÂÅ’ [MÃƒâ€°TADONNÃƒâ€°ES] Ãƒâ€°chec de la gÃƒÂ©nÃƒÂ©ration")
+                return self._create_error_response("Ãƒâ€°chec gÃƒÂ©nÃƒÂ©ration mÃƒÂ©tadonnÃƒÂ©es", video_id)
             
             title = metadata_result.get('title', '')
             description = metadata_result.get('description', '')
             hashtags = metadata_result.get('hashtags', [])
             metadata_time = metadata_result.get('processing_time', 0)
             
-            print(f"âœ… [MÃ‰TADONNÃ‰ES] Titre: {title}")
-            print(f"ðŸ“– Description: {description[:50]}...")
-            print(f"#ï¸âƒ£ Hashtags: {len(hashtags)} gÃ©nÃ©rÃ©s")
-            print(f"â±ï¸ Temps: {metadata_time:.1f}s")
+            print(f"Ã¢Å“â€¦ [MÃƒâ€°TADONNÃƒâ€°ES] Titre: {title}")
+            print(f"Ã°Å¸â€œâ€“ Description: {description[:50]}...")
+            print(f"#Ã¯Â¸ÂÃ¢Æ’Â£ Hashtags: {len(hashtags)} gÃƒÂ©nÃƒÂ©rÃƒÂ©s")
+            print(f"Ã¢ÂÂ±Ã¯Â¸Â Temps: {metadata_time:.1f}s")
             
-            # ðŸ“Š Ã‰TAPE 3: Analyse de l'intelligence
-            print("\nðŸ“Š [Ã‰TAPE 3] Analyse de l'intelligence...")
+            # Ã°Å¸â€œÅ  Ãƒâ€°TAPE 3: Analyse de l'intelligence
+            print("\nÃ°Å¸â€œÅ  [Ãƒâ€°TAPE 3] Analyse de l'intelligence...")
             intelligence_score = self._analyze_intelligence(
                 broll_keywords, detected_domain, title, hashtags
             )
             
             total_time = time.time() - start_time
             
-            # ðŸŽ‰ RÃ‰SULTAT FINAL
+            # Ã°Å¸Å½â€° RÃƒâ€°SULTAT FINAL
             result = {
                 'success': True,
                 'video_id': video_id,
@@ -99,7 +99,7 @@ class LLMIntelligentPipeline:
                 'intelligence_score': intelligence_score,
                 'llm_model': self.model,
                 
-                # DonnÃ©es B-roll intelligentes
+                # DonnÃƒÂ©es B-roll intelligentes
                 'broll_data': {
                     'keywords': broll_keywords,
                     'domain': detected_domain,
@@ -107,7 +107,7 @@ class LLMIntelligentPipeline:
                     'quality_score': self._assess_broll_quality(broll_keywords)
                 },
                 
-                # MÃ©tadonnÃ©es virales
+                # MÃƒÂ©tadonnÃƒÂ©es virales
                 'metadata': {
                     'title': title,
                     'description': description,
@@ -116,7 +116,7 @@ class LLMIntelligentPipeline:
                     'viral_score': self._assess_viral_potential(title, description, hashtags)
                 },
                 
-                # MÃ©triques d'intelligence
+                # MÃƒÂ©triques d'intelligence
                 'intelligence_metrics': {
                     'domain_detection': detected_domain != 'fallback',
                     'keyword_specificity': self._assess_keyword_specificity(broll_keywords),
@@ -125,19 +125,19 @@ class LLMIntelligentPipeline:
                 }
             }
             
-            print(f"\nðŸŽ‰ [PIPELINE INTELLIGENT] Traitement terminÃ© avec succÃ¨s!")
-            print(f"ðŸ“Š Score d'intelligence: {intelligence_score:.1f}%")
-            print(f"â±ï¸ Temps total: {total_time:.1f}s")
-            print(f"ðŸŽ¯ Domaine: {detected_domain}")
-            print(f"ðŸ”‘ Mots-clÃ©s B-roll: {len(broll_keywords)}")
-            print(f"ðŸ“ Titre viral: {title}")
-            print(f"#ï¸âƒ£ Hashtags: {len(hashtags)}")
+            print(f"\nÃ°Å¸Å½â€° [PIPELINE INTELLIGENT] Traitement terminÃƒÂ© avec succÃƒÂ¨s!")
+            print(f"Ã°Å¸â€œÅ  Score d'intelligence: {intelligence_score:.1f}%")
+            print(f"Ã¢ÂÂ±Ã¯Â¸Â Temps total: {total_time:.1f}s")
+            print(f"Ã°Å¸Å½Â¯ Domaine: {detected_domain}")
+            print(f"Ã°Å¸â€â€˜ Mots-clÃƒÂ©s B-roll: {len(broll_keywords)}")
+            print(f"Ã°Å¸â€œÂ Titre viral: {title}")
+            print(f"#Ã¯Â¸ÂÃ¢Æ’Â£ Hashtags: {len(hashtags)}")
             
             return result
             
         except Exception as e:
             error_msg = f"Erreur dans le pipeline intelligent: {str(e)}"
-            print(f"âŒ [PIPELINE] {error_msg}")
+            print(f"Ã¢ÂÅ’ [PIPELINE] {error_msg}")
             logger.error(error_msg, exc_info=True)
             return self._create_error_response(error_msg, video_id)
     
@@ -146,15 +146,15 @@ class LLMIntelligentPipeline:
         
         scores = []
         
-        # Score de dÃ©tection de domaine
+        # Score de dÃƒÂ©tection de domaine
         if domain != 'fallback' and domain != 'unknown':
-            scores.append(100)  # Domaine dÃ©tectÃ© avec succÃ¨s
+            scores.append(100)  # Domaine dÃƒÂ©tectÃƒÂ© avec succÃƒÂ¨s
         else:
-            scores.append(0)    # Fallback utilisÃ©
+            scores.append(0)    # Fallback utilisÃƒÂ©
         
-        # Score de qualitÃ© des mots-clÃ©s B-roll
+        # Score de qualitÃƒÂ© des mots-clÃƒÂ©s B-roll
         if len(broll_keywords) >= 8:
-            # VÃ©rifier la spÃ©cificitÃ© (Ã©viter les mots gÃ©nÃ©riques)
+            # VÃƒÂ©rifier la spÃƒÂ©cificitÃƒÂ© (ÃƒÂ©viter les mots gÃƒÂ©nÃƒÂ©riques)
             generic_words = ['content', 'media', 'engaging', 'professional', 'interesting']
             specific_count = sum(1 for kw in broll_keywords if not any(gw in kw.lower() for gw in generic_words))
             specificity_score = (specific_count / len(broll_keywords)) * 100
@@ -164,8 +164,8 @@ class LLMIntelligentPipeline:
         
         # Score du titre viral
         if title and len(title) <= 60:
-            # VÃ©rifier la prÃ©sence d'emojis viraux
-            viral_emojis = ['ðŸ”¥', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸŽ¯', 'ðŸ˜±', 'ðŸ¤¯']
+            # VÃƒÂ©rifier la prÃƒÂ©sence d'emojis viraux
+            viral_emojis = ['Ã°Å¸â€Â¥', 'Ã°Å¸â€™Â¡', 'Ã°Å¸Å¡â‚¬', 'Ã°Å¸â€™Âª', 'Ã°Å¸Å½Â¯', 'Ã°Å¸ËœÂ±', 'Ã°Å¸Â¤Â¯']
             emoji_score = 100 if any(emoji in title for emoji in viral_emojis) else 50
             scores.append(emoji_score)
         else:
@@ -173,7 +173,7 @@ class LLMIntelligentPipeline:
         
         # Score des hashtags
         if len(hashtags) >= 10:
-            # VÃ©rifier la diversitÃ© des hashtags
+            # VÃƒÂ©rifier la diversitÃƒÂ© des hashtags
             hashtag_score = min(100, len(hashtags) * 10)
             scores.append(hashtag_score)
         else:
@@ -183,22 +183,22 @@ class LLMIntelligentPipeline:
         return sum(scores) / len(scores) if scores else 0
     
     def _assess_broll_quality(self, keywords: List[str]) -> float:
-        """Ã‰value la qualitÃ© des mots-clÃ©s B-roll"""
+        """Ãƒâ€°value la qualitÃƒÂ© des mots-clÃƒÂ©s B-roll"""
         
         if not keywords:
             return 0.0
         
-        # CritÃ¨res de qualitÃ©
+        # CritÃƒÂ¨res de qualitÃƒÂ©
         scores = []
         
-        # Longueur appropriÃ©e
+        # Longueur appropriÃƒÂ©e
         for kw in keywords:
             if 2 <= len(kw.split()) <= 5:  # 2-5 mots par phrase
                 scores.append(1.0)
             else:
                 scores.append(0.5)
         
-        # Ã‰viter les mots gÃ©nÃ©riques
+        # Ãƒâ€°viter les mots gÃƒÂ©nÃƒÂ©riques
         generic_words = ['content', 'media', 'engaging', 'professional', 'interesting']
         for kw in keywords:
             if not any(gw in kw.lower() for gw in generic_words):
@@ -209,13 +209,13 @@ class LLMIntelligentPipeline:
         return sum(scores) / len(scores) if scores else 0.0
     
     def _assess_viral_potential(self, title: str, description: str, hashtags: List[str]) -> float:
-        """Ã‰value le potentiel viral du contenu"""
+        """Ãƒâ€°value le potentiel viral du contenu"""
         
         scores = []
         
         # Titre viral
         if title:
-            viral_emojis = ['ðŸ”¥', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸŽ¯', 'ðŸ˜±', 'ðŸ¤¯']
+            viral_emojis = ['Ã°Å¸â€Â¥', 'Ã°Å¸â€™Â¡', 'Ã°Å¸Å¡â‚¬', 'Ã°Å¸â€™Âª', 'Ã°Å¸Å½Â¯', 'Ã°Å¸ËœÂ±', 'Ã°Å¸Â¤Â¯']
             if any(emoji in title for emoji in viral_emojis):
                 scores.append(1.0)
             else:
@@ -228,7 +228,7 @@ class LLMIntelligentPipeline:
             else:
                 scores.append(0.7)
         
-        # Hashtags appropriÃ©s
+        # Hashtags appropriÃƒÂ©s
         if len(hashtags) >= 10:
             scores.append(1.0)
         elif len(hashtags) >= 5:
@@ -239,7 +239,7 @@ class LLMIntelligentPipeline:
         return sum(scores) / len(scores) if scores else 0.0
     
     def _assess_keyword_specificity(self, keywords: List[str]) -> float:
-        """Ã‰value la spÃ©cificitÃ© des mots-clÃ©s"""
+        """Ãƒâ€°value la spÃƒÂ©cificitÃƒÂ© des mots-clÃƒÂ©s"""
         
         if not keywords:
             return 0.0
@@ -254,21 +254,21 @@ class LLMIntelligentPipeline:
         return (specific_count / len(keywords)) * 100
     
     def _assess_title_engagement(self, title: str) -> float:
-        """Ã‰value l'engagement du titre"""
+        """Ãƒâ€°value l'engagement du titre"""
         
         if not title:
             return 0.0
         
         scores = []
         
-        # Longueur appropriÃ©e
+        # Longueur appropriÃƒÂ©e
         if len(title) <= 60:
             scores.append(1.0)
         else:
             scores.append(0.5)
         
-        # PrÃ©sence d'emojis viraux
-        viral_emojis = ['ðŸ”¥', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸŽ¯', 'ðŸ˜±', 'ðŸ¤¯']
+        # PrÃƒÂ©sence d'emojis viraux
+        viral_emojis = ['Ã°Å¸â€Â¥', 'Ã°Å¸â€™Â¡', 'Ã°Å¸Å¡â‚¬', 'Ã°Å¸â€™Âª', 'Ã°Å¸Å½Â¯', 'Ã°Å¸ËœÂ±', 'Ã°Å¸Â¤Â¯']
         if any(emoji in title for emoji in viral_emojis):
             scores.append(1.0)
         else:
@@ -284,18 +284,18 @@ class LLMIntelligentPipeline:
         return sum(scores) / len(scores) if scores else 0.0
     
     def _assess_hashtag_relevance(self, hashtags: List[str], transcript: str) -> float:
-        """Ã‰value la pertinence des hashtags par rapport au transcript"""
+        """Ãƒâ€°value la pertinence des hashtags par rapport au transcript"""
         
         if not hashtags or not transcript:
             return 0.0
         
-        # Extraire les mots-clÃ©s du transcript
+        # Extraire les mots-clÃƒÂ©s du transcript
         transcript_words = set(transcript.lower().split())
         
         # Compter les hashtags pertinents
         relevant_count = 0
         for hashtag in hashtags:
-            # Enlever le # et vÃ©rifier la pertinence
+            # Enlever le # et vÃƒÂ©rifier la pertinence
             tag = hashtag.replace('#', '').lower()
             if tag in transcript_words or any(word in transcript.lower() for word in tag.split('_')):
                 relevant_count += 1
@@ -303,7 +303,7 @@ class LLMIntelligentPipeline:
         return (relevant_count / len(hashtags)) * 100
     
     def _create_error_response(self, error_message: str, video_id: str) -> Dict[str, Any]:
-        """CrÃ©e une rÃ©ponse d'erreur structurÃ©e"""
+        """CrÃƒÂ©e une rÃƒÂ©ponse d'erreur structurÃƒÂ©e"""
         
         return {
             'success': False,
@@ -323,5 +323,6 @@ class LLMIntelligentPipeline:
         }
 
 def create_llm_intelligent_pipeline(model: str = "gemma3:4b") -> LLMIntelligentPipeline:
-    """Factory pour crÃ©er un pipeline intelligent LLM"""
+    """Factory pour crÃƒÂ©er un pipeline intelligent LLM"""
     return LLMIntelligentPipeline(model=model) 
+

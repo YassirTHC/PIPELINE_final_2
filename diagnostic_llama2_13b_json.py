@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-🔍 DIAGNOSTIC COMPLET LLAMA2:13B - ANALYSE JSON
-Capture et analyse la réponse complète pour identifier les problèmes de formatage
+Ã°Å¸â€Â DIAGNOSTIC COMPLET LLAMA2:13B - ANALYSE JSON
+Capture et analyse la rÃƒÂ©ponse complÃƒÂ¨te pour identifier les problÃƒÂ¨mes de formatage
 """
 
 import requests
@@ -9,8 +10,8 @@ import json
 import time
 
 def test_llama2_13b_raw_response():
-    """Test direct avec l'API Ollama pour capturer la réponse brute"""
-    print("🔍 DIAGNOSTIC COMPLET LLAMA2:13B - RÉPONSE BRUTE")
+    """Test direct avec l'API Ollama pour capturer la rÃƒÂ©ponse brute"""
+    print("Ã°Å¸â€Â DIAGNOSTIC COMPLET LLAMA2:13B - RÃƒâ€°PONSE BRUTE")
     print("=" * 70)
     
     # Prompt de test (votre prompt complet)
@@ -68,12 +69,12 @@ def test_llama2_13b_raw_response():
         "JSON:"
     )
     
-    print(f"📝 Prompt: {len(prompt)} caractères")
-    print(f"🎯 Modèle: llama2:13b")
-    print(f"⏳ Test en cours...")
+    print(f"Ã°Å¸â€œÂ Prompt: {len(prompt)} caractÃƒÂ¨res")
+    print(f"Ã°Å¸Å½Â¯ ModÃƒÂ¨le: llama2:13b")
+    print(f"Ã¢ÂÂ³ Test en cours...")
     
     try:
-        # Appel direct à l'API Ollama
+        # Appel direct ÃƒÂ  l'API Ollama
         url = "http://localhost:11434/api/generate"
         payload = {
             "model": "llama2:13b",
@@ -82,7 +83,7 @@ def test_llama2_13b_raw_response():
             "stream": False
         }
         
-        print(f"🚀 Envoi à Ollama...")
+        print(f"Ã°Å¸Å¡â‚¬ Envoi ÃƒÂ  Ollama...")
         start_time = time.time()
         
         response = requests.post(url, json=payload, timeout=600)  # 10 minutes
@@ -94,17 +95,17 @@ def test_llama2_13b_raw_response():
         data = response.json()
         raw_response = data.get("response", "")
         
-        print(f"✅ Réponse reçue en {response_time:.1f}s")
-        print(f"📊 Taille: {len(raw_response)} caractères")
+        print(f"Ã¢Å“â€¦ RÃƒÂ©ponse reÃƒÂ§ue en {response_time:.1f}s")
+        print(f"Ã°Å¸â€œÅ  Taille: {len(raw_response)} caractÃƒÂ¨res")
         
-        # Sauvegarder la réponse brute
+        # Sauvegarder la rÃƒÂ©ponse brute
         with open("llama2_13b_response_raw.txt", "w", encoding="utf-8") as f:
             f.write(raw_response)
         
-        print(f"\n📁 Réponse sauvegardée dans 'llama2_13b_response_raw.txt'")
+        print(f"\nÃ°Å¸â€œÂ RÃƒÂ©ponse sauvegardÃƒÂ©e dans 'llama2_13b_response_raw.txt'")
         
-        # Analyse de la réponse
-        print(f"\n🔍 ANALYSE DE LA RÉPONSE:")
+        # Analyse de la rÃƒÂ©ponse
+        print(f"\nÃ°Å¸â€Â ANALYSE DE LA RÃƒâ€°PONSE:")
         print("=" * 50)
         
         # 1. Recherche de JSON
@@ -112,86 +113,87 @@ def test_llama2_13b_raw_response():
         json_end = raw_response.rfind("}")
         
         if json_start != -1 and json_end != -1:
-            print(f"✅ JSON détecté: position {json_start} à {json_end}")
+            print(f"Ã¢Å“â€¦ JSON dÃƒÂ©tectÃƒÂ©: position {json_start} ÃƒÂ  {json_end}")
             json_content = raw_response[json_start:json_end+1]
             
             # Sauvegarder le JSON extrait
             with open("llama2_13b_json_extracted.txt", "w", encoding="utf-8") as f:
                 f.write(json_content)
             
-            print(f"📁 JSON extrait sauvegardé dans 'llama2_13b_json_extracted.txt'")
+            print(f"Ã°Å¸â€œÂ JSON extrait sauvegardÃƒÂ© dans 'llama2_13b_json_extracted.txt'")
             
             # Test de validation JSON
             try:
                 parsed_json = json.loads(json_content)
-                print(f"✅ JSON valide !")
-                print(f"📋 Clés trouvées: {list(parsed_json.keys())}")
+                print(f"Ã¢Å“â€¦ JSON valide !")
+                print(f"Ã°Å¸â€œâ€¹ ClÃƒÂ©s trouvÃƒÂ©es: {list(parsed_json.keys())}")
                 
-                # Analyse des clés
+                # Analyse des clÃƒÂ©s
                 for key, value in parsed_json.items():
                     if isinstance(value, list):
-                        print(f"   {key}: {len(value)} éléments")
+                        print(f"   {key}: {len(value)} ÃƒÂ©lÃƒÂ©ments")
                     else:
                         print(f"   {key}: {type(value).__name__}")
                 
             except json.JSONDecodeError as e:
-                print(f"❌ JSON invalide: {e}")
-                print(f"🔍 Problème à la ligne: {e.lineno}, colonne: {e.colno}")
-                print(f"📝 Message: {e.msg}")
+                print(f"Ã¢ÂÅ’ JSON invalide: {e}")
+                print(f"Ã°Å¸â€Â ProblÃƒÂ¨me ÃƒÂ  la ligne: {e.lineno}, colonne: {e.colno}")
+                print(f"Ã°Å¸â€œÂ Message: {e.msg}")
                 
-                # Afficher le contexte du problème
+                # Afficher le contexte du problÃƒÂ¨me
                 lines = json_content.split('\n')
                 if e.lineno <= len(lines):
                     problem_line = lines[e.lineno - 1]
-                    print(f"🚨 Ligne problématique: {problem_line}")
+                    print(f"Ã°Å¸Å¡Â¨ Ligne problÃƒÂ©matique: {problem_line}")
                 
         else:
-            print(f"❌ Aucun JSON détecté dans la réponse")
-            print(f"🔍 Contenu de la réponse:")
-            print(f"   Début: {raw_response[:200]}...")
+            print(f"Ã¢ÂÅ’ Aucun JSON dÃƒÂ©tectÃƒÂ© dans la rÃƒÂ©ponse")
+            print(f"Ã°Å¸â€Â Contenu de la rÃƒÂ©ponse:")
+            print(f"   DÃƒÂ©but: {raw_response[:200]}...")
             print(f"   Fin: ...{raw_response[-200:]}")
         
         # 2. Analyse du format
-        print(f"\n📊 ANALYSE DU FORMAT:")
+        print(f"\nÃ°Å¸â€œÅ  ANALYSE DU FORMAT:")
         print("=" * 30)
         
         has_curly_braces = "{" in raw_response and "}" in raw_response
         has_square_brackets = "[" in raw_response and "]" in raw_response
         has_quotes = '"' in raw_response
         
-        print(f"   Accolades {{}}: {'✅' if has_curly_braces else '❌'}")
-        print(f"   Crochets []: {'✅' if has_square_brackets else '❌'}")
-        print(f"   Guillemets \": {'✅' if has_quotes else '❌'}")
+        print(f"   Accolades {{}}: {'Ã¢Å“â€¦' if has_curly_braces else 'Ã¢ÂÅ’'}")
+        print(f"   Crochets []: {'Ã¢Å“â€¦' if has_square_brackets else 'Ã¢ÂÅ’'}")
+        print(f"   Guillemets \": {'Ã¢Å“â€¦' if has_quotes else 'Ã¢ÂÅ’'}")
         
         # 3. Recherche de patterns
-        print(f"\n🔍 PATTERNS DÉTECTÉS:")
+        print(f"\nÃ°Å¸â€Â PATTERNS DÃƒâ€°TECTÃƒâ€°S:")
         print("=" * 30)
         
         if "title" in raw_response.lower():
-            print(f"   ✅ 'title' trouvé")
+            print(f"   Ã¢Å“â€¦ 'title' trouvÃƒÂ©")
         else:
-            print(f"   ❌ 'title' manquant")
+            print(f"   Ã¢ÂÅ’ 'title' manquant")
             
         if "description" in raw_response.lower():
-            print(f"   ✅ 'description' trouvé")
+            print(f"   Ã¢Å“â€¦ 'description' trouvÃƒÂ©")
         else:
-            print(f"   ❌ 'description' manquant")
+            print(f"   Ã¢ÂÅ’ 'description' manquant")
             
         if "hashtags" in raw_response.lower():
-            print(f"   ✅ 'hashtags' trouvé")
+            print(f"   Ã¢Å“â€¦ 'hashtags' trouvÃƒÂ©")
         else:
-            print(f"   ❌ 'hashtags' manquant")
+            print(f"   Ã¢ÂÅ’ 'hashtags' manquant")
             
         if "broll_keywords" in raw_response.lower():
-            print(f"   ✅ 'broll_keywords' trouvé")
+            print(f"   Ã¢Å“â€¦ 'broll_keywords' trouvÃƒÂ©")
         else:
-            print(f"   ❌ 'broll_keywords' manquant")
+            print(f"   Ã¢ÂÅ’ 'broll_keywords' manquant")
         
         return True
         
     except Exception as e:
-        print(f"❌ Erreur: {e}")
+        print(f"Ã¢ÂÅ’ Erreur: {e}")
         return False
 
 if __name__ == "__main__":
     test_llama2_13b_raw_response() 
+

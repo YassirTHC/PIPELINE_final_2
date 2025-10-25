@@ -1,3 +1,4 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 Script de nettoyage MANUEL des morceaux de code orphelins
@@ -12,7 +13,7 @@ def clean_orphaned_code():
     
     file_path = Path('video_processor.py')
     
-    print("🧹 NETTOYAGE MANUEL DES MORCEAUX ORPHELINS")
+    print("Ã°Å¸Â§Â¹ NETTOYAGE MANUEL DES MORCEAUX ORPHELINS")
     print("=" * 60)
     
     try:
@@ -21,22 +22,22 @@ def clean_orphaned_code():
             content = f.read()
         
         original_length = len(content)
-        print(f"📄 Fichier original: {original_length} caractères")
+        print(f"Ã°Å¸â€œâ€ž Fichier original: {original_length} caractÃƒÂ¨res")
         
         # Supprimer les morceaux de code orphelins
         patterns_to_remove = [
             # Morceaux de docstring orphelins
-            r'"""\s*\n\s*Ajoute automatiquement des animations.*?Path vers la vidéo avec animations et emojis\s*"""',
+            r'"""\s*\n\s*Ajoute automatiquement des animations.*?Path vers la vidÃƒÂ©o avec animations et emojis\s*"""',
             # Morceaux de code orphelins
-            r'try:\s*\n\s*print\(f"🎬 Ajout d\'animations.*?return video_path',
-            # Morceaux de thèmes
-            r'# Détecter le thème principal\s*\n\s*themes = \{.*?primary_theme = max\(theme_scores, key=theme_scores\.get\) if theme_scores else \'general\'',
-            # Morceaux d'émotions
-            r'# Détecter l\'émotion\s*\n\s*emotions = \{.*?primary_emotion = max\(emotion_scores, key=emotion_scores\.get\) if emotion_scores else \'neutral\'',
+            r'try:\s*\n\s*print\(f"Ã°Å¸Å½Â¬ Ajout d\'animations.*?return video_path',
+            # Morceaux de thÃƒÂ¨mes
+            r'# DÃƒÂ©tecter le thÃƒÂ¨me principal\s*\n\s*themes = \{.*?primary_theme = max\(theme_scores, key=theme_scores\.get\) if theme_scores else \'general\'',
+            # Morceaux d'ÃƒÂ©motions
+            r'# DÃƒÂ©tecter l\'ÃƒÂ©motion\s*\n\s*emotions = \{.*?primary_emotion = max\(emotion_scores, key=emotion_scores\.get\) if emotion_scores else \'neutral\'',
             # Morceaux de retour
             r'return \{.*?\'emotion_scores\': emotion_scores\s*\}\s*\n\s*except Exception as e:.*?return \{\'theme\': \'general\', \'emotion\': \'neutral\', \'text\': \'\'\}',
             # Morceaux d'animations
-            r'# Créer des overlays d\'animations avec timing intelligent\s*\n\s*for i, anim_name in enumerate\(available_animations\[:2\]\):.*?Max 2 animations'
+            r'# CrÃƒÂ©er des overlays d\'animations avec timing intelligent\s*\n\s*for i, anim_name in enumerate\(available_animations\[:2\]\):.*?Max 2 animations'
         ]
         
         for pattern in patterns_to_remove:
@@ -45,22 +46,23 @@ def clean_orphaned_code():
         # Nettoyer les lignes vides multiples
         content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)
         
-        # Écrire le fichier nettoyé
+        # Ãƒâ€°crire le fichier nettoyÃƒÂ©
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
         
         new_length = len(content)
-        print(f"📄 Fichier nettoyé: {new_length} caractères")
-        print(f"🗑️ Caractères supprimés: {original_length - new_length}")
+        print(f"Ã°Å¸â€œâ€ž Fichier nettoyÃƒÂ©: {new_length} caractÃƒÂ¨res")
+        print(f"Ã°Å¸â€”â€˜Ã¯Â¸Â CaractÃƒÂ¨res supprimÃƒÂ©s: {original_length - new_length}")
         
-        print("✅ Nettoyage manuel terminé avec succès!")
+        print("Ã¢Å“â€¦ Nettoyage manuel terminÃƒÂ© avec succÃƒÂ¨s!")
         return True
         
     except Exception as e:
-        print(f"❌ Erreur lors du nettoyage: {e}")
+        print(f"Ã¢ÂÅ’ Erreur lors du nettoyage: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 if __name__ == "__main__":
     clean_orphaned_code() 
+

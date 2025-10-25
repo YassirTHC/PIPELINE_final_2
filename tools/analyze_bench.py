@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Aggregate pipeline bench results and recommend the strongest Ollama configuration."""
 
@@ -97,10 +97,10 @@ def compute_noise_score(provider_noise: int, generic_noise: int) -> Tuple[float,
 
 def badge(passed: bool, warn: bool = False) -> str:
     if passed:
-        return '✅'
+        return 'âœ…'
     if warn:
-        return '⚠️'
-    return '❌'
+        return 'âš ï¸'
+    return 'âŒ'
 
 
 def meets_thresholds(data: Dict[str, Any]) -> Dict[str, bool]:
@@ -364,4 +364,5 @@ def main() -> int:
 
 if __name__ == '__main__':
     sys.exit(main())
+
 

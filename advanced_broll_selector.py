@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Sélecteur B-roll Avancé avec Gestion Vidéo Réelle
-Version de production avec fichiers vidéo, métadonnées et analyse de contenu visuel
+SÃƒÂ©lecteur B-roll AvancÃƒÂ© avec Gestion VidÃƒÂ©o RÃƒÂ©elle
+Version de production avec fichiers vidÃƒÂ©o, mÃƒÂ©tadonnÃƒÂ©es et analyse de contenu visuel
 """
 
 import logging
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class VideoMetadata:
-    """Métadonnées complètes d'une vidéo B-roll"""
+    """MÃƒÂ©tadonnÃƒÂ©es complÃƒÂ¨tes d'une vidÃƒÂ©o B-roll"""
     id: str
     file_path: Path
     title: str
@@ -54,7 +55,7 @@ class VideoMetadata:
 
 @dataclass
 class VisualAnalysis:
-    """Analyse visuelle d'une vidéo B-roll"""
+    """Analyse visuelle d'une vidÃƒÂ©o B-roll"""
     dominant_colors: List[Tuple[int, int, int]] = field(default_factory=list)
     brightness_level: float = 0.0
     contrast_level: float = 0.0
@@ -68,7 +69,7 @@ class VisualAnalysis:
 
 @dataclass
 class BrollCandidate:
-    """Candidat B-roll avec analyse complète"""
+    """Candidat B-roll avec analyse complÃƒÂ¨te"""
     metadata: VideoMetadata
     visual_analysis: VisualAnalysis
     semantic_similarity: float = 0.0
@@ -80,7 +81,7 @@ class BrollCandidate:
 
 @dataclass
 class BrollSelection:
-    """Sélection B-roll finale avec alternatives"""
+    """SÃƒÂ©lection B-roll finale avec alternatives"""
     primary_broll: BrollCandidate
     alternative_brolls: List[BrollCandidate] = field(default_factory=list)
     selection_metadata: Dict[str, Any] = field(default_factory=dict)
@@ -88,7 +89,7 @@ class BrollSelection:
     diversity_score: float = 0.0
 
 class AdvancedBrollSelector:
-    """Sélecteur B-roll avancé avec gestion vidéo réelle"""
+    """SÃƒÂ©lecteur B-roll avancÃƒÂ© avec gestion vidÃƒÂ©o rÃƒÂ©elle"""
     
     def __init__(self, database_path: str = "broll_database.db"):
         self.database_path = database_path
@@ -97,21 +98,21 @@ class AdvancedBrollSelector:
         self.visual_analyzer = None
         self.semantic_matcher = None
         
-        # Initialiser la base de données
+        # Initialiser la base de donnÃƒÂ©es
         self._initialize_database()
         
         # Initialiser l'analyseur visuel
         self._initialize_visual_analyzer()
         
-        logger.info("Sélecteur B-roll avancé initialisé")
+        logger.info("SÃƒÂ©lecteur B-roll avancÃƒÂ© initialisÃƒÂ©")
 
     def _initialize_database(self):
-        """Initialise la base de données SQLite pour les B-rolls"""
+        """Initialise la base de donnÃƒÂ©es SQLite pour les B-rolls"""
         try:
             self.db_connection = sqlite3.connect(self.database_path)
             cursor = self.db_connection.cursor()
             
-            # Table des métadonnées vidéo
+            # Table des mÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS video_metadata (
                     id TEXT PRIMARY KEY,
@@ -174,42 +175,42 @@ class AdvancedBrollSelector:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_duration ON video_metadata(duration)')
             
             self.db_connection.commit()
-            logger.info("Base de données B-roll initialisée")
+            logger.info("Base de donnÃƒÂ©es B-roll initialisÃƒÂ©e")
             
         except Exception as e:
-            logger.error(f"Erreur initialisation base de données: {e}")
+            logger.error(f"Erreur initialisation base de donnÃƒÂ©es: {e}")
             self.db_connection = None
 
     def _initialize_visual_analyzer(self):
         """Initialise l'analyseur visuel"""
         try:
-            # Vérifier si OpenCV est disponible
+            # VÃƒÂ©rifier si OpenCV est disponible
             import cv2
             self.visual_analyzer = {
                 'opencv_available': True,
                 'face_cascade': cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             }
-            logger.info("Analyseur visuel OpenCV initialisé")
+            logger.info("Analyseur visuel OpenCV initialisÃƒÂ©")
         except ImportError:
-            logger.warning("OpenCV non disponible, analyse visuelle limitée")
+            logger.warning("OpenCV non disponible, analyse visuelle limitÃƒÂ©e")
             self.visual_analyzer = {'opencv_available': False}
 
     async def add_broll_to_database(self, file_path: str, metadata: Dict[str, Any]) -> bool:
-        """Ajoute un nouveau B-roll à la base de données"""
+        """Ajoute un nouveau B-roll ÃƒÂ  la base de donnÃƒÂ©es"""
         try:
             if not self.db_connection:
-                logger.error("Base de données non initialisée")
+                logger.error("Base de donnÃƒÂ©es non initialisÃƒÂ©e")
                 return False
             
             file_path_obj = Path(file_path)
             if not file_path_obj.exists():
-                logger.error(f"Fichier vidéo non trouvé: {file_path}")
+                logger.error(f"Fichier vidÃƒÂ©o non trouvÃƒÂ©: {file_path}")
                 return False
             
-            # Générer un ID unique
+            # GÃƒÂ©nÃƒÂ©rer un ID unique
             video_id = self._generate_video_id(file_path)
             
-            # Extraire les métadonnées vidéo
+            # Extraire les mÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o
             video_metadata = await self._extract_video_metadata(file_path_obj, metadata)
             
             # Analyser le contenu visuel
@@ -218,7 +219,7 @@ class AdvancedBrollSelector:
             # Sauvegarder en base
             cursor = self.db_connection.cursor()
             
-            # Insérer les métadonnées
+            # InsÃƒÂ©rer les mÃƒÂ©tadonnÃƒÂ©es
             cursor.execute('''
                 INSERT OR REPLACE INTO video_metadata VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
@@ -244,7 +245,7 @@ class AdvancedBrollSelector:
                 str(video_metadata.preview_path) if video_metadata.preview_path else None
             ))
             
-            # Insérer l'analyse visuelle
+            # InsÃƒÂ©rer l'analyse visuelle
             cursor.execute('''
                 INSERT OR REPLACE INTO visual_analysis VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
@@ -263,7 +264,7 @@ class AdvancedBrollSelector:
             ))
             
             self.db_connection.commit()
-            logger.info(f"B-roll ajouté à la base: {video_id}")
+            logger.info(f"B-roll ajoutÃƒÂ© ÃƒÂ  la base: {video_id}")
             return True
             
         except Exception as e:
@@ -271,7 +272,7 @@ class AdvancedBrollSelector:
             return False
 
     def _generate_video_id(self, file_path: str) -> str:
-        """Génère un ID unique pour la vidéo"""
+        """GÃƒÂ©nÃƒÂ¨re un ID unique pour la vidÃƒÂ©o"""
         # Utiliser le hash du chemin + la taille du fichier
         file_path_obj = Path(file_path)
         if file_path_obj.exists():
@@ -283,17 +284,17 @@ class AdvancedBrollSelector:
         return hashlib.md5(content.encode()).hexdigest()[:12]
 
     async def _extract_video_metadata(self, file_path: Path, user_metadata: Dict[str, Any]) -> VideoMetadata:
-        """Extrait les métadonnées vidéo du fichier"""
+        """Extrait les mÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o du fichier"""
         try:
-            # Métadonnées de base du fichier
+            # MÃƒÂ©tadonnÃƒÂ©es de base du fichier
             stat = file_path.stat()
             created_date = datetime.fromtimestamp(stat.st_ctime)
             modified_date = datetime.fromtimestamp(stat.st_mtime)
             file_size = stat.st_size
             
-            # Métadonnées vidéo avec OpenCV
+            # MÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o avec OpenCV
             video_metadata = VideoMetadata(
-                id="",  # Sera défini plus tard
+                id="",  # Sera dÃƒÂ©fini plus tard
                 file_path=file_path,
                 title=user_metadata.get('title', file_path.stem),
                 description=user_metadata.get('description', ''),
@@ -312,11 +313,11 @@ class AdvancedBrollSelector:
                 license=user_metadata.get('license', 'unknown')
             )
             
-            # Extraire les métadonnées vidéo avec OpenCV
+            # Extraire les mÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o avec OpenCV
             if self.visual_analyzer and self.visual_analyzer.get('opencv_available'):
                 cap = cv2.VideoCapture(str(file_path))
                 if cap.isOpened():
-                    # Résolution
+                    # RÃƒÂ©solution
                     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     video_metadata.resolution = (width, height)
@@ -324,7 +325,7 @@ class AdvancedBrollSelector:
                     # FPS
                     video_metadata.fps = cap.get(cv2.CAP_PROP_FPS)
                     
-                    # Durée
+                    # DurÃƒÂ©e
                     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                     if video_metadata.fps > 0:
                         video_metadata.duration = frame_count / video_metadata.fps
@@ -334,19 +335,19 @@ class AdvancedBrollSelector:
                     
                     cap.release()
             
-            # Créer le thumbnail et la preview
+            # CrÃƒÂ©er le thumbnail et la preview
             await self._create_video_previews(file_path, video_metadata)
             
             return video_metadata
             
         except Exception as e:
-            logger.error(f"Erreur extraction métadonnées: {e}")
-            # Retourner des métadonnées de base
+            logger.error(f"Erreur extraction mÃƒÂ©tadonnÃƒÂ©es: {e}")
+            # Retourner des mÃƒÂ©tadonnÃƒÂ©es de base
             return VideoMetadata(
                 id="",
                 file_path=file_path,
                 title=file_path.stem,
-                description="Erreur lors de l'extraction des métadonnées",
+                description="Erreur lors de l'extraction des mÃƒÂ©tadonnÃƒÂ©es",
                 duration=0.0,
                 resolution=(0, 0),
                 fps=0.0,
@@ -357,16 +358,16 @@ class AdvancedBrollSelector:
             )
 
     async def _create_video_previews(self, file_path: Path, metadata: VideoMetadata):
-        """Crée les aperçus vidéo (thumbnail et preview)"""
+        """CrÃƒÂ©e les aperÃƒÂ§us vidÃƒÂ©o (thumbnail et preview)"""
         try:
             if not self.visual_analyzer or not self.visual_analyzer.get('opencv_available'):
                 return
             
-            # Créer le dossier des aperçus
+            # CrÃƒÂ©er le dossier des aperÃƒÂ§us
             preview_dir = Path("broll_previews")
             preview_dir.mkdir(exist_ok=True)
             
-            # Thumbnail (première frame)
+            # Thumbnail (premiÃƒÂ¨re frame)
             cap = cv2.VideoCapture(str(file_path))
             if cap.isOpened():
                 ret, frame = cap.read()
@@ -388,10 +389,10 @@ class AdvancedBrollSelector:
                 cap.release()
                 
         except Exception as e:
-            logger.error(f"Erreur création aperçus: {e}")
+            logger.error(f"Erreur crÃƒÂ©ation aperÃƒÂ§us: {e}")
 
     async def _analyze_video_visual(self, file_path: Path) -> VisualAnalysis:
-        """Analyse le contenu visuel de la vidéo"""
+        """Analyse le contenu visuel de la vidÃƒÂ©o"""
         try:
             if not self.visual_analyzer or not self.visual_analyzer.get('opencv_available'):
                 return VisualAnalysis()
@@ -424,20 +425,20 @@ class AdvancedBrollSelector:
                         colors = self._extract_dominant_colors(frame)
                         dominant_colors.extend(colors)
                     
-                    # Luminosité et contraste
+                    # LuminositÃƒÂ© et contraste
                     brightness, contrast = self._analyze_frame_properties(frame)
                     total_brightness += brightness
                     total_contrast += contrast
                     
-                    # Détection de visages
+                    # DÃƒÂ©tection de visages
                     if self._detect_faces(frame):
                         faces_detected += 1
                     
-                    # Détection de texte (approximation basée sur les contours)
+                    # DÃƒÂ©tection de texte (approximation basÃƒÂ©e sur les contours)
                     if self._detect_text_like_content(frame):
                         text_detected += 1
                     
-                    # Détection de mouvement
+                    # DÃƒÂ©tection de mouvement
                     if prev_frame is not None:
                         motion = self._calculate_motion(prev_frame, frame)
                         if motion > 0.1:  # Seuil de mouvement
@@ -455,15 +456,15 @@ class AdvancedBrollSelector:
             avg_contrast = total_contrast / frames_analyzed if frames_analyzed > 0 else 0.0
             motion_intensity = motion_frames / frames_analyzed if frames_analyzed > 0 else 0.0
             
-            # Détecter les changements de scène (approximation)
+            # DÃƒÂ©tecter les changements de scÃƒÂ¨ne (approximation)
             scene_changes = self._detect_scene_changes(file_path)
             
-            # Score de complexité visuelle
+            # Score de complexitÃƒÂ© visuelle
             visual_complexity = self._calculate_visual_complexity(
                 frames_analyzed, motion_intensity, len(dominant_colors)
             )
             
-            # Score esthétique
+            # Score esthÃƒÂ©tique
             aesthetic_score = self._calculate_aesthetic_score(
                 avg_brightness, avg_contrast, motion_intensity, visual_complexity
             )
@@ -507,31 +508,31 @@ class AdvancedBrollSelector:
             
         except ImportError:
             # Fallback basique sans scikit-learn
-            return [(128, 128, 128)]  # Gris par défaut
+            return [(128, 128, 128)]  # Gris par dÃƒÂ©faut
         except Exception as e:
             logger.error(f"Erreur extraction couleurs: {e}")
             return [(128, 128, 128)]
 
     def _analyze_frame_properties(self, frame: np.ndarray) -> Tuple[float, float]:
-        """Analyse les propriétés d'une frame (luminosité, contraste)"""
+        """Analyse les propriÃƒÂ©tÃƒÂ©s d'une frame (luminositÃƒÂ©, contraste)"""
         try:
             # Convertir en niveaux de gris
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
-            # Luminosité (moyenne des pixels)
+            # LuminositÃƒÂ© (moyenne des pixels)
             brightness = np.mean(gray) / 255.0
             
-            # Contraste (écart-type des pixels)
+            # Contraste (ÃƒÂ©cart-type des pixels)
             contrast = np.std(gray) / 255.0
             
             return brightness, contrast
             
         except Exception as e:
-            logger.error(f"Erreur analyse propriétés frame: {e}")
+            logger.error(f"Erreur analyse propriÃƒÂ©tÃƒÂ©s frame: {e}")
             return 0.5, 0.5
 
     def _detect_faces(self, frame: np.ndarray) -> bool:
-        """Détecte les visages dans une frame"""
+        """DÃƒÂ©tecte les visages dans une frame"""
         try:
             if not self.visual_analyzer or not self.visual_analyzer.get('face_cascade'):
                 return False
@@ -544,19 +545,19 @@ class AdvancedBrollSelector:
             return len(faces) > 0
             
         except Exception as e:
-            logger.error(f"Erreur détection visages: {e}")
+            logger.error(f"Erreur dÃƒÂ©tection visages: {e}")
             return False
 
     def _detect_text_like_content(self, frame: np.ndarray) -> bool:
-        """Détecte le contenu ressemblant à du texte (approximation)"""
+        """DÃƒÂ©tecte le contenu ressemblant ÃƒÂ  du texte (approximation)"""
         try:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
-            # Détecter les contours
+            # DÃƒÂ©tecter les contours
             edges = cv2.Canny(gray, 50, 150)
             contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
-            # Chercher des contours rectangulaires qui pourraient être du texte
+            # Chercher des contours rectangulaires qui pourraient ÃƒÂªtre du texte
             text_like_contours = 0
             for contour in contours:
                 if len(contour) >= 4:
@@ -571,19 +572,19 @@ class AdvancedBrollSelector:
             return text_like_contours > 2
             
         except Exception as e:
-            logger.error(f"Erreur détection texte: {e}")
+            logger.error(f"Erreur dÃƒÂ©tection texte: {e}")
             return False
 
     def _calculate_motion(self, prev_frame: np.ndarray, curr_frame: np.ndarray) -> float:
         """Calcule le niveau de mouvement entre deux frames"""
         try:
-            # Différence entre frames
+            # DiffÃƒÂ©rence entre frames
             diff = cv2.absdiff(prev_frame, curr_frame)
             
             # Convertir en niveaux de gris
             gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
             
-            # Moyenne de la différence (plus c'est élevé, plus il y a de mouvement)
+            # Moyenne de la diffÃƒÂ©rence (plus c'est ÃƒÂ©levÃƒÂ©, plus il y a de mouvement)
             motion_score = np.mean(gray_diff) / 255.0
             
             return motion_score
@@ -593,20 +594,20 @@ class AdvancedBrollSelector:
             return 0.0
 
     def _detect_scene_changes(self, file_path: Path) -> List[float]:
-        """Détecte les changements de scène (approximation)"""
+        """DÃƒÂ©tecte les changements de scÃƒÂ¨ne (approximation)"""
         try:
-            # Pour l'instant, retourner des changements simulés
-            # En production, utiliser des algorithmes plus sophistiqués
-            return [0.0, 0.5, 1.0]  # Changements au début, milieu et fin
+            # Pour l'instant, retourner des changements simulÃƒÂ©s
+            # En production, utiliser des algorithmes plus sophistiquÃƒÂ©s
+            return [0.0, 0.5, 1.0]  # Changements au dÃƒÂ©but, milieu et fin
             
         except Exception as e:
-            logger.error(f"Erreur détection changements de scène: {e}")
+            logger.error(f"Erreur dÃƒÂ©tection changements de scÃƒÂ¨ne: {e}")
             return []
 
     def _calculate_visual_complexity(self, frames_analyzed: int, motion_intensity: float, color_variety: int) -> float:
-        """Calcule la complexité visuelle de la vidéo"""
+        """Calcule la complexitÃƒÂ© visuelle de la vidÃƒÂ©o"""
         try:
-            # Score basé sur plusieurs facteurs
+            # Score basÃƒÂ© sur plusieurs facteurs
             motion_score = motion_intensity * 0.4
             color_score = min(color_variety / 5.0, 1.0) * 0.3
             frame_score = min(frames_analyzed / 100.0, 1.0) * 0.3
@@ -615,19 +616,19 @@ class AdvancedBrollSelector:
             return min(1.0, complexity)
             
         except Exception as e:
-            logger.error(f"Erreur calcul complexité visuelle: {e}")
+            logger.error(f"Erreur calcul complexitÃƒÂ© visuelle: {e}")
             return 0.5
 
     def _calculate_aesthetic_score(self, brightness: float, contrast: float, motion: float, complexity: float) -> float:
-        """Calcule un score esthétique basé sur plusieurs critères"""
+        """Calcule un score esthÃƒÂ©tique basÃƒÂ© sur plusieurs critÃƒÂ¨res"""
         try:
-            # Score basé sur des critères esthétiques
+            # Score basÃƒÂ© sur des critÃƒÂ¨res esthÃƒÂ©tiques
             brightness_score = 1.0 - abs(brightness - 0.5) * 2  # Optimal autour de 0.5
             contrast_score = contrast  # Plus de contraste = mieux
-            motion_score = 1.0 - abs(motion - 0.3) * 2  # Mouvement modéré optimal
-            complexity_score = complexity  # Complexité modérée = mieux
+            motion_score = 1.0 - abs(motion - 0.3) * 2  # Mouvement modÃƒÂ©rÃƒÂ© optimal
+            complexity_score = complexity  # ComplexitÃƒÂ© modÃƒÂ©rÃƒÂ©e = mieux
             
-            # Moyenne pondérée
+            # Moyenne pondÃƒÂ©rÃƒÂ©e
             aesthetic_score = (
                 brightness_score * 0.3 +
                 contrast_score * 0.3 +
@@ -638,22 +639,22 @@ class AdvancedBrollSelector:
             return max(0.0, min(1.0, aesthetic_score))
             
         except Exception as e:
-            logger.error(f"Erreur calcul score esthétique: {e}")
+            logger.error(f"Erreur calcul score esthÃƒÂ©tique: {e}")
             return 0.5
 
     async def select_contextual_brolls(self, 
                                      context_analysis: Dict[str, Any],
                                      segment_analysis: Dict[str, Any],
                                      max_results: int = 5) -> BrollSelection:
-        """Sélectionne les B-rolls contextuels appropriés"""
+        """SÃƒÂ©lectionne les B-rolls contextuels appropriÃƒÂ©s"""
         try:
-            logger.info(f"Sélection B-roll contextuelle pour: {segment_analysis.get('semantic_context', 'unknown')}")
+            logger.info(f"SÃƒÂ©lection B-roll contextuelle pour: {segment_analysis.get('semantic_context', 'unknown')}")
             
-            # Récupérer les candidats de la base de données
+            # RÃƒÂ©cupÃƒÂ©rer les candidats de la base de donnÃƒÂ©es
             candidates = await self._get_broll_candidates_from_db(segment_analysis)
             
             if not candidates:
-                logger.warning("Aucun candidat B-roll trouvé en base")
+                logger.warning("Aucun candidat B-roll trouvÃƒÂ© en base")
                 return None
             
             # Analyser et scorer chaque candidat
@@ -667,14 +668,14 @@ class AdvancedBrollSelector:
             # Trier par score final
             scored_candidates.sort(key=lambda x: x.final_score, reverse=True)
             
-            # Sélectionner le meilleur et les alternatives
+            # SÃƒÂ©lectionner le meilleur et les alternatives
             if not scored_candidates:
                 return None
             
             primary_broll = scored_candidates[0]
             alternative_brolls = scored_candidates[1:max_results]
             
-            # Créer la sélection finale
+            # CrÃƒÂ©er la sÃƒÂ©lection finale
             selection = BrollSelection(
                 primary_broll=primary_broll,
                 alternative_brolls=alternative_brolls,
@@ -687,27 +688,27 @@ class AdvancedBrollSelector:
                 diversity_score=self._calculate_diversity_score(primary_broll, alternative_brolls)
             )
             
-            logger.info(f"B-roll sélectionné: {primary_broll.metadata.title} (score: {primary_broll.final_score:.2f})")
+            logger.info(f"B-roll sÃƒÂ©lectionnÃƒÂ©: {primary_broll.metadata.title} (score: {primary_broll.final_score:.2f})")
             return selection
             
         except Exception as e:
-            logger.error(f"Erreur sélection B-roll: {e}")
+            logger.error(f"Erreur sÃƒÂ©lection B-roll: {e}")
             return None
 
-    # MÉTHODES CRITIQUES MANQUANTES - IMPLÉMENTATION IMMÉDIATE
+    # MÃƒâ€°THODES CRITIQUES MANQUANTES - IMPLÃƒâ€°MENTATION IMMÃƒâ€°DIATE
     def select_broll_for_segment(self, segment_analysis: Dict[str, Any], max_results: int = 5) -> List[BrollCandidate]:
-        """Sélection B-roll pour segment - Interface standard (SYNCHRONE)"""
+        """SÃƒÂ©lection B-roll pour segment - Interface standard (SYNCHRONE)"""
         try:
-            logger.info(f"Sélection synchrone B-roll pour segment: {segment_analysis.get('semantic_context', 'unknown')}")
+            logger.info(f"SÃƒÂ©lection synchrone B-roll pour segment: {segment_analysis.get('semantic_context', 'unknown')}")
             
-            # Créer un contexte d'analyse minimal
+            # CrÃƒÂ©er un contexte d'analyse minimal
             context_analysis = {
                 'semantic_context': segment_analysis.get('semantic_context', 'general'),
                 'main_topics': segment_analysis.get('main_topics', ['general']),
                 'sentiment': segment_analysis.get('sentiment_score', 0.0)
             }
             
-            # Utiliser la méthode asynchrone existante dans un contexte synchrone
+            # Utiliser la mÃƒÂ©thode asynchrone existante dans un contexte synchrone
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -720,40 +721,40 @@ class AdvancedBrollSelector:
                 loop.close()
                 
         except Exception as e:
-            logger.error(f"Erreur lors de la sélection synchrone B-roll: {e}")
+            logger.error(f"Erreur lors de la sÃƒÂ©lection synchrone B-roll: {e}")
             return []
 
     def calculate_diversity_score(self, broll_list: List[BrollCandidate]) -> float:
-        """Calcul du score de diversité - Interface standard (SYNCHRONE)"""
+        """Calcul du score de diversitÃƒÂ© - Interface standard (SYNCHRONE)"""
         try:
-            logger.info(f"Calcul synchrone du score de diversité pour {len(broll_list)} B-rolls")
+            logger.info(f"Calcul synchrone du score de diversitÃƒÂ© pour {len(broll_list)} B-rolls")
             
             if len(broll_list) <= 1:
-                return 1.0  # Diversité maximale pour 0 ou 1 élément
+                return 1.0  # DiversitÃƒÂ© maximale pour 0 ou 1 ÃƒÂ©lÃƒÂ©ment
             
-            # Calculer la diversité basée sur les métadonnées
+            # Calculer la diversitÃƒÂ© basÃƒÂ©e sur les mÃƒÂ©tadonnÃƒÂ©es
             diversity_score = self._calculate_visual_diversity_sync(broll_list)
             
-            logger.info(f"Score de diversité calculé: {diversity_score:.3f}")
+            logger.info(f"Score de diversitÃƒÂ© calculÃƒÂ©: {diversity_score:.3f}")
             return diversity_score
             
         except Exception as e:
-            logger.error(f"Erreur lors du calcul du score de diversité: {e}")
+            logger.error(f"Erreur lors du calcul du score de diversitÃƒÂ©: {e}")
             return 0.5
 
     def get_broll_candidates(self, keywords: List[str], max_results: int = 10) -> List[BrollCandidate]:
         """Candidats B-roll - Interface standard (SYNCHRONE)"""
         try:
-            logger.info(f"Récupération synchrone de {max_results} candidats B-roll pour mots-clés: {keywords}")
+            logger.info(f"RÃƒÂ©cupÃƒÂ©ration synchrone de {max_results} candidats B-roll pour mots-clÃƒÂ©s: {keywords}")
             
-            # Créer une analyse de segment basée sur les mots-clés
+            # CrÃƒÂ©er une analyse de segment basÃƒÂ©e sur les mots-clÃƒÂ©s
             segment_analysis = {
                 'semantic_context': 'keyword_based',
                 'key_phrases': keywords,
                 'main_topics': keywords[:3] if len(keywords) >= 3 else keywords
             }
             
-            # Utiliser la méthode asynchrone existante dans un contexte synchrone
+            # Utiliser la mÃƒÂ©thode asynchrone existante dans un contexte synchrone
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -768,17 +769,17 @@ class AdvancedBrollSelector:
                 loop.close()
                 
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des candidats B-roll: {e}")
+            logger.error(f"Erreur lors de la rÃƒÂ©cupÃƒÂ©ration des candidats B-roll: {e}")
             return []
 
-    # MÉTHODES DE SUPPORT POUR LES INTERFACES STANDARD
+    # MÃƒâ€°THODES DE SUPPORT POUR LES INTERFACES STANDARD
     def _calculate_visual_diversity_sync(self, broll_list: List[BrollCandidate]) -> float:
-        """Calcul de la diversité visuelle (synchrone)"""
+        """Calcul de la diversitÃƒÂ© visuelle (synchrone)"""
         try:
             if len(broll_list) <= 1:
                 return 1.0
             
-            # Calculer la diversité basée sur les couleurs dominantes
+            # Calculer la diversitÃƒÂ© basÃƒÂ©e sur les couleurs dominantes
             dominant_colors = []
             for broll in broll_list:
                 if hasattr(broll, 'visual_analysis') and broll.visual_analysis:
@@ -786,7 +787,7 @@ class AdvancedBrollSelector:
                     if colors:
                         dominant_colors.extend(colors)
             
-            # Calculer la diversité des couleurs
+            # Calculer la diversitÃƒÂ© des couleurs
             if dominant_colors:
                 unique_colors = len(set(tuple(color) for color in dominant_colors))
                 total_colors = len(dominant_colors)
@@ -794,7 +795,7 @@ class AdvancedBrollSelector:
             else:
                 color_diversity = 0.5
             
-            # Diversité basée sur la durée
+            # DiversitÃƒÂ© basÃƒÂ©e sur la durÃƒÂ©e
             durations = []
             for broll in broll_list:
                 if hasattr(broll, 'metadata') and broll.metadata:
@@ -806,27 +807,27 @@ class AdvancedBrollSelector:
             else:
                 duration_diversity = 0.5
             
-            # Score de diversité final
+            # Score de diversitÃƒÂ© final
             final_diversity = (color_diversity * 0.6) + (duration_diversity * 0.4)
             return max(0.0, min(1.0, final_diversity))
             
         except Exception as e:
-            logger.warning(f"Erreur lors du calcul de la diversité visuelle: {e}")
+            logger.warning(f"Erreur lors du calcul de la diversitÃƒÂ© visuelle: {e}")
             return 0.5
 
     async def _get_broll_candidates_from_db(self, segment_analysis: Dict[str, Any]) -> List[BrollCandidate]:
-        """Récupère les candidats B-roll depuis la base de données"""
+        """RÃƒÂ©cupÃƒÂ¨re les candidats B-roll depuis la base de donnÃƒÂ©es"""
         try:
             if not self.db_connection:
-                logger.error("Base de données non initialisée")
+                logger.error("Base de donnÃƒÂ©es non initialisÃƒÂ©e")
                 return []
             
             cursor = self.db_connection.cursor()
             
-            # Construire la requête basée sur le contexte
+            # Construire la requÃƒÂªte basÃƒÂ©e sur le contexte
             context_type = segment_analysis.get('semantic_context', 'general')
             
-            # Requête de base
+            # RequÃƒÂªte de base
             query = '''
                 SELECT vm.*, va.* FROM video_metadata vm
                 LEFT JOIN visual_analysis va ON vm.id = va.video_id
@@ -834,20 +835,20 @@ class AdvancedBrollSelector:
             '''
             params = []
             
-            # Filtrer par catégories si disponibles
+            # Filtrer par catÃƒÂ©gories si disponibles
             if context_type != 'general':
                 query += ' AND (vm.categories LIKE ? OR vm.tags LIKE ?)'
                 context_pattern = f'%{context_type}%'
                 params.extend([context_pattern, context_pattern])
             
-            # Filtrer par durée appropriée
+            # Filtrer par durÃƒÂ©e appropriÃƒÂ©e
             target_duration = segment_analysis.get('duration', 10.0)
             query += ' AND vm.duration BETWEEN ? AND ?'
             min_duration = max(2.0, target_duration * 0.5)
             max_duration = target_duration * 2.0
             params.extend([min_duration, max_duration])
             
-            # Limiter les résultats
+            # Limiter les rÃƒÂ©sultats
             query += ' LIMIT 20'
             
             cursor.execute(query, params)
@@ -873,13 +874,13 @@ class AdvancedBrollSelector:
             return candidates
             
         except Exception as e:
-            logger.error(f"Erreur récupération candidats: {e}")
+            logger.error(f"Erreur rÃƒÂ©cupÃƒÂ©ration candidats: {e}")
             return []
 
     def _reconstruct_metadata_from_db(self, row: tuple) -> VideoMetadata:
-        """Reconstruit un objet VideoMetadata depuis la base de données"""
+        """Reconstruit un objet VideoMetadata depuis la base de donnÃƒÂ©es"""
         try:
-            # Les colonnes sont dans l'ordre de la requête JOIN
+            # Les colonnes sont dans l'ordre de la requÃƒÂªte JOIN
             metadata = VideoMetadata(
                 id=row[0],
                 file_path=Path(row[1]),
@@ -905,13 +906,13 @@ class AdvancedBrollSelector:
             return metadata
             
         except Exception as e:
-            logger.error(f"Erreur reconstruction métadonnées: {e}")
+            logger.error(f"Erreur reconstruction mÃƒÂ©tadonnÃƒÂ©es: {e}")
             raise
 
     def _reconstruct_visual_analysis_from_db(self, row: tuple) -> VisualAnalysis:
-        """Reconstruit un objet VisualAnalysis depuis la base de données"""
+        """Reconstruit un objet VisualAnalysis depuis la base de donnÃƒÂ©es"""
         try:
-            # Les colonnes commencent après les métadonnées (20+)
+            # Les colonnes commencent aprÃƒÂ¨s les mÃƒÂ©tadonnÃƒÂ©es (20+)
             visual_analysis = VisualAnalysis(
                 dominant_colors=json.loads(row[21]) if row[21] else [],
                 brightness_level=row[22] or 0.0,
@@ -935,9 +936,9 @@ class AdvancedBrollSelector:
                                    candidate: BrollCandidate,
                                    context_analysis: Dict[str, Any],
                                    segment_analysis: Dict[str, Any]) -> BrollCandidate:
-        """Score un candidat B-roll selon plusieurs critères avec scoring adaptatif"""
+        """Score un candidat B-roll selon plusieurs critÃƒÂ¨res avec scoring adaptatif"""
         try:
-            # Détecter le domaine pour le scoring adaptatif
+            # DÃƒÂ©tecter le domaine pour le scoring adaptatif
             domain = self._detect_domain_from_context(context_analysis, segment_analysis)
             context_complexity = self._detect_context_complexity(segment_analysis)
             
@@ -945,7 +946,7 @@ class AdvancedBrollSelector:
             try:
                 from enhanced_scoring import calculate_adaptive_scoring
                 
-                # Préparer les données du candidat pour le scoring adaptatif
+                # PrÃƒÂ©parer les donnÃƒÂ©es du candidat pour le scoring adaptatif
                 candidate_data = {
                     "id": candidate.metadata.id,
                     "title": candidate.metadata.title,
@@ -958,7 +959,7 @@ class AdvancedBrollSelector:
                     "file_size": candidate.metadata.file_size,
                     "tags": candidate.metadata.tags,
                     "categories": candidate.metadata.categories,
-                    "keywords": candidate.metadata.tags  # Utiliser les tags comme mots-clés
+                    "keywords": candidate.metadata.tags  # Utiliser les tags comme mots-clÃƒÂ©s
                 }
                 
                 # Contexte pour le scoring
@@ -975,7 +976,7 @@ class AdvancedBrollSelector:
                 # Calculer le score adaptatif
                 adaptive_result = calculate_adaptive_scoring(candidate_data, scoring_context, domain)
                 
-                # Mettre à jour le candidat avec les scores adaptatifs
+                # Mettre ÃƒÂ  jour le candidat avec les scores adaptatifs
                 candidate.semantic_similarity = adaptive_result["semantic_score"]
                 candidate.context_relevance = adaptive_result["context_relevance"]
                 candidate.quality_score = adaptive_result["visual_score"]
@@ -983,7 +984,7 @@ class AdvancedBrollSelector:
                 candidate.final_score = adaptive_result["final_score"]
                 candidate.selection_reason = adaptive_result["selection_reason"]
                 
-                logger.info(f"Scoring adaptatif appliqué pour le domaine '{domain}': {adaptive_result['final_score']:.3f}")
+                logger.info(f"Scoring adaptatif appliquÃƒÂ© pour le domaine '{domain}': {adaptive_result['final_score']:.3f}")
                 return candidate
                 
             except ImportError:
@@ -1002,9 +1003,9 @@ class AdvancedBrollSelector:
                                             candidate: BrollCandidate,
                                             context_analysis: Dict[str, Any],
                                             segment_analysis: Dict[str, Any]) -> BrollCandidate:
-        """Scoring standard (méthode originale)"""
+        """Scoring standard (mÃƒÂ©thode originale)"""
         try:
-            # Score de similarité sémantique
+            # Score de similaritÃƒÂ© sÃƒÂ©mantique
             semantic_similarity = await self._calculate_semantic_similarity(
                 candidate, segment_analysis
             )
@@ -1014,13 +1015,13 @@ class AdvancedBrollSelector:
                 candidate, context_analysis, segment_analysis
             )
             
-            # Score de qualité technique
+            # Score de qualitÃƒÂ© technique
             quality_score = self._calculate_quality_score(candidate)
             
-            # Score de diversité
+            # Score de diversitÃƒÂ©
             diversity_score = self._calculate_diversity_score(candidate, [])
             
-            # Score final pondéré
+            # Score final pondÃƒÂ©rÃƒÂ©
             final_score = (
                 semantic_similarity * 0.3 +
                 context_relevance * 0.3 +
@@ -1028,14 +1029,14 @@ class AdvancedBrollSelector:
                 diversity_score * 0.2
             )
             
-            # Mettre à jour le candidat
+            # Mettre ÃƒÂ  jour le candidat
             candidate.semantic_similarity = semantic_similarity
             candidate.context_relevance = context_relevance
             candidate.quality_score = quality_score
             candidate.diversity_score = diversity_score
             candidate.final_score = final_score
             
-            # Générer la raison de sélection
+            # GÃƒÂ©nÃƒÂ©rer la raison de sÃƒÂ©lection
             candidate.selection_reason = self._generate_selection_reason(
                 semantic_similarity, context_relevance, quality_score, diversity_score
             )
@@ -1049,20 +1050,20 @@ class AdvancedBrollSelector:
     
     def _detect_domain_from_context(self, context_analysis: Dict[str, Any], 
                                    segment_analysis: Dict[str, Any]) -> str:
-        """Détecte le domaine à partir du contexte"""
+        """DÃƒÂ©tecte le domaine ÃƒÂ  partir du contexte"""
         try:
-            # Priorité 1: Domaine détecté par l'analyseur contextuel
+            # PrioritÃƒÂ© 1: Domaine dÃƒÂ©tectÃƒÂ© par l'analyseur contextuel
             if 'global_analysis' in context_analysis:
                 main_theme = context_analysis['global_analysis'].get('main_theme', '')
                 if main_theme in ['neuroscience', 'science', 'technology', 'business', 'lifestyle', 'education']:
                     return main_theme
             
-            # Priorité 2: Contexte sémantique du segment
+            # PrioritÃƒÂ© 2: Contexte sÃƒÂ©mantique du segment
             semantic_context = segment_analysis.get('semantic_context', '')
             if semantic_context in ['neuroscience', 'science', 'technology', 'business', 'lifestyle', 'education']:
                 return semantic_context
             
-            # Priorité 3: Analyse des mots-clés
+            # PrioritÃƒÂ© 3: Analyse des mots-clÃƒÂ©s
             keywords = segment_analysis.get('main_keywords', [])
             if keywords:
                 try:
@@ -1073,7 +1074,7 @@ class AdvancedBrollSelector:
                 except ImportError:
                     pass
             
-            # Fallback: analyse basique des mots-clés
+            # Fallback: analyse basique des mots-clÃƒÂ©s
             text_lower = ' '.join(keywords).lower()
             if any(word in text_lower for word in ['brain', 'neural', 'cognitive', 'mental']):
                 return 'neuroscience'
@@ -1087,13 +1088,13 @@ class AdvancedBrollSelector:
             return 'general'
             
         except Exception as e:
-            logger.warning(f"Erreur lors de la détection du domaine: {e}")
+            logger.warning(f"Erreur lors de la dÃƒÂ©tection du domaine: {e}")
             return 'general'
     
     def _detect_context_complexity(self, segment_analysis: Dict[str, Any]) -> str:
-        """Détecte la complexité du contexte"""
+        """DÃƒÂ©tecte la complexitÃƒÂ© du contexte"""
         try:
-            # Basé sur la complexité du segment
+            # BasÃƒÂ© sur la complexitÃƒÂ© du segment
             complexity_score = segment_analysis.get('complexity_score', 0.5)
             
             if complexity_score > 0.7:
@@ -1104,24 +1105,24 @@ class AdvancedBrollSelector:
                 return 'medium'
                 
         except Exception as e:
-            logger.warning(f"Erreur lors de la détection de la complexité: {e}")
+            logger.warning(f"Erreur lors de la dÃƒÂ©tection de la complexitÃƒÂ©: {e}")
             return 'medium'
 
     async def _calculate_semantic_similarity(self, candidate: BrollCandidate, segment_analysis: Dict[str, Any]) -> float:
-        """Calcule la similarité sémantique entre le B-roll et le segment"""
+        """Calcule la similaritÃƒÂ© sÃƒÂ©mantique entre le B-roll et le segment"""
         try:
-            # Score basé sur la correspondance des tags et catégories
+            # Score basÃƒÂ© sur la correspondance des tags et catÃƒÂ©gories
             segment_context = segment_analysis.get('semantic_context', 'general')
             segment_keywords = segment_analysis.get('main_keywords', [])
             
-            # Correspondance des catégories
+            # Correspondance des catÃƒÂ©gories
             category_match = 0.0
             if segment_context in candidate.metadata.categories:
                 category_match = 1.0
             elif segment_context in candidate.metadata.tags:
                 category_match = 0.8
             
-            # Correspondance des mots-clés
+            # Correspondance des mots-clÃƒÂ©s
             keyword_match = 0.0
             for keyword in segment_keywords:
                 if keyword.lower() in [tag.lower() for tag in candidate.metadata.tags]:
@@ -1134,7 +1135,7 @@ class AdvancedBrollSelector:
             return semantic_score
             
         except Exception as e:
-            logger.error(f"Erreur calcul similarité sémantique: {e}")
+            logger.error(f"Erreur calcul similaritÃƒÂ© sÃƒÂ©mantique: {e}")
             return 0.5
 
     async def _calculate_context_relevance(self, 
@@ -1143,18 +1144,18 @@ class AdvancedBrollSelector:
                                          segment_analysis: Dict[str, Any]) -> float:
         """Calcule la pertinence contextuelle du B-roll"""
         try:
-            # Score basé sur la cohérence avec le contexte global
+            # Score basÃƒÂ© sur la cohÃƒÂ©rence avec le contexte global
             global_context = context_analysis.get('global_analysis', {})
             main_theme = global_context.get('main_theme', 'general')
             
-            # Vérifier la cohérence avec le thème principal
+            # VÃƒÂ©rifier la cohÃƒÂ©rence avec le thÃƒÂ¨me principal
             theme_coherence = 0.0
             if main_theme in candidate.metadata.categories:
                 theme_coherence = 1.0
             elif main_theme in candidate.metadata.tags:
                 theme_coherence = 0.8
             
-            # Score basé sur la complexité du contenu
+            # Score basÃƒÂ© sur la complexitÃƒÂ© du contenu
             complexity_match = 0.0
             segment_complexity = segment_analysis.get('complexity_level', 'medium')
             if segment_complexity == 'high' and candidate.visual_analysis.visual_complexity > 0.7:
@@ -1173,9 +1174,9 @@ class AdvancedBrollSelector:
             return 0.5
 
     def _calculate_quality_score(self, candidate: BrollCandidate) -> float:
-        """Calcule le score de qualité technique du B-roll"""
+        """Calcule le score de qualitÃƒÂ© technique du B-roll"""
         try:
-            # Score basé sur plusieurs facteurs techniques
+            # Score basÃƒÂ© sur plusieurs facteurs techniques
             resolution_score = 0.0
             if candidate.metadata.resolution[0] >= 1920 and candidate.metadata.resolution[1] >= 1080:
                 resolution_score = 1.0
@@ -1186,10 +1187,10 @@ class AdvancedBrollSelector:
             else:
                 resolution_score = 0.4
             
-            # Score de stabilité (FPS)
+            # Score de stabilitÃƒÂ© (FPS)
             fps_score = min(1.0, candidate.metadata.fps / 30.0) if candidate.metadata.fps > 0 else 0.0
             
-            # Score esthétique
+            # Score esthÃƒÂ©tique
             aesthetic_score = candidate.visual_analysis.aesthetic_score
             
             # Score final
@@ -1197,16 +1198,16 @@ class AdvancedBrollSelector:
             return quality_score
             
         except Exception as e:
-            logger.error(f"Erreur calcul score qualité: {e}")
+            logger.error(f"Erreur calcul score qualitÃƒÂ©: {e}")
             return 0.5
 
     def _calculate_diversity_score(self, primary: BrollCandidate, alternatives: List[BrollCandidate]) -> float:
-        """Calcule le score de diversité entre les B-rolls sélectionnés"""
+        """Calcule le score de diversitÃƒÂ© entre les B-rolls sÃƒÂ©lectionnÃƒÂ©s"""
         try:
             if not alternatives:
-                return 1.0  # Pas d'alternatives = diversité maximale
+                return 1.0  # Pas d'alternatives = diversitÃƒÂ© maximale
             
-            # Calculer la diversité basée sur les catégories et tags
+            # Calculer la diversitÃƒÂ© basÃƒÂ©e sur les catÃƒÂ©gories et tags
             all_candidates = [primary] + alternatives
             categories = set()
             tags = set()
@@ -1215,7 +1216,7 @@ class AdvancedBrollSelector:
                 categories.update(candidate.metadata.categories)
                 tags.update(candidate.metadata.tags)
             
-            # Score de diversité basé sur la variété
+            # Score de diversitÃƒÂ© basÃƒÂ© sur la variÃƒÂ©tÃƒÂ©
             category_diversity = min(1.0, len(categories) / 5.0)  # Normaliser
             tag_diversity = min(1.0, len(tags) / 20.0)  # Normaliser
             
@@ -1223,7 +1224,7 @@ class AdvancedBrollSelector:
             return diversity_score
             
         except Exception as e:
-            logger.error(f"Erreur calcul score diversité: {e}")
+            logger.error(f"Erreur calcul score diversitÃƒÂ©: {e}")
             return 0.5
 
     def _generate_selection_reason(self, 
@@ -1231,42 +1232,42 @@ class AdvancedBrollSelector:
                                  context_relevance: float,
                                  quality_score: float,
                                  diversity_score: float) -> str:
-        """Génère la raison de sélection d'un B-roll"""
+        """GÃƒÂ©nÃƒÂ¨re la raison de sÃƒÂ©lection d'un B-roll"""
         try:
             reasons = []
             
             if semantic_similarity > 0.8:
-                reasons.append("Excellente correspondance sémantique")
+                reasons.append("Excellente correspondance sÃƒÂ©mantique")
             elif semantic_similarity > 0.6:
-                reasons.append("Bonne correspondance sémantique")
+                reasons.append("Bonne correspondance sÃƒÂ©mantique")
             
             if context_relevance > 0.8:
-                reasons.append("Pertinence contextuelle élevée")
+                reasons.append("Pertinence contextuelle ÃƒÂ©levÃƒÂ©e")
             elif context_relevance > 0.6:
                 reasons.append("Pertinence contextuelle satisfaisante")
             
             if quality_score > 0.8:
-                reasons.append("Qualité technique élevée")
+                reasons.append("QualitÃƒÂ© technique ÃƒÂ©levÃƒÂ©e")
             elif quality_score > 0.6:
-                reasons.append("Qualité technique satisfaisante")
+                reasons.append("QualitÃƒÂ© technique satisfaisante")
             
             if diversity_score > 0.7:
-                reasons.append("Excellente diversité de contenu")
+                reasons.append("Excellente diversitÃƒÂ© de contenu")
             
             if not reasons:
-                reasons.append("Sélection basée sur les critères disponibles")
+                reasons.append("SÃƒÂ©lection basÃƒÂ©e sur les critÃƒÂ¨res disponibles")
             
             return " | ".join(reasons)
             
         except Exception as e:
-            logger.error(f"Erreur génération raison: {e}")
-            return "Sélection automatique"
+            logger.error(f"Erreur gÃƒÂ©nÃƒÂ©ration raison: {e}")
+            return "SÃƒÂ©lection automatique"
 
     def get_database_stats(self) -> Dict[str, Any]:
-        """Obtient les statistiques de la base de données B-roll"""
+        """Obtient les statistiques de la base de donnÃƒÂ©es B-roll"""
         try:
             if not self.db_connection:
-                return {"error": "Base de données non initialisée"}
+                return {"error": "Base de donnÃƒÂ©es non initialisÃƒÂ©e"}
             
             cursor = self.db_connection.cursor()
             
@@ -1274,7 +1275,7 @@ class AdvancedBrollSelector:
             cursor.execute("SELECT COUNT(*) FROM video_metadata")
             total_brolls = cursor.fetchone()[0]
             
-            # Répartition par catégorie
+            # RÃƒÂ©partition par catÃƒÂ©gorie
             cursor.execute("SELECT categories FROM video_metadata WHERE categories IS NOT NULL")
             categories_data = cursor.fetchall()
             
@@ -1287,11 +1288,11 @@ class AdvancedBrollSelector:
                 except:
                     continue
             
-            # Statistiques de durée
+            # Statistiques de durÃƒÂ©e
             cursor.execute("SELECT AVG(duration), MIN(duration), MAX(duration) FROM video_metadata")
             duration_stats = cursor.fetchone()
             
-            # Statistiques de résolution
+            # Statistiques de rÃƒÂ©solution
             cursor.execute("SELECT AVG(resolution_width), AVG(resolution_height) FROM video_metadata")
             resolution_stats = cursor.fetchone()
             
@@ -1315,10 +1316,11 @@ class AdvancedBrollSelector:
             return {"error": str(e)}
 
     def close_database(self):
-        """Ferme la connexion à la base de données"""
+        """Ferme la connexion ÃƒÂ  la base de donnÃƒÂ©es"""
         if self.db_connection:
             self.db_connection.close()
-            logger.info("Connexion base de données fermée")
+            logger.info("Connexion base de donnÃƒÂ©es fermÃƒÂ©e")
 
 # Instance globale
 advanced_broll_selector = AdvancedBrollSelector() 
+

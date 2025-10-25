@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Selection helpers (MMR, diversity) for the B-roll pipeline."""
 
 from __future__ import annotations
@@ -144,4 +144,5 @@ def mmr_rerank(
 
 
 __all__ = ["cand_key", "mmr_rerank"]
+
 

@@ -1,3 +1,4 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
@@ -19,7 +20,7 @@ class ClipsPipelineGUI:
 	
 	def __init__(self):
 		self.root = tk.Tk()
-		self.root.title("🎬 Pipeline Clips Viraux - TikTok/Instagram")
+		self.root.title("Ã°Å¸Å½Â¬ Pipeline Clips Viraux - TikTok/Instagram")
 		self.root.geometry("900x700")
 		
 		# Queue pour les messages de log
@@ -40,22 +41,22 @@ class ClipsPipelineGUI:
 		self.setup_logging()
 		
 	def create_widgets(self):
-		"""Crée l'interface utilisateur"""
+		"""CrÃƒÂ©e l'interface utilisateur"""
 		
 		# Header
 		header_frame = ttk.Frame(self.root)
 		header_frame.pack(fill=tk.X, padx=10, pady=5)
 		
-		title = ttk.Label(header_frame, text="🎬 Pipeline Clips Viraux", 
+		title = ttk.Label(header_frame, text="Ã°Å¸Å½Â¬ Pipeline Clips Viraux", 
 					 font=("Arial", 16, "bold"))
 		title.pack()
 		
 		subtitle = ttk.Label(header_frame, 
-					   text="Automatisation complète : Découpage IA → Reframe 9:16 → Sous-titres")
+					   text="Automatisation complÃƒÂ¨te : DÃƒÂ©coupage IA Ã¢â€ â€™ Reframe 9:16 Ã¢â€ â€™ Sous-titres")
 		subtitle.pack()
 		
-		# Section 1: Sélection du fichier
-		file_frame = ttk.LabelFrame(self.root, text="📁 Vidéo Source")
+		# Section 1: SÃƒÂ©lection du fichier
+		file_frame = ttk.LabelFrame(self.root, text="Ã°Å¸â€œÂ VidÃƒÂ©o Source")
 		file_frame.pack(fill=tk.X, padx=10, pady=5)
 		
 		file_select_frame = ttk.Frame(file_frame)
@@ -66,14 +67,14 @@ class ClipsPipelineGUI:
 			  command=self.select_input_file).pack(side=tk.RIGHT)
 		
 		# Section 2: Configuration
-		config_frame = ttk.LabelFrame(self.root, text="⚙️ Configuration")
+		config_frame = ttk.LabelFrame(self.root, text="Ã¢Å¡â„¢Ã¯Â¸Â Configuration")
 		config_frame.pack(fill=tk.X, padx=10, pady=5)
 		
-		# Ligne 1: Modèle Whisper et Plateforme
+		# Ligne 1: ModÃƒÂ¨le Whisper et Plateforme
 		row1 = ttk.Frame(config_frame)
 		row1.pack(fill=tk.X, padx=5, pady=2)
 		
-		ttk.Label(row1, text="Modèle Whisper:").pack(side=tk.LEFT)
+		ttk.Label(row1, text="ModÃƒÂ¨le Whisper:").pack(side=tk.LEFT)
 		whisper_combo = ttk.Combobox(row1, textvariable=self.whisper_model, 
 							   values=list(AdvancedConfig.WHISPER_MODELS.keys()),
 							   state="readonly", width=15)
@@ -85,7 +86,7 @@ class ClipsPipelineGUI:
 								   state="readonly", width=15)
 		platform_combo.pack(side=tk.LEFT, padx=5)
 		
-		# Ligne 2: Style sous-titres et Qualité
+		# Ligne 2: Style sous-titres et QualitÃƒÂ©
 		row2 = ttk.Frame(config_frame)
 		row2.pack(fill=tk.X, padx=5, pady=2)
 		
@@ -95,14 +96,14 @@ class ClipsPipelineGUI:
 							  state="readonly", width=15)
 		style_combo.pack(side=tk.LEFT, padx=5)
 		
-		ttk.Label(row2, text="Qualité export:").pack(side=tk.LEFT, padx=(20,0))
+		ttk.Label(row2, text="QualitÃƒÂ© export:").pack(side=tk.LEFT, padx=(20,0))
 		quality_combo = ttk.Combobox(row2, textvariable=self.export_quality,
 								 values=list(AdvancedConfig.EXPORT_PRESETS.keys()),
 								 state="readonly", width=15)
 		quality_combo.pack(side=tk.LEFT, padx=5)
 		
-		# Section 3: Options avancées
-		advanced_frame = ttk.LabelFrame(self.root, text="🔧 Options Avancées")
+		# Section 3: Options avancÃƒÂ©es
+		advanced_frame = ttk.LabelFrame(self.root, text="Ã°Å¸â€Â§ Options AvancÃƒÂ©es")
 		advanced_frame.pack(fill=tk.X, padx=10, pady=5)
 		
 		options_frame = ttk.Frame(advanced_frame)
@@ -119,7 +120,7 @@ class ClipsPipelineGUI:
 		ttk.Checkbutton(options_frame, text="Ouvrir dossier de sortie automatiquement", 
 				   variable=self.auto_open_output).pack(anchor=tk.W)
 		
-		# Section 4: Contrôles
+		# Section 4: ContrÃƒÂ´les
 		control_frame = ttk.Frame(self.root)
 		control_frame.pack(fill=tk.X, padx=10, pady=10)
 		
@@ -127,18 +128,18 @@ class ClipsPipelineGUI:
 		button_frame = ttk.Frame(control_frame)
 		button_frame.pack()
 		
-		self.start_button = ttk.Button(button_frame, text="🚀 Démarrer le Pipeline", 
+		self.start_button = ttk.Button(button_frame, text="Ã°Å¸Å¡â‚¬ DÃƒÂ©marrer le Pipeline", 
 								   command=self.start_processing, style="Accent.TButton")
 		self.start_button.pack(side=tk.LEFT, padx=5)
 		
-		self.stop_button = ttk.Button(button_frame, text="⏹️ Arrêter", 
+		self.stop_button = ttk.Button(button_frame, text="Ã¢ÂÂ¹Ã¯Â¸Â ArrÃƒÂªter", 
 								  command=self.stop_processing, state=tk.DISABLED)
 		self.stop_button.pack(side=tk.LEFT, padx=5)
 		
-		ttk.Button(button_frame, text="📁 Ouvrir Output", 
+		ttk.Button(button_frame, text="Ã°Å¸â€œÂ Ouvrir Output", 
 			  command=self.open_output_folder).pack(side=tk.LEFT, padx=5)
 		
-		ttk.Button(button_frame, text="🗑️ Nettoyer Temp", 
+		ttk.Button(button_frame, text="Ã°Å¸â€”â€˜Ã¯Â¸Â Nettoyer Temp", 
 			  command=self.clean_temp_files).pack(side=tk.LEFT, padx=5)
 		
 		# Barre de progression
@@ -146,7 +147,7 @@ class ClipsPipelineGUI:
 		self.progress.pack(fill=tk.X, pady=5)
 		
 		# Section 5: Log et statut
-		log_frame = ttk.LabelFrame(self.root, text="📋 Logs et Statut")
+		log_frame = ttk.LabelFrame(self.root, text="Ã°Å¸â€œâ€¹ Logs et Statut")
 		log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 		
 		# Zone de texte pour les logs
@@ -157,11 +158,11 @@ class ClipsPipelineGUI:
 		status_frame = ttk.Frame(self.root)
 		status_frame.pack(fill=tk.X, padx=10, pady=5)
 		
-		self.status_label = ttk.Label(status_frame, text="Prêt", relief=tk.SUNKEN, anchor=tk.W)
+		self.status_label = ttk.Label(status_frame, text="PrÃƒÂªt", relief=tk.SUNKEN, anchor=tk.W)
 		self.status_label.pack(fill=tk.X)
 	
 	def setup_logging(self):
-		"""Configure le système de logging pour l'interface"""
+		"""Configure le systÃƒÂ¨me de logging pour l'interface"""
 		
 		class GUILogHandler(logging.Handler):
 			def __init__(self, log_queue):
@@ -179,11 +180,11 @@ class ClipsPipelineGUI:
 		logger.addHandler(gui_handler)
 		logger.setLevel(logging.INFO)
 		
-		# Démarrage du thread de mise à jour des logs
+		# DÃƒÂ©marrage du thread de mise ÃƒÂ  jour des logs
 		self.root.after(100, self.update_logs)
 	
 	def update_logs(self):
-		"""Met à jour l'affichage des logs"""
+		"""Met ÃƒÂ  jour l'affichage des logs"""
 		try:
 			while True:
 				message = self.log_queue.get_nowait()
@@ -194,33 +195,33 @@ class ClipsPipelineGUI:
 		except queue.Empty:
 			pass
 		
-		# Programmer la prochaine mise à jour
+		# Programmer la prochaine mise ÃƒÂ  jour
 		self.root.after(100, self.update_logs)
 	
 	def select_input_file(self):
-		"""Sélection du fichier vidéo d'entrée"""
+		"""SÃƒÂ©lection du fichier vidÃƒÂ©o d'entrÃƒÂ©e"""
 		file_path = filedialog.askopenfilename(
-			title="Sélectionner la vidéo source",
+			title="SÃƒÂ©lectionner la vidÃƒÂ©o source",
 			filetypes=[
-				("Vidéos", "*.mp4 *.avi *.mov *.mkv *.webm"),
+				("VidÃƒÂ©os", "*.mp4 *.avi *.mov *.mkv *.webm"),
 				("MP4", "*.mp4"),
 				("Tous les fichiers", "*.*")
 			]
 		)
 		if file_path:
 			self.input_video_path.set(file_path)
-			self.update_status(f"Fichier sélectionné: {Path(file_path).name}")
+			self.update_status(f"Fichier sÃƒÂ©lectionnÃƒÂ©: {Path(file_path).name}")
 	
 	def start_processing(self):
-		"""Démarre le traitement en arrière-plan"""
+		"""DÃƒÂ©marre le traitement en arriÃƒÂ¨re-plan"""
 		
 		# Validation
 		if not self.input_video_path.get():
-			messagebox.showerror("Erreur", "Veuillez sélectionner une vidéo source")
+			messagebox.showerror("Erreur", "Veuillez sÃƒÂ©lectionner une vidÃƒÂ©o source")
 			return
 		
 		if not Path(self.input_video_path.get()).exists():
-			messagebox.showerror("Erreur", "Le fichier sélectionné n'existe pas")
+			messagebox.showerror("Erreur", "Le fichier sÃƒÂ©lectionnÃƒÂ© n'existe pas")
 			return
 		
 		# Configuration de l'interface
@@ -232,16 +233,16 @@ class ClipsPipelineGUI:
 		# Application de la configuration
 		self.apply_configuration()
 		
-		# Démarrage du thread de traitement
+		# DÃƒÂ©marrage du thread de traitement
 		self.processing_thread = threading.Thread(target=self.processing_worker, daemon=True)
 		self.processing_thread.start()
 		
 		self.update_status("Traitement en cours...")
 	
 	def apply_configuration(self):
-		"""Applique la configuration sélectionnée"""
+		"""Applique la configuration sÃƒÂ©lectionnÃƒÂ©e"""
 		
-		# Configuration du modèle Whisper
+		# Configuration du modÃƒÂ¨le Whisper
 		Config.WHISPER_MODEL = self.whisper_model.get()
 		
 		# Configuration de la plateforme cible
@@ -256,18 +257,18 @@ class ClipsPipelineGUI:
 		Config.SUBTITLE_STROKE_COLOR = subtitle_config["stroke_color"]
 		Config.SUBTITLE_STROKE_WIDTH = subtitle_config["stroke_width"]
 		
-		logging.info(f"Configuration appliquée: {self.target_platform.get()}, {self.whisper_model.get()}, {self.subtitle_style.get()}")
+		logging.info(f"Configuration appliquÃƒÂ©e: {self.target_platform.get()}, {self.whisper_model.get()}, {self.subtitle_style.get()}")
 	
 	def processing_worker(self):
-		"""Worker thread pour le traitement vidéo"""
+		"""Worker thread pour le traitement vidÃƒÂ©o"""
 		try:
-			# Création du processor
+			# CrÃƒÂ©ation du processor
 			self.processor = VideoProcessor()
 			
 			# Traitement
 			self.processor.process_all_clips(self.input_video_path.get())
 			
-			# Succès
+			# SuccÃƒÂ¨s
 			self.root.after(0, self.processing_complete, True)
 			
 		except Exception as e:
@@ -275,7 +276,7 @@ class ClipsPipelineGUI:
 			self.root.after(0, self.processing_complete, False, str(e))
 	
 	def processing_complete(self, success, error_msg=None):
-		"""Callback appelé à la fin du traitement"""
+		"""Callback appelÃƒÂ© ÃƒÂ  la fin du traitement"""
 		
 		self.is_processing = False
 		self.start_button.config(state=tk.NORMAL)
@@ -283,23 +284,23 @@ class ClipsPipelineGUI:
 		self.progress.stop()
 		
 		if success:
-			self.update_status("✅ Traitement terminé avec succès!")
-			messagebox.showinfo("Succès", "Le pipeline s'est terminé avec succès!\nVérifiez le dossier output/")
+			self.update_status("Ã¢Å“â€¦ Traitement terminÃƒÂ© avec succÃƒÂ¨s!")
+			messagebox.showinfo("SuccÃƒÂ¨s", "Le pipeline s'est terminÃƒÂ© avec succÃƒÂ¨s!\nVÃƒÂ©rifiez le dossier output/")
 			
 			if self.auto_open_output.get():
 				self.open_output_folder()
 				
 		else:
-			self.update_status("❌ Erreur pendant le traitement")
+			self.update_status("Ã¢ÂÅ’ Erreur pendant le traitement")
 			messagebox.showerror("Erreur", f"Erreur pendant le traitement:\n{error_msg}")
 	
 	def stop_processing(self):
-		"""Arrête le traitement (si possible)"""
+		"""ArrÃƒÂªte le traitement (si possible)"""
 		if self.is_processing:
-			# Note: Il est difficile d'arrêter proprement le traitement vidéo
-			# Cette fonction pourrait être améliorée avec des signaux d'arrêt
-			self.update_status("⏹️ Arrêt demandé...")
-			messagebox.showinfo("Info", "L'arrêt sera effectif à la fin du clip en cours")
+			# Note: Il est difficile d'arrÃƒÂªter proprement le traitement vidÃƒÂ©o
+			# Cette fonction pourrait ÃƒÂªtre amÃƒÂ©liorÃƒÂ©e avec des signaux d'arrÃƒÂªt
+			self.update_status("Ã¢ÂÂ¹Ã¯Â¸Â ArrÃƒÂªt demandÃƒÂ©...")
+			messagebox.showinfo("Info", "L'arrÃƒÂªt sera effectif ÃƒÂ  la fin du clip en cours")
 	
 	def open_output_folder(self):
 		"""Ouvre le dossier de sortie"""
@@ -329,18 +330,18 @@ class ClipsPipelineGUI:
 				shutil.rmtree(temp_folder)
 				temp_folder.mkdir()
 				
-			self.update_status("🗑️ Fichiers temporaires nettoyés")
-			logging.info("Fichiers temporaires nettoyés")
+			self.update_status("Ã°Å¸â€”â€˜Ã¯Â¸Â Fichiers temporaires nettoyÃƒÂ©s")
+			logging.info("Fichiers temporaires nettoyÃƒÂ©s")
 			
 		except Exception as e:
 			messagebox.showerror("Erreur", f"Erreur lors du nettoyage: {e}")
 	
 	def update_status(self, message):
-		"""Met à jour la barre de statut"""
+		"""Met ÃƒÂ  jour la barre de statut"""
 		self.status_label.config(text=message)
 	
 	def run(self):
-		"""Démarre l'interface graphique"""
+		"""DÃƒÂ©marre l'interface graphique"""
 		self.root.mainloop()
 
 class BatchProcessorGUI:
@@ -348,21 +349,21 @@ class BatchProcessorGUI:
 	
 	def __init__(self, parent):
 		self.window = tk.Toplevel(parent)
-		self.window.title("🔄 Traitement par Lots")
+		self.window.title("Ã°Å¸â€â€ž Traitement par Lots")
 		self.window.geometry("600x400")
 		
 		self.video_files = []
 		self.create_batch_widgets()
 	
 	def create_batch_widgets(self):
-		"""Crée l'interface pour le traitement par lots"""
+		"""CrÃƒÂ©e l'interface pour le traitement par lots"""
 		
 		# Header
 		ttk.Label(self.window, text="Traitement par Lots", 
 				 font=("Arial", 14, "bold")).pack(pady=10)
 		
 		# Liste des fichiers
-		files_frame = ttk.LabelFrame(self.window, text="📁 Fichiers Vidéo")
+		files_frame = ttk.LabelFrame(self.window, text="Ã°Å¸â€œÂ Fichiers VidÃƒÂ©o")
 		files_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 		
 		# Listbox avec scrollbar
@@ -380,29 +381,29 @@ class BatchProcessorGUI:
 		buttons_frame = ttk.Frame(files_frame)
 		buttons_frame.pack(fill=tk.X, padx=5, pady=5)
 		
-		ttk.Button(buttons_frame, text="➕ Ajouter Fichiers", 
+		ttk.Button(buttons_frame, text="Ã¢Å¾â€¢ Ajouter Fichiers", 
 			  command=self.add_files).pack(side=tk.LEFT, padx=2)
-		ttk.Button(buttons_frame, text="📁 Ajouter Dossier", 
+		ttk.Button(buttons_frame, text="Ã°Å¸â€œÂ Ajouter Dossier", 
 			  command=self.add_folder).pack(side=tk.LEFT, padx=2)
-		ttk.Button(buttons_frame, text="❌ Supprimer", 
+		ttk.Button(buttons_frame, text="Ã¢ÂÅ’ Supprimer", 
 			  command=self.remove_selected).pack(side=tk.LEFT, padx=2)
-		ttk.Button(buttons_frame, text="🗑️ Tout Supprimer", 
+		ttk.Button(buttons_frame, text="Ã°Å¸â€”â€˜Ã¯Â¸Â Tout Supprimer", 
 			  command=self.clear_all).pack(side=tk.LEFT, padx=2)
 		
-		# Contrôles
+		# ContrÃƒÂ´les
 		control_frame = ttk.Frame(self.window)
 		control_frame.pack(fill=tk.X, padx=10, pady=10)
 		
-		ttk.Button(control_frame, text="🚀 Traiter Tous", 
+		ttk.Button(control_frame, text="Ã°Å¸Å¡â‚¬ Traiter Tous", 
 			  command=self.process_all_batch).pack(side=tk.LEFT, padx=5)
-		ttk.Button(control_frame, text="❌ Fermer", 
+		ttk.Button(control_frame, text="Ã¢ÂÅ’ Fermer", 
 			  command=self.window.destroy).pack(side=tk.RIGHT, padx=5)
 	
 	def add_files(self):
-		"""Ajoute des fichiers à la liste"""
+		"""Ajoute des fichiers ÃƒÂ  la liste"""
 		files = filedialog.askopenfilenames(
-			title="Sélectionner les vidéos",
-			filetypes=[("Vidéos", "*.mp4 *.avi *.mov *.mkv *.webm")]
+			title="SÃƒÂ©lectionner les vidÃƒÂ©os",
+			filetypes=[("VidÃƒÂ©os", "*.mp4 *.avi *.mov *.mkv *.webm")]
 		)
 		
 		for file_path in files:
@@ -411,8 +412,8 @@ class BatchProcessorGUI:
 				self.files_listbox.insert(tk.END, Path(file_path).name)
 	
 	def add_folder(self):
-		"""Ajoute tous les fichiers vidéo d'un dossier"""
-		folder = filedialog.askdirectory(title="Sélectionner le dossier")
+		"""Ajoute tous les fichiers vidÃƒÂ©o d'un dossier"""
+		folder = filedialog.askdirectory(title="SÃƒÂ©lectionner le dossier")
 		
 		if folder:
 			extensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
@@ -425,7 +426,7 @@ class BatchProcessorGUI:
 						self.files_listbox.insert(tk.END, file_path.name)
 	
 	def remove_selected(self):
-		"""Supprime le fichier sélectionné"""
+		"""Supprime le fichier sÃƒÂ©lectionnÃƒÂ©"""
 		selection = self.files_listbox.curselection()
 		if selection:
 			index = selection[0]
@@ -440,7 +441,7 @@ class BatchProcessorGUI:
 	def process_all_batch(self):
 		"""Lance le traitement par lots"""
 		if not self.video_files:
-			messagebox.showwarning("Attention", "Aucun fichier sélectionné")
+			messagebox.showwarning("Attention", "Aucun fichier sÃƒÂ©lectionnÃƒÂ©")
 			return
 		
 		# Confirmation
@@ -450,9 +451,9 @@ class BatchProcessorGUI:
 		)
 		
 		if result:
-			# Démarrer le traitement par lots en arrière-plan
+			# DÃƒÂ©marrer le traitement par lots en arriÃƒÂ¨re-plan
 			threading.Thread(target=self.batch_worker, daemon=True).start()
-			messagebox.showinfo("Info", "Traitement par lots démarré.\nVérifiez les logs dans la fenêtre principale.")
+			messagebox.showinfo("Info", "Traitement par lots dÃƒÂ©marrÃƒÂ©.\nVÃƒÂ©rifiez les logs dans la fenÃƒÂªtre principale.")
 	
 	def batch_worker(self):
 		"""Worker pour le traitement par lots"""
@@ -460,14 +461,14 @@ class BatchProcessorGUI:
 		
 		for i, video_file in enumerate(self.video_files, 1):
 			try:
-				logging.info(f"🔄 Traitement par lots: {i}/{len(self.video_files)} - {Path(video_file).name}")
+				logging.info(f"Ã°Å¸â€â€ž Traitement par lots: {i}/{len(self.video_files)} - {Path(video_file).name}")
 				processor.process_all_clips(video_file)
-				logging.info(f"✅ Terminé: {Path(video_file).name}")
+				logging.info(f"Ã¢Å“â€¦ TerminÃƒÂ©: {Path(video_file).name}")
 				
 			except Exception as e:
-				logging.error(f"❌ Erreur sur {Path(video_file).name}: {e}")
+				logging.error(f"Ã¢ÂÅ’ Erreur sur {Path(video_file).name}: {e}")
 		
-		logging.info("🎉 Traitement par lots terminé!")
+		logging.info("Ã°Å¸Å½â€° Traitement par lots terminÃƒÂ©!")
 
 
 def main():
@@ -478,34 +479,34 @@ def main():
 	# Parsing des arguments de ligne de commande
 	parser = argparse.ArgumentParser(description="Pipeline Clips Viraux (GUI/CLI)")
 	parser.add_argument("--cli", action="store_true", help="Mode ligne de commande")
-	parser.add_argument("--video", type=str, help="Chemin de la vidéo source (mode CLI)")
-	parser.add_argument("--json-report", type=str, help="Chemin du rapport JSON global (agrégé)")
+	parser.add_argument("--video", type=str, help="Chemin de la vidÃƒÂ©o source (mode CLI)")
+	parser.add_argument("--json-report", type=str, help="Chemin du rapport JSON global (agrÃƒÂ©gÃƒÂ©)")
 	parser.add_argument("--output", type=str, help="Dossier de sortie (optionnel)")
 	
 	args = parser.parse_args()
 	
-	# Vérification des dépendances
+	# VÃƒÂ©rification des dÃƒÂ©pendances
 	try:
 		import whisper
 		import moviepy
 	except ImportError as e:
 		if args.cli:
-			print(f"❌ Dépendance manquante: {e}")
-			print("Installez les dépendances avec: pip install -r requirements.txt")
+			print(f"Ã¢ÂÅ’ DÃƒÂ©pendance manquante: {e}")
+			print("Installez les dÃƒÂ©pendances avec: pip install -r requirements.txt")
 		else:
 			messagebox.showerror(
-				"Dépendances manquantes",
-				f"Dépendance manquante: {e}\n\nInstallez les dépendances avec:\npip install -r requirements.txt"
+				"DÃƒÂ©pendances manquantes",
+				f"DÃƒÂ©pendance manquante: {e}\n\nInstallez les dÃƒÂ©pendances avec:\npip install -r requirements.txt"
 			)
 		return
 	
-	# Import tardif du pipeline pour éviter l'échec avant le check de dépendances
+	# Import tardif du pipeline pour ÃƒÂ©viter l'ÃƒÂ©chec avant le check de dÃƒÂ©pendances
 	try:
                 global VideoProcessor, Config, format_broll_completion_banner
                 from video_processor import VideoProcessor, Config, format_broll_completion_banner
 	except Exception as e:
 		if args.cli:
-			print(f"❌ Erreur d'import du pipeline: {e}")
+			print(f"Ã¢ÂÅ’ Erreur d'import du pipeline: {e}")
 		else:
 			messagebox.showerror(
 				"Erreur de chargement",
@@ -513,67 +514,67 @@ def main():
 			)
 		return
 	
-	# Création des dossiers nécessaires
+	# CrÃƒÂ©ation des dossiers nÃƒÂ©cessaires
 	for folder in [Config.CLIPS_FOLDER, Config.OUTPUT_FOLDER, Config.TEMP_FOLDER]:
 		folder.mkdir(exist_ok=True)
 	
 	# Mode CLI
 	if args.cli:
 		if not args.video:
-			print("❌ Erreur: --video est requis en mode CLI")
+			print("Ã¢ÂÅ’ Erreur: --video est requis en mode CLI")
 			print("Usage: python main.py --cli --video chemin/vers/video.mp4")
 			return
 		
 		video_path = Path(args.video)
 		if not video_path.exists():
-			print(f"❌ Erreur: Fichier vidéo introuvable: {video_path}")
+			print(f"Ã¢ÂÅ’ Erreur: Fichier vidÃƒÂ©o introuvable: {video_path}")
 			return
 		
-		print(f"🎬 Démarrage du traitement CLI pour: {video_path.name}", flush=True)
+		print(f"Ã°Å¸Å½Â¬ DÃƒÂ©marrage du traitement CLI pour: {video_path.name}", flush=True)
 		print("="*50, flush=True)
 		
 		try:
 			processor = VideoProcessor()
-			print(f"📐 Étape 1/4: Reframe dynamique IA...", flush=True)
+			print(f"Ã°Å¸â€œÂ Ãƒâ€°tape 1/4: Reframe dynamique IA...", flush=True)
 			start_time = time.time()
 			
 			# Reframe
 			reframed_path = processor.reframe_to_vertical(video_path)
 			reframe_time = time.time() - start_time
-			print(f"    ✅ Reframe terminé ({reframe_time:.1f}s)", flush=True)
+			print(f"    Ã¢Å“â€¦ Reframe terminÃƒÂ© ({reframe_time:.1f}s)", flush=True)
 			
-			print(f"🗣️ Étape 2/4: Transcription Whisper (guide B-roll)...", flush=True)
+			print(f"Ã°Å¸â€”Â£Ã¯Â¸Â Ãƒâ€°tape 2/4: Transcription Whisper (guide B-roll)...", flush=True)
 			transcription_start = time.time()
 			
 			# Transcription
 			subtitles = processor.transcribe_segments(reframed_path)
 			transcription_time = time.time() - transcription_start
-			print(f"    ✅ {len(subtitles)} segments de sous-titres générés ({transcription_time:.1f}s)", flush=True)
+			print(f"    Ã¢Å“â€¦ {len(subtitles)} segments de sous-titres gÃƒÂ©nÃƒÂ©rÃƒÂ©s ({transcription_time:.1f}s)", flush=True)
 			
-			print(f"🧠 Étape 2.5/4: Génération des métadonnées et mots-clés B-roll...", flush=True)
+			print(f"Ã°Å¸Â§Â  Ãƒâ€°tape 2.5/4: GÃƒÂ©nÃƒÂ©ration des mÃƒÂ©tadonnÃƒÂ©es et mots-clÃƒÂ©s B-roll...", flush=True)
 			metadata_start = time.time()
 			
-			# 🚀 CORRECTION PRINCIPALE: Générer les mots-clés LLM
+			# Ã°Å¸Å¡â‚¬ CORRECTION PRINCIPALE: GÃƒÂ©nÃƒÂ©rer les mots-clÃƒÂ©s LLM
 			metadata = processor.generate_caption_and_hashtags(subtitles) or {}
 			title = str(metadata.get('title') or '').strip()
 			description = str(metadata.get('description') or '').strip()
 			hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
 			broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
 			
-			# Validation des mots-clés LLM
+			# Validation des mots-clÃƒÂ©s LLM
 			if not broll_keywords:
-				print(f"    ⚠️ LLM n'a pas généré de mots-clés, fallback activé", flush=True)
+				print(f"    Ã¢Å¡Â Ã¯Â¸Â LLM n'a pas gÃƒÂ©nÃƒÂ©rÃƒÂ© de mots-clÃƒÂ©s, fallback activÃƒÂ©", flush=True)
 			else:
-				print(f"    ✅ {len(broll_keywords)} mots-clés B-roll LLM générés", flush=True)
-				print(f"    🎯 Exemples: {', '.join(broll_keywords[:5])}...", flush=True)
+				print(f"    Ã¢Å“â€¦ {len(broll_keywords)} mots-clÃƒÂ©s B-roll LLM gÃƒÂ©nÃƒÂ©rÃƒÂ©s", flush=True)
+				print(f"    Ã°Å¸Å½Â¯ Exemples: {', '.join(broll_keywords[:5])}...", flush=True)
 			
 			metadata_time = time.time() - metadata_start
-			print(f"    ✅ Métadonnées générées ({metadata_time:.1f}s)", flush=True)
+			print(f"    Ã¢Å“â€¦ MÃƒÂ©tadonnÃƒÂ©es gÃƒÂ©nÃƒÂ©rÃƒÂ©es ({metadata_time:.1f}s)", flush=True)
 			
-			print(f"🎞️ Étape 3/4: Insertion des B-rolls (activée)...", flush=True)
+			print(f"Ã°Å¸Å½Å¾Ã¯Â¸Â Ãƒâ€°tape 3/4: Insertion des B-rolls (activÃƒÂ©e)...", flush=True)
 			broll_start = time.time()
 			
-			# B-rolls avec les mots-clés LLM (CORRIGÉ)
+			# B-rolls avec les mots-clÃƒÂ©s LLM (CORRIGÃƒâ€°)
 			broll_path = processor.insert_brolls_if_enabled(reframed_path, subtitles, broll_keywords)
 			broll_time = time.time() - broll_start
 			_, banner = format_broll_completion_banner(
@@ -582,7 +583,7 @@ def main():
 			)
 			print(banner, flush=True)
 			
-			print(f"✨ Étape 4/4: Ajout des sous-titres Hormozi 1...", flush=True)
+			print(f"Ã¢Å“Â¨ Ãƒâ€°tape 4/4: Ajout des sous-titres Hormozi 1...", flush=True)
 			subtitles_start = time.time()
 			
 			# Sous-titres
@@ -591,17 +592,17 @@ def main():
 			final_path.parent.mkdir(parents=True, exist_ok=True)
 			add_hormozi_subtitles(str(broll_path), subtitles, str(final_path))
 			subtitles_time = time.time() - subtitles_start
-			print(f"    ✅ Sous-titres Hormozi ajoutés : {final_path} ({subtitles_time:.1f}s)", flush=True)
+			print(f"    Ã¢Å“â€¦ Sous-titres Hormozi ajoutÃƒÂ©s : {final_path} ({subtitles_time:.1f}s)", flush=True)
 			
 			total_time = time.time() - start_time
-			print(f"  Export terminé: final_{video_path.stem}.mp4", flush=True)
-			print(f"✅ Clip {video_path.name} traité avec succès (TOTAL: {total_time:.1f}s)", flush=True)
-			print(f"📊 Détail: Reframe {reframe_time:.1f}s | Transcription {transcription_time:.1f}s | B-roll {broll_time:.1f}s | Sous-titres {subtitles_time:.1f}s", flush=True)
+			print(f"  Export terminÃƒÂ©: final_{video_path.stem}.mp4", flush=True)
+			print(f"Ã¢Å“â€¦ Clip {video_path.name} traitÃƒÂ© avec succÃƒÂ¨s (TOTAL: {total_time:.1f}s)", flush=True)
+			print(f"Ã°Å¸â€œÅ  DÃƒÂ©tail: Reframe {reframe_time:.1f}s | Transcription {transcription_time:.1f}s | B-roll {broll_time:.1f}s | Sous-titres {subtitles_time:.1f}s", flush=True)
 		except Exception as e:
-			print(f"❌ Erreur lors du traitement: {e}")
+			print(f"Ã¢ÂÅ’ Erreur lors du traitement: {e}")
 			return
 	
-	# Mode GUI (par défaut)
+	# Mode GUI (par dÃƒÂ©faut)
 	else:
 		# Lancement de l'interface
 		app = ClipsPipelineGUI()
@@ -620,12 +621,13 @@ def main():
 		
 		help_menu = tk.Menu(menubar, tearoff=0)
 		menubar.add_cascade(label="Aide", menu=help_menu)
-		help_menu.add_command(label="À propos", command=lambda: messagebox.showinfo(
-			"À propos", 
-			"🎬 Pipeline Clips Viraux v1.0\n\nAutomatisation complète pour créer des clips TikTok/Instagram\nà partir de vidéos longues.\n\nUtilise Whisper, MoviePy et optionnellement Premiere Pro."
+		help_menu.add_command(label="Ãƒâ‚¬ propos", command=lambda: messagebox.showinfo(
+			"Ãƒâ‚¬ propos", 
+			"Ã°Å¸Å½Â¬ Pipeline Clips Viraux v1.0\n\nAutomatisation complÃƒÂ¨te pour crÃƒÂ©er des clips TikTok/Instagram\nÃƒÂ  partir de vidÃƒÂ©os longues.\n\nUtilise Whisper, MoviePy et optionnellement Premiere Pro."
 		))
 		
 		app.run()
 
 if __name__ == "__main__":
 	main()
+

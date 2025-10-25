@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Runtime helpers for pipeline execution state."""
 from __future__ import annotations
 
@@ -49,4 +49,5 @@ class PipelineResult:
         data = asdict(self)
         data["duration_s"] = self.duration_s()
         return data
+
 

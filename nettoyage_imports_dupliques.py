@@ -1,15 +1,16 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-🧹 NETTOYAGE IMPORTS DUPLIQUÉS
-Supprime tous les imports dupliqués de scoring import *
+Ã°Å¸Â§Â¹ NETTOYAGE IMPORTS DUPLIQUÃƒâ€°S
+Supprime tous les imports dupliquÃƒÂ©s de scoring import *
 """
 
 import re
 from pathlib import Path
 
 def nettoyage_imports_dupliques():
-    """Nettoie tous les imports dupliqués"""
-    print("🧹 NETTOYAGE IMPORTS DUPLIQUÉS")
+    """Nettoie tous les imports dupliquÃƒÂ©s"""
+    print("Ã°Å¸Â§Â¹ NETTOYAGE IMPORTS DUPLIQUÃƒâ€°S")
     print("=" * 50)
     
     # Sauvegarde
@@ -17,7 +18,7 @@ def nettoyage_imports_dupliques():
     if not Path(backup_path).exists():
         import shutil
         shutil.copy2("video_processor.py", backup_path)
-        print(f"✅ Sauvegarde créée: {backup_path}")
+        print(f"Ã¢Å“â€¦ Sauvegarde crÃƒÂ©ÃƒÂ©e: {backup_path}")
     
     # Lire le fichier
     with open("video_processor.py", "r", encoding="utf-8") as f:
@@ -26,14 +27,14 @@ def nettoyage_imports_dupliques():
     original_content = content
     imports_removed = 0
     
-    print("🔍 Analyse des imports dupliqués...")
+    print("Ã°Å¸â€Â Analyse des imports dupliquÃƒÂ©s...")
     
     # Compter les imports scoring
     scoring_imports = re.findall(r'from scoring import \*', content)
-    print(f"📊 Imports 'from scoring import *' trouvés: {len(scoring_imports)}")
+    print(f"Ã°Å¸â€œÅ  Imports 'from scoring import *' trouvÃƒÂ©s: {len(scoring_imports)}")
     
     if len(scoring_imports) > 1:
-        print("🚨 Trop d'imports dupliqués détectés !")
+        print("Ã°Å¸Å¡Â¨ Trop d'imports dupliquÃƒÂ©s dÃƒÂ©tectÃƒÂ©s !")
         
         # Garder seulement le premier import et supprimer les autres
         lines = content.split('\n')
@@ -45,23 +46,23 @@ def nettoyage_imports_dupliques():
                 if not first_scoring_import_found:
                     new_lines.append(line)
                     first_scoring_import_found = True
-                    print("✅ Premier import scoring conservé")
+                    print("Ã¢Å“â€¦ Premier import scoring conservÃƒÂ©")
                 else:
-                    print(f"🗑️ Import dupliqué supprimé: {line.strip()}")
+                    print(f"Ã°Å¸â€”â€˜Ã¯Â¸Â Import dupliquÃƒÂ© supprimÃƒÂ©: {line.strip()}")
                     imports_removed += 1
             else:
                 new_lines.append(line)
         
         content = '\n'.join(new_lines)
         
-        print(f"✅ {imports_removed} imports dupliqués supprimés")
+        print(f"Ã¢Å“â€¦ {imports_removed} imports dupliquÃƒÂ©s supprimÃƒÂ©s")
     else:
-        print("✅ Aucun import dupliqué détecté")
+        print("Ã¢Å“â€¦ Aucun import dupliquÃƒÂ© dÃƒÂ©tectÃƒÂ©")
     
-    # Vérifier les autres imports dupliqués
-    print("\n🔍 Vérification autres imports dupliqués...")
+    # VÃƒÂ©rifier les autres imports dupliquÃƒÂ©s
+    print("\nÃ°Å¸â€Â VÃƒÂ©rification autres imports dupliquÃƒÂ©s...")
     
-    # Chercher les imports répétés
+    # Chercher les imports rÃƒÂ©pÃƒÂ©tÃƒÂ©s
     import_patterns = [
         r'from scoring import \*',
         r'import re',
@@ -72,82 +73,83 @@ def nettoyage_imports_dupliques():
     for pattern in import_patterns:
         matches = re.findall(pattern, content)
         if len(matches) > 1:
-            print(f"⚠️ {pattern}: {len(matches)} occurrences")
+            print(f"Ã¢Å¡Â Ã¯Â¸Â {pattern}: {len(matches)} occurrences")
         else:
-            print(f"✅ {pattern}: OK")
+            print(f"Ã¢Å“â€¦ {pattern}: OK")
     
-    # Vérifier les modifications
+    # VÃƒÂ©rifier les modifications
     if content != original_content:
-        print(f"\n🔧 {imports_removed} imports dupliqués supprimés")
+        print(f"\nÃ°Å¸â€Â§ {imports_removed} imports dupliquÃƒÂ©s supprimÃƒÂ©s")
         
-        # Sauvegarder le fichier nettoyé
+        # Sauvegarder le fichier nettoyÃƒÂ©
         with open("video_processor.py", "w", encoding="utf-8") as f:
             f.write(content)
         
-        print(f"✅ Fichier nettoyé sauvegardé")
+        print(f"Ã¢Å“â€¦ Fichier nettoyÃƒÂ© sauvegardÃƒÂ©")
         
-        # Créer un rapport
+        # CrÃƒÂ©er un rapport
         report_path = "RAPPORT_NETTOYAGE_IMPORTS.md"
         with open(report_path, "w", encoding="utf-8") as f:
-            f.write("# 🧹 RAPPORT DE NETTOYAGE DES IMPORTS DUPLIQUÉS\n\n")
+            f.write("# Ã°Å¸Â§Â¹ RAPPORT DE NETTOYAGE DES IMPORTS DUPLIQUÃƒâ€°S\n\n")
             f.write(f"**Date:** {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-            f.write("## ✅ Imports Nettoyés\n\n")
-            f.write(f"- **Imports scoring supprimés:** {imports_removed}\n")
-            f.write(f"- **Fichier sauvegardé:** {backup_path}\n")
-            f.write(f"- **Fichier nettoyé:** video_processor.py\n")
+            f.write("## Ã¢Å“â€¦ Imports NettoyÃƒÂ©s\n\n")
+            f.write(f"- **Imports scoring supprimÃƒÂ©s:** {imports_removed}\n")
+            f.write(f"- **Fichier sauvegardÃƒÂ©:** {backup_path}\n")
+            f.write(f"- **Fichier nettoyÃƒÂ©:** video_processor.py\n")
             f.write(f"- **Rapport:** {report_path}\n")
         
-        print(f"📋 Rapport de nettoyage créé: {report_path}")
+        print(f"Ã°Å¸â€œâ€¹ Rapport de nettoyage crÃƒÂ©ÃƒÂ©: {report_path}")
         
         return True
     else:
-        print("\n✅ Aucun nettoyage nécessaire")
+        print("\nÃ¢Å“â€¦ Aucun nettoyage nÃƒÂ©cessaire")
         return False
 
 def verification_post_nettoyage():
-    """Vérification après nettoyage"""
-    print("\n🔍 VÉRIFICATION POST-NETTOYAGE")
+    """VÃƒÂ©rification aprÃƒÂ¨s nettoyage"""
+    print("\nÃ°Å¸â€Â VÃƒâ€°RIFICATION POST-NETTOYAGE")
     print("=" * 40)
     
     with open("video_processor.py", "r", encoding="utf-8") as f:
         content = f.read()
     
-    # Vérifier les imports scoring
+    # VÃƒÂ©rifier les imports scoring
     scoring_imports = re.findall(r'from scoring import \*', content)
-    print(f"📊 Imports scoring restants: {len(scoring_imports)}")
+    print(f"Ã°Å¸â€œÅ  Imports scoring restants: {len(scoring_imports)}")
     
     if len(scoring_imports) == 1:
-        print("✅ Un seul import scoring (correct)")
+        print("Ã¢Å“â€¦ Un seul import scoring (correct)")
     else:
-        print(f"⚠️ {len(scoring_imports)} imports scoring (problématique)")
+        print(f"Ã¢Å¡Â Ã¯Â¸Â {len(scoring_imports)} imports scoring (problÃƒÂ©matique)")
     
-    # Vérifier la syntaxe
-    print("\n🔍 Vérification syntaxe...")
+    # VÃƒÂ©rifier la syntaxe
+    print("\nÃ°Å¸â€Â VÃƒÂ©rification syntaxe...")
     
     try:
         # Essayer de compiler le fichier
         compile(content, 'video_processor.py', 'exec')
-        print("✅ Syntaxe Python correcte")
+        print("Ã¢Å“â€¦ Syntaxe Python correcte")
     except SyntaxError as e:
-        print(f"❌ Erreur de syntaxe: {e}")
+        print(f"Ã¢ÂÅ’ Erreur de syntaxe: {e}")
         return False
     
-    print("\n🎯 Vérification terminée")
+    print("\nÃ°Å¸Å½Â¯ VÃƒÂ©rification terminÃƒÂ©e")
     return True
 
 if __name__ == "__main__":
-    print("🚀 DÉMARRAGE NETTOYAGE IMPORTS DUPLIQUÉS")
+    print("Ã°Å¸Å¡â‚¬ DÃƒâ€°MARRAGE NETTOYAGE IMPORTS DUPLIQUÃƒâ€°S")
     print("=" * 60)
     
     try:
         success = nettoyage_imports_dupliques()
         if success:
             verification_post_nettoyage()
-            print("\n🎉 NETTOYAGE TERMINÉ AVEC SUCCÈS!")
+            print("\nÃ°Å¸Å½â€° NETTOYAGE TERMINÃƒâ€° AVEC SUCCÃƒË†S!")
         else:
-            print("\n✅ Aucun nettoyage nécessaire")
+            print("\nÃ¢Å“â€¦ Aucun nettoyage nÃƒÂ©cessaire")
             
     except Exception as e:
-        print(f"\n❌ Erreur lors du nettoyage: {e}")
+        print(f"\nÃ¢ÂÅ’ Erreur lors du nettoyage: {e}")
         import traceback
         traceback.print_exc() 
+

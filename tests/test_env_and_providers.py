@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import os
 import subprocess
 import sys
@@ -109,4 +109,5 @@ def test_diag_broll_reports_provider_limits(monkeypatch):
             events_path.parent.parent.rmdir()
         except OSError:
             pass
+
 

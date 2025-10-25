@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """JSONL logging utilities for the modular pipeline."""
 from __future__ import annotations
 
@@ -231,5 +231,6 @@ def log_pipeline_summary(
     if extra:
         payload.update(extra)
     logger.log(payload)
+
 
 

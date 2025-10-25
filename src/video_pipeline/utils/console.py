@@ -1,8 +1,8 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 def safe_print(*args, **kwargs):
     """
-    Écrit sur stdout. Si stdout est fermé (pytest capture/flush),
-    bascule sur sys.__stdout__. Ne lève jamais d’exception.
+    Ã‰crit sur stdout. Si stdout est fermÃ© (pytest capture/flush),
+    bascule sur sys.__stdout__. Ne lÃ¨ve jamais dâ€™exception.
     """
     import sys
     try:
@@ -21,4 +21,5 @@ def safe_print(*args, **kwargs):
                 except Exception: pass
         except Exception:
             pass
+
 

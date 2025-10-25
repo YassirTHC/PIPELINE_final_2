@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from hormozi_subtitles import HormoziSubtitles
 
 
@@ -46,4 +46,5 @@ def test_aliases_cover_common_fr_en_keywords():
         if not alias_category:
             alias_category = proc.keyword_to_category.get(normalized)
         assert alias_category == category, f"{keyword} should map to {category}, got {alias_category}"
+
 

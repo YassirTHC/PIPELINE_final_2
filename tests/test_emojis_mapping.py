@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from collections import deque
 
 from hormozi_subtitles import HormoziSubtitles
@@ -51,4 +51,5 @@ def test_money_sales_growth_energy_have_emojis():
         tokens = [_token_for(proc, word)]
         emoji = proc._choose_emoji_for_tokens(tokens, word)
         assert emoji, f"expected emoji for {word}"
+
 

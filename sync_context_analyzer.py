@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 Analyseur Contextuel Synchrone
-Interface synchrone pour l'analyse contextuelle des vidéos
+Interface synchrone pour l'analyse contextuelle des vidÃƒÂ©os
 """
 
 import logging
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ContextAnalysis:
-    """Résultat de l'analyse contextuelle"""
+    """RÃƒÂ©sultat de l'analyse contextuelle"""
     main_theme: str
     key_topics: List[str]
     sentiment: float
@@ -25,21 +26,21 @@ class ContextAnalysis:
     target_audience: str
 
 class SyncContextAnalyzer:
-    """Analyseur contextuel synchrone pour l'intégration avec le pipeline"""
+    """Analyseur contextuel synchrone pour l'intÃƒÂ©gration avec le pipeline"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.logger.info("Analyseur contextuel synchrone initialisé")
+        self.logger.info("Analyseur contextuel synchrone initialisÃƒÂ©")
     
     def analyze_context(self, transcript_text: str) -> ContextAnalysis:
         """Analyse contextuelle synchrone du transcript"""
         try:
-            self.logger.info(f"Analyse contextuelle synchrone: {len(transcript_text)} caractères")
+            self.logger.info(f"Analyse contextuelle synchrone: {len(transcript_text)} caractÃƒÂ¨res")
             
             # Analyse basique du contexte
             words = transcript_text.lower().split()
             
-            # Détection du thème principal
+            # DÃƒÂ©tection du thÃƒÂ¨me principal
             theme_keywords = {
                 'technology': ['ai', 'artificial', 'intelligence', 'digital', 'tech', 'innovation'],
                 'business': ['business', 'entrepreneur', 'success', 'growth', 'strategy'],
@@ -57,7 +58,7 @@ class SyncContextAnalyzer:
                     max_score = score
                     main_theme = theme
             
-            # Extraction des mots-clés
+            # Extraction des mots-clÃƒÂ©s
             keywords = [word for word in words if len(word) > 3 and word.isalpha()][:10]
             
             # Analyse du sentiment (basique)
@@ -73,16 +74,16 @@ class SyncContextAnalyzer:
             
             sentiment = max(-1.0, min(1.0, sentiment))
             
-            # Calcul de la complexité
+            # Calcul de la complexitÃƒÂ©
             complexity = min(1.0, len(set(words)) / len(words) if words else 0.0)
             
-            # Sujets clés
+            # Sujets clÃƒÂ©s
             key_topics = list(set(keywords[:5]))
             
-            # Thèmes secondaires
+            # ThÃƒÂ¨mes secondaires
             sub_themes = [theme for theme in theme_keywords.keys() if theme != main_theme][:3]
             
-            # Ton général
+            # Ton gÃƒÂ©nÃƒÂ©ral
             if sentiment > 0.3:
                 overall_tone = 'positive'
             elif sentiment < -0.3:
@@ -115,12 +116,12 @@ class SyncContextAnalyzer:
                 target_audience=target_audience
             )
             
-            self.logger.info(f"Analyse contextuelle terminée: {main_theme} (score: {context_score:.2f})")
+            self.logger.info(f"Analyse contextuelle terminÃƒÂ©e: {main_theme} (score: {context_score:.2f})")
             return result
             
         except Exception as e:
             self.logger.error(f"Erreur lors de l'analyse contextuelle: {e}")
-            # Retourner une analyse par défaut
+            # Retourner une analyse par dÃƒÂ©faut
             return ContextAnalysis(
                 main_theme='general',
                 key_topics=['general'],
@@ -168,7 +169,7 @@ class SyncContextAnalyzer:
             }
     
     def get_global_analysis(self) -> Dict[str, Any]:
-        """Récupère l'analyse globale (interface de compatibilité)"""
+        """RÃƒÂ©cupÃƒÂ¨re l'analyse globale (interface de compatibilitÃƒÂ©)"""
         return {
             'main_theme': 'general',
             'key_topics': ['general'],
@@ -181,5 +182,6 @@ class SyncContextAnalyzer:
             'target_audience': 'general_public'
         }
 
-# Instance globale pour compatibilité
+# Instance globale pour compatibilitÃƒÂ©
 sync_context_analyzer = SyncContextAnalyzer() 
+

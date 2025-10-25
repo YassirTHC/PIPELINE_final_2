@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import sys
 import types
 
@@ -81,4 +81,5 @@ def test_provider_skipped_when_missing_capabilities(monkeypatch):
     assert skipped and skipped[0].get('provider') == 'images-only'
     assert skipped[0].get('allow_images') is False
     assert skipped[0].get('allow_videos') is True
+
 

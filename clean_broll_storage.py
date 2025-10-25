@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 NETTOYAGE URGENT DE L'ESPACE DISQUE
-Supprime les doublons B-roll et libère l'espace
+Supprime les doublons B-roll et libÃƒÂ¨re l'espace
 """
 
 import os
@@ -39,17 +40,17 @@ def analyze_broll_duplicates(broll_dir: Path) -> Dict[str, List[Path]]:
 
 def clean_broll_storage():
     """Nettoyage principal de l'espace B-roll"""
-    print("🧹 NETTOYAGE URGENT DE L'ESPACE DISQUE")
+    print("Ã°Å¸Â§Â¹ NETTOYAGE URGENT DE L'ESPACE DISQUE")
     print("=" * 50)
     
     broll_dir = Path("AI-B-roll/broll_library")
     if not broll_dir.exists():
-        print("❌ Dossier AI-B-roll/broll_library introuvable")
+        print("Ã¢ÂÅ’ Dossier AI-B-roll/broll_library introuvable")
         return
     
     # Analyser la taille initiale
     initial_size = get_folder_size(broll_dir)
-    print(f"📊 Taille initiale: {initial_size:.2f} GB")
+    print(f"Ã°Å¸â€œÅ  Taille initiale: {initial_size:.2f} GB")
     
     # Analyser les doublons
     duplicates = analyze_broll_duplicates(broll_dir)
@@ -59,59 +60,59 @@ def clean_broll_storage():
     
     for clip_name, folders in duplicates.items():
         if len(folders) > 1:
-            print(f"\n🔍 Clip '{clip_name}' trouvé {len(folders)} fois:")
+            print(f"\nÃ°Å¸â€Â Clip '{clip_name}' trouvÃƒÂ© {len(folders)} fois:")
             
-            # Trier par date de modification (garder le plus récent)
+            # Trier par date de modification (garder le plus rÃƒÂ©cent)
             folders.sort(key=lambda x: x.stat().st_mtime, reverse=True)
             
-            # Garder le premier (plus récent), supprimer les autres
+            # Garder le premier (plus rÃƒÂ©cent), supprimer les autres
             keep_folder = folders[0]
             remove_folders = folders[1:]
             
-            print(f"   ✅ Garder: {keep_folder.name}")
+            print(f"   Ã¢Å“â€¦ Garder: {keep_folder.name}")
             
             for folder in remove_folders:
                 folder_size = get_folder_size(folder)
-                print(f"   🗑️ Supprimer: {folder.name} ({folder_size:.2f} GB)")
+                print(f"   Ã°Å¸â€”â€˜Ã¯Â¸Â Supprimer: {folder.name} ({folder_size:.2f} GB)")
                 
                 try:
                     shutil.rmtree(folder)
                     total_cleaned += folder_size
                     folders_removed += 1
-                    print(f"      ✅ Supprimé avec succès")
+                    print(f"      Ã¢Å“â€¦ SupprimÃƒÂ© avec succÃƒÂ¨s")
                 except Exception as e:
-                    print(f"      ❌ Erreur: {e}")
+                    print(f"      Ã¢ÂÅ’ Erreur: {e}")
     
     # Supprimer les dossiers vides ou corrompus
-    print(f"\n🔍 Nettoyage des dossiers vides/corrompus...")
+    print(f"\nÃ°Å¸â€Â Nettoyage des dossiers vides/corrompus...")
     for folder in broll_dir.iterdir():
         if folder.is_dir():
             if not any(folder.rglob('*')):  # Dossier vide
                 try:
                     shutil.rmtree(folder)
-                    print(f"   🗑️ Dossier vide supprimé: {folder.name}")
+                    print(f"   Ã°Å¸â€”â€˜Ã¯Â¸Â Dossier vide supprimÃƒÂ©: {folder.name}")
                     folders_removed += 1
                 except Exception as e:
-                    print(f"   ❌ Erreur suppression {folder.name}: {e}")
+                    print(f"   Ã¢ÂÅ’ Erreur suppression {folder.name}: {e}")
     
     # Calcul final
     final_size = get_folder_size(broll_dir)
     space_freed = initial_size - final_size
     
-    print(f"\n📊 RÉSULTATS DU NETTOYAGE:")
-    print(f"   📁 Dossiers supprimés: {folders_removed}")
-    print(f"   💾 Espace libéré: {space_freed:.2f} GB")
-    print(f"   📊 Taille finale: {final_size:.2f} GB")
-    print(f"   📈 Réduction: {(space_freed/initial_size)*100:.1f}%")
+    print(f"\nÃ°Å¸â€œÅ  RÃƒâ€°SULTATS DU NETTOYAGE:")
+    print(f"   Ã°Å¸â€œÂ Dossiers supprimÃƒÂ©s: {folders_removed}")
+    print(f"   Ã°Å¸â€™Â¾ Espace libÃƒÂ©rÃƒÂ©: {space_freed:.2f} GB")
+    print(f"   Ã°Å¸â€œÅ  Taille finale: {final_size:.2f} GB")
+    print(f"   Ã°Å¸â€œË† RÃƒÂ©duction: {(space_freed/initial_size)*100:.1f}%")
     
     if space_freed > 0:
-        print(f"\n🎉 NETTOYAGE RÉUSSI ! {space_freed:.2f} GB libérés")
+        print(f"\nÃ°Å¸Å½â€° NETTOYAGE RÃƒâ€°USSI ! {space_freed:.2f} GB libÃƒÂ©rÃƒÂ©s")
     else:
-        print(f"\n⚠️ Aucun espace libéré")
+        print(f"\nÃ¢Å¡Â Ã¯Â¸Â Aucun espace libÃƒÂ©rÃƒÂ©")
 
 def clean_temp_files():
     """Nettoie les fichiers temporaires"""
-    print(f"\n🧹 Nettoyage des fichiers temporaires...")
+    print(f"\nÃ°Å¸Â§Â¹ Nettoyage des fichiers temporaires...")
     
     temp_dirs = [
         Path("temp"),
@@ -127,7 +128,7 @@ def clean_temp_files():
             size = get_folder_size(temp_dir)
             try:
                 if temp_dir.name == "__pycache__":
-                    # Supprimer récursivement tous les __pycache__
+                    # Supprimer rÃƒÂ©cursivement tous les __pycache__
                     for pycache in Path(".").rglob("__pycache__"):
                         shutil.rmtree(pycache, ignore_errors=True)
                 else:
@@ -135,15 +136,15 @@ def clean_temp_files():
                     temp_dir.mkdir(exist_ok=True)
                 
                 total_freed += size
-                print(f"   ✅ {temp_dir}: {size:.2f} GB libérés")
+                print(f"   Ã¢Å“â€¦ {temp_dir}: {size:.2f} GB libÃƒÂ©rÃƒÂ©s")
             except Exception as e:
-                print(f"   ❌ Erreur {temp_dir}: {e}")
+                print(f"   Ã¢ÂÅ’ Erreur {temp_dir}: {e}")
     
-    print(f"   💾 Total temp libéré: {total_freed:.2f} GB")
+    print(f"   Ã°Å¸â€™Â¾ Total temp libÃƒÂ©rÃƒÂ©: {total_freed:.2f} GB")
 
 def analyze_disk_usage():
-    """Analyse complète de l'utilisation disque"""
-    print(f"\n📊 ANALYSE COMPLÈTE DE L'UTILISATION DISQUE")
+    """Analyse complÃƒÂ¨te de l'utilisation disque"""
+    print(f"\nÃ°Å¸â€œÅ  ANALYSE COMPLÃƒË†TE DE L'UTILISATION DISQUE")
     print("=" * 50)
     
     # Analyser chaque dossier principal
@@ -165,52 +166,53 @@ def analyze_disk_usage():
         if dir_path.exists():
             size = get_folder_size(dir_path)
             total_project_size += size
-            print(f"   📁 {dir_name:<20}: {size:>8.2f} GB")
+            print(f"   Ã°Å¸â€œÂ {dir_name:<20}: {size:>8.2f} GB")
     
-    print(f"   📊 TOTAL PROJET: {total_project_size:>13.2f} GB")
+    print(f"   Ã°Å¸â€œÅ  TOTAL PROJET: {total_project_size:>13.2f} GB")
     
     # Recommandations
-    print(f"\n💡 RECOMMANDATIONS:")
+    print(f"\nÃ°Å¸â€™Â¡ RECOMMANDATIONS:")
     if total_project_size > 5:
-        print(f"   🚨 Projet très volumineux ({total_project_size:.1f}GB)")
-        print(f"   🔧 Activez le nettoyage automatique")
-        print(f"   📦 Considérez un cache externe pour les B-rolls")
+        print(f"   Ã°Å¸Å¡Â¨ Projet trÃƒÂ¨s volumineux ({total_project_size:.1f}GB)")
+        print(f"   Ã°Å¸â€Â§ Activez le nettoyage automatique")
+        print(f"   Ã°Å¸â€œÂ¦ ConsidÃƒÂ©rez un cache externe pour les B-rolls")
     
     return total_project_size
 
 if __name__ == "__main__":
-    print("🎯 SCRIPT DE NETTOYAGE URGENT")
-    print("Libération de l'espace disque du pipeline vidéo")
+    print("Ã°Å¸Å½Â¯ SCRIPT DE NETTOYAGE URGENT")
+    print("LibÃƒÂ©ration de l'espace disque du pipeline vidÃƒÂ©o")
     
     # Analyser d'abord
     initial_project_size = analyze_disk_usage()
     
     # Confirmer le nettoyage
-    response = input(f"\n❓ Procéder au nettoyage ? (y/N): ").strip().lower()
+    response = input(f"\nÃ¢Ââ€œ ProcÃƒÂ©der au nettoyage ? (y/N): ").strip().lower()
     
     if response == 'y':
         start_time = time.time()
         
-        # Nettoyer les B-rolls dupliqués
+        # Nettoyer les B-rolls dupliquÃƒÂ©s
         clean_broll_storage()
         
         # Nettoyer les fichiers temporaires
         clean_temp_files()
         
-        # Analyser après nettoyage
+        # Analyser aprÃƒÂ¨s nettoyage
         final_project_size = analyze_disk_usage()
         
         cleanup_time = time.time() - start_time
         total_freed = initial_project_size - final_project_size
         
-        print(f"\n🏆 NETTOYAGE TERMINÉ EN {cleanup_time:.1f}s")
-        print(f"💾 ESPACE TOTAL LIBÉRÉ: {total_freed:.2f} GB")
+        print(f"\nÃ°Å¸Ââ€  NETTOYAGE TERMINÃƒâ€° EN {cleanup_time:.1f}s")
+        print(f"Ã°Å¸â€™Â¾ ESPACE TOTAL LIBÃƒâ€°RÃƒâ€°: {total_freed:.2f} GB")
         
         if total_freed > 1.0:
-            print(f"🎉 EXCELLENT ! Plus d'1 GB libéré")
+            print(f"Ã°Å¸Å½â€° EXCELLENT ! Plus d'1 GB libÃƒÂ©rÃƒÂ©")
         elif total_freed > 0.1:
-            print(f"👍 BIEN ! Espace libéré avec succès")
+            print(f"Ã°Å¸â€˜Â BIEN ! Espace libÃƒÂ©rÃƒÂ© avec succÃƒÂ¨s")
         else:
-            print(f"⚠️ Peu d'espace libéré, vérifiez manuellement")
+            print(f"Ã¢Å¡Â Ã¯Â¸Â Peu d'espace libÃƒÂ©rÃƒÂ©, vÃƒÂ©rifiez manuellement")
     else:
-        print(f"❌ Nettoyage annulé") 
+        print(f"Ã¢ÂÅ’ Nettoyage annulÃƒÂ©") 
+

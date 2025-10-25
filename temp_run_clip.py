@@ -1,4 +1,5 @@
-﻿import sys, importlib.util
+﻿ï»¿# -*- coding: utf-8 -*-
+import sys, importlib.util
 
 UTILS_DIR = r"C:\\Users\\Administrator\\Desktop\\video_pipeline - Copy\\utils"
 INIT_PATH = UTILS_DIR + "\\__init__.py"
@@ -20,3 +21,5 @@ print('[INFO] VideoProcessor initialised')
 
 output = processor.process_single_clip(clip_path)
 print('[INFO] Processing finished:', output)
+
+

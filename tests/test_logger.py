@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from pathlib import Path
 import json
 
@@ -14,4 +14,5 @@ def test_jsonl_logger_writes(tmp_path: Path):
     lines = log_file.read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 2
     assert json.loads(lines[0])["hello"] == "world"
+
 

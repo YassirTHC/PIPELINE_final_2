@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🧪 BENCH LLM CALL - TEST LATENCE MINIMALE
-Test de latence pour identifier si le problème vient de l'infrastructure ou du modèle
+ðŸ§ª BENCH LLM CALL - TEST LATENCE MINIMALE
+Test de latence pour identifier si le problÃ¨me vient de l'infrastructure ou du modÃ¨le
 """
 
 import time
@@ -14,9 +14,9 @@ from datetime import datetime
 def bench_llm_call():
     """Benchmark d'un appel LLM minimal"""
     
-    print("🧪 BENCH LLM CALL - TEST LATENCE MINIMALE")
+    print("ðŸ§ª BENCH LLM CALL - TEST LATENCE MINIMALE")
     print("=" * 60)
-    print(f"⏰ Début: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"â° DÃ©but: {datetime.now().strftime('%H:%M:%S')}")
     print()
     
     # Configuration
@@ -35,24 +35,24 @@ Return JSON: {"keywords":["k1","k2","k3","k4","k5"]}'''
         "stream": False
     }
     
-    print(f"🎯 Modèle: {MODEL}")
-    print(f"📝 Prompt: {len(PROMPT)} caractères")
-    print(f"⏱️ Timeout: 120s")
+    print(f"ðŸŽ¯ ModÃ¨le: {MODEL}")
+    print(f"ðŸ“ Prompt: {len(PROMPT)} caractÃ¨res")
+    print(f"â±ï¸ Timeout: 120s")
     print()
     
-    # Monitoring système avant
-    print("📊 MONITORING SYSTÈME - AVANT")
+    # Monitoring systÃ¨me avant
+    print("ðŸ“Š MONITORING SYSTÃˆME - AVANT")
     print("-" * 40)
     mem_before = psutil.virtual_memory()
     cpu_percent = psutil.cpu_percent(interval=1)
     
-    print(f"💾 RAM disponible: {mem_before.available / 1e9:.2f} GB")
-    print(f"💾 RAM utilisée: {mem_before.used / 1e9:.2f} GB")
-    print(f"🔄 CPU: {cpu_percent}%")
+    print(f"ðŸ’¾ RAM disponible: {mem_before.available / 1e9:.2f} GB")
+    print(f"ðŸ’¾ RAM utilisÃ©e: {mem_before.used / 1e9:.2f} GB")
+    print(f"ðŸ”„ CPU: {cpu_percent}%")
     print()
     
     # Test LLM
-    print("🚀 TEST LLM EN COURS...")
+    print("ðŸš€ TEST LLM EN COURS...")
     print("-" * 40)
     
     try:
@@ -63,85 +63,85 @@ Return JSON: {"keywords":["k1","k2","k3","k4","k5"]}'''
         elapsed = t1 - t0
         status = r.status_code
         
-        print(f"✅ Statut: {status}")
-        print(f"⏱️ Temps total: {elapsed:.2f}s")
-        print(f"📊 Latence: {elapsed*1000:.0f}ms")
+        print(f"âœ… Statut: {status}")
+        print(f"â±ï¸ Temps total: {elapsed:.2f}s")
+        print(f"ðŸ“Š Latence: {elapsed*1000:.0f}ms")
         
         if r.status_code == 200:
             try:
                 response_data = r.json()
                 response_text = response_data.get('response', '')
-                print(f"📝 Réponse: {len(response_text)} caractères")
-                print(f"🔍 Début réponse: {response_text[:200]}...")
+                print(f"ðŸ“ RÃ©ponse: {len(response_text)} caractÃ¨res")
+                print(f"ðŸ” DÃ©but rÃ©ponse: {response_text[:200]}...")
                 
                 # Test parsing JSON
                 try:
                     json.loads(response_text)
-                    print("✅ JSON valide détecté")
+                    print("âœ… JSON valide dÃ©tectÃ©")
                 except:
-                    print("⚠️ JSON invalide dans la réponse")
+                    print("âš ï¸ JSON invalide dans la rÃ©ponse")
                     
             except Exception as e:
-                print(f"❌ Erreur parsing réponse: {e}")
-                print(f"📝 Réponse brute: {r.text[:200]}...")
+                print(f"âŒ Erreur parsing rÃ©ponse: {e}")
+                print(f"ðŸ“ RÃ©ponse brute: {r.text[:200]}...")
         else:
-            print(f"❌ Erreur HTTP: {r.text}")
+            print(f"âŒ Erreur HTTP: {r.text}")
             
     except requests.exceptions.Timeout:
-        print("⏱️ TIMEOUT après 120s")
+        print("â±ï¸ TIMEOUT aprÃ¨s 120s")
         elapsed = 120
         status = "TIMEOUT"
     except Exception as e:
-        print(f"❌ Erreur: {str(e)}")
+        print(f"âŒ Erreur: {str(e)}")
         elapsed = 0
         status = "ERROR"
     
-    # Monitoring système après
+    # Monitoring systÃ¨me aprÃ¨s
     print()
-    print("📊 MONITORING SYSTÈME - APRÈS")
+    print("ðŸ“Š MONITORING SYSTÃˆME - APRÃˆS")
     print("-" * 40)
     mem_after = psutil.virtual_memory()
     cpu_percent_after = psutil.cpu_percent(interval=1)
     
     mem_delta = mem_before.available - mem_after.available
-    print(f"💾 RAM delta: {mem_delta / 1e6:.1f} MB")
-    print(f"💾 RAM disponible: {mem_after.available / 1e9:.2f} GB")
-    print(f"🔄 CPU: {cpu_percent_after}%")
+    print(f"ðŸ’¾ RAM delta: {mem_delta / 1e6:.1f} MB")
+    print(f"ðŸ’¾ RAM disponible: {mem_after.available / 1e9:.2f} GB")
+    print(f"ðŸ”„ CPU: {cpu_percent_after}%")
     
-    # Analyse des résultats
+    # Analyse des rÃ©sultats
     print()
-    print("🔍 ANALYSE DES RÉSULTATS")
+    print("ðŸ” ANALYSE DES RÃ‰SULTATS")
     print("=" * 60)
     
     if elapsed < 5:
-        print("✅ INFRA OK - Latence normale (<5s)")
-        print("🎯 Problème probable: Prompt trop complexe")
+        print("âœ… INFRA OK - Latence normale (<5s)")
+        print("ðŸŽ¯ ProblÃ¨me probable: Prompt trop complexe")
     elif elapsed < 10:
-        print("⚠️ INFRA LENTE - Latence élevée (5-10s)")
-        print("🎯 Problème probable: Modèle ou configuration Ollama")
+        print("âš ï¸ INFRA LENTE - Latence Ã©levÃ©e (5-10s)")
+        print("ðŸŽ¯ ProblÃ¨me probable: ModÃ¨le ou configuration Ollama")
     elif elapsed < 30:
-        print("❌ INFRA PROBLÉMATIQUE - Latence très élevée (10-30s)")
-        print("🎯 Problème probable: Modèle quantisé mal ou RAM insuffisante")
+        print("âŒ INFRA PROBLÃ‰MATIQUE - Latence trÃ¨s Ã©levÃ©e (10-30s)")
+        print("ðŸŽ¯ ProblÃ¨me probable: ModÃ¨le quantisÃ© mal ou RAM insuffisante")
     else:
-        print("🚨 INFRA CRITIQUE - Latence excessive (>30s)")
-        print("🎯 Problème probable: Swapping, modèle corrompu, ou configuration critique")
+        print("ðŸš¨ INFRA CRITIQUE - Latence excessive (>30s)")
+        print("ðŸŽ¯ ProblÃ¨me probable: Swapping, modÃ¨le corrompu, ou configuration critique")
     
     print()
-    print("📋 RECOMMANDATIONS")
+    print("ðŸ“‹ RECOMMANDATIONS")
     print("-" * 40)
     
     if elapsed < 5:
-        print("1. ✅ Infra OK - Tester prompt complexe maintenant")
-        print("2. 🎯 Simplifier le prompt de génération de mots-clés")
-        print("3. 🔧 Implémenter fallback heuristique")
+        print("1. âœ… Infra OK - Tester prompt complexe maintenant")
+        print("2. ðŸŽ¯ Simplifier le prompt de gÃ©nÃ©ration de mots-clÃ©s")
+        print("3. ðŸ”§ ImplÃ©menter fallback heuristique")
     elif elapsed < 30:
-        print("1. ⚠️ Vérifier configuration Ollama")
-        print("2. 🔍 Tester modèle quantisé (qwen3:4b)")
-        print("3. 💾 Vérifier utilisation RAM/swap")
+        print("1. âš ï¸ VÃ©rifier configuration Ollama")
+        print("2. ðŸ” Tester modÃ¨le quantisÃ© (qwen3:4b)")
+        print("3. ðŸ’¾ VÃ©rifier utilisation RAM/swap")
     else:
-        print("1. 🚨 Vérifier immédiatement l'état du système")
-        print("2. 🔄 Redémarrer Ollama")
-        print("3. 📦 Réinstaller le modèle")
+        print("1. ðŸš¨ VÃ©rifier immÃ©diatement l'Ã©tat du systÃ¨me")
+        print("2. ðŸ”„ RedÃ©marrer Ollama")
+        print("3. ðŸ“¦ RÃ©installer le modÃ¨le")
     
     return elapsed, status
 
@@ -150,6 +150,6 @@ if __name__ == "__main__":
     
     print()
     print("=" * 60)
-    print(f"🏁 BENCH TERMINÉ - Temps: {elapsed:.2f}s, Statut: {status}")
+    print(f"ðŸ BENCH TERMINÃ‰ - Temps: {elapsed:.2f}s, Statut: {status}")
     
-    input("\nAppuyez sur Entrée pour continuer...") 
+    input("\nAppuyez sur EntrÃ©e pour continuer...") 

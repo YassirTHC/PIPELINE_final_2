@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
-Pipeline B-roll Avancé Complet avec Intégration Intelligente
-Version de production avec NLP, ML, gestion vidéo et base de données
+Pipeline B-roll AvancÃƒÂ© Complet avec IntÃƒÂ©gration Intelligente
+Version de production avec NLP, ML, gestion vidÃƒÂ©o et base de donnÃƒÂ©es
 """
 
 import asyncio
@@ -13,7 +14,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 import time
 
-# Configuration du logging avancé
+# Configuration du logging avancÃƒÂ©
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -25,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class AdvancedBrollPipeline:
-    """Pipeline B-roll avancé avec intégration complète des composants intelligents"""
+    """Pipeline B-roll avancÃƒÂ© avec intÃƒÂ©gration complÃƒÂ¨te des composants intelligents"""
     
     def __init__(self, config_path: Optional[str] = None):
         self.config = self._load_config(config_path)
@@ -43,62 +44,62 @@ class AdvancedBrollPipeline:
         # Initialisation synchrone des composants de base
         self._initialize_sync_components()
         
-        logger.info("Pipeline B-roll avancé initialisé (initialisation asynchrone en attente)")
+        logger.info("Pipeline B-roll avancÃƒÂ© initialisÃƒÂ© (initialisation asynchrone en attente)")
 
     def _initialize_sync_components(self):
-        """Initialise les composants de base de manière synchrone"""
+        """Initialise les composants de base de maniÃƒÂ¨re synchrone"""
         try:
             logger.info("Initialisation des composants de base...")
             
-            # Vérifier la disponibilité des modules
+            # VÃƒÂ©rifier la disponibilitÃƒÂ© des modules
             try:
                 import advanced_context_analyzer
-                logger.info("✅ Module advanced_context_analyzer disponible")
+                logger.info("Ã¢Å“â€¦ Module advanced_context_analyzer disponible")
             except ImportError as e:
-                logger.warning(f"⚠️ Module advanced_context_analyzer non disponible: {e}")
+                logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Module advanced_context_analyzer non disponible: {e}")
             
             try:
                 import advanced_broll_selector
-                logger.info("✅ Module advanced_broll_selector disponible")
+                logger.info("Ã¢Å“â€¦ Module advanced_broll_selector disponible")
             except ImportError as e:
-                logger.warning(f"⚠️ Module advanced_broll_selector non disponible: {e}")
+                logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Module advanced_broll_selector non disponible: {e}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur lors de l'initialisation des composants de base: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur lors de l'initialisation des composants de base: {e}")
 
     async def initialize_async_components(self):
-        """Initialise les composants asynchrones (à appeler après création de l'instance)"""
+        """Initialise les composants asynchrones (ÃƒÂ  appeler aprÃƒÂ¨s crÃƒÂ©ation de l'instance)"""
         try:
-            logger.info("🔄 Initialisation asynchrone des composants intelligents...")
+            logger.info("Ã°Å¸â€â€ž Initialisation asynchrone des composants intelligents...")
             
             # Initialiser l'analyseur contextuel
             try:
                 from advanced_context_analyzer import AdvancedContextAnalyzer
                 self.context_analyzer = AdvancedContextAnalyzer()
-                logger.info("✅ Analyseur contextuel avancé initialisé")
+                logger.info("Ã¢Å“â€¦ Analyseur contextuel avancÃƒÂ© initialisÃƒÂ©")
             except ImportError as e:
-                logger.warning(f"⚠️ Analyseur contextuel avancé non disponible: {e}")
+                logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Analyseur contextuel avancÃƒÂ© non disponible: {e}")
                 self.context_analyzer = None
             
-            # Initialiser le sélecteur B-roll
+            # Initialiser le sÃƒÂ©lecteur B-roll
             try:
                 from advanced_broll_selector import AdvancedBrollSelector
                 self.broll_selector = AdvancedBrollSelector()
-                logger.info("✅ Sélecteur B-roll avancé initialisé")
+                logger.info("Ã¢Å“â€¦ SÃƒÂ©lecteur B-roll avancÃƒÂ© initialisÃƒÂ©")
             except ImportError as e:
-                logger.warning(f"⚠️ Sélecteur B-roll avancé non disponible: {e}")
+                logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â SÃƒÂ©lecteur B-roll avancÃƒÂ© non disponible: {e}")
                 self.broll_selector = None
             
-            # Vérifier l'état des composants
+            # VÃƒÂ©rifier l'ÃƒÂ©tat des composants
             if self.context_analyzer and self.broll_selector:
-                logger.info("🎉 Tous les composants intelligents sont opérationnels!")
+                logger.info("Ã°Å¸Å½â€° Tous les composants intelligents sont opÃƒÂ©rationnels!")
             else:
-                logger.warning("⚠️ Certains composants intelligents ne sont pas disponibles")
+                logger.warning("Ã¢Å¡Â Ã¯Â¸Â Certains composants intelligents ne sont pas disponibles")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erreur lors de l'initialisation des composants: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur lors de l'initialisation des composants: {e}")
             traceback.print_exc()
             return False
 
@@ -139,14 +140,14 @@ class AdvancedBrollPipeline:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     user_config = json.load(f)
                     self._merge_configs(default_config, user_config)
-                    logger.info(f"Configuration chargée depuis: {config_path}")
+                    logger.info(f"Configuration chargÃƒÂ©e depuis: {config_path}")
             except Exception as e:
                 logger.warning(f"Erreur lors du chargement de la config: {e}")
         
         return default_config
 
     def _merge_configs(self, default: Dict, user: Dict):
-        """Fusionne les configurations par défaut et utilisateur"""
+        """Fusionne les configurations par dÃƒÂ©faut et utilisateur"""
         for key, value in user.items():
             if key in default:
                 if isinstance(value, dict) and isinstance(default[key], dict):
@@ -157,46 +158,46 @@ class AdvancedBrollPipeline:
                 default[key] = value
 
     async def process_transcript_advanced(self, transcript_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Traite une transcription avec le pipeline avancé complet"""
+        """Traite une transcription avec le pipeline avancÃƒÂ© complet"""
         start_time = time.time()
         request_id = f"req_{int(start_time)}"
         
         try:
-            logger.info(f"🚀 Démarrage du pipeline avancé pour la requête {request_id}")
+            logger.info(f"Ã°Å¸Å¡â‚¬ DÃƒÂ©marrage du pipeline avancÃƒÂ© pour la requÃƒÂªte {request_id}")
             
-            # Validation des données d'entrée
+            # Validation des donnÃƒÂ©es d'entrÃƒÂ©e
             if not self._validate_transcript_data(transcript_data):
-                raise ValueError("Données de transcription invalides")
+                raise ValueError("DonnÃƒÂ©es de transcription invalides")
             
-            # Attendre que les composants soient initialisés
+            # Attendre que les composants soient initialisÃƒÂ©s
             components_ready = await self._wait_for_components(timeout=30)
             if not components_ready:
-                logger.warning("⚠️ Composants non disponibles, utilisation du mode fallback")
+                logger.warning("Ã¢Å¡Â Ã¯Â¸Â Composants non disponibles, utilisation du mode fallback")
             
-            # Analyse contextuelle avancée
+            # Analyse contextuelle avancÃƒÂ©e
             context_analysis = await self._perform_advanced_context_analysis(transcript_data)
             
-            # Sélection B-roll intelligente
+            # SÃƒÂ©lection B-roll intelligente
             broll_selections = await self._perform_intelligent_broll_selection(
                 transcript_data, context_analysis
             )
             
-            # Analyse des résultats
+            # Analyse des rÃƒÂ©sultats
             results_analysis = await self._analyze_broll_selection_results(
                 broll_selections, context_analysis
             )
             
-            # Enrichissement des métadonnées
+            # Enrichissement des mÃƒÂ©tadonnÃƒÂ©es
             enriched_metadata = await self._enrich_metadata(
                 transcript_data, context_analysis, broll_selections
             )
             
-            # Sauvegarder les métadonnées
+            # Sauvegarder les mÃƒÂ©tadonnÃƒÂ©es
             await self._save_metadata(request_id, transcript_data, context_analysis, broll_selections, results_analysis)
             
             processing_time = time.time() - start_time
             
-            # Créer la réponse finale
+            # CrÃƒÂ©er la rÃƒÂ©ponse finale
             final_results = {
                 "pipeline_status": "success",
                 "request_id": request_id,
@@ -231,29 +232,29 @@ class AdvancedBrollPipeline:
                 request_id, str(e), processing_time
             )
             
-            logger.error(f"❌ Erreur pipeline avancé: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur pipeline avancÃƒÂ©: {e}")
             traceback.print_exc()
             
             return error_response
 
     def _validate_transcript_data(self, transcript_data: Dict[str, Any]) -> bool:
-        """Valide les données de transcription d'entrée"""
+        """Valide les donnÃƒÂ©es de transcription d'entrÃƒÂ©e"""
         try:
             required_fields = ['segments', 'metadata']
             
-            # Vérifier les champs requis
+            # VÃƒÂ©rifier les champs requis
             for field in required_fields:
                 if field not in transcript_data:
                     logger.error(f"Champ requis manquant: {field}")
                     return False
             
-            # Vérifier les segments
+            # VÃƒÂ©rifier les segments
             segments = transcript_data.get('segments', [])
             if not segments or not isinstance(segments, list):
                 logger.error("Segments invalides ou vides")
                 return False
             
-            # Vérifier la structure des segments
+            # VÃƒÂ©rifier la structure des segments
             for i, segment in enumerate(segments):
                 if not isinstance(segment, dict):
                     logger.error(f"Segment {i} invalide")
@@ -265,68 +266,68 @@ class AdvancedBrollPipeline:
                         logger.error(f"Champ segment manquant: {field} dans segment {i}")
                         return False
             
-            # Vérifier le nombre de segments
+            # VÃƒÂ©rifier le nombre de segments
             max_segments = self.config["analysis"]["max_segments_per_request"]
             if len(segments) > max_segments:
-                logger.warning(f"Nombre de segments ({len(segments)}) dépasse la limite ({max_segments})")
+                logger.warning(f"Nombre de segments ({len(segments)}) dÃƒÂ©passe la limite ({max_segments})")
             
-            logger.info(f"✅ Validation des données réussie: {len(segments)} segments")
+            logger.info(f"Ã¢Å“â€¦ Validation des donnÃƒÂ©es rÃƒÂ©ussie: {len(segments)} segments")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erreur validation: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur validation: {e}")
             return False
 
     async def _wait_for_components(self, timeout: int = 30):
-        """Attend que les composants soient initialisés avec gestion d'erreur robuste"""
+        """Attend que les composants soient initialisÃƒÂ©s avec gestion d'erreur robuste"""
         start_time = time.time()
         
-        # Si les composants ne sont pas initialisés, les initialiser
+        # Si les composants ne sont pas initialisÃƒÂ©s, les initialiser
         if not self.context_analyzer or not self.broll_selector:
-            logger.info("🔄 Initialisation des composants asynchrones...")
+            logger.info("Ã°Å¸â€â€ž Initialisation des composants asynchrones...")
             try:
                 await self.initialize_async_components()
             except Exception as e:
-                logger.error(f"❌ Erreur lors de l'initialisation des composants: {e}")
+                logger.error(f"Ã¢ÂÅ’ Erreur lors de l'initialisation des composants: {e}")
         
-        # Attendre que les composants soient prêts
+        # Attendre que les composants soient prÃƒÂªts
         while time.time() - start_time < timeout:
             if self.context_analyzer and self.broll_selector:
-                logger.info("🎉 Tous les composants intelligents sont opérationnels!")
+                logger.info("Ã°Å¸Å½â€° Tous les composants intelligents sont opÃƒÂ©rationnels!")
                 return True
             await asyncio.sleep(1)
         
-        # Timeout atteint, vérifier l'état des composants
+        # Timeout atteint, vÃƒÂ©rifier l'ÃƒÂ©tat des composants
         if not self.context_analyzer and not self.broll_selector:
-            logger.error("❌ Aucun composant intelligent disponible après timeout")
+            logger.error("Ã¢ÂÅ’ Aucun composant intelligent disponible aprÃƒÂ¨s timeout")
             return False
         elif not self.context_analyzer:
-            logger.warning("⚠️ Analyseur contextuel non disponible, utilisation du fallback")
+            logger.warning("Ã¢Å¡Â Ã¯Â¸Â Analyseur contextuel non disponible, utilisation du fallback")
             return False
         elif not self.broll_selector:
-            logger.warning("⚠️ Sélecteur B-roll non disponible, utilisation du fallback")
+            logger.warning("Ã¢Å¡Â Ã¯Â¸Â SÃƒÂ©lecteur B-roll non disponible, utilisation du fallback")
             return False
         
         return False
 
     async def _perform_advanced_context_analysis(self, transcript_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Effectue l'analyse contextuelle avancée avec fallback robuste"""
+        """Effectue l'analyse contextuelle avancÃƒÂ©e avec fallback robuste"""
         try:
             if not self.context_analyzer:
-                logger.warning("⚠️ Analyseur contextuel avancé non disponible, utilisation du fallback")
+                logger.warning("Ã¢Å¡Â Ã¯Â¸Â Analyseur contextuel avancÃƒÂ© non disponible, utilisation du fallback")
                 return self._create_enhanced_fallback_analysis(transcript_data)
             
             # Extraire les segments pour l'analyse
             segments = transcript_data.get('segments', [])
             
-            # Effectuer l'analyse contextuelle avancée
+            # Effectuer l'analyse contextuelle avancÃƒÂ©e
             context_analysis = await self.context_analyzer.analyze_transcript_advanced(segments)
             
             if not context_analysis:
-                logger.warning("⚠️ Analyse contextuelle avancée échouée, utilisation du fallback")
+                logger.warning("Ã¢Å¡Â Ã¯Â¸Â Analyse contextuelle avancÃƒÂ©e ÃƒÂ©chouÃƒÂ©e, utilisation du fallback")
                 return self._create_enhanced_fallback_analysis(transcript_data)
             
-            # Vérifier la confiance de l'analyse
+            # VÃƒÂ©rifier la confiance de l'analyse
             confidence = context_analysis.get('context_scores', {}).get('overall_confidence', 0.0)
             min_confidence = self.config["analysis"]["min_confidence_threshold"]
             
@@ -342,11 +343,11 @@ class AdvancedBrollPipeline:
             return self._create_enhanced_fallback_analysis(transcript_data)
 
     def _create_enhanced_fallback_analysis(self, transcript_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Crée une analyse contextuelle de fallback améliorée"""
+        """CrÃƒÂ©e une analyse contextuelle de fallback amÃƒÂ©liorÃƒÂ©e"""
         try:
             segments = transcript_data.get('segments', [])
             
-            # Analyse intelligente basée sur le contenu
+            # Analyse intelligente basÃƒÂ©e sur le contenu
             main_themes = self._extract_main_themes_from_segments(segments)
             overall_tone = self._analyze_overall_tone(segments)
             complexity_profile = self._analyze_complexity_profile(segments)
@@ -359,7 +360,7 @@ class AdvancedBrollPipeline:
                     "complexity_profile": complexity_profile,
                     "target_audience": self._determine_target_audience(complexity_profile),
                     "narrative_structure": "linear",
-                    "context_coherence": 0.7  # Score amélioré
+                    "context_coherence": 0.7  # Score amÃƒÂ©liorÃƒÂ©
                 },
                 "segments_analysis": [
                     {
@@ -392,11 +393,11 @@ class AdvancedBrollPipeline:
             return enhanced_analysis
             
         except Exception as e:
-            logger.error(f"❌ Erreur création analyse de fallback: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur crÃƒÂ©ation analyse de fallback: {e}")
             return self._create_basic_context_analysis(transcript_data)
 
     def _create_basic_context_analysis(self, transcript_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Crée une analyse contextuelle basique en cas d'échec"""
+        """CrÃƒÂ©e une analyse contextuelle basique en cas d'ÃƒÂ©chec"""
         try:
             segments = transcript_data.get('segments', [])
             
@@ -440,16 +441,16 @@ class AdvancedBrollPipeline:
             return basic_analysis
             
         except Exception as e:
-            logger.error(f"❌ Erreur création analyse basique: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur crÃƒÂ©ation analyse basique: {e}")
             return {}
 
     async def _perform_intelligent_broll_selection(self, 
                                                  transcript_data: Dict[str, Any],
                                                  context_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Effectue la sélection B-roll intelligente"""
+        """Effectue la sÃƒÂ©lection B-roll intelligente"""
         try:
             if not self.broll_selector:
-                logger.warning("⚠️ Sélecteur B-roll avancé non disponible, utilisation du fallback")
+                logger.warning("Ã¢Å¡Â Ã¯Â¸Â SÃƒÂ©lecteur B-roll avancÃƒÂ© non disponible, utilisation du fallback")
                 return self._create_basic_broll_selections(transcript_data)
             
             segments = transcript_data.get('segments', [])
@@ -460,9 +461,9 @@ class AdvancedBrollPipeline:
             
             for i, (segment, segment_analysis) in enumerate(zip(segments, segments_analysis)):
                 try:
-                    logger.debug(f"🎯 Traitement segment {i+1}/{len(segments)}: {segment.get('text', '')[:50]}...")
+                    logger.debug(f"Ã°Å¸Å½Â¯ Traitement segment {i+1}/{len(segments)}: {segment.get('text', '')[:50]}...")
                     
-                    # Sélection B-roll intelligente
+                    # SÃƒÂ©lection B-roll intelligente
                     selection = await self.broll_selector.select_contextual_brolls(
                         context_analysis, segment_analysis
                     )
@@ -505,13 +506,13 @@ class AdvancedBrollPipeline:
                             "segment_context": segment_analysis.get('local_context', 'unknown'),
                             "selected_broll": None,
                             "alternative_brolls": [],
-                            "selection_metadata": {"reason": "Aucune sélection possible"},
+                            "selection_metadata": {"reason": "Aucune sÃƒÂ©lection possible"},
                             "context_match_score": 0.0,
                             "diversity_score": 0.0
                         })
                     
                 except Exception as e:
-                    logger.error(f"❌ Erreur traitement segment {i+1}: {e}")
+                    logger.error(f"Ã¢ÂÅ’ Erreur traitement segment {i+1}: {e}")
                     
                     broll_selections.append({
                         "segment_index": i,
@@ -528,11 +529,11 @@ class AdvancedBrollPipeline:
             return broll_selections
             
         except Exception as e:
-            logger.error(f"❌ Erreur sélection B-roll intelligente: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur sÃƒÂ©lection B-roll intelligente: {e}")
             return self._create_basic_broll_selections(transcript_data)
 
     def _create_basic_broll_selections(self, transcript_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Crée des sélections B-roll basiques en cas d'échec"""
+        """CrÃƒÂ©e des sÃƒÂ©lections B-roll basiques en cas d'ÃƒÂ©chec"""
         try:
             segments = transcript_data.get('segments', [])
             
@@ -544,12 +545,12 @@ class AdvancedBrollPipeline:
                     "segment_context": "general",
                     "selected_broll": {
                         "id": f"fallback_{i}",
-                        "title": "Sélection par défaut",
+                        "title": "SÃƒÂ©lection par dÃƒÂ©faut",
                         "file_path": "",
                         "duration": 0.0,
                         "context_relevance": 0.5,
                         "final_score": 0.5,
-                        "selection_reason": "Sélection basique - mode fallback"
+                        "selection_reason": "SÃƒÂ©lection basique - mode fallback"
                     },
                     "alternative_brolls": [],
                     "selection_metadata": {"reason": "Mode fallback"},
@@ -560,32 +561,32 @@ class AdvancedBrollPipeline:
             return basic_selections
             
         except Exception as e:
-            logger.error(f"❌ Erreur création sélections basiques: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur crÃƒÂ©ation sÃƒÂ©lections basiques: {e}")
             return []
 
     async def _analyze_broll_selection_results(self, broll_selections: List[Dict[str, Any]], 
                                             context_analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyse les résultats de la sélection B-roll"""
+        """Analyse les rÃƒÂ©sultats de la sÃƒÂ©lection B-roll"""
         try:
             if not broll_selections:
                 return {
                     "overall_quality_score": 0.0,
                     "context_relevance_score": 0.0,
                     "diversity_score": 0.0,
-                    "analysis_summary": "Aucune sélection B-roll"
+                    "analysis_summary": "Aucune sÃƒÂ©lection B-roll"
                 }
             
-            # Calculer le score de qualité global
+            # Calculer le score de qualitÃƒÂ© global
             context_scores = [s.get('context_match_score', 0.0) for s in broll_selections]
             avg_context_score = sum(context_scores) / len(context_scores) if context_scores else 0.0
             
-            # Calculer le score de diversité
+            # Calculer le score de diversitÃƒÂ©
             diversity_score = self._calculate_diversity_score(broll_selections)
             
             # Calculer le score de pertinence contextuelle
             context_relevance_score = self._calculate_context_relevance_score(broll_selections, context_analysis)
             
-            # Score de qualité global pondéré
+            # Score de qualitÃƒÂ© global pondÃƒÂ©rÃƒÂ©
             overall_quality_score = (
                 avg_context_score * 0.4 +
                 diversity_score * 0.3 +
@@ -610,7 +611,7 @@ class AdvancedBrollPipeline:
             return analysis_results
             
         except Exception as e:
-            logger.error(f"❌ Erreur analyse des résultats: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur analyse des rÃƒÂ©sultats: {e}")
             return {
                 "overall_quality_score": 0.0,
                 "context_relevance_score": 0.0,
@@ -619,7 +620,7 @@ class AdvancedBrollPipeline:
             }
 
     def _calculate_diversity_score(self, broll_selections: List[Dict[str, Any]]) -> float:
-        """Calcule le score de diversité des B-rolls sélectionnés"""
+        """Calcule le score de diversitÃƒÂ© des B-rolls sÃƒÂ©lectionnÃƒÂ©s"""
         try:
             if not broll_selections:
                 return 0.0
@@ -665,7 +666,7 @@ class AdvancedBrollPipeline:
             
             return diversity_score
         except Exception as e:
-            logger.warning(f"Erreur calcul diversité: {e}")
+            logger.warning(f"Erreur calcul diversitÃƒÂ©: {e}")
             return 0.5
 
     def _calculate_context_relevance_score(self, broll_selections: List[Dict[str, Any]], 
@@ -675,17 +676,17 @@ class AdvancedBrollPipeline:
             if not broll_selections:
                 return 0.0
             
-            # Extraire le thème principal du contexte
+            # Extraire le thÃƒÂ¨me principal du contexte
             main_theme = context_analysis.get('global_analysis', {}).get('main_theme', 'general')
             
-            # Calculer la pertinence de chaque sélection
+            # Calculer la pertinence de chaque sÃƒÂ©lection
             relevance_scores = []
             
             for selection in broll_selections:
                 segment_context = selection.get('segment_context', 'unknown')
                 context_match_score = selection.get('context_match_score', 0.0)
                 
-                # Bonus si le contexte du segment correspond au thème principal
+                # Bonus si le contexte du segment correspond au thÃƒÂ¨me principal
                 theme_bonus = 0.2 if segment_context == main_theme else 0.0
                 
                 # Score de pertinence final
@@ -701,18 +702,18 @@ class AdvancedBrollPipeline:
 
     def _generate_analysis_summary(self, broll_selections: List[Dict[str, Any]], 
                                  overall_quality_score: float) -> str:
-        """Génère un résumé de l'analyse"""
+        """GÃƒÂ©nÃƒÂ¨re un rÃƒÂ©sumÃƒÂ© de l'analyse"""
         try:
             if not broll_selections:
-                return "Aucune sélection B-roll disponible"
+                return "Aucune sÃƒÂ©lection B-roll disponible"
             
-            # Compter les sélections par contexte
+            # Compter les sÃƒÂ©lections par contexte
             context_counts = {}
             for selection in broll_selections:
                 context = selection.get('segment_context', 'unknown')
                 context_counts[context] = context_counts.get(context, 0) + 1
             
-            # Générer le résumé
+            # GÃƒÂ©nÃƒÂ©rer le rÃƒÂ©sumÃƒÂ©
             if overall_quality_score >= 0.8:
                 quality_level = "excellente"
             elif overall_quality_score >= 0.6:
@@ -722,19 +723,19 @@ class AdvancedBrollPipeline:
             else:
                 quality_level = "faible"
             
-            summary = f"Qualité {quality_level} ({overall_quality_score:.2f}/1.0) - "
-            summary += f"{len(broll_selections)} B-rolls sélectionnés dans {len(context_counts)} contextes"
+            summary = f"QualitÃƒÂ© {quality_level} ({overall_quality_score:.2f}/1.0) - "
+            summary += f"{len(broll_selections)} B-rolls sÃƒÂ©lectionnÃƒÂ©s dans {len(context_counts)} contextes"
             
             return summary
             
         except Exception as e:
-            logger.warning(f"Erreur génération résumé: {e}")
-            return "Résumé non disponible"
+            logger.warning(f"Erreur gÃƒÂ©nÃƒÂ©ration rÃƒÂ©sumÃƒÂ©: {e}")
+            return "RÃƒÂ©sumÃƒÂ© non disponible"
 
     async def _enrich_metadata(self, transcript_data: Dict[str, Any], 
                              context_analysis: Dict[str, Any], 
                              broll_selections: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Enrichit les métadonnées avec les informations du pipeline"""
+        """Enrichit les mÃƒÂ©tadonnÃƒÂ©es avec les informations du pipeline"""
         try:
             enriched_metadata = {
                 "transcript_metadata": transcript_data.get('metadata', {}),
@@ -768,7 +769,7 @@ class AdvancedBrollPipeline:
             return enriched_metadata
             
         except Exception as e:
-            logger.error(f"❌ Erreur enrichissement métadonnées: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur enrichissement mÃƒÂ©tadonnÃƒÂ©es: {e}")
             return {
                 "error": f"Erreur enrichissement: {e}",
                 "timestamp": datetime.now().isoformat()
@@ -776,7 +777,7 @@ class AdvancedBrollPipeline:
 
     def _create_error_response(self, request_id: str, error_message: str, 
                              processing_time: float) -> Dict[str, Any]:
-        """Crée une réponse d'erreur"""
+        """CrÃƒÂ©e une rÃƒÂ©ponse d'erreur"""
         return {
             "request_id": request_id,
             "pipeline_status": "error",
@@ -805,18 +806,18 @@ class AdvancedBrollPipeline:
         }
 
     def get_database_stats(self) -> Dict[str, Any]:
-        """Obtient les statistiques de la base de données B-roll"""
+        """Obtient les statistiques de la base de donnÃƒÂ©es B-roll"""
         try:
             if self.broll_selector:
                 return self.broll_selector.get_database_stats()
             else:
-                return {"error": "Sélecteur B-roll non disponible"}
+                return {"error": "SÃƒÂ©lecteur B-roll non disponible"}
         except Exception as e:
-            logger.error(f"❌ Erreur obtention stats base: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur obtention stats base: {e}")
             return {"error": str(e)}
 
     def update_pipeline_config(self, new_config: Dict[str, Any]) -> bool:
-        """Met à jour la configuration du pipeline"""
+        """Met ÃƒÂ  jour la configuration du pipeline"""
         try:
             for key, value in new_config.items():
                 if key in self.config:
@@ -824,31 +825,31 @@ class AdvancedBrollPipeline:
                         self._merge_configs(self.config[key], value)
                     else:
                         self.config[key] = value
-                    logger.info(f"✅ Configuration mise à jour: {key}")
+                    logger.info(f"Ã¢Å“â€¦ Configuration mise ÃƒÂ  jour: {key}")
                 else:
-                    logger.warning(f"⚠️ Clé de configuration inconnue: {key}")
+                    logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â ClÃƒÂ© de configuration inconnue: {key}")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erreur mise à jour configuration: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur mise ÃƒÂ  jour configuration: {e}")
             return False
 
     def close_pipeline(self):
-        """Ferme le pipeline et libère les ressources"""
+        """Ferme le pipeline et libÃƒÂ¨re les ressources"""
         try:
             if self.broll_selector:
                 self.broll_selector.close_database()
             
-            logger.info("Pipeline B-roll avancé fermé")
+            logger.info("Pipeline B-roll avancÃƒÂ© fermÃƒÂ©")
             
         except Exception as e:
-            logger.error(f"❌ Erreur fermeture pipeline: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur fermeture pipeline: {e}")
 
     def _extract_main_themes_from_segments(self, segments: List[Dict]) -> List[str]:
-        """Extrait les thèmes principaux des segments de transcription"""
+        """Extrait les thÃƒÂ¨mes principaux des segments de transcription"""
         try:
-            # Mots-clés thématiques avec pondération
+            # Mots-clÃƒÂ©s thÃƒÂ©matiques avec pondÃƒÂ©ration
             theme_keywords = {
                 'neuroscience': ['brain', 'neural', 'cognitive', 'mind', 'psychology', 'mental'],
                 'technology': ['ai', 'artificial', 'intelligence', 'computer', 'digital', 'tech'],
@@ -871,7 +872,7 @@ class AdvancedBrollPipeline:
             return [theme for theme, score in sorted_themes[:3]]
             
         except Exception as e:
-            logger.warning(f"Erreur extraction thèmes: {e}")
+            logger.warning(f"Erreur extraction thÃƒÂ¨mes: {e}")
             return ['general']
 
     def _analyze_overall_tone(self, segments: List[Dict]) -> str:
@@ -901,7 +902,7 @@ class AdvancedBrollPipeline:
             return 'neutral'
 
     def _analyze_complexity_profile(self, segments: List[Dict]) -> str:
-        """Analyse le profil de complexité de la transcription"""
+        """Analyse le profil de complexitÃƒÂ© de la transcription"""
         try:
             total_words = sum(len(seg.get('text', '').split()) for seg in segments)
             avg_words_per_segment = total_words / len(segments) if segments else 0
@@ -914,11 +915,11 @@ class AdvancedBrollPipeline:
                 return 'complex'
                 
         except Exception as e:
-            logger.warning(f"Erreur analyse complexité: {e}")
+            logger.warning(f"Erreur analyse complexitÃƒÂ©: {e}")
             return 'medium'
 
     def _determine_target_audience(self, complexity_profile: str) -> str:
-        """Détermine le public cible basé sur la complexité"""
+        """DÃƒÂ©termine le public cible basÃƒÂ© sur la complexitÃƒÂ©"""
         complexity_mapping = {
             'simple': 'general_public',
             'medium': 'educated_public',
@@ -927,7 +928,7 @@ class AdvancedBrollPipeline:
         return complexity_mapping.get(complexity_profile, 'general_public')
 
     def _determine_local_context(self, text: str) -> str:
-        """Détermine le contexte local d'un segment"""
+        """DÃƒÂ©termine le contexte local d'un segment"""
         text_lower = text.lower()
         
         if any(word in text_lower for word in ['ai', 'artificial', 'intelligence']):
@@ -940,9 +941,9 @@ class AdvancedBrollPipeline:
             return 'general'
 
     def _extract_keywords_from_text(self, text: str) -> List[str]:
-        """Extrait les mots-clés d'un texte"""
+        """Extrait les mots-clÃƒÂ©s d'un texte"""
         try:
-            # Mots-clés importants avec pondération
+            # Mots-clÃƒÂ©s importants avec pondÃƒÂ©ration
             important_words = ['ai', 'artificial', 'intelligence', 'brain', 'technology', 'future', 'important', 'key']
             text_lower = text.lower()
             
@@ -956,14 +957,14 @@ class AdvancedBrollPipeline:
             unique_words = [word for word in words if len(word) > 4 and word not in keywords]
             keywords.extend(unique_words[:3])
             
-            return keywords[:5]  # Limiter à 5 mots-clés
+            return keywords[:5]  # Limiter ÃƒÂ  5 mots-clÃƒÂ©s
             
         except Exception as e:
-            logger.warning(f"Erreur extraction mots-clés: {e}")
+            logger.warning(f"Erreur extraction mots-clÃƒÂ©s: {e}")
             return []
 
     def _analyze_sentiment_simple(self, text: str) -> str:
-        """Analyse de sentiment simple basée sur des règles"""
+        """Analyse de sentiment simple basÃƒÂ©e sur des rÃƒÂ¨gles"""
         try:
             positive_words = {'good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'enjoy', 'success'}
             negative_words = {'bad', 'terrible', 'awful', 'hate', 'fail', 'problem', 'difficult', 'pain'}
@@ -986,7 +987,7 @@ class AdvancedBrollPipeline:
             return 'neutral'
 
     def _analyze_complexity_simple(self, text: str) -> str:
-        """Analyse de complexité simple basée sur des règles"""
+        """Analyse de complexitÃƒÂ© simple basÃƒÂ©e sur des rÃƒÂ¨gles"""
         try:
             words = text.split()
             avg_word_length = sum(len(word) for word in words) / len(words) if words else 0
@@ -999,11 +1000,11 @@ class AdvancedBrollPipeline:
                 return 'complex'
                 
         except Exception as e:
-            logger.warning(f"Erreur analyse complexité: {e}")
+            logger.warning(f"Erreur analyse complexitÃƒÂ©: {e}")
             return 'medium'
 
     def _suggest_appropriate_brolls(self, text: str) -> List[str]:
-        """Suggère des types de B-roll appropriés pour un segment"""
+        """SuggÃƒÂ¨re des types de B-roll appropriÃƒÂ©s pour un segment"""
         try:
             text_lower = text.lower()
             suggestions = []
@@ -1015,7 +1016,7 @@ class AdvancedBrollPipeline:
             if any(word in text_lower for word in ['future', 'tomorrow', 'next']):
                 suggestions.extend(['futuristic', 'modern', 'progress'])
             
-            return list(set(suggestions))[:3]  # Limiter à 3 suggestions
+            return list(set(suggestions))[:3]  # Limiter ÃƒÂ  3 suggestions
             
         except Exception as e:
             logger.warning(f"Erreur suggestions B-roll: {e}")
@@ -1030,7 +1031,7 @@ class AdvancedBrollPipeline:
                 prev_text = segments[i-1].get('text', '').lower()
                 curr_text = segments[i].get('text', '').lower()
                 
-                # Détecter les transitions logiques
+                # DÃƒÂ©tecter les transitions logiques
                 transition_words = ['but', 'however', 'therefore', 'meanwhile', 'then', 'next', 'finally']
                 
                 for word in transition_words:
@@ -1052,13 +1053,13 @@ class AdvancedBrollPipeline:
     async def _save_metadata(self, request_id: str, transcript_data: Dict[str, Any], 
                             context_analysis: Dict[str, Any], broll_selections: List[Dict[str, Any]], 
                             results_analysis: Dict[str, Any]):
-        """Sauvegarde les métadonnées de traitement"""
+        """Sauvegarde les mÃƒÂ©tadonnÃƒÂ©es de traitement"""
         try:
-            # Créer le répertoire de sortie s'il n'existe pas
+            # CrÃƒÂ©er le rÃƒÂ©pertoire de sortie s'il n'existe pas
             output_dir = Path("output")
             output_dir.mkdir(exist_ok=True)
             
-            # Préparer les métadonnées à sauvegarder
+            # PrÃƒÂ©parer les mÃƒÂ©tadonnÃƒÂ©es ÃƒÂ  sauvegarder
             metadata = {
                 "request_id": request_id,
                 "timestamp": datetime.now().isoformat(),
@@ -1095,9 +1096,9 @@ class AdvancedBrollPipeline:
                     with open(report_file, 'r', encoding='utf-8') as f:
                         existing_report = json.load(f)
                 except Exception as e:
-                    logger.warning(f"⚠️ Impossible de charger le rapport existant: {e}")
+                    logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Impossible de charger le rapport existant: {e}")
             
-            # Ajouter la nouvelle entrée
+            # Ajouter la nouvelle entrÃƒÂ©e
             if "requests" not in existing_report:
                 existing_report["requests"] = []
             
@@ -1105,12 +1106,13 @@ class AdvancedBrollPipeline:
             existing_report["last_updated"] = datetime.now().isoformat()
             existing_report["total_requests"] = len(existing_report["requests"])
             
-            # Sauvegarder le rapport mis à jour
+            # Sauvegarder le rapport mis ÃƒÂ  jour
             with open(report_file, 'w', encoding='utf-8') as f:
                 json.dump(existing_report, f, indent=2, ensure_ascii=False)
             
             logger.info(f"SUCCESS: Metadonnees sauvegardees dans {report_file}")
             
         except Exception as e:
-            logger.error(f"❌ Erreur lors de la sauvegarde des métadonnées: {e}")
-            # Ne pas faire échouer le pipeline pour une erreur de sauvegarde 
+            logger.error(f"Ã¢ÂÅ’ Erreur lors de la sauvegarde des mÃƒÂ©tadonnÃƒÂ©es: {e}")
+            # Ne pas faire ÃƒÂ©chouer le pipeline pour une erreur de sauvegarde 
+

@@ -1,3 +1,4 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 
 with open('temp_function.py', 'r', encoding='utf-8') as f:
     content = f.read()
@@ -17,3 +18,5 @@ with open('temp_function.py', 'w', encoding='utf-8') as f:
     f.write(content)
 
 print('SUCCESS: Prompt modified for viral emojis!')
+
+

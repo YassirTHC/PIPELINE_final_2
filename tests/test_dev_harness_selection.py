@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import os, subprocess, sys
 def test_llm_paths_and_heuristic():
     env = os.environ.copy()
@@ -8,7 +8,8 @@ def test_llm_paths_and_heuristic():
     p = subprocess.run([sys.executable, "video_processor.py"], capture_output=True, text=True, env=env)
     out = (p.stdout or "") + (p.stderr or "")
     assert p.returncode == 0
-    assert out.count("Source métadonnées retenue: llm") >= 2
+    assert out.count("Source mÃ©tadonnÃ©es retenue: llm") >= 2
     assert "Auto-generated Clip Title" not in out
     assert "Titre fallback:" not in out
+
 

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from types import SimpleNamespace
 
 from video_processor import _candidate_used_before, _remember_selected_candidate
@@ -34,4 +34,5 @@ def test_remember_selected_candidate_skips_empty_values():
     _remember_selected_candidate(used, candidate)
 
     assert used == {"https://cdn.example.com/a.mp4"}
+
 

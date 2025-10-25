@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Stable wrapper around video_processor with sane environment defaults."""
 from __future__ import annotations
@@ -520,6 +520,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 
 
 

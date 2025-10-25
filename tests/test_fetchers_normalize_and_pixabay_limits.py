@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import pytest
 
 from pipeline_core.configuration import FetcherOrchestratorConfig, ProviderConfig
@@ -78,4 +78,5 @@ def test_pixabay_per_page_limits(monkeypatch):
 
     assert calls[0]["per_page"] == 50
     assert calls[0]["query"] == "tight limit"
+
 

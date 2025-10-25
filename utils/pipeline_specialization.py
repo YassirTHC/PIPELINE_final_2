@@ -1,6 +1,6 @@
-﻿# -*- coding: utf-8 -*-
-# ðŸŽ¯ SPÃ‰CIALISATION VIA PIPELINE - INTELLIGENCE HORS PROMPTS
-# BasÃ© sur l'analyse brillante de l'utilisateur : prompts gÃ©nÃ©riques + spÃ©cialisation intelligente
+﻿ï»¿# -*- coding: utf-8 -*-
+# Ã°Å¸Å½Â¯ SPÃƒâ€°CIALISATION VIA PIPELINE - INTELLIGENCE HORS PROMPTS
+# BasÃƒÂ© sur l'analyse brillante de l'utilisateur : prompts gÃƒÂ©nÃƒÂ©riques + spÃƒÂ©cialisation intelligente
 
 import re
 import logging
@@ -13,10 +13,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PipelineSpecialization:
-    """SystÃ¨me de spÃ©cialisation intelligent via pipeline (pas dans les prompts)"""
+    """SystÃƒÂ¨me de spÃƒÂ©cialisation intelligent via pipeline (pas dans les prompts)"""
     
     def __init__(self):
-        # Domaines prÃ©dÃ©finis avec leurs caractÃ©ristiques
+        # Domaines prÃƒÂ©dÃƒÂ©finis avec leurs caractÃƒÂ©ristiques
         self.domain_patterns = {
             'medical_psychology': {
                 'keywords': ['therapy', 'trauma', 'memory', 'brain', 'patient', 'healing', 'psychology', 'treatment', 'mental', 'health'],
@@ -50,7 +50,7 @@ class PipelineSpecialization:
             }
         }
         
-        # Mots-clÃ©s de dÃ©tection de domaine
+        # Mots-clÃƒÂ©s de dÃƒÂ©tection de domaine
         self.domain_detection = {
             'medical_psychology': ['therapy', 'trauma', 'memory', 'brain', 'patient', 'healing', 'psychology', 'mental', 'health', 'treatment', 'anxiety', 'depression', 'emdr', 'bilateral'],
             'business_entrepreneurship': ['startup', 'business', 'entrepreneur', 'success', 'money', 'profit', 'revenue', 'growth', 'strategy', 'marketing', 'sales', 'leadership', 'company'],
@@ -62,7 +62,7 @@ class PipelineSpecialization:
     
     def detect_domain(self, transcript: str) -> Tuple[str, float]:
         """
-        DÃ©tecte le domaine principal du transcript
+        DÃƒÂ©tecte le domaine principal du transcript
         Returns: (domain_name, confidence_score)
         """
         transcript_lower = transcript.lower()
@@ -80,24 +80,24 @@ class PipelineSpecialization:
             else:
                 domain_scores[domain] = 0
         
-        # Trouver le domaine avec le score le plus Ã©levÃ©
+        # Trouver le domaine avec le score le plus ÃƒÂ©levÃƒÂ©
         if domain_scores:
             best_domain = max(domain_scores, key=domain_scores.get)
             best_score = domain_scores[best_domain]
             
             # Seuil de confiance minimum
-            if best_score >= 0.1:  # Au moins 10% des mots-clÃ©s trouvÃ©s
-                logger.info(f"ðŸŽ¯ Domaine dÃ©tectÃ©: {best_domain} (confiance: {best_score:.2f})")
+            if best_score >= 0.1:  # Au moins 10% des mots-clÃƒÂ©s trouvÃƒÂ©s
+                logger.info(f"Ã°Å¸Å½Â¯ Domaine dÃƒÂ©tectÃƒÂ©: {best_domain} (confiance: {best_score:.2f})")
                 return best_domain, best_score
             else:
-                logger.info("ðŸŽ¯ Aucun domaine spÃ©cifique dÃ©tectÃ©, utilisation du domaine gÃ©nÃ©rique")
+                logger.info("Ã°Å¸Å½Â¯ Aucun domaine spÃƒÂ©cifique dÃƒÂ©tectÃƒÂ©, utilisation du domaine gÃƒÂ©nÃƒÂ©rique")
                 return 'generic', 0.0
         else:
             return 'generic', 0.0
     
     def enhance_keywords(self, base_keywords: List[str], domain: str, transcript: str) -> List[str]:
         """
-        AmÃ©liore les mots-clÃ©s de base avec la spÃ©cialisation du domaine
+        AmÃƒÂ©liore les mots-clÃƒÂ©s de base avec la spÃƒÂ©cialisation du domaine
         """
         if domain == 'generic' or domain not in self.domain_patterns:
             return base_keywords
@@ -105,25 +105,25 @@ class PipelineSpecialization:
         domain_info = self.domain_patterns[domain]
         enhanced_keywords = base_keywords.copy()
         
-        # Ajouter des mots-clÃ©s spÃ©cifiques au domaine si manquants
+        # Ajouter des mots-clÃƒÂ©s spÃƒÂ©cifiques au domaine si manquants
         for domain_keyword in domain_info['keywords']:
             if domain_keyword not in enhanced_keywords and len(enhanced_keywords) < 20:
                 enhanced_keywords.append(domain_keyword)
         
-        # Ajouter des mots-clÃ©s contextuels du transcript
+        # Ajouter des mots-clÃƒÂ©s contextuels du transcript
         transcript_words = re.findall(r'\b\w{4,}\b', transcript.lower())
         for word in transcript_words:
             if word not in enhanced_keywords and len(enhanced_keywords) < 25:
-                # VÃ©rifier que le mot est pertinent
+                # VÃƒÂ©rifier que le mot est pertinent
                 if any(domain_word in word or word in domain_word for domain_word in domain_info['keywords']):
                     enhanced_keywords.append(word)
         
-        logger.info(f"ðŸŽ¯ Mots-clÃ©s enrichis pour le domaine {domain}: {len(enhanced_keywords)} total")
-        return enhanced_keywords[:25]  # Limiter Ã  25 mots-clÃ©s
+        logger.info(f"Ã°Å¸Å½Â¯ Mots-clÃƒÂ©s enrichis pour le domaine {domain}: {len(enhanced_keywords)} total")
+        return enhanced_keywords[:25]  # Limiter ÃƒÂ  25 mots-clÃƒÂ©s
     
     def enhance_hashtags(self, base_hashtags: List[str], domain: str) -> List[str]:
         """
-        AmÃ©liore les hashtags avec la spÃ©cialisation du domaine
+        AmÃƒÂ©liore les hashtags avec la spÃƒÂ©cialisation du domaine
         """
         if domain == 'generic' or domain not in self.domain_patterns:
             return base_hashtags
@@ -131,23 +131,23 @@ class PipelineSpecialization:
         domain_info = self.domain_patterns[domain]
         enhanced_hashtags = base_hashtags.copy()
         
-        # Ajouter des hashtags spÃ©cifiques au domaine
+        # Ajouter des hashtags spÃƒÂ©cifiques au domaine
         for template in domain_info['hashtag_templates']:
             if template not in enhanced_hashtags and len(enhanced_hashtags) < 15:
                 enhanced_hashtags.append(template)
         
-        # Ajouter des hashtags gÃ©nÃ©riques populaires
+        # Ajouter des hashtags gÃƒÂ©nÃƒÂ©riques populaires
         generic_hashtags = ['#viral', '#trending', '#fyp', '#foryou', '#shorts']
         for tag in generic_hashtags:
             if tag not in enhanced_hashtags and len(enhanced_hashtags) < 18:
                 enhanced_hashtags.append(tag)
         
-        logger.info(f"ðŸŽ¯ Hashtags enrichis pour le domaine {domain}: {len(enhanced_hashtags)} total")
-        return enhanced_hashtags[:18]  # Limiter Ã  18 hashtags
+        logger.info(f"Ã°Å¸Å½Â¯ Hashtags enrichis pour le domaine {domain}: {len(enhanced_hashtags)} total")
+        return enhanced_hashtags[:18]  # Limiter ÃƒÂ  18 hashtags
     
     def suggest_visual_themes(self, domain: str) -> List[str]:
         """
-        SuggÃ¨re des thÃ¨mes visuels pour la sÃ©lection B-roll
+        SuggÃƒÂ¨re des thÃƒÂ¨mes visuels pour la sÃƒÂ©lection B-roll
         """
         if domain == 'generic' or domain not in self.domain_patterns:
             return ['general', 'lifestyle', 'people', 'nature']
@@ -157,21 +157,21 @@ class PipelineSpecialization:
     
     def create_domain_specific_prompt(self, base_prompt: str, domain: str) -> str:
         """
-        CrÃ©e un prompt spÃ©cifique au domaine (optionnel, pour cas avancÃ©s)
+        CrÃƒÂ©e un prompt spÃƒÂ©cifique au domaine (optionnel, pour cas avancÃƒÂ©s)
         """
         if domain == 'generic':
             return base_prompt
         
         domain_info = self.domain_patterns[domain]
         
-        # Ajouter des instructions spÃ©cifiques au domaine
+        # Ajouter des instructions spÃƒÂ©cifiques au domaine
         domain_instruction = f"\n\nContext: This content is related to {domain.replace('_', ' ')}. Focus on relevant terminology and concepts."
         
         return base_prompt + domain_instruction
     
     def analyze_content_complexity(self, transcript: str) -> Dict[str, Any]:
         """
-        Analyse la complexitÃ© du contenu pour adapter la gÃ©nÃ©ration
+        Analyse la complexitÃƒÂ© du contenu pour adapter la gÃƒÂ©nÃƒÂ©ration
         """
         words = transcript.split()
         sentences = re.split(r'[.!?]+', transcript)
@@ -183,13 +183,13 @@ class PipelineSpecialization:
             'complexity_level': 'medium'
         }
         
-        # DÃ©terminer le niveau de complexitÃ©
+        # DÃƒÂ©terminer le niveau de complexitÃƒÂ©
         if analysis['avg_sentence_length'] < 10:
             analysis['complexity_level'] = 'simple'
         elif analysis['avg_sentence_length'] > 20:
             analysis['complexity_level'] = 'complex'
         
-        # Adapter le nombre de mots-clÃ©s selon la complexitÃ©
+        # Adapter le nombre de mots-clÃƒÂ©s selon la complexitÃƒÂ©
         if analysis['complexity_level'] == 'simple':
             analysis['recommended_keywords'] = 8
         elif analysis['complexity_level'] == 'medium':
@@ -197,12 +197,12 @@ class PipelineSpecialization:
         else:
             analysis['recommended_keywords'] = 18
         
-        logger.info(f"ðŸ“Š Analyse complexitÃ©: {analysis['complexity_level']} - {analysis['recommended_keywords']} mots-clÃ©s recommandÃ©s")
+        logger.info(f"Ã°Å¸â€œÅ  Analyse complexitÃƒÂ©: {analysis['complexity_level']} - {analysis['recommended_keywords']} mots-clÃƒÂ©s recommandÃƒÂ©s")
         return analysis
     
     def optimize_for_platform(self, metadata: Dict[str, Any], platform: str = 'tiktok') -> Dict[str, Any]:
         """
-        Optimise les mÃ©tadonnÃ©es pour une plateforme spÃ©cifique
+        Optimise les mÃƒÂ©tadonnÃƒÂ©es pour une plateforme spÃƒÂ©cifique
         """
         optimized = metadata.copy()
         
@@ -219,16 +219,16 @@ class PipelineSpecialization:
                         optimized['hashtags'].append(tag)
         
         elif platform == 'instagram':
-            # Instagram: description plus longue, hashtags nichÃ©s
+            # Instagram: description plus longue, hashtags nichÃƒÂ©s
             if 'description' in optimized and len(optimized['description']) < 100:
-                optimized['description'] += " ðŸ’¡ Swipe for more insights!"
+                optimized['description'] += " Ã°Å¸â€™Â¡ Swipe for more insights!"
         
         elif platform == 'youtube':
-            # YouTube: titre descriptif, description dÃ©taillÃ©e
+            # YouTube: titre descriptif, description dÃƒÂ©taillÃƒÂ©e
             if 'title' in optimized and len(optimized['title']) < 30:
                 optimized['title'] += " - Complete Guide"
         
-        logger.info(f"ðŸŽ¯ MÃ©tadonnÃ©es optimisÃ©es pour {platform}")
+        logger.info(f"Ã°Å¸Å½Â¯ MÃƒÂ©tadonnÃƒÂ©es optimisÃƒÂ©es pour {platform}")
         return optimized
 
 # === INSTANCE GLOBALE ===
@@ -236,11 +236,11 @@ pipeline_specialization = PipelineSpecialization()
 
 # === FONCTIONS UTILITAIRES ===
 def detect_content_domain(transcript: str) -> Tuple[str, float]:
-    """DÃ©tecte le domaine du contenu"""
+    """DÃƒÂ©tecte le domaine du contenu"""
     return pipeline_specialization.detect_domain(transcript)
 
 def enhance_metadata_with_domain(metadata: Dict[str, Any], transcript: str) -> Dict[str, Any]:
-    """Enrichit les mÃ©tadonnÃ©es avec la spÃ©cialisation du domaine"""
+    """Enrichit les mÃƒÂ©tadonnÃƒÂ©es avec la spÃƒÂ©cialisation du domaine"""
     domain, confidence = pipeline_specialization.detect_domain(transcript)
     
     enhanced = metadata.copy()
@@ -263,18 +263,18 @@ def enhance_metadata_with_domain(metadata: Dict[str, Any], transcript: str) -> D
     return enhanced
 
 def analyze_content_complexity(transcript: str) -> Dict[str, Any]:
-    """Analyse la complexitÃ© du contenu"""
+    """Analyse la complexitÃƒÂ© du contenu"""
     return pipeline_specialization.analyze_content_complexity(transcript)
 
 def optimize_for_platform(metadata: Dict[str, Any], platform: str = 'tiktok') -> Dict[str, Any]:
-    """Optimise pour une plateforme spÃ©cifique"""
+    """Optimise pour une plateforme spÃƒÂ©cifique"""
     return pipeline_specialization.optimize_for_platform(metadata, platform)
 
 # === TEST RAPIDE ===
 if __name__ == "__main__":
-    print("ðŸŽ¯ Test du systÃ¨me de spÃ©cialisation via pipeline...")
+    print("Ã°Å¸Å½Â¯ Test du systÃƒÂ¨me de spÃƒÂ©cialisation via pipeline...")
     
-    # Test avec diffÃ©rents types de contenu
+    # Test avec diffÃƒÂ©rents types de contenu
     test_cases = [
         ("EMDR therapy utilizes bilateral stimulation to process traumatic memories. The therapist guides the patient through eye movements while recalling distressing events.", "medical_psychology"),
         ("Start your own business and become a successful entrepreneur. Learn the strategies that top performers use to grow their companies and increase revenue.", "business_entrepreneurship"),
@@ -283,16 +283,16 @@ if __name__ == "__main__":
     ]
     
     for transcript, expected_domain in test_cases:
-        print(f"\nðŸ“ Test: {transcript[:50]}...")
+        print(f"\nÃ°Å¸â€œÂ Test: {transcript[:50]}...")
         
-        # DÃ©tection de domaine
+        # DÃƒÂ©tection de domaine
         detected_domain, confidence = detect_content_domain(transcript)
-        print(f"ðŸŽ¯ Domaine dÃ©tectÃ©: {detected_domain} (confiance: {confidence:.2f})")
-        print(f"âœ… Attendu: {expected_domain}")
+        print(f"Ã°Å¸Å½Â¯ Domaine dÃƒÂ©tectÃƒÂ©: {detected_domain} (confiance: {confidence:.2f})")
+        print(f"Ã¢Å“â€¦ Attendu: {expected_domain}")
         
-        # Analyse de complexitÃ©
+        # Analyse de complexitÃƒÂ©
         complexity = analyze_content_complexity(transcript)
-        print(f"ðŸ“Š ComplexitÃ©: {complexity['complexity_level']} - {complexity['recommended_keywords']} mots-clÃ©s recommandÃ©s")
+        print(f"Ã°Å¸â€œÅ  ComplexitÃƒÂ©: {complexity['complexity_level']} - {complexity['recommended_keywords']} mots-clÃƒÂ©s recommandÃƒÂ©s")
         
         # Test d'enrichissement
         base_metadata = {
@@ -301,5 +301,6 @@ if __name__ == "__main__":
         }
         
         enhanced = enhance_metadata_with_domain(base_metadata, transcript)
-        print(f"ðŸš€ MÃ©tadonnÃ©es enrichies: {len(enhanced['keywords'])} mots-clÃ©s, {len(enhanced['hashtags'])} hashtags")
-        print(f"ðŸŽ¨ ThÃ¨mes visuels: {enhanced['visual_themes']}") 
+        print(f"Ã°Å¸Å¡â‚¬ MÃƒÂ©tadonnÃƒÂ©es enrichies: {len(enhanced['keywords'])} mots-clÃƒÂ©s, {len(enhanced['hashtags'])} hashtags")
+        print(f"Ã°Å¸Å½Â¨ ThÃƒÂ¨mes visuels: {enhanced['visual_themes']}") 
+

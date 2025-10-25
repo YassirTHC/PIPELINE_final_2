@@ -1,64 +1,65 @@
-# 🎬 INTÉGRATION DIRECTE AVEC VOTRE PIPELINE VIDÉO EXISTANT
-# Ce script intègre notre système LLM industriel à votre VideoProcessor
+﻿ï»¿# -*- coding: utf-8 -*-
+# Ã°Å¸Å½Â¬ INTÃƒâ€°GRATION DIRECTE AVEC VOTRE PIPELINE VIDÃƒâ€°O EXISTANT
+# Ce script intÃƒÂ¨gre notre systÃƒÂ¨me LLM industriel ÃƒÂ  votre VideoProcessor
 
 import sys
 import os
 from pathlib import Path
 
-# Ajouter le répertoire utils au path
+# Ajouter le rÃƒÂ©pertoire utils au path
 sys.path.insert(0, str(Path(__file__).parent / "utils"))
 
 def integrate_with_existing_pipeline():
-    """Intègre notre système LLM avec votre pipeline existant"""
+    """IntÃƒÂ¨gre notre systÃƒÂ¨me LLM avec votre pipeline existant"""
     
-    print("🚀 INTÉGRATION AVEC VOTRE PIPELINE VIDÉO EXISTANT")
+    print("Ã°Å¸Å¡â‚¬ INTÃƒâ€°GRATION AVEC VOTRE PIPELINE VIDÃƒâ€°O EXISTANT")
     print("=" * 60)
     
     try:
-        # 1. Vérifier que votre VideoProcessor existe
+        # 1. VÃƒÂ©rifier que votre VideoProcessor existe
         if not Path("video_processor.py").exists():
-            print("❌ Fichier video_processor.py non trouvé")
-            print("   Assurez-vous d'être dans le bon répertoire")
+            print("Ã¢ÂÅ’ Fichier video_processor.py non trouvÃƒÂ©")
+            print("   Assurez-vous d'ÃƒÂªtre dans le bon rÃƒÂ©pertoire")
             return False
         
-        print("✅ VideoProcessor trouvé")
+        print("Ã¢Å“â€¦ VideoProcessor trouvÃƒÂ©")
         
         # 2. Importer votre VideoProcessor
         try:
             from video_processor import VideoProcessor
-            print("✅ VideoProcessor importé avec succès")
+            print("Ã¢Å“â€¦ VideoProcessor importÃƒÂ© avec succÃƒÂ¨s")
         except Exception as e:
-            print(f"❌ Erreur import VideoProcessor: {e}")
+            print(f"Ã¢ÂÅ’ Erreur import VideoProcessor: {e}")
             return False
         
-        # 3. Créer une instance et l'améliorer
+        # 3. CrÃƒÂ©er une instance et l'amÃƒÂ©liorer
         try:
             processor = VideoProcessor()
-            print("✅ Instance VideoProcessor créée")
+            print("Ã¢Å“â€¦ Instance VideoProcessor crÃƒÂ©ÃƒÂ©e")
             
-            # Améliorer avec nos méthodes LLM
+            # AmÃƒÂ©liorer avec nos mÃƒÂ©thodes LLM
             from video_pipeline_integration import enhance_video_processor_methods
             enhance_video_processor_methods(VideoProcessor)
             
-            print("✅ Méthodes VideoProcessor améliorées")
+            print("Ã¢Å“â€¦ MÃƒÂ©thodes VideoProcessor amÃƒÂ©liorÃƒÂ©es")
             
         except Exception as e:
-            print(f"❌ Erreur création instance: {e}")
+            print(f"Ã¢ÂÅ’ Erreur crÃƒÂ©ation instance: {e}")
             return False
         
-        # 4. Test d'intégration
-        print("\n🧪 Test d'intégration...")
+        # 4. Test d'intÃƒÂ©gration
+        print("\nÃ°Å¸Â§Âª Test d'intÃƒÂ©gration...")
         
-        # Créer des sous-titres de test
+        # CrÃƒÂ©er des sous-titres de test
         test_subtitles = [
             {'start': 0.0, 'end': 5.0, 'text': 'EMDR therapy is a powerful treatment for trauma and PTSD.'},
             {'start': 5.0, 'end': 10.0, 'text': 'The therapist uses bilateral stimulation to help patients process traumatic memories.'},
             {'start': 10.0, 'end': 15.0, 'text': 'This innovative approach combines psychology and neuroscience for lasting healing.'}
         ]
         
-        # Tester la méthode améliorée
+        # Tester la mÃƒÂ©thode amÃƒÂ©liorÃƒÂ©e
         try:
-            print("    🎯 Test de la méthode generate_caption_and_hashtags améliorée...")
+            print("    Ã°Å¸Å½Â¯ Test de la mÃƒÂ©thode generate_caption_and_hashtags amÃƒÂ©liorÃƒÂ©e...")
             
             metadata = processor.generate_caption_and_hashtags(test_subtitles) or {}
             title = str(metadata.get('title') or '')
@@ -66,138 +67,138 @@ def integrate_with_existing_pipeline():
             hashtags = [h for h in (metadata.get('hashtags') or []) if isinstance(h, str)]
             broll_keywords = [kw for kw in (metadata.get('broll_keywords') or []) if isinstance(kw, str)]
             
-            print(f"    ✅ Titre: {title}")
-            print(f"    ✅ Description: {description}")
-            print(f"    ✅ Hashtags: {len(hashtags)} générés")
-            print(f"    ✅ Mots-clés B-roll: {len(broll_keywords)} générés")
+            print(f"    Ã¢Å“â€¦ Titre: {title}")
+            print(f"    Ã¢Å“â€¦ Description: {description}")
+            print(f"    Ã¢Å“â€¦ Hashtags: {len(hashtags)} gÃƒÂ©nÃƒÂ©rÃƒÂ©s")
+            print(f"    Ã¢Å“â€¦ Mots-clÃƒÂ©s B-roll: {len(broll_keywords)} gÃƒÂ©nÃƒÂ©rÃƒÂ©s")
             
             if broll_keywords:
-                print(f"    🎬 Exemples B-roll: {', '.join(broll_keywords[:5])}")
+                print(f"    Ã°Å¸Å½Â¬ Exemples B-roll: {', '.join(broll_keywords[:5])}")
             
-            print("\n🎉 Intégration réussie !")
-            print("\n📋 VOTRE PIPELINE EST MAINTENANT CONNECTÉ AU SYSTÈME LLM INDUSTRIEL")
+            print("\nÃ°Å¸Å½â€° IntÃƒÂ©gration rÃƒÂ©ussie !")
+            print("\nÃ°Å¸â€œâ€¹ VOTRE PIPELINE EST MAINTENANT CONNECTÃƒâ€° AU SYSTÃƒË†ME LLM INDUSTRIEL")
             print("=" * 60)
-            print("✅ Détection de domaine automatique (TF-IDF)")
-            print("✅ Génération de titres, descriptions et hashtags optimisés")
-            print("✅ Mots-clés B-roll intelligents et optimisés")
-            print("✅ Métriques et monitoring en temps réel")
-            print("✅ Fallbacks automatiques en cas d'erreur")
+            print("Ã¢Å“â€¦ DÃƒÂ©tection de domaine automatique (TF-IDF)")
+            print("Ã¢Å“â€¦ GÃƒÂ©nÃƒÂ©ration de titres, descriptions et hashtags optimisÃƒÂ©s")
+            print("Ã¢Å“â€¦ Mots-clÃƒÂ©s B-roll intelligents et optimisÃƒÂ©s")
+            print("Ã¢Å“â€¦ MÃƒÂ©triques et monitoring en temps rÃƒÂ©el")
+            print("Ã¢Å“â€¦ Fallbacks automatiques en cas d'erreur")
             print("=" * 60)
             
             return True
             
         except Exception as e:
-            print(f"    ❌ Erreur test méthode: {e}")
+            print(f"    Ã¢ÂÅ’ Erreur test mÃƒÂ©thode: {e}")
             return False
         
     except Exception as e:
-        print(f"❌ Erreur critique: {e}")
+        print(f"Ã¢ÂÅ’ Erreur critique: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 def show_integration_guide():
-    """Affiche le guide d'intégration"""
+    """Affiche le guide d'intÃƒÂ©gration"""
     
-    print("\n📚 GUIDE D'INTÉGRATION COMPLET")
+    print("\nÃ°Å¸â€œÅ¡ GUIDE D'INTÃƒâ€°GRATION COMPLET")
     print("=" * 60)
     
     print("""
-🎯 COMMENT UTILISER VOTRE PIPELINE AMÉLIORÉ :
+Ã°Å¸Å½Â¯ COMMENT UTILISER VOTRE PIPELINE AMÃƒâ€°LIORÃƒâ€° :
 
-1. 🚀 DÉMARRAGE AUTOMATIQUE
-   Votre pipeline fonctionne maintenant automatiquement avec le système LLM !
+1. Ã°Å¸Å¡â‚¬ DÃƒâ€°MARRAGE AUTOMATIQUE
+   Votre pipeline fonctionne maintenant automatiquement avec le systÃƒÂ¨me LLM !
    Plus besoin de modifier le code existant.
 
-2. 🎬 UTILISATION NORMALE
+2. Ã°Å¸Å½Â¬ UTILISATION NORMALE
    Utilisez votre pipeline exactement comme avant :
-   python video_processor.py [vos_paramètres]
+   python video_processor.py [vos_paramÃƒÂ¨tres]
 
-3. 🧠 AMÉLIORATIONS AUTOMATIQUES
-   - Détection de domaine intelligente
-   - Titres et hashtags optimisés pour TikTok/Instagram
-   - Mots-clés B-roll contextuels
-   - Métriques de performance
+3. Ã°Å¸Â§Â  AMÃƒâ€°LIORATIONS AUTOMATIQUES
+   - DÃƒÂ©tection de domaine intelligente
+   - Titres et hashtags optimisÃƒÂ©s pour TikTok/Instagram
+   - Mots-clÃƒÂ©s B-roll contextuels
+   - MÃƒÂ©triques de performance
 
-4. 📊 MONITORING
-   Les métriques sont automatiquement collectées et exportées.
+4. Ã°Å¸â€œÅ  MONITORING
+   Les mÃƒÂ©triques sont automatiquement collectÃƒÂ©es et exportÃƒÂ©es.
    Consultez les rapports dans output/meta/
 
-5. 🔧 CONFIGURATION
+5. Ã°Å¸â€Â§ CONFIGURATION
    Modifiez utils/video_pipeline_integration.py pour ajuster :
    - Seuils de confiance
-   - Nombre de mots-clés
+   - Nombre de mots-clÃƒÂ©s
    - Timeouts
    - Fallbacks
 
-6. 🎯 PERSONNALISATION
-   Pour ajouter des domaines spécifiques :
+6. Ã°Å¸Å½Â¯ PERSONNALISATION
+   Pour ajouter des domaines spÃƒÂ©cifiques :
    - Modifiez utils/domain_detection_enhanced.py
-   - Ajoutez vos patterns de mots-clés
+   - Ajoutez vos patterns de mots-clÃƒÂ©s
    - Ajustez les seuils de confiance
 """)
 
 def show_next_steps():
-    """Affiche les prochaines étapes"""
+    """Affiche les prochaines ÃƒÂ©tapes"""
     
-    print("\n🎯 PROCHAINES ÉTAPES RECOMMANDÉES")
+    print("\nÃ°Å¸Å½Â¯ PROCHAINES Ãƒâ€°TAPES RECOMMANDÃƒâ€°ES")
     print("=" * 60)
     
     print("""
-1. 🧪 TEST COMPLET
-   Lancez votre pipeline sur une vidéo de test :
+1. Ã°Å¸Â§Âª TEST COMPLET
+   Lancez votre pipeline sur une vidÃƒÂ©o de test :
    python video_processor.py [chemin_video]
 
-2. 📊 VALIDATION DES RÉSULTATS
-   Vérifiez la qualité des outputs :
+2. Ã°Å¸â€œÅ  VALIDATION DES RÃƒâ€°SULTATS
+   VÃƒÂ©rifiez la qualitÃƒÂ© des outputs :
    - Titres et descriptions
-   - Hashtags générés
-   - Mots-clés B-roll
-   - Détection de domaine
+   - Hashtags gÃƒÂ©nÃƒÂ©rÃƒÂ©s
+   - Mots-clÃƒÂ©s B-roll
+   - DÃƒÂ©tection de domaine
 
-3. ⚙️ AJUSTEMENTS FINES
+3. Ã¢Å¡â„¢Ã¯Â¸Â AJUSTEMENTS FINES
    Ajustez les seuils selon vos besoins :
    - Seuils de confiance domaine
-   - Nombre de mots-clés B-roll
+   - Nombre de mots-clÃƒÂ©s B-roll
    - Timeouts LLM
 
-4. 🚀 PRODUCTION
-   Une fois validé, votre pipeline est prêt pour la production !
+4. Ã°Å¸Å¡â‚¬ PRODUCTION
+   Une fois validÃƒÂ©, votre pipeline est prÃƒÂªt pour la production !
    - Traitement en lot
    - Monitoring automatique
    - Rapports de performance
 
-5. 📈 OPTIMISATION CONTINUE
-   Analysez les métriques pour :
-   - Identifier les goulots d'étranglement
+5. Ã°Å¸â€œË† OPTIMISATION CONTINUE
+   Analysez les mÃƒÂ©triques pour :
+   - Identifier les goulots d'ÃƒÂ©tranglement
    - Optimiser les performances
-   - Améliorer la qualité des outputs
+   - AmÃƒÂ©liorer la qualitÃƒÂ© des outputs
 """)
 
 def main():
     """Fonction principale"""
     
-    print("🎬 INTÉGRATION AVEC VOTRE PIPELINE VIDÉO EXISTANT")
+    print("Ã°Å¸Å½Â¬ INTÃƒâ€°GRATION AVEC VOTRE PIPELINE VIDÃƒâ€°O EXISTANT")
     print("=" * 60)
     
-    # 1. Intégration
+    # 1. IntÃƒÂ©gration
     success = integrate_with_existing_pipeline()
     
     if success:
-        # 2. Guide d'intégration
+        # 2. Guide d'intÃƒÂ©gration
         show_integration_guide()
         
-        # 3. Prochaines étapes
+        # 3. Prochaines ÃƒÂ©tapes
         show_next_steps()
         
-        print("\n🎉 FÉLICITATIONS !")
-        print("Votre pipeline vidéo est maintenant connecté au système LLM industriel !")
-        print("\n🚀 Prêt pour la production !")
+        print("\nÃ°Å¸Å½â€° FÃƒâ€°LICITATIONS !")
+        print("Votre pipeline vidÃƒÂ©o est maintenant connectÃƒÂ© au systÃƒÂ¨me LLM industriel !")
+        print("\nÃ°Å¸Å¡â‚¬ PrÃƒÂªt pour la production !")
         
         return True
     else:
-        print("\n❌ Intégration échouée")
-        print("Vérifiez les erreurs ci-dessus et réessayez")
+        print("\nÃ¢ÂÅ’ IntÃƒÂ©gration ÃƒÂ©chouÃƒÂ©e")
+        print("VÃƒÂ©rifiez les erreurs ci-dessus et rÃƒÂ©essayez")
         return False
 
 if __name__ == "__main__":
@@ -205,10 +206,11 @@ if __name__ == "__main__":
         success = main()
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
-        print("\n⏹️ Intégration interrompue par l'utilisateur")
+        print("\nÃ¢ÂÂ¹Ã¯Â¸Â IntÃƒÂ©gration interrompue par l'utilisateur")
         sys.exit(1)
     except Exception as e:
-        print(f"\n💥 Erreur critique: {e}")
+        print(f"\nÃ°Å¸â€™Â¥ Erreur critique: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1) 
+

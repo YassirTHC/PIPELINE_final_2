@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 """
 Style HORMOZI 1 - REPRODUCTION EXACTE DU PROMPT ORIGINAL
-Toutes les spécifications du prompt respectées à 100%
+Toutes les spÃƒÂ©cifications du prompt respectÃƒÂ©es ÃƒÂ  100%
 """
 
 import os
@@ -18,12 +19,12 @@ class HormoziPromptConfig:
     """Configuration EXACTE selon le prompt Hormozi original"""
     
     def __init__(self):
-        # PROMPT: Police bold, sans-serif très épaisse (Impact, Arial Black)
+        # PROMPT: Police bold, sans-serif trÃƒÂ¨s ÃƒÂ©paisse (Impact, Arial Black)
         self.font_primary = "Impact"
         self.font_secondary = "Arial Black"
         self.font_tertiary = "Anton"
         
-        # PROMPT: Gros, centré horizontalement, positionné en bas
+        # PROMPT: Gros, centrÃƒÂ© horizontalement, positionnÃƒÂ© en bas
         self.font_size_base = 0.08  # 8% de la hauteur
         self.font_min_size = 24
         self.font_max_size = 80
@@ -31,21 +32,21 @@ class HormoziPromptConfig:
         # PROMPT: Texte en MAJUSCULES
         self.text_uppercase = True
         
-        # PROMPT: Couleur de base blanc pur avec outline noir épais (3-5px)
+        # PROMPT: Couleur de base blanc pur avec outline noir ÃƒÂ©pais (3-5px)
         self.color_default = (255, 255, 255)  # Blanc pur
         self.outline_enabled = True
         self.outline_color = (0, 0, 0)        # Noir
-        self.outline_width = 2                # 2px (optimisé couleurs)
+        self.outline_width = 2                # 2px (optimisÃƒÂ© couleurs)
         
-        # PROMPT: Mots-clés colorés différemment
+        # PROMPT: Mots-clÃƒÂ©s colorÃƒÂ©s diffÃƒÂ©remment
         self.color_money = (255, 215, 0)      # Jaune vif #FFD700
         self.color_action = (255, 0, 0)       # Rouge #FF0000
         self.color_success = (0, 255, 0)      # Vert #00FF00
         self.color_info = (30, 144, 255)      # Bleu clair #1E90FF
         
-        # PROMPT: Animation légère zoom-in (scale 1.2) puis retour 1.0
+        # PROMPT: Animation lÃƒÂ©gÃƒÂ¨re zoom-in (scale 1.2) puis retour 1.0
         self.bounce_enabled = True
-        self.bounce_scale = 1.25              # Scale modéré pour éviter dépassement
+        self.bounce_scale = 1.25              # Scale modÃƒÂ©rÃƒÂ© pour ÃƒÂ©viter dÃƒÂ©passement
         self.bounce_duration = 0.18           # 180ms (perceptible mais court)
         
         # PROMPT: Fade-in rapide (100-150ms)
@@ -55,25 +56,25 @@ class HormoziPromptConfig:
         # PROMPT: Mot par mot ou bloc par bloc
         self.word_by_word = True
         
-        # PROMPT: Positionnement bas de la vidéo, centré
+        # PROMPT: Positionnement bas de la vidÃƒÂ©o, centrÃƒÂ©
         self.bottom_margin = 0.12             # 12% du bas
-        self.side_margins = 0.05              # 5% marges latérales
+        self.side_margins = 0.05              # 5% marges latÃƒÂ©rales
         
-        # PROMPT: Emojis MONEY → 💸, FIRE → 🔥, IDEA → 💡
+        # PROMPT: Emojis MONEY Ã¢â€ â€™ Ã°Å¸â€™Â¸, FIRE Ã¢â€ â€™ Ã°Å¸â€Â¥, IDEA Ã¢â€ â€™ Ã°Å¸â€™Â¡
         self.emoji_enabled = True
         self.emoji_size_ratio = 1.0
         self.emoji_spacing = 10
         
-        # Synchronisation: biais global en secondes (peut être négatif)
+        # Synchronisation: biais global en secondes (peut ÃƒÂªtre nÃƒÂ©gatif)
         self.timing_bias_s = 0.0
         
-        # Fallback visibilité: colorer le mot actif si aucun mot-clé détecté
+        # Fallback visibilitÃƒÂ©: colorer le mot actif si aucun mot-clÃƒÂ© dÃƒÂ©tectÃƒÂ©
         self.force_color_current_if_none = True
         self.force_color_current_color = (255, 215, 0)  # Jaune
         self.force_emoji_when_colored = True
-        self.force_emoji_char = '💬'
+        self.force_emoji_char = 'Ã°Å¸â€™Â¬'
 
-# PROMPT: Mots-clés colorés (exemples du prompt)
+# PROMPT: Mots-clÃƒÂ©s colorÃƒÂ©s (exemples du prompt)
 HORMOZI_KEYWORDS = {
     # Jaune vif (money-related)
     'MONEY': 'money', 'CASH': 'money', 'PROFIT': 'money', 'BUSINESS': 'money',
@@ -90,12 +91,12 @@ HORMOZI_KEYWORDS = {
 
 # PROMPT: Mapping emojis (exemples du prompt)
 HORMOZI_EMOJIS = {
-    'MONEY': '💸', 'FIRE': '🔥', 'IDEA': '💡', 'SUCCESS': '✅',
-    'BUSINESS': '💼', 'SECRET': '🤫', 'WIN': '🏆', 'BEST': '🏆'
+    'MONEY': 'Ã°Å¸â€™Â¸', 'FIRE': 'Ã°Å¸â€Â¥', 'IDEA': 'Ã°Å¸â€™Â¡', 'SUCCESS': 'Ã¢Å“â€¦',
+    'BUSINESS': 'Ã°Å¸â€™Â¼', 'SECRET': 'Ã°Å¸Â¤Â«', 'WIN': 'Ã°Å¸Ââ€ ', 'BEST': 'Ã°Å¸Ââ€ '
 }
 
 def get_system_font_prompt(font_name: str, size: int) -> ImageFont.FreeTypeFont:
-    """Charge police système selon prompt (Impact priorité 1)"""
+    """Charge police systÃƒÂ¨me selon prompt (Impact prioritÃƒÂ© 1)"""
     
     # PROMPT: Impact, Arial Black, Anton
     font_paths = [
@@ -118,7 +119,7 @@ def get_system_font_prompt(font_name: str, size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.load_default()
 
 def get_word_color_prompt(word: str, config: HormoziPromptConfig) -> Tuple[int, int, int]:
-    """PROMPT: Certains mots colorés différemment pour attirer l'attention"""
+    """PROMPT: Certains mots colorÃƒÂ©s diffÃƒÂ©remment pour attirer l'attention"""
     
     word_clean = word.upper().strip('.,!?":;()[]{}')
     
@@ -137,13 +138,13 @@ def get_word_color_prompt(word: str, config: HormoziPromptConfig) -> Tuple[int, 
     return config.color_default  # Blanc pur
 
 def get_emoji_prompt(word: str) -> Optional[str]:
-    """PROMPT: Mapping optionnel mot→emoji (MONEY → 💸, FIRE → 🔥, IDEA → 💡)"""
+    """PROMPT: Mapping optionnel motÃ¢â€ â€™emoji (MONEY Ã¢â€ â€™ Ã°Å¸â€™Â¸, FIRE Ã¢â€ â€™ Ã°Å¸â€Â¥, IDEA Ã¢â€ â€™ Ã°Å¸â€™Â¡)"""
     
     word_clean = word.upper().strip('.,!?":;()[]{}')
     return HORMOZI_EMOJIS.get(word_clean)
 
 def download_twemoji_png(emoji_char: str, size: int = 72) -> Optional[Image.Image]:
-    """Télécharge emoji Twemoji PNG pour éviter carrés vides"""
+    """TÃƒÂ©lÃƒÂ©charge emoji Twemoji PNG pour ÃƒÂ©viter carrÃƒÂ©s vides"""
     try:
         # Convertir emoji en code Unicode
         emoji_code = '-'.join([f'{ord(c):x}' for c in emoji_char])
@@ -175,14 +176,14 @@ def download_twemoji_png(emoji_char: str, size: int = 72) -> Optional[Image.Imag
         return None
 
 def parse_transcription_word_by_word(transcription_data: List[Dict]) -> List[Dict]:
-    """Découpe la transcription en mots; utilise d'abord les timings Whisper mot-à-mot si présents."""
-    # Accès config globale optionnelle: timing bias via variable locale si disponible
-    # On permet une légère personnalisation en lisant une variable annexe si set
+    """DÃƒÂ©coupe la transcription en mots; utilise d'abord les timings Whisper mot-ÃƒÂ -mot si prÃƒÂ©sents."""
+    # AccÃƒÂ¨s config globale optionnelle: timing bias via variable locale si disponible
+    # On permet une lÃƒÂ©gÃƒÂ¨re personnalisation en lisant une variable annexe si set
     words_data: List[Dict] = []
     # Essayer d'obtenir un biais depuis les segments (optionnel) ou 0.0
     bias = 0.0
     try:
-        # Certains appels injectent {'_bias': x} en tête
+        # Certains appels injectent {'_bias': x} en tÃƒÂªte
         if transcription_data and isinstance(transcription_data[0], dict) and "_bias" in transcription_data[0]:
             bias = float(transcription_data[0]["_bias"]) or 0.0
     except Exception:
@@ -208,7 +209,7 @@ def parse_transcription_word_by_word(transcription_data: List[Dict]) -> List[Dic
                 words_data.append({'text': wt.upper(), 'start': ws, 'end': we, 'duration': we - ws})
             continue
         
-        # Sinon: fallback découpe en mots + timing équitable
+        # Sinon: fallback dÃƒÂ©coupe en mots + timing ÃƒÂ©quitable
         words = re.findall(r'\b\w+\b', text)
         if not words:
             continue
@@ -229,29 +230,29 @@ def parse_transcription_word_by_word(transcription_data: List[Dict]) -> List[Dic
 
 def create_hormozi_prompt_frame(words_data: List[Dict], video_size: Tuple[int, int], 
                                config: HormoziPromptConfig, frame_time: float) -> Image.Image:
-    """PROMPT: Créer overlay texte par frame → reset à chaque frame pour éviter accumulation"""
+    """PROMPT: CrÃƒÂ©er overlay texte par frame Ã¢â€ â€™ reset ÃƒÂ  chaque frame pour ÃƒÂ©viter accumulation"""
     
     width, height = video_size
     
-    # Image transparente (reset à chaque frame)
+    # Image transparente (reset ÃƒÂ  chaque frame)
     frame = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
     
-    # PROMPT: Taille adaptée
+    # PROMPT: Taille adaptÃƒÂ©e
     base_font_size = int(height * config.font_size_base)
     font_size = max(config.font_min_size, min(config.font_max_size, base_font_size))
     
-    # PROMPT: Police bold, sans-serif très épaisse (Impact priorité)
+    # PROMPT: Police bold, sans-serif trÃƒÂ¨s ÃƒÂ©paisse (Impact prioritÃƒÂ©)
     font = get_system_font_prompt(config.font_primary, font_size)
     
-    # Collecter TOUS LES MOTS ACTIFS à ce moment (même timing)
+    # Collecter TOUS LES MOTS ACTIFS ÃƒÂ  ce moment (mÃƒÂªme timing)
     active_words = []
     
     for word_data in words_data:
         if word_data['start'] <= frame_time < word_data['end']:
             word_age = frame_time - word_data['start']
             
-            # PROMPT: Animation léger zoom-in (scale 1.2) puis retour 1.0
+            # PROMPT: Animation lÃƒÂ©ger zoom-in (scale 1.2) puis retour 1.0
             if config.bounce_enabled and word_age <= config.bounce_duration:
                 progress = word_age / config.bounce_duration
                 scale = 1 + (config.bounce_scale - 1) * (1 - progress) * np.sin(progress * np.pi)
@@ -275,7 +276,7 @@ def create_hormozi_prompt_frame(words_data: List[Dict], video_size: Tuple[int, i
     if not active_words:
         return frame
     
-    # Fallback couleur: si aucun mot actif n'est coloré, colorer le mot courant
+    # Fallback couleur: si aucun mot actif n'est colorÃƒÂ©, colorer le mot courant
     if config.force_color_current_if_none:
         any_colored = any(w['color'] != config.color_default for w in active_words)
         if not any_colored:
@@ -286,26 +287,26 @@ def create_hormozi_prompt_frame(words_data: List[Dict], video_size: Tuple[int, i
     # Construire ligne de texte
     line_text = ' '.join([w['text'] for w in active_words])
     
-    # Mesurer et ajuster taille si nécessaire (tenir compte du scale max)
+    # Mesurer et ajuster taille si nÃƒÂ©cessaire (tenir compte du scale max)
     bbox = draw.textbbox((0, 0), line_text, font=font)
     line_width = bbox[2] - bbox[0]
-    # Réserver de la place pour l'animation scale max
+    # RÃƒÂ©server de la place pour l'animation scale max
     effective_max_scale = max(1.0, config.bounce_scale)
     max_width = (width * (1 - 2 * config.side_margins)) / effective_max_scale
     
     if line_width > max_width:
-        # Réduire police pour rester dans le cadre
+        # RÃƒÂ©duire police pour rester dans le cadre
         while line_width > max_width and font_size > config.font_min_size:
             font_size -= 2
             font = get_system_font_prompt(config.font_primary, font_size)
             bbox = draw.textbbox((0, 0), line_text, font=font)
             line_width = bbox[2] - bbox[0]
     
-    # PROMPT: Positionné en bas de la vidéo, centré horizontalement
+    # PROMPT: PositionnÃƒÂ© en bas de la vidÃƒÂ©o, centrÃƒÂ© horizontalement
     text_y = int(height * (1 - config.bottom_margin)) - font_size
     text_x = (width - line_width) // 2
     
-    # Vérifier marges latérales
+    # VÃƒÂ©rifier marges latÃƒÂ©rales
     if text_x < width * config.side_margins:
         text_x = int(width * config.side_margins)
     
@@ -318,10 +319,10 @@ def create_hormozi_prompt_frame(words_data: List[Dict], video_size: Tuple[int, i
         opacity = word_info['opacity']
         scale = word_info['scale']  # ANIMATION SCALE !
         
-        # Appliquer opacité seulement si très faible, sinon garder couleurs vives
-        if opacity < 100:  # Seulement si très transparent
+        # Appliquer opacitÃƒÂ© seulement si trÃƒÂ¨s faible, sinon garder couleurs vives
+        if opacity < 100:  # Seulement si trÃƒÂ¨s transparent
             word_color = tuple(int(c * opacity / 255) for c in word_color)
-        # Sinon garder couleurs pleines pour visibilité
+        # Sinon garder couleurs pleines pour visibilitÃƒÂ©
         
         # APPLIQUER ANIMATION SCALE au font
         animated_font_size = int(font_size * scale)
@@ -333,35 +334,35 @@ def create_hormozi_prompt_frame(words_data: List[Dict], video_size: Tuple[int, i
         # Clamp vertical pour rester dans l'image
         animated_text_y = max(0, min(animated_text_y, height - animated_font_size - 1))
         
-        # PROMPT: Outline noir épais SOUS le texte (3-5px) pour lisibilité
+        # PROMPT: Outline noir ÃƒÂ©pais SOUS le texte (3-5px) pour lisibilitÃƒÂ©
         if config.outline_enabled:
             outline_width = config.outline_width
-            # Dessiner outline D'ABORD (en arrière-plan)
+            # Dessiner outline D'ABORD (en arriÃƒÂ¨re-plan)
             for dx in range(-outline_width, outline_width + 1):
                 for dy in range(-outline_width, outline_width + 1):
                     if dx*dx + dy*dy <= outline_width*outline_width:
                         outline_color = config.outline_color
-                        # Garder outline noir fort pour lisibilité
+                        # Garder outline noir fort pour lisibilitÃƒÂ©
                         draw.text((current_x + dx, animated_text_y + dy), word, 
                                 font=animated_font, fill=outline_color)
         
-        # Dessiner texte principal COLORÉ PAR-DESSUS l'outline AVEC SCALE
+        # Dessiner texte principal COLORÃƒâ€° PAR-DESSUS l'outline AVEC SCALE
         draw.text((current_x, animated_text_y), word, font=animated_font, fill=word_color)
         
-        # PROMPT: Emojis correctement rendus (pas de carrés vides)
+        # PROMPT: Emojis correctement rendus (pas de carrÃƒÂ©s vides)
         if config.emoji_enabled and word_info['emoji']:
             emoji_size = int(font_size * config.emoji_size_ratio)
             emoji_img = download_twemoji_png(word_info['emoji'], emoji_size)
             
             if emoji_img:
-                # Position emoji à côté du mot AVEC SCALE
+                # Position emoji ÃƒÂ  cÃƒÂ´tÃƒÂ© du mot AVEC SCALE
                 word_bbox = draw.textbbox((0, 0), word, font=animated_font)
                 word_width = word_bbox[2] - word_bbox[0]
                 emoji_x = current_x + word_width + config.emoji_spacing
-                # Centrer l'emoji sur la ligne animée, clampé dans le cadre
+                # Centrer l'emoji sur la ligne animÃƒÂ©e, clampÃƒÂ© dans le cadre
                 emoji_y = max(0, min(animated_text_y + (animated_font_size - emoji_size) // 2, height - emoji_size - 1))
                 
-                # Ajuster opacité emoji
+                # Ajuster opacitÃƒÂ© emoji
                 if opacity < 255:
                     emoji_alpha = emoji_img.copy()
                     alpha = emoji_alpha.split()[-1]
@@ -380,33 +381,33 @@ def create_hormozi_prompt_frame(words_data: List[Dict], video_size: Tuple[int, i
 def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict], 
                          output_video_path: str) -> str:
     """
-    PROMPT EXACT: Génère des sous-titres style Hormozi 1 (texte bold, mots-clés colorés,
+    PROMPT EXACT: GÃƒÂ©nÃƒÂ¨re des sous-titres style Hormozi 1 (texte bold, mots-clÃƒÂ©s colorÃƒÂ©s,
     majuscules, animations bounce/fade, disparition nette).
     """
     
-    print("🎯 STYLE HORMOZI 1 - PROMPT ORIGINAL EXACT")
+    print("Ã°Å¸Å½Â¯ STYLE HORMOZI 1 - PROMPT ORIGINAL EXACT")
     print("=" * 70)
-    print("✅ Police: Impact bold, sans-serif très épaisse")
-    print("✅ MAJUSCULES: Toujours activé")
-    print("✅ Couleurs: Blanc base + mots-clés colorés")
-    print("✅ Outline: 3px noir épais")
-    print("✅ Animation: Zoom 1.2x + fade 120ms")
-    print("✅ Timing: Mot par mot strict")
-    print("✅ Emojis: MONEY→💸, FIRE→🔥, IDEA→💡")
+    print("Ã¢Å“â€¦ Police: Impact bold, sans-serif trÃƒÂ¨s ÃƒÂ©paisse")
+    print("Ã¢Å“â€¦ MAJUSCULES: Toujours activÃƒÂ©")
+    print("Ã¢Å“â€¦ Couleurs: Blanc base + mots-clÃƒÂ©s colorÃƒÂ©s")
+    print("Ã¢Å“â€¦ Outline: 3px noir ÃƒÂ©pais")
+    print("Ã¢Å“â€¦ Animation: Zoom 1.2x + fade 120ms")
+    print("Ã¢Å“â€¦ Timing: Mot par mot strict")
+    print("Ã¢Å“â€¦ Emojis: MONEYÃ¢â€ â€™Ã°Å¸â€™Â¸, FIREÃ¢â€ â€™Ã°Å¸â€Â¥, IDEAÃ¢â€ â€™Ã°Å¸â€™Â¡")
     
-    # Vérifications
+    # VÃƒÂ©rifications
     if not os.path.exists(input_video_path):
-        print(f"❌ Vidéo non trouvée: {input_video_path}")
+        print(f"Ã¢ÂÅ’ VidÃƒÂ©o non trouvÃƒÂ©e: {input_video_path}")
         return input_video_path
     
     if not transcription_data:
-        print("❌ Transcription manquante")
+        print("Ã¢ÂÅ’ Transcription manquante")
         return input_video_path
     
     # Config prompt exact
     config = HormoziPromptConfig()
     
-    # Appliquer un biais global optionnel si passé via premier segment {'_bias': x}
+    # Appliquer un biais global optionnel si passÃƒÂ© via premier segment {'_bias': x}
     if transcription_data and isinstance(transcription_data[0], dict) and "_bias" in transcription_data[0]:
         try:
             config.timing_bias_s = float(transcription_data[0]["_bias"]) or 0.0
@@ -415,9 +416,9 @@ def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict],
     
     # PROMPT: Mot par mot avec timing strict
     words_data = parse_transcription_word_by_word(transcription_data)
-    print(f"📝 {len(words_data)} mots individuels analysés")
+    print(f"Ã°Å¸â€œÂ {len(words_data)} mots individuels analysÃƒÂ©s")
     
-    # Analyser mots-clés colorés
+    # Analyser mots-clÃƒÂ©s colorÃƒÂ©s
     keywords_found = []
     for word_data in words_data:
         word = word_data['text']
@@ -425,9 +426,9 @@ def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict],
             keywords_found.append(f"{word}({HORMOZI_KEYWORDS[word]})")
     
     if keywords_found:
-        print(f"🎨 Mots-clés colorés: {', '.join(keywords_found[:5])}...")
+        print(f"Ã°Å¸Å½Â¨ Mots-clÃƒÂ©s colorÃƒÂ©s: {', '.join(keywords_found[:5])}...")
     
-    # Métadonnées vidéo
+    # MÃƒÂ©tadonnÃƒÂ©es vidÃƒÂ©o
     try:
         ffprobe_cmd = [
             'ffprobe', '-v', 'quiet', '-print_format', 'json',
@@ -443,16 +444,16 @@ def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict],
         duration = float(video_info['format']['duration'])
         
         font_size_calculated = int(video_height * config.font_size_base)
-        print(f"📊 Vidéo: {video_width}x{video_height}, {fps} FPS")
-        print(f"🔤 Police Impact: {font_size_calculated}px")
+        print(f"Ã°Å¸â€œÅ  VidÃƒÂ©o: {video_width}x{video_height}, {fps} FPS")
+        print(f"Ã°Å¸â€Â¤ Police Impact: {font_size_calculated}px")
         
     except Exception as e:
-        print(f"❌ Erreur ffprobe: {e}")
+        print(f"Ã¢ÂÅ’ Erreur ffprobe: {e}")
         return input_video_path
     
-    # Génération frames
+    # GÃƒÂ©nÃƒÂ©ration frames
     try:
-        print("🎬 Génération frames Hormozi PROMPT EXACT...")
+        print("Ã°Å¸Å½Â¬ GÃƒÂ©nÃƒÂ©ration frames Hormozi PROMPT EXACT...")
         
         with tempfile.TemporaryDirectory() as temp_dir:
             frame_count = int(duration * fps)
@@ -460,7 +461,7 @@ def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict],
             for frame_num in range(frame_count):
                 frame_time = frame_num / fps
                 
-                # PROMPT: Créer overlay texte par frame (reset chaque frame)
+                # PROMPT: CrÃƒÂ©er overlay texte par frame (reset chaque frame)
                 subtitle_frame = create_hormozi_prompt_frame(
                     words_data, (video_width, video_height), config, frame_time
                 )
@@ -468,14 +469,14 @@ def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict],
                 frame_path = os.path.join(temp_dir, f"subtitle_{frame_num:06d}.png")
                 subtitle_frame.save(frame_path, 'PNG')
             
-            print(f"   {frame_count} frames générées")
+            print(f"   {frame_count} frames gÃƒÂ©nÃƒÂ©rÃƒÂ©es")
             
-            # PROMPT: Export final libx264, yuv420p, même fps, audio conservé
-            print("🎬 Composition finale...")
+            # PROMPT: Export final libx264, yuv420p, mÃƒÂªme fps, audio conservÃƒÂ©
+            print("Ã°Å¸Å½Â¬ Composition finale...")
             
-            # Créer le dossier de sortie si nécessaire
+            # CrÃƒÂ©er le dossier de sortie si nÃƒÂ©cessaire
             output_dir = os.path.dirname(output_video_path)
-            if output_dir:  # Seulement si ce n'est pas une chaîne vide
+            if output_dir:  # Seulement si ce n'est pas une chaÃƒÂ®ne vide
                 os.makedirs(output_dir, exist_ok=True)
             
             ffmpeg_cmd = [
@@ -490,28 +491,29 @@ def add_hormozi_subtitles(input_video_path: str, transcription_data: List[Dict],
                 '-crf', '18',
                 '-preset', 'medium',
                 '-pix_fmt', 'yuv420p', # PROMPT: yuv420p
-                '-r', str(fps),        # PROMPT: même fps
+                '-r', str(fps),        # PROMPT: mÃƒÂªme fps
                 output_video_path
             ]
             
             result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                print(f"✅ SUCCÈS PROMPT HORMOZI: {Path(output_video_path).name}")
-                print("🎉 TOUTES SPÉCIFICATIONS PROMPT APPLIQUÉES:")
-                print(f"  🔤 Police: Impact bold ({font_size_calculated}px)")
-                print(f"  📍 Position: {config.bottom_margin:.0%} du bas centré")
-                print(f"  🎨 Couleurs: {len(keywords_found)} mots-clés colorés")
-                print(f"  ⚡ Animation: Zoom {config.bounce_scale}x + fade {config.fade_duration*1000:.0f}ms")
-                print(f"  📝 Timing: Mot par mot strict")
-                print(f"  😀 Emojis: Twemoji PNG (pas de carrés)")
-                print(f"  ⚫ Outline: {config.outline_width}px noir épais")
+                print(f"Ã¢Å“â€¦ SUCCÃƒË†S PROMPT HORMOZI: {Path(output_video_path).name}")
+                print("Ã°Å¸Å½â€° TOUTES SPÃƒâ€°CIFICATIONS PROMPT APPLIQUÃƒâ€°ES:")
+                print(f"  Ã°Å¸â€Â¤ Police: Impact bold ({font_size_calculated}px)")
+                print(f"  Ã°Å¸â€œÂ Position: {config.bottom_margin:.0%} du bas centrÃƒÂ©")
+                print(f"  Ã°Å¸Å½Â¨ Couleurs: {len(keywords_found)} mots-clÃƒÂ©s colorÃƒÂ©s")
+                print(f"  Ã¢Å¡Â¡ Animation: Zoom {config.bounce_scale}x + fade {config.fade_duration*1000:.0f}ms")
+                print(f"  Ã°Å¸â€œÂ Timing: Mot par mot strict")
+                print(f"  Ã°Å¸Ëœâ‚¬ Emojis: Twemoji PNG (pas de carrÃƒÂ©s)")
+                print(f"  Ã¢Å¡Â« Outline: {config.outline_width}px noir ÃƒÂ©pais")
                 return output_video_path
             else:
-                print(f"❌ Erreur ffmpeg: {result.stderr}")
-                print(f"🔍 Commande ffmpeg: {' '.join(ffmpeg_cmd)}")
+                print(f"Ã¢ÂÅ’ Erreur ffmpeg: {result.stderr}")
+                print(f"Ã°Å¸â€Â Commande ffmpeg: {' '.join(ffmpeg_cmd)}")
                 return input_video_path
     
     except Exception as e:
-        print(f"❌ Erreur génération: {e}")
+        print(f"Ã¢ÂÅ’ Erreur gÃƒÂ©nÃƒÂ©ration: {e}")
         return input_video_path 
+

@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-🤖 AUTOMATEUR COMPLET DU PIPELINE VIDÉO
-Automatise entièrement le traitement de vidéos avec musique background
+Ã°Å¸Â¤â€“ AUTOMATEUR COMPLET DU PIPELINE VIDÃƒâ€°O
+Automatise entiÃƒÂ¨rement le traitement de vidÃƒÂ©os avec musique background
 """
 
 import os
@@ -21,7 +22,7 @@ class VideoPipelineAutomator:
         self.processed_folder = Path("processed")
         self.failed_folder = Path("failed")
         
-        # Créer les dossiers nécessaires
+        # CrÃƒÂ©er les dossiers nÃƒÂ©cessaires
         for folder in [self.input_folder, self.output_folder, self.processed_folder, self.failed_folder]:
             folder.mkdir(exist_ok=True)
         
@@ -37,7 +38,7 @@ class VideoPipelineAutomator:
         self.logger = logging.getLogger(__name__)
         
     def process_video(self, video_path: Path) -> bool:
-        """Traite une vidéo avec le pipeline complet."""
+        """Traite une vidÃƒÂ©o avec le pipeline complet."""
         try:
             self.logger.info(f"DEBUT: Traitement {video_path.name}")
             
@@ -54,11 +55,11 @@ class VideoPipelineAutomator:
             if output_video.exists():
                 self._add_background_music(output_video)
             
-            # 3. Déplacer vers traité
+            # 3. DÃƒÂ©placer vers traitÃƒÂ©
             processed_path = self.processed_folder / video_path.name
             video_path.rename(processed_path)
             
-            self.logger.info(f"SUCCES: Traitement terminé {video_path.name}")
+            self.logger.info(f"SUCCES: Traitement terminÃƒÂ© {video_path.name}")
             return True
             
         except Exception as e:
@@ -66,7 +67,7 @@ class VideoPipelineAutomator:
             return False
     
     def _add_background_music(self, video_path: Path):
-        """Ajoute musique background à la vidéo finale."""
+        """Ajoute musique background ÃƒÂ  la vidÃƒÂ©o finale."""
         try:
             from video_processor import _add_background_music
             
@@ -74,12 +75,12 @@ class VideoPipelineAutomator:
             success = _add_background_music(str(video_path), str(output_path))
             
             if success:
-                self.logger.info(f"MUSIQUE AJOUTÉE: {output_path.name}")
+                self.logger.info(f"MUSIQUE AJOUTÃƒâ€°E: {output_path.name}")
             else:
-                self.logger.warning(f"ÉCHEC: Ajout musique échoué pour {video_path.name}")
+                self.logger.warning(f"Ãƒâ€°CHEC: Ajout musique ÃƒÂ©chouÃƒÂ© pour {video_path.name}")
                 
         except Exception as e:
-            self.logger.error(f"ERREUR MUSIQUE: Ajout musique échoué: {e}")
+            self.logger.error(f"ERREUR MUSIQUE: Ajout musique ÃƒÂ©chouÃƒÂ©: {e}")
     
     def watch_folder(self):
         """Surveille le dossier input pour nouveaux fichiers."""
@@ -90,15 +91,15 @@ class VideoPipelineAutomator:
             def on_created(self, event):
                 if not event.is_directory and event.src_path.endswith(('.mp4', '.mov', '.avi')):
                     video_path = Path(event.src_path)
-                    self.automator.logger.info(f"VIDÉO DÉTECTÉE: Nouvelle vidéo détectée: {video_path.name}")
+                    self.automator.logger.info(f"VIDÃƒâ€°O DÃƒâ€°TECTÃƒâ€°E: Nouvelle vidÃƒÂ©o dÃƒÂ©tectÃƒÂ©e: {video_path.name}")
                     
-                    # Attendre que le fichier soit complètement écrit
+                    # Attendre que le fichier soit complÃƒÂ¨tement ÃƒÂ©crit
                     time.sleep(2)
                     
                     # Traitement automatique
                     success = self.automator.process_video(video_path)
                     if not success:
-                        # Déplacer vers échec
+                        # DÃƒÂ©placer vers ÃƒÂ©chec
                         failed_path = self.automator.failed_folder / video_path.name
                         video_path.rename(failed_path)
         
@@ -111,7 +112,7 @@ class VideoPipelineAutomator:
         return observer
     
     def batch_process(self):
-        """Traite toutes les vidéos en attente."""
+        """Traite toutes les vidÃƒÂ©os en attente."""
         self.logger.info("DEBUT: Traitement par lot")
         
         video_files = list(self.input_folder.glob("*.mp4")) + \
@@ -119,28 +120,28 @@ class VideoPipelineAutomator:
                      list(self.input_folder.glob("*.avi"))
         
         if not video_files:
-            self.logger.info("AUCUNE VIDEO: Aucune vidéo en attente")
+            self.logger.info("AUCUNE VIDEO: Aucune vidÃƒÂ©o en attente")
             return
         
-        self.logger.info(f"VIDEOS: {len(video_files)} vidéos à traiter")
+        self.logger.info(f"VIDEOS: {len(video_files)} vidÃƒÂ©os ÃƒÂ  traiter")
         
         for video_path in video_files:
             self.process_video(video_path)
             time.sleep(5)  # Pause entre traitements
         
-        self.logger.info("TERMINE: Traitement par lot terminé")
+        self.logger.info("TERMINE: Traitement par lot terminÃƒÂ©")
     
     def run_scheduled(self):
         """Lance le pipeline selon un planning."""
         # Traitement toutes les heures
         schedule.every().hour.do(self.batch_process)
         
-        # Traitement au démarrage
+        # Traitement au dÃƒÂ©marrage
         schedule.every().day.at("09:00").do(self.batch_process)
         schedule.every().day.at("14:00").do(self.batch_process)
         schedule.every().day.at("19:00").do(self.batch_process)
         
-        self.logger.info("PLANNING: Planning configuré: 9h, 14h, 19h + toutes les heures")
+        self.logger.info("PLANNING: Planning configurÃƒÂ©: 9h, 14h, 19h + toutes les heures")
         
         while True:
             schedule.run_pending()
@@ -148,7 +149,7 @@ class VideoPipelineAutomator:
 
 def main():
     """Fonction principale."""
-    print("DÉMARRAGE: AUTOMATEUR PIPELINE VIDÉO")
+    print("DÃƒâ€°MARRAGE: AUTOMATEUR PIPELINE VIDÃƒâ€°O")
     
     automator = VideoPipelineAutomator()
     
@@ -175,3 +176,4 @@ def main():
 
 if __name__ == "__main__":
     main() 
+

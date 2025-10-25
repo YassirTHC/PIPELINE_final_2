@@ -1,4 +1,5 @@
-﻿#!/usr/bin/env python3
+﻿ï»¿# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 import time
 import json as _json
 import requests
@@ -43,12 +44,12 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
         "Transcript: " + text + "\n\nJSON:"
     )
     
-    print(f"     [LLM] Prompt envoyé ({len(prompt)} caractères)")
-    print(f"     [LLM] Modèle cible: {model}")
+    print(f"     [LLM] Prompt envoyÃ© ({len(prompt)} caractÃ¨res)")
+    print(f"     [LLM] ModÃ¨le cible: {model}")
     
     try:
         payload = {"model": model, "prompt": prompt, "temperature": 0.1, "stream": False, "format": "json"}
-        print(f"     [LLM] Génération avec Ollama ({model})...")
+        print(f"     [LLM] GÃ©nÃ©ration avec Ollama ({model})...")
         
         start_time = time.time()
         r = requests.post(f"{base}/api/generate", json=payload, timeout=request_timeout)
@@ -58,8 +59,8 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
         data = r.json()
         raw = data.get("response", "")
         
-        print(f"     [LLM] Temps de réponse: {end_time - start_time:.1f}s")
-        print(f"     [LLM] Taille réponse: {len(raw)} caractères")
+        print(f"     [LLM] Temps de rÃ©ponse: {end_time - start_time:.1f}s")
+        print(f"     [LLM] Taille rÃ©ponse: {len(raw)} caractÃ¨res")
         
         # Extract JSON
         raw_str = raw.strip()
@@ -83,7 +84,7 @@ def _llm_generate_caption_hashtags_fixed(transcript_text: str) -> Optional[Dict[
             return None
         
         print(f"     [LLM] JSON valide - Domaine: {domain}, Contexte: {context}")
-        print(f"     [LLM] B-roll: {len(broll_keywords)} mots-clés, {len(search_queries)} requêtes")
+        print(f"     [LLM] B-roll: {len(broll_keywords)} mots-clÃ©s, {len(search_queries)} requÃªtes")
         
         return {
             "domain": domain,
@@ -103,8 +104,10 @@ if __name__ == "__main__":
     test_transcript = "EMDR movement sensation reprocessing lateralized movements people doing clinic"
     result = _llm_generate_caption_hashtags_fixed(test_transcript)
     if result:
-        print(" Test réussi!")
+        print(" Test rÃ©ussi!")
         print(f"Title: {result.get('title')}")
         print(f"Description: {result.get('description')}")
         print(f"Hashtags: {result.get('hashtags')}")
         print(f"B-roll keywords: {result.get('broll_keywords')}")
+
+

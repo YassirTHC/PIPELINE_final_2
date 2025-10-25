@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Validate the PyCaps E2E run log to enforce acceptance criteria."""
 
 from __future__ import annotations
@@ -94,4 +94,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
 

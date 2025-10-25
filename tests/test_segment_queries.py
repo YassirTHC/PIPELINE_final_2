@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from types import SimpleNamespace, MethodType, ModuleType
 
 import importlib
@@ -695,4 +695,5 @@ def test_segment_json_queries_override_metadata_fallback(monkeypatch):
     queries_event = logged_queries[0]
     assert queries_event["source"] == "llm_segment_json"
     assert queries_event["queries"] == expected
+
 

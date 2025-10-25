@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from hormozi_subtitles import HormoziSubtitles
 
 
@@ -56,4 +56,5 @@ def test_emoji_fallback_is_empty_when_no_category():
     segment = _build_segment(bland_words, step=0.5)
     groups = proc.parse_transcription_to_word_groups([segment], group_size=2)
     assert all(not group.get("emojis") for group in groups)
+
 

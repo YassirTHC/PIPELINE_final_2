@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 """Integration helpers for the PyCaps-based subtitle renderer."""
 
 from __future__ import annotations
@@ -785,4 +785,5 @@ def render_with_pycaps(
 
 
 __all__ = ["ensure_template_assets", "render_with_pycaps", "to_pycaps_input"]
+
 

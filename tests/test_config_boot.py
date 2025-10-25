@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 import json
 import logging
 from pathlib import Path
@@ -174,7 +174,7 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_TARGET_PER_10", "7")
     monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_MIN_GAP_GROUPS", "3")
     monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_MAX_PER_SEGMENT", "4")
-    monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_NO_CONTEXT_FALLBACK", "â­")
+    monkeypatch.setenv("PIPELINE_SUBTITLE_EMOJI_NO_CONTEXT_FALLBACK", "Ã¢Â­Â")
     monkeypatch.setenv("PIPELINE_SUBTITLE_HERO_EMOJI_ENABLE", "0")
     monkeypatch.setenv("PIPELINE_SUBTITLE_HERO_EMOJI_MAX_PER_SEGMENT", "2")
 
@@ -264,7 +264,7 @@ def test_config_boot_parses_types_and_clamps(monkeypatch, tmp_path):
     assert settings.subtitles.emoji_target_per_10 == 7
     assert settings.subtitles.emoji_min_gap_groups == 3
     assert settings.subtitles.emoji_max_per_segment == 4
-    assert settings.subtitles.emoji_no_context_fallback == "â­"
+    assert settings.subtitles.emoji_no_context_fallback == "Ã¢Â­Â"
     assert settings.subtitles.hero_emoji_enable is False
     assert settings.subtitles.hero_emoji_max_per_segment == 2
 
@@ -337,4 +337,5 @@ def test_config_boot_effective_models_use_defaults(monkeypatch):
     assert payload["llm"]["model_json"] == "qwen-main"
     assert payload["llm"]["model_text"] == "qwen-main"
     assert Path(payload["paths"]["output_dir"]).name == "output"
+
 

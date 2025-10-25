@@ -1,3 +1,4 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 try:
@@ -43,17 +44,17 @@ except Exception:
 class VideoConverterGUI:
     def __init__(self):
         logging.info("GUI init start; DND available=%s", _HAS_DND)
-        # Créer la fenêtre principale avec support du glisser-déposer si dispo
+        # CrÃƒÂ©er la fenÃƒÂªtre principale avec support du glisser-dÃƒÂ©poser si dispo
         # Utiliser Tk standard en fallback pour garantir l'ouverture de l'UI
         self.dnd_enabled = _HAS_DND
         if self.dnd_enabled:
             self.root = TkinterDnD.Tk()
         else:
             self.root = tk.Tk()
-        self.root.title("🎬 Convertisseur Vidéo IA - Pipeline Automatique")
+        self.root.title("Ã°Å¸Å½Â¬ Convertisseur VidÃƒÂ©o IA - Pipeline Automatique")
         self.root.geometry("800x600")
         self.root.configure(bg='#2c3e50')
-        # Forcer la fenêtre au démarrage
+        # Forcer la fenÃƒÂªtre au dÃƒÂ©marrage
         try:
             self.root.state('normal')
             self.root.deiconify()
@@ -69,34 +70,34 @@ class VideoConverterGUI:
         self.video_files = []
         self.is_processing = False
         self.progress_queue = queue.Queue()
-        self.llm_status_var = tk.StringVar(value="LLM: détection…")
+        self.llm_status_var = tk.StringVar(value="LLM: dÃƒÂ©tectionÃ¢â‚¬Â¦")
         self._llm_last_status = None
         self._llm_ready = False
         self._llm_probe_running = False
         
-        # Créer les dossiers nécessaires
+        # CrÃƒÂ©er les dossiers nÃƒÂ©cessaires
         self.create_directories()
         
         # Interface
         self.create_interface()
         
-        # Configurer le glisser-déposer (si dispo)
+        # Configurer le glisser-dÃƒÂ©poser (si dispo)
         self.setup_drag_drop()
         
-        # Démarrer le thread de vérification de la progression
+        # DÃƒÂ©marrer le thread de vÃƒÂ©rification de la progression
         self.root.after(100, self.check_progress_queue)
-        # Démarrer le sondage LLM (non bloquant)
+        # DÃƒÂ©marrer le sondage LLM (non bloquant)
         self.root.after(250, self.schedule_llm_probe)
         logging.info("GUI init done; entering mainloop when called")
 
     def create_directories(self):
-        """Créer les dossiers nécessaires"""
+        """CrÃƒÂ©er les dossiers nÃƒÂ©cessaires"""
         directories = ['clips', 'output', 'temp']
         for directory in directories:
             Path(directory).mkdir(exist_ok=True)
 
     def create_interface(self):
-        """Créer l'interface graphique"""
+        """CrÃƒÂ©er l'interface graphique"""
         
         # Titre principal
         title_frame = tk.Frame(self.root, bg='#2c3e50')
@@ -104,7 +105,7 @@ class VideoConverterGUI:
         
         title_label = tk.Label(
             title_frame,
-            text="🎬 Convertisseur Vidéo IA",
+            text="Ã°Å¸Å½Â¬ Convertisseur VidÃƒÂ©o IA",
             font=('Arial', 24, 'bold'),
             fg='#ecf0f1',
             bg='#2c3e50'
@@ -113,7 +114,7 @@ class VideoConverterGUI:
         
         subtitle_label = tk.Label(
             title_frame,
-            text="Glissez-déposez vos vidéos ou utilisez le bouton ci-dessous",
+            text="Glissez-dÃƒÂ©posez vos vidÃƒÂ©os ou utilisez le bouton ci-dessous",
             font=('Arial', 12),
             fg='#bdc3c7',
             bg='#2c3e50'
@@ -130,13 +131,13 @@ class VideoConverterGUI:
         )
         llm_status_lbl.pack(pady=(6, 0))
         
-        # Zone de glisser-déposer
+        # Zone de glisser-dÃƒÂ©poser
         self.drop_frame = tk.Frame(self.root, bg='#34495e', relief='solid', bd=2)
         self.drop_frame.pack(pady=20, padx=40, fill='both', expand=True)
         
         self.drop_label = tk.Label(
             self.drop_frame,
-            text="📁 Glissez-déposez vos fichiers vidéo ici\n(.mp4, .avi, .mov, .mkv)",
+            text="Ã°Å¸â€œÂ Glissez-dÃƒÂ©posez vos fichiers vidÃƒÂ©o ici\n(.mp4, .avi, .mov, .mkv)",
             font=('Arial', 14),
             fg='#ecf0f1',
             bg='#34495e',
@@ -144,13 +145,13 @@ class VideoConverterGUI:
         )
         self.drop_label.pack(expand=True)
         
-        # Liste des fichiers sélectionnés
+        # Liste des fichiers sÃƒÂ©lectionnÃƒÂ©s
         files_frame = tk.Frame(self.root, bg='#2c3e50')
         files_frame.pack(pady=10, padx=40, fill='both')
         
         tk.Label(
             files_frame,
-            text="📋 Fichiers sélectionnés :",
+            text="Ã°Å¸â€œâ€¹ Fichiers sÃƒÂ©lectionnÃƒÂ©s :",
             font=('Arial', 12, 'bold'),
             fg='#ecf0f1',
             bg='#2c3e50'
@@ -182,7 +183,7 @@ class VideoConverterGUI:
         self.fetcher_var = tk.BooleanVar(value=False)
         fetcher_check = tk.Checkbutton(
             buttons_frame,
-            text="Activer fetchers B‑roll (Pexels/Pixabay)",
+            text="Activer fetchers BÃ¢â‚¬â€˜roll (Pexels/Pixabay)",
             variable=self.fetcher_var,
             font=('Arial', 10),
             fg='#ecf0f1',
@@ -195,7 +196,7 @@ class VideoConverterGUI:
 
         self.select_btn = tk.Button(
             buttons_frame,
-            text="📂 Sélectionner des fichiers",
+            text="Ã°Å¸â€œâ€š SÃƒÂ©lectionner des fichiers",
             font=('Arial', 12, 'bold'),
             bg='#3498db',
             fg='white',
@@ -205,7 +206,7 @@ class VideoConverterGUI:
 
         self.process_btn = tk.Button(
             buttons_frame,
-            text="🚀 Lancer le traitement IA",
+            text="Ã°Å¸Å¡â‚¬ Lancer le traitement IA",
             font=('Arial', 12, 'bold'),
             bg='#2ecc71',
             fg='white',
@@ -215,7 +216,7 @@ class VideoConverterGUI:
         
         self.clean_btn = tk.Button(
             buttons_frame,
-            text="🧹 Nettoyer caches",
+            text="Ã°Å¸Â§Â¹ Nettoyer caches",
             font=('Arial', 12, 'bold'),
             bg='#e67e22',
             fg='white',
@@ -229,7 +230,7 @@ class VideoConverterGUI:
         
         self.progress_label = tk.Label(
             progress_frame,
-            text="📊 Prêt à traiter vos vidéos",
+            text="Ã°Å¸â€œÅ  PrÃƒÂªt ÃƒÂ  traiter vos vidÃƒÂ©os",
             font=('Arial', 10),
             fg='#ecf0f1',
             bg='#2c3e50'
@@ -249,7 +250,7 @@ class VideoConverterGUI:
         
         tk.Label(
             logs_frame,
-            text="📝 Logs de traitement :",
+            text="Ã°Å¸â€œÂ Logs de traitement :",
             font=('Arial', 10, 'bold'),
             fg='#ecf0f1',
             bg='#2c3e50'
@@ -270,11 +271,11 @@ class VideoConverterGUI:
         self.logs_text.config(yscrollcommand=logs_scrollbar.set)
 
     def setup_drag_drop(self):
-        """Configurer le glisser-déposer"""
+        """Configurer le glisser-dÃƒÂ©poser"""
         if not getattr(self, 'dnd_enabled', False):
-            # Mettre à jour le label pour indiquer l'absence de DnD
+            # Mettre ÃƒÂ  jour le label pour indiquer l'absence de DnD
             try:
-                self.drop_label.config(text="📁 Sélectionnez vos fichiers avec le bouton ci‑dessous\n(Drag & Drop indisponible)")
+                self.drop_label.config(text="Ã°Å¸â€œÂ SÃƒÂ©lectionnez vos fichiers avec le bouton ciÃ¢â‚¬â€˜dessous\n(Drag & Drop indisponible)")
             except Exception:
                 pass
             logging.info("Drag&Drop disabled; running without DnD")
@@ -283,7 +284,7 @@ class VideoConverterGUI:
         self.drop_frame.dnd_bind('<<Drop>>', self.on_drop)
 
     def on_drop(self, event):
-        """Gérer le glisser-déposer de fichiers"""
+        """GÃƒÂ©rer le glisser-dÃƒÂ©poser de fichiers"""
         files = self.root.tk.splitlist(event.data)
         valid_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm']
         
@@ -292,16 +293,16 @@ class VideoConverterGUI:
                 if file_path not in self.video_files:
                     self.video_files.append(file_path)
                     self.files_listbox.insert(tk.END, os.path.basename(file_path))
-                    self.log_message(f"✅ Ajouté: {os.path.basename(file_path)}")
+                    self.log_message(f"Ã¢Å“â€¦ AjoutÃƒÂ©: {os.path.basename(file_path)}")
             else:
-                self.log_message(f"❌ Format non supporté: {os.path.basename(file_path)}")
+                self.log_message(f"Ã¢ÂÅ’ Format non supportÃƒÂ©: {os.path.basename(file_path)}")
 
     def select_files(self):
-        """Sélectionner des fichiers via dialogue"""
+        """SÃƒÂ©lectionner des fichiers via dialogue"""
         files = filedialog.askopenfilenames(
-            title="Sélectionnez vos vidéos",
+            title="SÃƒÂ©lectionnez vos vidÃƒÂ©os",
             filetypes=[
-                ("Vidéos", "*.mp4 *.avi *.mov *.mkv *.wmv *.flv *.webm"),
+                ("VidÃƒÂ©os", "*.mp4 *.avi *.mov *.mkv *.wmv *.flv *.webm"),
                 ("Tous les fichiers", "*.*")
             ]
         )
@@ -310,13 +311,13 @@ class VideoConverterGUI:
             if file_path not in self.video_files:
                 self.video_files.append(file_path)
                 self.files_listbox.insert(tk.END, os.path.basename(file_path))
-                self.log_message(f"✅ Ajouté: {os.path.basename(file_path)}")
+                self.log_message(f"Ã¢Å“â€¦ AjoutÃƒÂ©: {os.path.basename(file_path)}")
 
     def clear_files(self):
         """Vider la liste des fichiers"""
         self.video_files.clear()
         self.files_listbox.delete(0, tk.END)
-        self.log_message("🗑️ Liste vidée")
+        self.log_message("Ã°Å¸â€”â€˜Ã¯Â¸Â Liste vidÃƒÂ©e")
 
     def log_message(self, message):
         """Ajouter un message aux logs"""
@@ -326,51 +327,51 @@ class VideoConverterGUI:
         self.root.update_idletasks()
 
     def start_processing(self):
-        """Démarrer le traitement en arrière-plan"""
+        """DÃƒÂ©marrer le traitement en arriÃƒÂ¨re-plan"""
         if not self.video_files:
-            messagebox.showwarning("Attention", "Aucune vidéo sélectionnée !")
+            messagebox.showwarning("Attention", "Aucune vidÃƒÂ©o sÃƒÂ©lectionnÃƒÂ©e !")
             return
             
         if self.is_processing:
-            messagebox.showinfo("Info", "Un traitement est déjà en cours...")
+            messagebox.showinfo("Info", "Un traitement est dÃƒÂ©jÃƒÂ  en cours...")
             return
         
         self.is_processing = True
-        self.process_btn.config(state='disabled', text="🔄 Traitement en cours...")
+        self.process_btn.config(state='disabled', text="Ã°Å¸â€â€ž Traitement en cours...")
         self.progress_bar['value'] = 0
         
-        # Lancer le traitement dans un thread séparé
+        # Lancer le traitement dans un thread sÃƒÂ©parÃƒÂ©
         thread = threading.Thread(target=self.process_videos)
         thread.daemon = True
         thread.start()
 
     def process_videos(self):
-        """Traiter les vidéos (fonction principale)"""
+        """Traiter les vidÃƒÂ©os (fonction principale)"""
         total_videos = len(self.video_files)
         
         try:
             for i, video_path in enumerate(self.video_files):
-                self.progress_queue.put(('progress', f"📹 Traitement de {os.path.basename(video_path)}..."))
+                self.progress_queue.put(('progress', f"Ã°Å¸â€œÂ¹ Traitement de {os.path.basename(video_path)}..."))
                 self.progress_queue.put(('progress_bar', (i / total_videos) * 100))
                 
-                # Copier la vidéo dans le dossier clips
+                # Copier la vidÃƒÂ©o dans le dossier clips
                 video_name = os.path.basename(video_path)
                 dest_path = os.path.join('clips', video_name)
                 
-                self.progress_queue.put(('log', f"📁 Copie vers clips/{video_name}"))
+                self.progress_queue.put(('log', f"Ã°Å¸â€œÂ Copie vers clips/{video_name}"))
                 
-                # NOUVEAU: copie réelle du fichier dans clips/
+                # NOUVEAU: copie rÃƒÂ©elle du fichier dans clips/
                 try:
                     from pathlib import Path
                     import shutil
                     Path('clips').mkdir(exist_ok=True)
                     shutil.copy2(video_path, dest_path)
-                    self.progress_queue.put(('log', f"✅ Copié: {video_name}"))
+                    self.progress_queue.put(('log', f"Ã¢Å“â€¦ CopiÃƒÂ©: {video_name}"))
                 except Exception as e:
-                    self.progress_queue.put(('log', f"❌ Erreur de copie: {e}"))
+                    self.progress_queue.put(('log', f"Ã¢ÂÅ’ Erreur de copie: {e}"))
                     continue
                 
-                # Traitement avec gestion d'erreurs améliorée
+                # Traitement avec gestion d'erreurs amÃƒÂ©liorÃƒÂ©e
                 try:
                     # Utiliser le Python de l'environnement virtuel
                     candidates = [
@@ -393,27 +394,27 @@ class VideoConverterGUI:
                     env['CONTEXTUAL_BROLL_YML'] = 'config\\contextual_broll.yml'
                     if self.fetcher_var.get():
                         env['AI_BROLL_ENABLE_FETCHER'] = '1'
-                        # Provider par défaut: pexels,pixabay (modifiable via .env)
+                        # Provider par dÃƒÂ©faut: pexels,pixabay (modifiable via .env)
                         env.setdefault('AI_BROLL_FETCH_PROVIDER', 'pexels,pixabay')
                     result = subprocess.run([
                         python_path, '-u', 'run_pipeline.py',
                         '--video', dest_path
                     ], capture_output=True, text=True, encoding='utf-8', errors='replace', check=True, env=env)
 
-                    self.progress_queue.put(('log', f"✅ Sortie: {result.stdout}"))
-                    self.progress_queue.put(('log', f"✅ {video_name} traité avec succès"))
+                    self.progress_queue.put(('log', f"Ã¢Å“â€¦ Sortie: {result.stdout}"))
+                    self.progress_queue.put(('log', f"Ã¢Å“â€¦ {video_name} traitÃƒÂ© avec succÃƒÂ¨s"))
 
-                    # Enchaîner AI-B-roll si demandé (désactivé: pipeline principal gère déjà l'insertion)
+                    # EnchaÃƒÂ®ner AI-B-roll si demandÃƒÂ© (dÃƒÂ©sactivÃƒÂ©: pipeline principal gÃƒÂ¨re dÃƒÂ©jÃƒÂ  l'insertion)
                     if False and self.fetcher_var.get():
                         try:
-                            self.progress_queue.put(('log', f"🎬 Insertion B‑roll pour {video_name}..."))
-                            # Déterminer le meilleur input: chercher un mp4 récent dans output/ correspondant au nom
+                            self.progress_queue.put(('log', f"Ã°Å¸Å½Â¬ Insertion BÃ¢â‚¬â€˜roll pour {video_name}..."))
+                            # DÃƒÂ©terminer le meilleur input: chercher un mp4 rÃƒÂ©cent dans output/ correspondant au nom
                             stem = os.path.splitext(video_name)[0]
                             output_dir = Path('output').resolve()
                             temp_dir = Path('temp').resolve()
                             candidate = None
                             
-                            # Préférer la vidéo reframée sans sous-titres
+                            # PrÃƒÂ©fÃƒÂ©rer la vidÃƒÂ©o reframÃƒÂ©e sans sous-titres
                             temp_candidate = temp_dir / f"reframed_{stem}.mp4"
                             if temp_candidate.exists():
                                 candidate = temp_candidate
@@ -422,23 +423,23 @@ class VideoConverterGUI:
                                 if matches:
                                     candidate = matches[0]
                             
-                                                        # PRIORITÉ ABSOLUE: Vidéo avec sous-titres TikTok v2
+                                                        # PRIORITÃƒâ€° ABSOLUE: VidÃƒÂ©o avec sous-titres TikTok v2
                             subtitled_candidates = [
-                                output_dir / "subtitled" / f"{stem}_hormozi_perfect.mp4",  # Priorité: Hormozi 1
+                                output_dir / "subtitled" / f"{stem}_hormozi_perfect.mp4",  # PrioritÃƒÂ©: Hormozi 1
                                 output_dir / "subtitled" / f"reframed_{stem}_submagic.mp4",  # Submagic
                                 output_dir / "subtitled" / f"reframed_{stem}_tiktok_subs_v2.mp4",  # Ancien TikTok v2
                                 output_dir / "subtitled" / f"reframed_{stem}_tiktok_subs.mp4",  # Ancien TikTok v1
                                 output_dir / f"final_{stem}_submagic.mp4",  # Autre localisation Submagic
                             ]
                             
-                            # Pour éviter d'écraser les sous-titres, on conserve la vidéo reframée/non-sous-titrée comme base.
-                            # Aucun remplacement par la version sous-titrée ici.
-                            self.progress_queue.put(('log', f"✅ Base pour AI B‑roll: {Path(candidate if candidate else dest_path).name}"))
+                            # Pour ÃƒÂ©viter d'ÃƒÂ©craser les sous-titres, on conserve la vidÃƒÂ©o reframÃƒÂ©e/non-sous-titrÃƒÂ©e comme base.
+                            # Aucun remplacement par la version sous-titrÃƒÂ©e ici.
+                            self.progress_queue.put(('log', f"Ã¢Å“â€¦ Base pour AI BÃ¢â‚¬â€˜roll: {Path(candidate if candidate else dest_path).name}"))
                             
-                            # FALLBACK seulement si aucune vidéo avec sous-titres TikTok trouvée
+                            # FALLBACK seulement si aucune vidÃƒÂ©o avec sous-titres TikTok trouvÃƒÂ©e
                             if candidate is None:
-                                self.progress_queue.put(('log', f"⚠️ Aucune vidéo avec sous-titres TikTok trouvée, utilisation fallback"))
-                                # Préférer la vidéo reframée sans sous-titres
+                                self.progress_queue.put(('log', f"Ã¢Å¡Â Ã¯Â¸Â Aucune vidÃƒÂ©o avec sous-titres TikTok trouvÃƒÂ©e, utilisation fallback"))
+                                # PrÃƒÂ©fÃƒÂ©rer la vidÃƒÂ©o reframÃƒÂ©e sans sous-titres
                                 temp_candidate = temp_dir / f"reframed_{stem}.mp4"
                                 if temp_candidate.exists():
                                     candidate = temp_candidate
@@ -448,13 +449,13 @@ class VideoConverterGUI:
                                         candidate = matches[0]
                             ai_input = str(Path(candidate if candidate else dest_path).resolve())
 
-                            # Préparer chemins AI-B-roll
+                            # PrÃƒÂ©parer chemins AI-B-roll
                             ai_repo = Path('AI-B-roll').resolve()
                             broll_lib = (ai_repo / 'broll_library').resolve()
                             broll_lib.mkdir(parents=True, exist_ok=True)
                             out_path = (output_dir / f"final_{stem}_with_broll.mp4").resolve()
 
-                            # SRT: privilégier celui généré dans output/
+                            # SRT: privilÃƒÂ©gier celui gÃƒÂ©nÃƒÂ©rÃƒÂ© dans output/
                             srt_candidates = [
                                 (output_dir / f"final_{stem}.srt").resolve(),
                                 Path(ai_input).with_suffix('.srt').resolve(),
@@ -482,7 +483,7 @@ class VideoConverterGUI:
                                     '--fetch-max', '8',
                                     '--no-fetch-images',
                                 ]
-                                # Providers - n'utiliser que les sources vidéo
+                                # Providers - n'utiliser que les sources vidÃƒÂ©o
                                 fetch_list = []
                                 if os.environ.get('PEXELS_API_KEY'):
                                     fetch_list.append('pexels')
@@ -509,7 +510,7 @@ class VideoConverterGUI:
                                 env['AI_BROLL_LLM_ASSIST'] = '1'
                                 # Activer les emojis dans les sous-titres B-roll
                                 env['AI_BROLL_ENABLE_EMOJI_SUBS'] = '1'
-                                # LLM auto-détection
+                                # LLM auto-dÃƒÂ©tection
                                 llm_provider = None
                                 llm_base = None
                                 try:
@@ -537,19 +538,19 @@ class VideoConverterGUI:
                                                 config = yaml.safe_load(f)
                                                 llm_model = config.get('llm', {}).get('model', 'qwen3:8b')
                                         else:
-                                            llm_model = 'qwen3:8b'  # Modèle par défaut
+                                            llm_model = 'qwen3:8b'  # ModÃƒÂ¨le par dÃƒÂ©faut
                                     except Exception:
                                         llm_model = 'qwen3:8b'  # Fallback en cas d'erreur
                                     
                                     args += ['--llm-provider', llm_provider, '--llm-base-url', llm_base, '--llm-model', llm_model]
                             else:
-                                # Pas de SRT: ignorer l'étape B‑roll contextuel pour cette vidéo
-                                self.progress_queue.put(('log', f"⚠️ SRT non trouvé pour {os.path.basename(ai_input)}. B‑roll contextuel ignoré."))
+                                # Pas de SRT: ignorer l'ÃƒÂ©tape BÃ¢â‚¬â€˜roll contextuel pour cette vidÃƒÂ©o
+                                self.progress_queue.put(('log', f"Ã¢Å¡Â Ã¯Â¸Â SRT non trouvÃƒÂ© pour {os.path.basename(ai_input)}. BÃ¢â‚¬â€˜roll contextuel ignorÃƒÂ©."))
                                 continue
-                            # Emojis dans les sous-titres activés par défaut
+                            # Emojis dans les sous-titres activÃƒÂ©s par dÃƒÂ©faut
                             env['AI_BROLL_ENABLE_EMOJI_SUBS'] = '1'
 
-                            # Exécuter depuis le dossier AI-B-roll pour résoudre le package src/
+                            # ExÃƒÂ©cuter depuis le dossier AI-B-roll pour rÃƒÂ©soudre le package src/
                             env.setdefault('PYTHONIOENCODING', 'utf-8')
                             env['ENABLE_PIPELINE_CORE_FETCHER'] = env.get('ENABLE_PIPELINE_CORE_FETCHER', 'true')
                             env.setdefault('BROLL_FETCH_ENABLE', env.get('BROLL_FETCH_ENABLE', 'True'))
@@ -575,13 +576,13 @@ class VideoConverterGUI:
                             ret = proc.wait()
                             if ret != 0:
                                 raise subprocess.CalledProcessError(ret, args)
-                            self.progress_queue.put(('log', f"✅ B‑roll inséré: {out_path}"))
+                            self.progress_queue.put(('log', f"Ã¢Å“â€¦ BÃ¢â‚¬â€˜roll insÃƒÂ©rÃƒÂ©: {out_path}"))
 
-                            # Post-process: overlay Hormozi subtitles on B‑roll output
+                            # Post-process: overlay Hormozi subtitles on BÃ¢â‚¬â€˜roll output
                             try:
                                 # Reuse SRT already generated; if missing, skip overlay
                                 if Path(out_path).exists():
-                                    # Load SRT back to segments if needed — minimal parser
+                                    # Load SRT back to segments if needed Ã¢â‚¬â€ minimal parser
                                     def _parse_srt_minimal(srt_file: Path):
                                         segs = []
                                         try:
@@ -613,7 +614,7 @@ class VideoConverterGUI:
                                             if content:
                                                 segs.append({'start': start, 'end': end, 'text': content})
                                         return segs
-                                    # Préférer le JSON exact si présent
+                                    # PrÃƒÂ©fÃƒÂ©rer le JSON exact si prÃƒÂ©sent
                                     seg_json = (output_dir / f"final_{stem}_segments.json").resolve()
                                     segs = []
                                     if seg_json.exists():
@@ -628,8 +629,8 @@ class VideoConverterGUI:
                                         subtitled_out = (output_dir / 'subtitled' / f"{stem}_hormozi_perfect_broll.mp4").resolve()
                                         subtitled_out.parent.mkdir(parents=True, exist_ok=True)
                                         add_hormozi_subtitles(str(out_path), segs, str(subtitled_out))
-                                        self.progress_queue.put(('log', f"✅ Sous‑titres Hormozi superposés sur B‑roll: {subtitled_out}"))
-                                        # Export final unifié avec anti-collision
+                                        self.progress_queue.put(('log', f"Ã¢Å“â€¦ SousÃ¢â‚¬â€˜titres Hormozi superposÃƒÂ©s sur BÃ¢â‚¬â€˜roll: {subtitled_out}"))
+                                        # Export final unifiÃƒÂ© avec anti-collision
                                         try:
                                             final_target = (output_dir / f"final_{stem}.mp4").resolve()
                                             dst = final_target
@@ -639,21 +640,21 @@ class VideoConverterGUI:
                                                 dst = (output_dir / f"final_{stem}_{ts}.mp4").resolve()
                                             import shutil
                                             shutil.copy2(str(subtitled_out), str(dst))
-                                            self.progress_queue.put(('log', f"✅ Export final unifié: {dst.name}"))
-                                            # Mettre à jour output/latest avec la version B‑roll
+                                            self.progress_queue.put(('log', f"Ã¢Å“â€¦ Export final unifiÃƒÂ©: {dst.name}"))
+                                            # Mettre ÃƒÂ  jour output/latest avec la version BÃ¢â‚¬â€˜roll
                                             try:
                                                 latest_root = (output_dir / 'latest').resolve()
                                                 latest_root.mkdir(parents=True, exist_ok=True)
-                                                # Sous‑dossier par clip
+                                                # SousÃ¢â‚¬â€˜dossier par clip
                                                 per_clip_dir = (latest_root / stem).resolve()
                                                 per_clip_dir.mkdir(parents=True, exist_ok=True)
-                                                # Nettoyer uniquement ce sous‑dossier
+                                                # Nettoyer uniquement ce sousÃ¢â‚¬â€˜dossier
                                                 for _p in per_clip_dir.glob('*'):
                                                     try:
                                                         _p.unlink()
                                                     except Exception:
                                                         pass
-                                                # Copier artefacts dans le sous‑dossier
+                                                # Copier artefacts dans le sousÃ¢â‚¬â€˜dossier
                                                 import shutil
                                                 shutil.copy2(str(dst), str(per_clip_dir / 'latest.mp4'))
                                                 if srt_path and srt_path.exists():
@@ -661,36 +662,36 @@ class VideoConverterGUI:
                                                 meta_src = (output_dir / f"final_{stem}_meta.txt").resolve()
                                                 if meta_src.exists():
                                                     shutil.copy2(str(meta_src), str(per_clip_dir / 'latest_meta.txt'))
-                                                # Pointer pratique: écraser latest.mp4 top‑level
+                                                # Pointer pratique: ÃƒÂ©craser latest.mp4 topÃ¢â‚¬â€˜level
                                                 shutil.copy2(str(dst), str(latest_root / 'latest.mp4'))
                                             except Exception as e_latest:
-                                                self.progress_queue.put(('log', f"⚠️ Latest non mis à jour: {e_latest}"))
+                                                self.progress_queue.put(('log', f"Ã¢Å¡Â Ã¯Â¸Â Latest non mis ÃƒÂ  jour: {e_latest}"))
                                         except Exception as e_copy:
-                                            self.progress_queue.put(('log', f"⚠️ Copie finale échouée: {e_copy}"))
+                                            self.progress_queue.put(('log', f"Ã¢Å¡Â Ã¯Â¸Â Copie finale ÃƒÂ©chouÃƒÂ©e: {e_copy}"))
                                     else:
-                                        self.progress_queue.put(('log', f"⚠️ Overlay Hormozi post B‑roll ignoré (segments introuvables)"))
+                                        self.progress_queue.put(('log', f"Ã¢Å¡Â Ã¯Â¸Â Overlay Hormozi post BÃ¢â‚¬â€˜roll ignorÃƒÂ© (segments introuvables)"))
                             except Exception as e_overlay:
-                                self.progress_queue.put(('log', f"⚠️ Échec overlay Hormozi post B‑roll: {e_overlay}"))
+                                self.progress_queue.put(('log', f"Ã¢Å¡Â Ã¯Â¸Â Ãƒâ€°chec overlay Hormozi post BÃ¢â‚¬â€˜roll: {e_overlay}"))
                         except subprocess.CalledProcessError as e2:
                             err = e2.stderr if e2.stderr else str(e2)
-                            self.progress_queue.put(('log', f"❌ Échec B‑roll: {err}"))
+                            self.progress_queue.put(('log', f"Ã¢ÂÅ’ Ãƒâ€°chec BÃ¢â‚¬â€˜roll: {err}"))
 
                 except subprocess.CalledProcessError as e:
                     error_msg = e.stderr if e.stderr else str(e)
-                    self.progress_queue.put(('log', f"❌ Erreur: {error_msg}"))
-                    self.progress_queue.put(('log', f"❌ {video_name} échoué"))
-                    # Continuer avec la vidéo suivante au lieu d'arrêter tout
+                    self.progress_queue.put(('log', f"Ã¢ÂÅ’ Erreur: {error_msg}"))
+                    self.progress_queue.put(('log', f"Ã¢ÂÅ’ {video_name} ÃƒÂ©chouÃƒÂ©"))
+                    # Continuer avec la vidÃƒÂ©o suivante au lieu d'arrÃƒÂªter tout
             
-            self.progress_queue.put(('progress', "🎉 Tous les traitements terminés !"))
+            self.progress_queue.put(('progress', "Ã°Å¸Å½â€° Tous les traitements terminÃƒÂ©s !"))
             self.progress_queue.put(('progress_bar', 100))
             self.progress_queue.put(('complete', None))
             
         except Exception as e:
-            self.progress_queue.put(('error', f"❌ Erreur: {str(e)}"))
+            self.progress_queue.put(('error', f"Ã¢ÂÅ’ Erreur: {str(e)}"))
             self.progress_queue.put(('complete', None))
 
     def schedule_llm_probe(self):
-        """Planifie un sondage non bloquant de l'état du LLM."""
+        """Planifie un sondage non bloquant de l'ÃƒÂ©tat du LLM."""
         if not self._llm_probe_running:
             t = threading.Thread(target=self.probe_llm_once, daemon=True)
             self._llm_probe_running = True
@@ -699,8 +700,8 @@ class VideoConverterGUI:
         self.root.after(3000, self.schedule_llm_probe)
 
     def probe_llm_once(self):
-        """Teste Ollama puis LM Studio; met à jour le statut via la queue UI."""
-        status = "LLM: non détecté"
+        """Teste Ollama puis LM Studio; met ÃƒÂ  jour le statut via la queue UI."""
+        status = "LLM: non dÃƒÂ©tectÃƒÂ©"
         ready = False
         try:
             # Essai Ollama
@@ -722,7 +723,7 @@ class VideoConverterGUI:
                         names = []
                 model_hint = ''
                 if names:
-                    # Charger la configuration LLM pour afficher le bon modèle
+                    # Charger la configuration LLM pour afficher le bon modÃƒÂ¨le
                     try:
                         import yaml
                         config_path = Path('config/llm_config.yaml')
@@ -741,7 +742,7 @@ class VideoConverterGUI:
                         if any('qwen3:8b' in n for n in names):
                             model_hint = ' (qwen3:8b)'
                 
-                status = f"LLM: Ollama PRÊT{model_hint}"
+                status = f"LLM: Ollama PRÃƒÅ T{model_hint}"
                 ready = True
         except Exception:
             pass
@@ -753,16 +754,16 @@ class VideoConverterGUI:
                     names = []
                     if isinstance(data, dict) and 'data' in data:
                         names = [m.get('id','') or m.get('name','') for m in data.get('data', [])]
-                    status = f"LLM: LM Studio PRÊT ({len(names)} modèles)"
+                    status = f"LLM: LM Studio PRÃƒÅ T ({len(names)} modÃƒÂ¨les)"
                     ready = True
             except Exception:
                 pass
-        # Poster le résultat au thread UI
+        # Poster le rÃƒÂ©sultat au thread UI
         self.progress_queue.put(('llm_status', {'text': status, 'ready': ready}))
         self._llm_probe_running = False
 
     def check_progress_queue(self):
-        """Vérifier la queue de progression"""
+        """VÃƒÂ©rifier la queue de progression"""
         try:
             while True:
                 item_type, data = self.progress_queue.get_nowait()
@@ -775,18 +776,18 @@ class VideoConverterGUI:
                     self.progress_bar['value'] = data
                 elif item_type == 'complete':
                     self.is_processing = False
-                    self.process_btn.config(state='normal', text="🚀 Lancer le traitement IA")
+                    self.process_btn.config(state='normal', text="Ã°Å¸Å¡â‚¬ Lancer le traitement IA")
                 elif item_type == 'error':
                     self.log_message(data)
                     messagebox.showerror("Erreur", data)
                 elif item_type == 'llm_status':
-                    # Mettre à jour l'indicateur et logger les transitions vers PRÊT
+                    # Mettre ÃƒÂ  jour l'indicateur et logger les transitions vers PRÃƒÅ T
                     try:
                         text = data.get('text', 'LLM: statut inconnu')
                         ready = bool(data.get('ready', False))
                         self.llm_status_var.set(text)
                         if ready and not self._llm_ready:
-                            self.log_message(f"✅ {text}")
+                            self.log_message(f"Ã¢Å“â€¦ {text}")
                         self._llm_ready = ready
                     except Exception:
                         pass
@@ -794,11 +795,11 @@ class VideoConverterGUI:
         except queue.Empty:
             pass
         
-        # Programmer la prochaine vérification
+        # Programmer la prochaine vÃƒÂ©rification
         self.root.after(100, self.check_progress_queue)
 
     def clean_caches(self):
-        """Nettoie intelligemment les caches en préservant la diversité B-roll récente"""
+        """Nettoie intelligemment les caches en prÃƒÂ©servant la diversitÃƒÂ© B-roll rÃƒÂ©cente"""
         try:
             total_before = 0
             total_after = 0
@@ -816,7 +817,7 @@ class VideoConverterGUI:
                     pass
                 return total
             
-            # Nettoyage intelligent du B-roll: garder les 30 jours récents
+            # Nettoyage intelligent du B-roll: garder les 30 jours rÃƒÂ©cents
             broll_fetched = Path('AI-B-roll/broll_library/fetched')
             if broll_fetched.exists():
                 size_before = get_folder_size(broll_fetched)
@@ -838,13 +839,13 @@ class VideoConverterGUI:
                 
                 size_after = get_folder_size(broll_fetched)
                 total_after += size_after
-                self.progress_queue.put(('log', f"🧹 B-roll (gardé 30j récents): {size_before/1e9:.2f} GB -> {size_after/1e9:.2f} GB"))
+                self.progress_queue.put(('log', f"Ã°Å¸Â§Â¹ B-roll (gardÃƒÂ© 30j rÃƒÂ©cents): {size_before/1e9:.2f} GB -> {size_after/1e9:.2f} GB"))
             
             # Nettoyage standard pour les autres caches
             other_paths = [
                 Path('temp'),
                 Path('output/subtitled'),
-                Path('.cache'),  # Cache Whisper/embeddings/modèles
+                Path('.cache'),  # Cache Whisper/embeddings/modÃƒÂ¨les
             ]
             
             for path in other_paths:
@@ -868,13 +869,13 @@ class VideoConverterGUI:
                     size_after = get_folder_size(path)
                     total_after += size_after
                     
-                    self.progress_queue.put(('log', f"🧹 {path}: {size_before/1e9:.2f} GB -> {size_after/1e9:.2f} GB"))
+                    self.progress_queue.put(('log', f"Ã°Å¸Â§Â¹ {path}: {size_before/1e9:.2f} GB -> {size_after/1e9:.2f} GB"))
             
             saved = (total_before - total_after) / 1e9
-            self.progress_queue.put(('log', f"✅ Nettoyage intelligent terminé: {saved:.2f} GB libérés, diversité B-roll préservée"))
+            self.progress_queue.put(('log', f"Ã¢Å“â€¦ Nettoyage intelligent terminÃƒÂ©: {saved:.2f} GB libÃƒÂ©rÃƒÂ©s, diversitÃƒÂ© B-roll prÃƒÂ©servÃƒÂ©e"))
             
         except Exception as e:
-            self.progress_queue.put(('log', f"❌ Erreur nettoyage: {str(e)}"))
+            self.progress_queue.put(('log', f"Ã¢ÂÅ’ Erreur nettoyage: {str(e)}"))
 
 def main():
     """Fonction principale"""
@@ -886,12 +887,14 @@ def main():
         logging.info("GUI exited mainloop")
     except ImportError:
         logging.exception("tkinterdnd2 import error")
-        print("❌ Erreur: tkinterdnd2 n'est pas installé")
-        print("📦 Installez-le avec: pip install tkinterdnd2")
-        input("Appuyez sur Entrée pour fermer...")
+        print("Ã¢ÂÅ’ Erreur: tkinterdnd2 n'est pas installÃƒÂ©")
+        print("Ã°Å¸â€œÂ¦ Installez-le avec: pip install tkinterdnd2")
+        input("Appuyez sur EntrÃƒÂ©e pour fermer...")
     except Exception as e:
         logging.exception("Unhandled exception in GUI")
         messagebox.showerror("Erreur", f"Erreur critique GUI: {e}")
 
 if __name__ == "__main__":
     main()
+
+

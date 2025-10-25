@@ -1,6 +1,7 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Intégration du Sélecteur B-roll Générique
+IntÃƒÂ©gration du SÃƒÂ©lecteur B-roll GÃƒÂ©nÃƒÂ©rique
 Connexion au pipeline existant et validation
 """
 
@@ -17,10 +18,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class BrollSelectorIntegrator:
-    """Intégrateur du sélecteur B-roll dans le pipeline existant"""
+    """IntÃƒÂ©grateur du sÃƒÂ©lecteur B-roll dans le pipeline existant"""
     
     def __init__(self, config_path: str = "config/broll_selector_config.yaml"):
-        """Initialise l'intégrateur"""
+        """Initialise l'intÃƒÂ©grateur"""
         self.config_path = Path(config_path)
         self.selector = None
         self.config = None
@@ -28,7 +29,7 @@ class BrollSelectorIntegrator:
         # Charger la configuration
         self._load_config()
         
-        # Initialiser le sélecteur
+        # Initialiser le sÃƒÂ©lecteur
         self._init_selector()
     
     def _load_config(self):
@@ -37,36 +38,36 @@ class BrollSelectorIntegrator:
             if self.config_path.exists():
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     self.config = yaml.safe_load(f)
-                logger.info(f"✅ Configuration chargée: {self.config_path}")
+                logger.info(f"Ã¢Å“â€¦ Configuration chargÃƒÂ©e: {self.config_path}")
             else:
-                logger.warning(f"⚠️ Fichier de configuration non trouvé: {self.config_path}")
+                logger.warning(f"Ã¢Å¡Â Ã¯Â¸Â Fichier de configuration non trouvÃƒÂ©: {self.config_path}")
                 self.config = {}
         except Exception as e:
-            logger.error(f"❌ Erreur chargement configuration: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur chargement configuration: {e}")
             self.config = {}
     
     def _init_selector(self):
-        """Initialise le sélecteur B-roll"""
+        """Initialise le sÃƒÂ©lecteur B-roll"""
         try:
             self.selector = BrollSelector(self.config)
-            logger.info("✅ Sélecteur B-roll initialisé")
+            logger.info("Ã¢Å“â€¦ SÃƒÂ©lecteur B-roll initialisÃƒÂ©")
         except Exception as e:
-            logger.error(f"❌ Erreur initialisation sélecteur: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur initialisation sÃƒÂ©lecteur: {e}")
             self.selector = None
     
     def integrate_with_pipeline(self, video_id: str, keywords: List[str], 
                               domain: Optional[str] = None) -> Dict[str, Any]:
-        """Intègre le sélecteur avec le pipeline existant"""
+        """IntÃƒÂ¨gre le sÃƒÂ©lecteur avec le pipeline existant"""
         if not self.selector:
-            logger.error("❌ Sélecteur non initialisé")
+            logger.error("Ã¢ÂÅ’ SÃƒÂ©lecteur non initialisÃƒÂ©")
             return self._create_error_report(video_id, "Selector not initialized")
         
         try:
-            logger.info(f"🎬 Intégration B-roll pour vidéo: {video_id}")
-            logger.info(f"🔑 Mots-clés: {keywords}")
-            logger.info(f"🎯 Domaine: {domain}")
+            logger.info(f"Ã°Å¸Å½Â¬ IntÃƒÂ©gration B-roll pour vidÃƒÂ©o: {video_id}")
+            logger.info(f"Ã°Å¸â€â€˜ Mots-clÃƒÂ©s: {keywords}")
+            logger.info(f"Ã°Å¸Å½Â¯ Domaine: {domain}")
             
-            # Utiliser le nouveau sélecteur
+            # Utiliser le nouveau sÃƒÂ©lecteur
             report = self.selector.select_brolls(
                 keywords=keywords,
                 domain=domain,
@@ -74,7 +75,7 @@ class BrollSelectorIntegrator:
                 desired_count=self.config.get('desired_broll_count', 3)
             )
             
-            # Enrichir le rapport avec des métadonnées d'intégration
+            # Enrichir le rapport avec des mÃƒÂ©tadonnÃƒÂ©es d'intÃƒÂ©gration
             report['integration'] = {
                 'pipeline_version': '2.0',
                 'selector_version': '1.0',
@@ -82,15 +83,15 @@ class BrollSelectorIntegrator:
                 'config_used': self.config
             }
             
-            logger.info(f"✅ Intégration réussie: {len(report['selected'])} B-rolls sélectionnés")
+            logger.info(f"Ã¢Å“â€¦ IntÃƒÂ©gration rÃƒÂ©ussie: {len(report['selected'])} B-rolls sÃƒÂ©lectionnÃƒÂ©s")
             return report
             
         except Exception as e:
-            logger.error(f"❌ Erreur intégration: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur intÃƒÂ©gration: {e}")
             return self._create_error_report(video_id, str(e))
     
     def _create_error_report(self, video_id: str, error_msg: str) -> Dict[str, Any]:
-        """Crée un rapport d'erreur"""
+        """CrÃƒÂ©e un rapport d'erreur"""
         return {
             'video_id': video_id,
             'timestamp': datetime.now().isoformat(),
@@ -110,20 +111,20 @@ class BrollSelectorIntegrator:
         }
     
     def validate_integration(self) -> bool:
-        """Valide l'intégration complète"""
-        logger.info("🔍 Validation de l'intégration...")
+        """Valide l'intÃƒÂ©gration complÃƒÂ¨te"""
+        logger.info("Ã°Å¸â€Â Validation de l'intÃƒÂ©gration...")
         
         # Test 1: Configuration
         if not self.config:
-            logger.error("❌ Configuration manquante")
+            logger.error("Ã¢ÂÅ’ Configuration manquante")
             return False
         
-        # Test 2: Sélecteur
+        # Test 2: SÃƒÂ©lecteur
         if not self.selector:
-            logger.error("❌ Sélecteur non initialisé")
+            logger.error("Ã¢ÂÅ’ SÃƒÂ©lecteur non initialisÃƒÂ©")
             return False
         
-        # Test 3: Test de sélection
+        # Test 3: Test de sÃƒÂ©lection
         try:
             test_keywords = ["test", "validation", "integration"]
             test_report = self.selector.select_brolls(
@@ -134,20 +135,20 @@ class BrollSelectorIntegrator:
             )
             
             if 'error' in test_report:
-                logger.error(f"❌ Test de sélection échoué: {test_report['error']}")
+                logger.error(f"Ã¢ÂÅ’ Test de sÃƒÂ©lection ÃƒÂ©chouÃƒÂ©: {test_report['error']}")
                 return False
             
-            logger.info("✅ Test de sélection réussi")
+            logger.info("Ã¢Å“â€¦ Test de sÃƒÂ©lection rÃƒÂ©ussi")
             
         except Exception as e:
-            logger.error(f"❌ Erreur test de sélection: {e}")
+            logger.error(f"Ã¢ÂÅ’ Erreur test de sÃƒÂ©lection: {e}")
             return False
         
-        logger.info("✅ Intégration validée avec succès")
+        logger.info("Ã¢Å“â€¦ IntÃƒÂ©gration validÃƒÂ©e avec succÃƒÂ¨s")
         return True
     
     def generate_integration_report(self) -> Dict[str, Any]:
-        """Génère un rapport d'intégration complet"""
+        """GÃƒÂ©nÃƒÂ¨re un rapport d'intÃƒÂ©gration complet"""
         return {
             'integration_status': 'ready' if self.validate_integration() else 'failed',
             'timestamp': datetime.now().isoformat(),
@@ -163,41 +164,41 @@ class BrollSelectorIntegrator:
             ] if self.selector else [],
             'next_steps': [
                 'Connecter fetch_assets au pipeline existant',
-                'Intégrer dans video_processor.py',
-                'Tester avec de vraies vidéos',
-                'Ajuster les paramètres selon les résultats'
+                'IntÃƒÂ©grer dans video_processor.py',
+                'Tester avec de vraies vidÃƒÂ©os',
+                'Ajuster les paramÃƒÂ¨tres selon les rÃƒÂ©sultats'
             ]
         }
 
 def test_integration():
-    """Test de l'intégration"""
-    print("🚀 TEST D'INTÉGRATION DU SÉLECTEUR B-ROLL")
+    """Test de l'intÃƒÂ©gration"""
+    print("Ã°Å¸Å¡â‚¬ TEST D'INTÃƒâ€°GRATION DU SÃƒâ€°LECTEUR B-ROLL")
     print("=" * 70)
     
     # 1. Test d'initialisation
-    print("\n📋 1. Test d'initialisation...")
+    print("\nÃ°Å¸â€œâ€¹ 1. Test d'initialisation...")
     try:
         integrator = BrollSelectorIntegrator()
-        print("   ✅ BrollSelectorIntegrator initialisé")
+        print("   Ã¢Å“â€¦ BrollSelectorIntegrator initialisÃƒÂ©")
     except Exception as e:
-        print(f"   ❌ Erreur d'initialisation: {e}")
+        print(f"   Ã¢ÂÅ’ Erreur d'initialisation: {e}")
         return False
     
     # 2. Test de validation
-    print("\n🔍 2. Test de validation...")
+    print("\nÃ°Å¸â€Â 2. Test de validation...")
     try:
         validation_result = integrator.validate_integration()
         if validation_result:
-            print("   ✅ Intégration validée")
+            print("   Ã¢Å“â€¦ IntÃƒÂ©gration validÃƒÂ©e")
         else:
-            print("   ❌ Validation échouée")
+            print("   Ã¢ÂÅ’ Validation ÃƒÂ©chouÃƒÂ©e")
             return False
     except Exception as e:
-        print(f"   ❌ Erreur validation: {e}")
+        print(f"   Ã¢ÂÅ’ Erreur validation: {e}")
         return False
     
-    # 3. Test d'intégration
-    print("\n🔗 3. Test d'intégration...")
+    # 3. Test d'intÃƒÂ©gration
+    print("\nÃ°Å¸â€â€” 3. Test d'intÃƒÂ©gration...")
     try:
         # Simuler le cas 6.mp4
         keywords_6mp4 = ["family", "even", "playing", "with", "think"]
@@ -209,23 +210,23 @@ def test_integration():
             domain=domain_6mp4
         )
         
-        print(f"   ✅ Intégration réussie")
-        print(f"   📊 Rapport généré: {len(report)} champs")
-        print(f"   🎯 B-rolls sélectionnés: {len(report['selected'])}")
+        print(f"   Ã¢Å“â€¦ IntÃƒÂ©gration rÃƒÂ©ussie")
+        print(f"   Ã°Å¸â€œÅ  Rapport gÃƒÂ©nÃƒÂ©rÃƒÂ©: {len(report)} champs")
+        print(f"   Ã°Å¸Å½Â¯ B-rolls sÃƒÂ©lectionnÃƒÂ©s: {len(report['selected'])}")
         
         if 'error' in report:
-            print(f"   ⚠️ Erreur détectée: {report['error']}")
+            print(f"   Ã¢Å¡Â Ã¯Â¸Â Erreur dÃƒÂ©tectÃƒÂ©e: {report['error']}")
         
     except Exception as e:
-        print(f"   ❌ Erreur intégration: {e}")
+        print(f"   Ã¢ÂÅ’ Erreur intÃƒÂ©gration: {e}")
         return False
     
-    # 4. Génération du rapport d'intégration
-    print("\n📋 4. Rapport d'intégration...")
+    # 4. GÃƒÂ©nÃƒÂ©ration du rapport d'intÃƒÂ©gration
+    print("\nÃ°Å¸â€œâ€¹ 4. Rapport d'intÃƒÂ©gration...")
     try:
         integration_report = integrator.generate_integration_report()
-        print(f"   ✅ Rapport généré")
-        print(f"   📊 Statut: {integration_report['integration_status']}")
+        print(f"   Ã¢Å“â€¦ Rapport gÃƒÂ©nÃƒÂ©rÃƒÂ©")
+        print(f"   Ã°Å¸â€œÅ  Statut: {integration_report['integration_status']}")
         
         # Sauvegarder le rapport
         output_dir = Path("output/reports")
@@ -235,46 +236,47 @@ def test_integration():
         with open(report_path, 'w', encoding='utf-8') as f:
             json.dump(integration_report, f, indent=2, ensure_ascii=False)
         
-        print(f"   💾 Rapport sauvegardé: {report_path}")
+        print(f"   Ã°Å¸â€™Â¾ Rapport sauvegardÃƒÂ©: {report_path}")
         
     except Exception as e:
-        print(f"   ❌ Erreur rapport: {e}")
+        print(f"   Ã¢ÂÅ’ Erreur rapport: {e}")
         return False
     
     print("\n" + "=" * 70)
-    print("✅ INTÉGRATION RÉUSSIE !")
+    print("Ã¢Å“â€¦ INTÃƒâ€°GRATION RÃƒâ€°USSIE !")
     print("=" * 70)
-    print("🎯 Le sélecteur B-roll est prêt pour l'intégration")
-    print("🔧 Connectez-le au pipeline principal")
-    print("📊 Rapports disponibles dans output/reports/")
+    print("Ã°Å¸Å½Â¯ Le sÃƒÂ©lecteur B-roll est prÃƒÂªt pour l'intÃƒÂ©gration")
+    print("Ã°Å¸â€Â§ Connectez-le au pipeline principal")
+    print("Ã°Å¸â€œÅ  Rapports disponibles dans output/reports/")
     
     return True
 
 def main():
     """Fonction principale"""
-    print("🚀 INTÉGRATION DU SÉLECTEUR B-ROLL GÉNÉRIQUE")
+    print("Ã°Å¸Å¡â‚¬ INTÃƒâ€°GRATION DU SÃƒâ€°LECTEUR B-ROLL GÃƒâ€°NÃƒâ€°RIQUE")
     print("=" * 70)
-    print("🎯 Connexion au pipeline existant et validation")
+    print("Ã°Å¸Å½Â¯ Connexion au pipeline existant et validation")
     
-    # Exécuter le test d'intégration
+    # ExÃƒÂ©cuter le test d'intÃƒÂ©gration
     success = test_integration()
     
     if success:
         print("\n" + "=" * 70)
-        print("🎉 INTÉGRATION TERMINÉE AVEC SUCCÈS !")
+        print("Ã°Å¸Å½â€° INTÃƒâ€°GRATION TERMINÃƒâ€°E AVEC SUCCÃƒË†S !")
         print("=" * 70)
-        print("✅ Le sélecteur B-roll générique est opérationnel")
-        print("🔧 Prêt pour l'intégration dans video_processor.py")
-        print("📊 Tous les tests de validation sont passés")
-        print("🚀 Prochaine étape: Intégration complète au pipeline")
+        print("Ã¢Å“â€¦ Le sÃƒÂ©lecteur B-roll gÃƒÂ©nÃƒÂ©rique est opÃƒÂ©rationnel")
+        print("Ã°Å¸â€Â§ PrÃƒÂªt pour l'intÃƒÂ©gration dans video_processor.py")
+        print("Ã°Å¸â€œÅ  Tous les tests de validation sont passÃƒÂ©s")
+        print("Ã°Å¸Å¡â‚¬ Prochaine ÃƒÂ©tape: IntÃƒÂ©gration complÃƒÂ¨te au pipeline")
     else:
         print("\n" + "=" * 70)
-        print("❌ INTÉGRATION ÉCHOUÉE")
+        print("Ã¢ÂÅ’ INTÃƒâ€°GRATION Ãƒâ€°CHOUÃƒâ€°E")
         print("=" * 70)
-        print("⚠️ Des problèmes ont été détectés")
-        print("🔧 Correction nécessaire avant intégration")
+        print("Ã¢Å¡Â Ã¯Â¸Â Des problÃƒÂ¨mes ont ÃƒÂ©tÃƒÂ© dÃƒÂ©tectÃƒÂ©s")
+        print("Ã°Å¸â€Â§ Correction nÃƒÂ©cessaire avant intÃƒÂ©gration")
     
     return success
 
 if __name__ == "__main__":
     main() 
+

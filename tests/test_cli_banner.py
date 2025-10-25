@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿ï»¿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import sys
@@ -57,10 +57,10 @@ def test_cli_warns_when_no_broll_inserted(monkeypatch, tmp_path, capsys):
 
     def _fake_banner(count, *, origin="pipeline"):
         if int(count) > 0:
-            return True, f"    âœ… B-roll insÃ©rÃ©s avec succÃ¨s ({int(count)})"
+            return True, f"    Ã¢Å“â€¦ B-roll insÃƒÂ©rÃƒÂ©s avec succÃƒÂ¨s ({int(count)})"
         if origin == "pipeline_core":
-            return False, "    âš ï¸ Pipeline core: aucun B-roll sÃ©lectionnÃ©; retour Ã  la vidÃ©o d'origine"
-        return False, "    âš ï¸ Aucun B-roll insÃ©rÃ©; retour Ã  la vidÃ©o d'origine"
+            return False, "    Ã¢Å¡Â Ã¯Â¸Â Pipeline core: aucun B-roll sÃƒÂ©lectionnÃƒÂ©; retour ÃƒÂ  la vidÃƒÂ©o d'origine"
+        return False, "    Ã¢Å¡Â Ã¯Â¸Â Aucun B-roll insÃƒÂ©rÃƒÂ©; retour ÃƒÂ  la vidÃƒÂ©o d'origine"
 
     monkeypatch.setitem(
         sys.modules,
@@ -81,8 +81,8 @@ def test_cli_warns_when_no_broll_inserted(monkeypatch, tmp_path, capsys):
 
     captured = capsys.readouterr().out
 
-    assert "âš ï¸ Pipeline core: aucun B-roll sÃ©lectionnÃ©; retour Ã  la vidÃ©o d'origine" in captured
-    assert "B-roll insÃ©rÃ©s avec succÃ¨s" not in captured
+    assert "Ã¢Å¡Â Ã¯Â¸Â Pipeline core: aucun B-roll sÃƒÂ©lectionnÃƒÂ©; retour ÃƒÂ  la vidÃƒÂ©o d'origine" in captured
+    assert "B-roll insÃƒÂ©rÃƒÂ©s avec succÃƒÂ¨s" not in captured
 
 
 def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
@@ -142,7 +142,7 @@ def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
             return self._count
 
     def _fake_banner(count, *, origin="pipeline"):
-        return (int(count) > 0, f"    âœ… B-roll insÃ©rÃ©s avec succÃ¨s ({int(count)})")
+        return (int(count) > 0, f"    Ã¢Å“â€¦ B-roll insÃƒÂ©rÃƒÂ©s avec succÃƒÂ¨s ({int(count)})")
 
     monkeypatch.setitem(
         sys.modules,
@@ -163,7 +163,8 @@ def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
 
     captured = capsys.readouterr().out
 
-    assert "âœ… B-roll insÃ©rÃ©s avec succÃ¨s (2)" in captured
+    assert "Ã¢Å“â€¦ B-roll insÃƒÂ©rÃƒÂ©s avec succÃƒÂ¨s (2)" in captured
     assert recorded.get("subtitle_src")
     assert Path(recorded["subtitle_src"]).name == "with_broll_core.mp4"
+
 

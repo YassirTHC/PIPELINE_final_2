@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-🔍 CAPTURE JSON BRUT LLAMA2:13B
-Capture et affiche la réponse JSON complète pour analyse de conformité
+Ã°Å¸â€Â CAPTURE JSON BRUT LLAMA2:13B
+Capture et affiche la rÃƒÂ©ponse JSON complÃƒÂ¨te pour analyse de conformitÃƒÂ©
 """
 
 import requests
@@ -9,15 +10,15 @@ import json
 import time
 
 def capture_json_llama2_13b():
-    """Capture la réponse JSON brute de llama2:13b"""
-    print("🔍 CAPTURE JSON BRUT LLAMA2:13B")
+    """Capture la rÃƒÂ©ponse JSON brute de llama2:13b"""
+    print("Ã°Å¸â€Â CAPTURE JSON BRUT LLAMA2:13B")
     print("=" * 50)
     
-    # Prompt simplifié (votre version actuelle)
+    # Prompt simplifiÃƒÂ© (votre version actuelle)
     prompt = (
         "You are a JSON generator for social media content. Generate ONLY valid JSON.\n\n"
         "REQUIRED: Create a JSON object with these exact keys:\n"
-        "- title: single catchy title (≤60 chars)\n"
+        "- title: single catchy title (Ã¢â€°Â¤60 chars)\n"
         "- description: single description with call-to-action\n"
         "- hashtags: array of 10-14 hashtags (#keyword format)\n"
         "- broll_keywords: array of 20-25 keyword objects\n\n"
@@ -44,12 +45,12 @@ def capture_json_llama2_13b():
         "JSON:"
     )
     
-    print(f"📝 Prompt: {len(prompt)} caractères")
-    print(f"🎯 Modèle: llama2:13b")
-    print(f"⏳ Test en cours...")
+    print(f"Ã°Å¸â€œÂ Prompt: {len(prompt)} caractÃƒÂ¨res")
+    print(f"Ã°Å¸Å½Â¯ ModÃƒÂ¨le: llama2:13b")
+    print(f"Ã¢ÂÂ³ Test en cours...")
     
     try:
-        # Appel direct à l'API Ollama
+        # Appel direct ÃƒÂ  l'API Ollama
         url = "http://localhost:11434/api/generate"
         payload = {
             "model": "llama2:13b",
@@ -58,7 +59,7 @@ def capture_json_llama2_13b():
             "stream": False
         }
         
-        print(f"🚀 Envoi à Ollama...")
+        print(f"Ã°Å¸Å¡â‚¬ Envoi ÃƒÂ  Ollama...")
         start_time = time.time()
         
         response = requests.post(url, json=payload, timeout=600)  # 10 minutes
@@ -70,17 +71,17 @@ def capture_json_llama2_13b():
         data = response.json()
         raw_response = data.get("response", "")
         
-        print(f"✅ Réponse reçue en {response_time:.1f}s")
-        print(f"📊 Taille: {len(raw_response)} caractères")
+        print(f"Ã¢Å“â€¦ RÃƒÂ©ponse reÃƒÂ§ue en {response_time:.1f}s")
+        print(f"Ã°Å¸â€œÅ  Taille: {len(raw_response)} caractÃƒÂ¨res")
         
-        # Sauvegarder la réponse brute
+        # Sauvegarder la rÃƒÂ©ponse brute
         with open("llama2_13b_json_brut.txt", "w", encoding="utf-8") as f:
             f.write(raw_response)
         
-        print(f"\n📁 Réponse sauvegardée dans 'llama2_13b_json_brut.txt'")
+        print(f"\nÃ°Å¸â€œÂ RÃƒÂ©ponse sauvegardÃƒÂ©e dans 'llama2_13b_json_brut.txt'")
         
-        # Analyse de la réponse
-        print(f"\n🔍 ANALYSE DE LA RÉPONSE:")
+        # Analyse de la rÃƒÂ©ponse
+        print(f"\nÃ°Å¸â€Â ANALYSE DE LA RÃƒâ€°PONSE:")
         print("=" * 50)
         
         # 1. Recherche de JSON
@@ -88,54 +89,55 @@ def capture_json_llama2_13b():
         json_end = raw_response.rfind("}")
         
         if json_start != -1 and json_end != -1:
-            print(f"✅ JSON détecté: position {json_start} à {json_end}")
+            print(f"Ã¢Å“â€¦ JSON dÃƒÂ©tectÃƒÂ©: position {json_start} ÃƒÂ  {json_end}")
             json_content = raw_response[json_start:json_end+1]
             
             # Sauvegarder le JSON extrait
             with open("llama2_13b_json_extrait.txt", "w", encoding="utf-8") as f:
                 f.write(json_content)
             
-            print(f"📁 JSON extrait sauvegardé dans 'llama2_13b_json_extrait.txt'")
+            print(f"Ã°Å¸â€œÂ JSON extrait sauvegardÃƒÂ© dans 'llama2_13b_json_extrait.txt'")
             
             # Test de validation JSON
             try:
                 parsed_json = json.loads(json_content)
-                print(f"✅ JSON valide !")
-                print(f"📋 Clés trouvées: {list(parsed_json.keys())}")
+                print(f"Ã¢Å“â€¦ JSON valide !")
+                print(f"Ã°Å¸â€œâ€¹ ClÃƒÂ©s trouvÃƒÂ©es: {list(parsed_json.keys())}")
                 
-                # Analyse détaillée des clés
-                print(f"\n🔍 ANALYSE DÉTAILLÉE:")
+                # Analyse dÃƒÂ©taillÃƒÂ©e des clÃƒÂ©s
+                print(f"\nÃ°Å¸â€Â ANALYSE DÃƒâ€°TAILLÃƒâ€°E:")
                 print("=" * 30)
                 
                 for key, value in parsed_json.items():
                     if isinstance(value, list):
-                        print(f"   {key}: {len(value)} éléments")
+                        print(f"   {key}: {len(value)} ÃƒÂ©lÃƒÂ©ments")
                         if key == "hashtags" and len(value) < 10:
-                            print(f"      ⚠️ INSUFFISANT: {len(value)} hashtags (attendu: 10-14)")
+                            print(f"      Ã¢Å¡Â Ã¯Â¸Â INSUFFISANT: {len(value)} hashtags (attendu: 10-14)")
                         elif key == "broll_keywords" and len(value) < 20:
-                            print(f"      ⚠️ INSUFFISANT: {len(value)} keywords (attendu: 20-25)")
+                            print(f"      Ã¢Å¡Â Ã¯Â¸Â INSUFFISANT: {len(value)} keywords (attendu: 20-25)")
                     else:
                         print(f"   {key}: {type(value).__name__} = '{value}'")
                 
                 # Affichage complet du JSON
-                print(f"\n📄 JSON COMPLET GÉNÉRÉ:")
+                print(f"\nÃ°Å¸â€œâ€ž JSON COMPLET GÃƒâ€°NÃƒâ€°RÃƒâ€°:")
                 print("=" * 30)
                 print(json.dumps(parsed_json, indent=2, ensure_ascii=False))
                 
             except json.JSONDecodeError as e:
-                print(f"❌ JSON invalide: {e}")
+                print(f"Ã¢ÂÅ’ JSON invalide: {e}")
                 
         else:
-            print(f"❌ Aucun JSON détecté dans la réponse")
-            print(f"🔍 Contenu de la réponse:")
-            print(f"   Début: {raw_response[:200]}...")
+            print(f"Ã¢ÂÅ’ Aucun JSON dÃƒÂ©tectÃƒÂ© dans la rÃƒÂ©ponse")
+            print(f"Ã°Å¸â€Â Contenu de la rÃƒÂ©ponse:")
+            print(f"   DÃƒÂ©but: {raw_response[:200]}...")
             print(f"   Fin: ...{raw_response[-200:]}")
         
         return True
         
     except Exception as e:
-        print(f"❌ Erreur: {e}")
+        print(f"Ã¢ÂÅ’ Erreur: {e}")
         return False
 
 if __name__ == "__main__":
     capture_json_llama2_13b() 
+

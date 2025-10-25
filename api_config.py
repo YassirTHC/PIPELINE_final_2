@@ -1,3 +1,4 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """API key bootstrap for the B-roll system."""
 
@@ -58,3 +59,5 @@ def print_summary() -> None:
 if __name__ == '__main__':
     apply_defaults()
     print_summary()
+
+

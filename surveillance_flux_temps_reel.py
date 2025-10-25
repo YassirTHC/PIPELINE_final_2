@@ -1,7 +1,8 @@
+﻿ï»¿# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
-Surveillance en Temps Réel du Flux LLM → Fetchers → Scoring
-Observation du traitement de 6.mp4 avec la correction des mots-clés B-roll
+Surveillance en Temps RÃƒÂ©el du Flux LLM Ã¢â€ â€™ Fetchers Ã¢â€ â€™ Scoring
+Observation du traitement de 6.mp4 avec la correction des mots-clÃƒÂ©s B-roll
 """
 
 import time
@@ -11,13 +12,13 @@ from pathlib import Path
 from datetime import datetime
 
 def surveiller_flux_temps_reel():
-    """Surveillance en temps réel du flux LLM → Fetchers → Scoring"""
-    print("🚀 SURVEILLANCE EN TEMPS RÉEL DU FLUX LLM → FETCHERS → SCORING")
+    """Surveillance en temps rÃƒÂ©el du flux LLM Ã¢â€ â€™ Fetchers Ã¢â€ â€™ Scoring"""
+    print("Ã°Å¸Å¡â‚¬ SURVEILLANCE EN TEMPS RÃƒâ€°EL DU FLUX LLM Ã¢â€ â€™ FETCHERS Ã¢â€ â€™ SCORING")
     print("=" * 80)
-    print("🎯 Observation du traitement de 6.mp4 avec correction des mots-clés B-roll")
-    print("⏰ Démarrage:", datetime.now().strftime("%H:%M:%S"))
+    print("Ã°Å¸Å½Â¯ Observation du traitement de 6.mp4 avec correction des mots-clÃƒÂ©s B-roll")
+    print("Ã¢ÂÂ° DÃƒÂ©marrage:", datetime.now().strftime("%H:%M:%S"))
     
-    # Dossiers à surveiller
+    # Dossiers ÃƒÂ  surveiller
     clips_dir = Path("clips")
     output_dir = Path("output")
     output_6_dir = Path("output/clips/6")
@@ -29,18 +30,18 @@ def surveiller_flux_temps_reel():
     last_clips_count = 0
     last_broll_count = 0
     
-    print("\n🔍 Dossiers surveillés:")
-    print(f"   📁 Clips: {clips_dir}")
-    print(f"   📁 Output: {output_dir}")
-    print(f"   🎬 6.mp4 Output: {output_6_dir}")
-    print(f"   📚 B-roll Library: {broll_library}")
+    print("\nÃ°Å¸â€Â Dossiers surveillÃƒÂ©s:")
+    print(f"   Ã°Å¸â€œÂ Clips: {clips_dir}")
+    print(f"   Ã°Å¸â€œÂ Output: {output_dir}")
+    print(f"   Ã°Å¸Å½Â¬ 6.mp4 Output: {output_6_dir}")
+    print(f"   Ã°Å¸â€œÅ¡ B-roll Library: {broll_library}")
     
     try:
         while True:
             iteration += 1
             current_time = datetime.now().strftime("%H:%M:%S")
             
-            # Vérifier les changements
+            # VÃƒÂ©rifier les changements
             output_files = list(output_dir.rglob("*")) if output_dir.exists() else []
             clips_files = list(clips_dir.rglob("*")) if clips_dir.exists() else []
             broll_files = list(broll_library.rglob("*")) if broll_library.exists() else []
@@ -50,35 +51,35 @@ def surveiller_flux_temps_reel():
             clips_count = len(clips_files)
             broll_count = len(broll_files)
             
-            # Détecter les changements
+            # DÃƒÂ©tecter les changements
             output_changed = output_count != last_output_count
             clips_changed = clips_count != last_clips_count
             broll_changed = broll_count != last_broll_count
             
-            print(f"\n⏰ [{current_time}] Surveillance #{iteration}")
+            print(f"\nÃ¢ÂÂ° [{current_time}] Surveillance #{iteration}")
             print("-" * 60)
-            print(f"   📁 Output: {output_count} fichiers")
-            print(f"   📁 Clips: {clips_count} fichiers")
-            print(f"   📚 B-roll Library: {broll_count} fichiers")
+            print(f"   Ã°Å¸â€œÂ Output: {output_count} fichiers")
+            print(f"   Ã°Å¸â€œÂ Clips: {clips_count} fichiers")
+            print(f"   Ã°Å¸â€œÅ¡ B-roll Library: {broll_count} fichiers")
             
             # Analyser les changements
             if output_changed or clips_changed or broll_changed:
-                print(f"   🔄 Changements détectés !")
+                print(f"   Ã°Å¸â€â€ž Changements dÃƒÂ©tectÃƒÂ©s !")
                 
-                # 1. Vérifier la création du dossier 6.mp4
+                # 1. VÃƒÂ©rifier la crÃƒÂ©ation du dossier 6.mp4
                 if output_6_dir.exists():
-                    print(f"   🎬 Dossier 6.mp4 créé: {output_6_dir}")
+                    print(f"   Ã°Å¸Å½Â¬ Dossier 6.mp4 crÃƒÂ©ÃƒÂ©: {output_6_dir}")
                     
-                    # Vérifier les fichiers dans le dossier 6
+                    # VÃƒÂ©rifier les fichiers dans le dossier 6
                     files_in_6 = list(output_6_dir.rglob("*"))
-                    print(f"      📁 Fichiers dans 6/: {len(files_in_6)}")
+                    print(f"      Ã°Å¸â€œÂ Fichiers dans 6/: {len(files_in_6)}")
                     
                     for file in files_in_6:
                         if file.is_file():
                             file_size = file.stat().st_size / (1024*1024)
-                            print(f"      📄 {file.name}: {file_size:.1f} MB")
+                            print(f"      Ã°Å¸â€œâ€ž {file.name}: {file_size:.1f} MB")
                     
-                    # Vérifier meta.txt pour les mots-clés B-roll
+                    # VÃƒÂ©rifier meta.txt pour les mots-clÃƒÂ©s B-roll
                     meta_file = output_6_dir / "meta.txt"
                     if meta_file.exists():
                         try:
@@ -86,41 +87,41 @@ def surveiller_flux_temps_reel():
                                 content = f.read()
                             
                             if "B-roll Keywords:" in content:
-                                print(f"      🎯 MOTS-CLÉS B-ROLL DÉTECTÉS !")
+                                print(f"      Ã°Å¸Å½Â¯ MOTS-CLÃƒâ€°S B-ROLL DÃƒâ€°TECTÃƒâ€°S !")
                                 
-                                # Extraire les mots-clés
+                                # Extraire les mots-clÃƒÂ©s
                                 lines = content.split('\n')
                                 for line in lines:
                                     if line.startswith("B-roll Keywords:"):
                                         keywords_part = line.replace("B-roll Keywords:", "").strip()
                                         keywords = [kw.strip() for kw in keywords_part.split(',') if kw.strip()]
-                                        print(f"         🎬 {len(keywords)} mots-clés: {', '.join(keywords[:5])}...")
+                                        print(f"         Ã°Å¸Å½Â¬ {len(keywords)} mots-clÃƒÂ©s: {', '.join(keywords[:5])}...")
                                         break
                             else:
-                                print(f"      ⚠️ Mots-clés B-roll non trouvés dans meta.txt")
+                                print(f"      Ã¢Å¡Â Ã¯Â¸Â Mots-clÃƒÂ©s B-roll non trouvÃƒÂ©s dans meta.txt")
                                 
                         except Exception as e:
-                            print(f"      ❌ Erreur lecture meta.txt: {e}")
+                            print(f"      Ã¢ÂÅ’ Erreur lecture meta.txt: {e}")
                 
-                # 2. Vérifier la bibliothèque B-roll
+                # 2. VÃƒÂ©rifier la bibliothÃƒÂ¨que B-roll
                 if broll_library.exists():
                     clip_dirs = [d for d in broll_library.iterdir() if d.is_dir() and d.name.startswith('clip_reframed_')]
                     if len(clip_dirs) > last_broll_count:
-                        print(f"   📚 Nouveaux clips B-roll détectés: {len(clip_dirs)}")
+                        print(f"   Ã°Å¸â€œÅ¡ Nouveaux clips B-roll dÃƒÂ©tectÃƒÂ©s: {len(clip_dirs)}")
                         
-                        # Vérifier les nouveaux clips
+                        # VÃƒÂ©rifier les nouveaux clips
                         new_clips = clip_dirs[-3:] if len(clip_dirs) > 3 else clip_dirs
                         for clip_dir in new_clips:
                             clip_name = clip_dir.name
-                            print(f"      📁 {clip_name}")
+                            print(f"      Ã°Å¸â€œÂ {clip_name}")
                             
-                            # Vérifier le contenu
+                            # VÃƒÂ©rifier le contenu
                             fetched_dir = clip_dir / "fetched"
                             if fetched_dir.exists():
                                 sources = [d.name for d in fetched_dir.iterdir() if d.is_dir()]
-                                print(f"         📥 Sources: {', '.join(sources)}")
+                                print(f"         Ã°Å¸â€œÂ¥ Sources: {', '.join(sources)}")
                 
-                # 3. Vérifier les logs du pipeline
+                # 3. VÃƒÂ©rifier les logs du pipeline
                 log_file = Path("output/pipeline.log.jsonl")
                 if log_file.exists():
                     try:
@@ -130,9 +131,9 @@ def surveiller_flux_temps_reel():
                         # Analyser les nouvelles lignes
                         if len(lines) > last_output_count:
                             new_lines = lines[-10:] if len(lines) > 10 else lines
-                            print(f"   📋 Nouvelles lignes du log ({len(new_lines)} lignes):")
+                            print(f"   Ã°Å¸â€œâ€¹ Nouvelles lignes du log ({len(new_lines)} lignes):")
                             
-                            for line in new_lines[-3:]:  # Afficher les 3 dernières
+                            for line in new_lines[-3:]:  # Afficher les 3 derniÃƒÂ¨res
                                 try:
                                     log_entry = json.loads(line.strip())
                                     event_type = log_entry.get('type', 'N/A')
@@ -140,37 +141,38 @@ def surveiller_flux_temps_reel():
                                         start_s = log_entry.get('start_s', 'N/A')
                                         end_s = log_entry.get('end_s', 'N/A')
                                         media_path = log_entry.get('media_path', 'N/A')
-                                        print(f"      🎬 B-roll appliqué: [{start_s}s-{end_s}s] {os.path.basename(media_path)}")
+                                        print(f"      Ã°Å¸Å½Â¬ B-roll appliquÃƒÂ©: [{start_s}s-{end_s}s] {os.path.basename(media_path)}")
                                     else:
-                                        print(f"      📝 {event_type}: {line[:80]}...")
+                                        print(f"      Ã°Å¸â€œÂ {event_type}: {line[:80]}...")
                                 except:
-                                    print(f"      ⚠️ Ligne non-JSON: {line[:80]}...")
+                                    print(f"      Ã¢Å¡Â Ã¯Â¸Â Ligne non-JSON: {line[:80]}...")
                     
                     except Exception as e:
-                        print(f"      ⚠️ Erreur lecture log: {e}")
+                        print(f"      Ã¢Å¡Â Ã¯Â¸Â Erreur lecture log: {e}")
                 
-                # Mettre à jour les compteurs
+                # Mettre ÃƒÂ  jour les compteurs
                 last_output_count = output_count
                 last_clips_count = clips_count
                 last_broll_count = broll_count
             
-            # Attendre avant la prochaine vérification
-            print(f"   ⏳ Attente 10 secondes... (Ctrl+C pour arrêter)")
+            # Attendre avant la prochaine vÃƒÂ©rification
+            print(f"   Ã¢ÂÂ³ Attente 10 secondes... (Ctrl+C pour arrÃƒÂªter)")
             time.sleep(10)
             
     except KeyboardInterrupt:
-        print(f"\n🛑 Surveillance arrêtée par l'utilisateur")
-        print(f"⏰ Durée totale: {iteration * 10} secondes")
-        print(f"🎯 Vérifiez l'interface pour voir le traitement en cours")
+        print(f"\nÃ°Å¸â€ºâ€˜ Surveillance arrÃƒÂªtÃƒÂ©e par l'utilisateur")
+        print(f"Ã¢ÂÂ° DurÃƒÂ©e totale: {iteration * 10} secondes")
+        print(f"Ã°Å¸Å½Â¯ VÃƒÂ©rifiez l'interface pour voir le traitement en cours")
     except Exception as e:
-        print(f"\n❌ Erreur lors de la surveillance: {e}")
+        print(f"\nÃ¢ÂÅ’ Erreur lors de la surveillance: {e}")
 
 def main():
     """Fonction principale de surveillance"""
-    print("🎯 Surveillance en temps réel du flux LLM → Fetchers → Scoring")
-    print("🔍 Observation du traitement de 6.mp4 avec correction des mots-clés B-roll")
+    print("Ã°Å¸Å½Â¯ Surveillance en temps rÃƒÂ©el du flux LLM Ã¢â€ â€™ Fetchers Ã¢â€ â€™ Scoring")
+    print("Ã°Å¸â€Â Observation du traitement de 6.mp4 avec correction des mots-clÃƒÂ©s B-roll")
     
     surveiller_flux_temps_reel()
 
 if __name__ == "__main__":
     main() 
+
