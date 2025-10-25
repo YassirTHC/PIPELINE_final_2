@@ -1,5 +1,6 @@
-# 🎯 POST-PROCESSING DES MOTS-CLÉS B-ROLL - FILTRAGE + CATÉGORISATION + DÉ-DUP
-# Pipeline de nettoyage et optimisation des mots-clés pour la recherche B-roll
+﻿# -*- coding: utf-8 -*-
+# ðŸŽ¯ POST-PROCESSING DES MOTS-CLÃ‰S B-ROLL - FILTRAGE + CATÃ‰GORISATION + DÃ‰-DUP
+# Pipeline de nettoyage et optimisation des mots-clÃ©s pour la recherche B-roll
 
 import re
 import logging
@@ -7,16 +8,16 @@ from typing import Dict, List, Tuple, Any, Set
 from collections import OrderedDict, Counter
 from dataclasses import dataclass
 
-# Import de l'optimiseur de diversité
+# Import de l'optimiseur de diversitÃ©
 try:
     from keyword_diversity_optimizer import optimize_broll_keywords_diversity
     DIVERSITY_OPTIMIZER_AVAILABLE = True
     logger = logging.getLogger(__name__)
-    logger.info("✅ Optimiseur de diversité disponible")
+    logger.info("âœ… Optimiseur de diversitÃ© disponible")
 except ImportError:
     DIVERSITY_OPTIMIZER_AVAILABLE = False
     logger = logging.getLogger(__name__)
-    logger.warning("⚠️ Optimiseur de diversité non disponible - utilisation du mode basique")
+    logger.warning("âš ï¸ Optimiseur de diversitÃ© non disponible - utilisation du mode basique")
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class KeywordQuality:
-    """Métadonnées de qualité pour un mot-clé"""
+    """MÃ©tadonnÃ©es de qualitÃ© pour un mot-clÃ©"""
     keyword: str
     length: int
     is_visual: bool
@@ -33,10 +34,10 @@ class KeywordQuality:
     search_ready: bool
 
 class KeywordProcessor:
-    """Processeur de mots-clés avec filtrage et catégorisation intelligente"""
+    """Processeur de mots-clÃ©s avec filtrage et catÃ©gorisation intelligente"""
     
     def __init__(self):
-        # Catégories de mots-clés visuels
+        # CatÃ©gories de mots-clÃ©s visuels
         self.visual_categories = {
             'actions': ['running', 'walking', 'talking', 'smiling', 'working', 'studying', 'cooking', 'driving'],
             'objects': ['computer', 'phone', 'book', 'car', 'house', 'tree', 'flower', 'food', 'clothes'],
@@ -46,7 +47,7 @@ class KeywordProcessor:
             'abstract': ['success', 'growth', 'change', 'improvement', 'development', 'learning', 'healing']
         }
         
-        # Mots-clés non-visuels à filtrer
+        # Mots-clÃ©s non-visuels Ã  filtrer
         self.non_visual_keywords = {
             'abstract_concepts': ['success', 'failure', 'happiness', 'sadness', 'love', 'hate', 'hope', 'fear'],
             'time_words': ['always', 'never', 'sometimes', 'often', 'rarely', 'today', 'yesterday', 'tomorrow'],
@@ -56,19 +57,19 @@ class KeywordProcessor:
         
         # Patterns de nettoyage
         self.cleaning_patterns = [
-            (r'[^a-zA-Z0-9\s\-]', ''),  # Supprimer caractères spéciaux
+            (r'[^a-zA-Z0-9\s\-]', ''),  # Supprimer caractÃ¨res spÃ©ciaux
             (r'\s+', ' '),              # Normaliser espaces
-            (r'^\s+|\s+$', ''),         # Supprimer espaces début/fin
+            (r'^\s+|\s+$', ''),         # Supprimer espaces dÃ©but/fin
         ]
         
-        # Seuils de qualité
+        # Seuils de qualitÃ©
         self.min_length = 3
         self.max_length = 20
         self.min_confidence = 0.6
     
     def clean_keywords(self, raw_keywords: List[str]) -> List[str]:
         """
-        Nettoyage et normalisation des mots-clés
+        Nettoyage et normalisation des mots-clÃ©s
         """
         cleaned = []
         
@@ -91,15 +92,15 @@ class KeywordProcessor:
             
             cleaned.append(cleaned_keyword.lower())
         
-        # Dé-duplication en préservant l'ordre
+        # DÃ©-duplication en prÃ©servant l'ordre
         unique_keywords = list(OrderedDict.fromkeys(cleaned))
         
-        logger.info(f"🧹 Mots-clés nettoyés: {len(raw_keywords)} → {len(unique_keywords)}")
+        logger.info(f"ðŸ§¹ Mots-clÃ©s nettoyÃ©s: {len(raw_keywords)} â†’ {len(unique_keywords)}")
         return unique_keywords
     
     def categorize_keywords(self, keywords: List[str]) -> Dict[str, List[str]]:
         """
-        Catégorisation automatique des mots-clés
+        CatÃ©gorisation automatique des mots-clÃ©s
         """
         categorized = {category: [] for category in self.visual_categories.keys()}
         categorized['uncategorized'] = []
@@ -107,28 +108,28 @@ class KeywordProcessor:
         for keyword in keywords:
             categorized_flag = False
             
-            # Vérifier chaque catégorie
+            # VÃ©rifier chaque catÃ©gorie
             for category, examples in self.visual_categories.items():
-                # Vérifier si le mot-clé correspond à la catégorie
+                # VÃ©rifier si le mot-clÃ© correspond Ã  la catÃ©gorie
                 if self._matches_category(keyword, examples):
                     categorized[category].append(keyword)
                     categorized_flag = True
                     break
             
-            # Si aucune catégorie trouvée
+            # Si aucune catÃ©gorie trouvÃ©e
             if not categorized_flag:
                 categorized['uncategorized'].append(keyword)
         
-        # Log des résultats
+        # Log des rÃ©sultats
         for category, words in categorized.items():
             if words:
-                logger.info(f"🏷️ {category}: {len(words)} mots-clés")
+                logger.info(f"ðŸ·ï¸ {category}: {len(words)} mots-clÃ©s")
         
         return categorized
     
     def _matches_category(self, keyword: str, examples: List[str]) -> bool:
         """
-        Vérifie si un mot-clé correspond à une catégorie
+        VÃ©rifie si un mot-clÃ© correspond Ã  une catÃ©gorie
         """
         keyword_lower = keyword.lower()
         
@@ -136,7 +137,7 @@ class KeywordProcessor:
         if keyword_lower in [ex.lower() for ex in examples]:
             return True
         
-        # Correspondance partielle (suffixe/préfixe)
+        # Correspondance partielle (suffixe/prÃ©fixe)
         for example in examples:
             example_lower = example.lower()
             if (keyword_lower.endswith(example_lower) or 
@@ -144,7 +145,7 @@ class KeywordProcessor:
                 example_lower in keyword_lower):
                 return True
         
-        # Correspondance sémantique basique
+        # Correspondance sÃ©mantique basique
         if any(word in keyword_lower for word in ['ing', 'ed', 'er', 'tion', 'sion', 'ness']):
             # Mots avec suffixes verbaux/nominaux
             return True
@@ -153,15 +154,15 @@ class KeywordProcessor:
     
     def filter_visual_keywords(self, keywords: List[str]) -> List[str]:
         """
-        Filtrage pour ne garder que les mots-clés visuellement représentables
+        Filtrage pour ne garder que les mots-clÃ©s visuellement reprÃ©sentables
         """
         visual_keywords = []
         
         for keyword in keywords:
-            # Vérifier si c'est un concept abstrait
+            # VÃ©rifier si c'est un concept abstrait
             is_abstract = any(keyword in words for words in self.non_visual_keywords.values())
             
-            # Vérifier si c'est visuellement représentable
+            # VÃ©rifier si c'est visuellement reprÃ©sentable
             is_visual = any(keyword in words for words in self.visual_categories.values())
             
             if is_visual and not is_abstract:
@@ -169,21 +170,21 @@ class KeywordProcessor:
             elif not is_abstract and len(keyword) > 4:  # Mots longs non-abstraits
                 visual_keywords.append(keyword)
         
-        logger.info(f"🎨 Mots-clés visuels filtrés: {len(keywords)} → {len(visual_keywords)}")
+        logger.info(f"ðŸŽ¨ Mots-clÃ©s visuels filtrÃ©s: {len(keywords)} â†’ {len(visual_keywords)}")
         return visual_keywords
     
     def generate_search_queries(self, keywords: List[str], max_queries: int = 12) -> List[str]:
         """
-        Génération de requêtes de recherche optimisées pour les APIs B-roll
+        GÃ©nÃ©ration de requÃªtes de recherche optimisÃ©es pour les APIs B-roll
         """
         search_queries = []
         
-        # Requêtes simples (1-2 mots)
+        # RequÃªtes simples (1-2 mots)
         for keyword in keywords[:max_queries//2]:
             if len(keyword.split()) <= 2:
                 search_queries.append(keyword)
         
-        # Requêtes composées (2-3 mots)
+        # RequÃªtes composÃ©es (2-3 mots)
         if len(search_queries) < max_queries:
             for i, keyword1 in enumerate(keywords):
                 if len(search_queries) >= max_queries:
@@ -197,15 +198,15 @@ class KeywordProcessor:
                     if len(combined) <= 25:  # Limite de longueur pour les APIs
                         search_queries.append(combined)
         
-        # Limiter le nombre de requêtes
+        # Limiter le nombre de requÃªtes
         final_queries = search_queries[:max_queries]
         
-        logger.info(f"🔍 Requêtes de recherche générées: {len(final_queries)}")
+        logger.info(f"ðŸ” RequÃªtes de recherche gÃ©nÃ©rÃ©es: {len(final_queries)}")
         return final_queries
     
     def assess_keyword_quality(self, keywords: List[str]) -> List[KeywordQuality]:
         """
-        Évaluation de la qualité de chaque mot-clé
+        Ã‰valuation de la qualitÃ© de chaque mot-clÃ©
         """
         quality_scores = []
         
@@ -213,16 +214,16 @@ class KeywordProcessor:
             # Longueur
             length = len(keyword)
             
-            # Visibilité
+            # VisibilitÃ©
             is_visual = any(keyword in words for words in self.visual_categories.values())
             
-            # Catégorie
+            # CatÃ©gorie
             category = self._get_keyword_category(keyword)
             
-            # Confiance (basée sur la longueur et la visibilité)
+            # Confiance (basÃ©e sur la longueur et la visibilitÃ©)
             confidence = min(1.0, (length / 10) + (0.5 if is_visual else 0.0))
             
-            # Prêt pour la recherche
+            # PrÃªt pour la recherche
             search_ready = length >= 3 and confidence >= self.min_confidence
             
             quality = KeywordQuality(
@@ -240,7 +241,7 @@ class KeywordProcessor:
     
     def _get_keyword_category(self, keyword: str) -> str:
         """
-        Détermine la catégorie d'un mot-clé
+        DÃ©termine la catÃ©gorie d'un mot-clÃ©
         """
         for category, examples in self.visual_categories.items():
             if self._matches_category(keyword, examples):
@@ -249,9 +250,9 @@ class KeywordProcessor:
     
     def optimize_for_broll(self, keywords: List[str], target_count: int = 10) -> Dict[str, Any]:
         """
-        Optimisation complète des mots-clés pour la recherche B-roll avec diversité
+        Optimisation complÃ¨te des mots-clÃ©s pour la recherche B-roll avec diversitÃ©
         """
-        logger.info(f"🚀 Optimisation B-roll pour {len(keywords)} mots-clés vers {target_count} cibles")
+        logger.info(f"ðŸš€ Optimisation B-roll pour {len(keywords)} mots-clÃ©s vers {target_count} cibles")
         
         # 1. Nettoyage
         cleaned = self.clean_keywords(keywords)
@@ -259,39 +260,39 @@ class KeywordProcessor:
         # 2. Filtrage visuel
         visual = self.filter_visual_keywords(cleaned)
         
-        # 3. OPTIMISATION DE DIVERSITÉ (NOUVEAU)
+        # 3. OPTIMISATION DE DIVERSITÃ‰ (NOUVEAU)
         if DIVERSITY_OPTIMIZER_AVAILABLE and len(visual) > target_count:
-            logger.info("🎯 Application de l'optimiseur de diversité")
+            logger.info("ðŸŽ¯ Application de l'optimiseur de diversitÃ©")
             try:
                 diversity_result = optimize_broll_keywords_diversity(visual, target_count)
                 
                 if diversity_result.get('optimization_applied', False):
-                    # Utiliser les mots-clés optimisés par diversité
+                    # Utiliser les mots-clÃ©s optimisÃ©s par diversitÃ©
                     optimal_keywords = diversity_result['keywords']
                     search_queries = diversity_result['search_queries']
                     categorized = diversity_result['categories']
                     diversity_metrics = diversity_result['metrics']
                     
-                    logger.info(f"✅ Diversité appliquée: {diversity_metrics.get('categories_covered', 0)} catégories couvertes")
-                    logger.info(f"📊 Score de diversité: {diversity_metrics.get('diversity_score', 0):.2f}")
+                    logger.info(f"âœ… DiversitÃ© appliquÃ©e: {diversity_metrics.get('categories_covered', 0)} catÃ©gories couvertes")
+                    logger.info(f"ðŸ“Š Score de diversitÃ©: {diversity_metrics.get('diversity_score', 0):.2f}")
                 else:
-                    # Fallback vers l'ancienne méthode
-                    logger.warning("⚠️ Optimiseur de diversité échoué, fallback vers méthode basique")
+                    # Fallback vers l'ancienne mÃ©thode
+                    logger.warning("âš ï¸ Optimiseur de diversitÃ© Ã©chouÃ©, fallback vers mÃ©thode basique")
                     optimal_keywords = self._select_optimal_keywords(quality_scores, target_count)
                     search_queries = self.generate_search_queries(optimal_keywords)
                     categorized = self.categorize_keywords(visual)
                     diversity_metrics = {}
             except Exception as e:
-                logger.error(f"❌ Erreur optimiseur de diversité: {e}")
-                # Fallback vers l'ancienne méthode
+                logger.error(f"âŒ Erreur optimiseur de diversitÃ©: {e}")
+                # Fallback vers l'ancienne mÃ©thode
                 quality_scores = self.assess_keyword_quality(visual)
                 optimal_keywords = self._select_optimal_keywords(quality_scores, target_count)
                 search_queries = self.generate_search_queries(optimal_keywords)
                 categorized = self.categorize_keywords(visual)
                 diversity_metrics = {}
         else:
-            # Méthode basique si l'optimiseur n'est pas disponible
-            logger.info("🔄 Utilisation de la méthode d'optimisation basique")
+            # MÃ©thode basique si l'optimiseur n'est pas disponible
+            logger.info("ðŸ”„ Utilisation de la mÃ©thode d'optimisation basique")
             quality_scores = self.assess_keyword_quality(visual)
             optimal_keywords = self._select_optimal_keywords(quality_scores, target_count)
             search_queries = self.generate_search_queries(optimal_keywords)
@@ -299,7 +300,7 @@ class KeywordProcessor:
             diversity_metrics = {}
         
         # 4. Statistiques
-        # S'assurer que quality_scores est défini
+        # S'assurer que quality_scores est dÃ©fini
         if 'quality_scores' not in locals():
             quality_scores = self.assess_keyword_quality(optimal_keywords)
         
@@ -317,7 +318,7 @@ class KeywordProcessor:
             }
         }
         
-        # Ajouter les métriques de diversité si disponibles
+        # Ajouter les mÃ©triques de diversitÃ© si disponibles
         if diversity_metrics:
             stats['diversity_metrics'] = diversity_metrics
         
@@ -330,17 +331,17 @@ class KeywordProcessor:
             'diversity_optimized': DIVERSITY_OPTIMIZER_AVAILABLE
         }
         
-        logger.info(f"✅ Optimisation terminée: {stats['optimal']} mots-clés optimaux")
+        logger.info(f"âœ… Optimisation terminÃ©e: {stats['optimal']} mots-clÃ©s optimaux")
         return result
     
     def _select_optimal_keywords(self, quality_scores: List[KeywordQuality], target_count: int) -> List[str]:
         """
-        Sélection optimale des mots-clés basée sur la qualité
+        SÃ©lection optimale des mots-clÃ©s basÃ©e sur la qualitÃ©
         """
-        # Trier par confiance décroissante
+        # Trier par confiance dÃ©croissante
         sorted_keywords = sorted(quality_scores, key=lambda x: x.confidence, reverse=True)
         
-        # Sélectionner les meilleurs
+        # SÃ©lectionner les meilleurs
         selected = []
         category_counts = Counter()
         
@@ -348,11 +349,11 @@ class KeywordProcessor:
             if len(selected) >= target_count:
                 break
             
-            # Vérifier la diversité des catégories
+            # VÃ©rifier la diversitÃ© des catÃ©gories
             if category_counts[quality.category] < target_count // len(self.visual_categories):
                 selected.append(quality.keyword)
                 category_counts[quality.category] += 1
-            elif quality.confidence >= 0.9:  # Exception pour les mots-clés de très haute qualité
+            elif quality.confidence >= 0.9:  # Exception pour les mots-clÃ©s de trÃ¨s haute qualitÃ©
                 selected.append(quality.keyword)
         
         return selected
@@ -362,30 +363,30 @@ keyword_processor = KeywordProcessor()
 
 # === FONCTIONS UTILITAIRES ===
 def clean_keywords(keywords: List[str]) -> List[str]:
-    """Nettoyage des mots-clés"""
+    """Nettoyage des mots-clÃ©s"""
     return keyword_processor.clean_keywords(keywords)
 
 def filter_visual_keywords(keywords: List[str]) -> List[str]:
-    """Filtrage des mots-clés visuels"""
+    """Filtrage des mots-clÃ©s visuels"""
     return keyword_processor.filter_visual_keywords(keywords)
 
 def categorize_keywords(keywords: List[str]) -> Dict[str, List[str]]:
-    """Catégorisation des mots-clés"""
+    """CatÃ©gorisation des mots-clÃ©s"""
     return keyword_processor.categorize_keywords(keywords)
 
 def generate_search_queries(keywords: List[str], max_queries: int = 12) -> List[str]:
-    """Génération de requêtes de recherche"""
+    """GÃ©nÃ©ration de requÃªtes de recherche"""
     return keyword_processor.generate_search_queries(keywords, max_queries)
 
 def optimize_for_broll(keywords: List[str], target_count: int = 10) -> Dict[str, Any]:
-    """Optimisation complète pour B-roll avec diversité"""
+    """Optimisation complÃ¨te pour B-roll avec diversitÃ©"""
     return keyword_processor.optimize_for_broll(keywords, target_count)
 
 # === TEST RAPIDE ===
 if __name__ == "__main__":
-    print("🧪 Test du processeur de mots-clés...")
+    print("ðŸ§ª Test du processeur de mots-clÃ©s...")
     
-    # Test avec des mots-clés variés
+    # Test avec des mots-clÃ©s variÃ©s
     test_keywords = [
         "therapy", "trauma", "memory", "brain", "patient", "healing", "psychology",
         "success", "growth", "strategy", "marketing", "innovation", "technology",
@@ -393,23 +394,23 @@ if __name__ == "__main__":
         "very", "extremely", "because", "therefore", "always", "never"
     ]
     
-    print(f"📝 Mots-clés de test: {len(test_keywords)}")
+    print(f"ðŸ“ Mots-clÃ©s de test: {len(test_keywords)}")
     
-    # Test d'optimisation complète
+    # Test d'optimisation complÃ¨te
     result = optimize_for_broll(test_keywords, 12)
     
-    print(f"\n🎯 Résultats:")
-    print(f"   Mots-clés optimaux: {result['keywords']}")
-    print(f"   Requêtes de recherche: {result['search_queries']}")
+    print(f"\nðŸŽ¯ RÃ©sultats:")
+    print(f"   Mots-clÃ©s optimaux: {result['keywords']}")
+    print(f"   RequÃªtes de recherche: {result['search_queries']}")
     print(f"   Statistiques: {result['statistics']}")
     
-    print(f"\n🏷️ Catégorisation:")
+    print(f"\nðŸ·ï¸ CatÃ©gorisation:")
     for category, words in result['categorized'].items():
         if words:
             print(f"   {category}: {words}")
     
-    print(f"\n📊 Qualité:")
+    print(f"\nðŸ“Š QualitÃ©:")
     for quality in result['quality_scores'][:5]:  # Afficher les 5 premiers
         print(f"   {quality.keyword}: confiance {quality.confidence:.2f}, visuel: {quality.is_visual}")
     
-    print("\n�� Test terminé !") 
+    print("\nï¿½ï¿½ Test terminÃ© !") 

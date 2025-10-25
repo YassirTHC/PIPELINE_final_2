@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import os
 
 from hormozi_subtitles import HormoziSubtitles
@@ -20,3 +21,4 @@ def test_font_fallback_to_packaged_montserrat(tmp_path):
     font_path = proc.get_font_path()
     assert font_path is not None
     assert "Montserrat" in os.path.basename(font_path)
+

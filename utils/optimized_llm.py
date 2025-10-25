@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🚀 SYSTÈME LLM MINIMALISTE - PROMPTS GÉNÉRIQUES + SPÉCIALISATION PIPELINE
-Basé sur l'analyse brillante de l'utilisateur : prompts simples + spécialisation intelligente
+ðŸš€ SYSTÃˆME LLM MINIMALISTE - PROMPTS GÃ‰NÃ‰RIQUES + SPÃ‰CIALISATION PIPELINE
+BasÃ© sur l'analyse brillante de l'utilisateur : prompts simples + spÃ©cialisation intelligente
 """
 
 import os
@@ -64,12 +64,12 @@ def _parse_stop_tokens_env(name: str, default: Sequence[str]) -> List[str]:
 _DEFAULT_STOP_TOKENS: Tuple[str, ...] = ("```", "\n\n\n", "END_OF_CONTEXT", "</json>")
 
 class OptimizedLLM:
-    """Système LLM avec prompts minimalistes et spécialisation via pipeline"""
+    """SystÃ¨me LLM avec prompts minimalistes et spÃ©cialisation via pipeline"""
     
     def __init__(self, base_url: str = "http://localhost:11434", model: str = "gemma3:4b"):
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.timeout = 60  # Timeout plus court pour détecter rapidement les blocages
+        self.timeout = 60  # Timeout plus court pour dÃ©tecter rapidement les blocages
         self.num_predict = _parse_int_env("PIPELINE_LLM_NUM_PREDICT", 256, minimum=1)
         self.temperature = _parse_float_env("PIPELINE_LLM_TEMP", 0.1, minimum=0.0)
         self.top_p = _parse_float_env("PIPELINE_LLM_TOP_P", 0.9, minimum=0.0, maximum=1.0)
@@ -244,9 +244,9 @@ class OptimizedLLM:
 
 
     def generate_keywords(self, transcript: str, max_keywords: int = 15) -> Tuple[bool, List[str]]:
-        """Génération de mots-clés avec prompt minimaliste générique"""
+        """GÃ©nÃ©ration de mots-clÃ©s avec prompt minimaliste gÃ©nÃ©rique"""
         
-        # 🎯 PROMPT MINIMALISTE (votre approche parfaite)
+        # ðŸŽ¯ PROMPT MINIMALISTE (votre approche parfaite)
         prompt = f"""Extract {max_keywords} to {max_keywords + 5} relevant single-word keywords from the transcript.
 Do not invent unrelated terms.
 Output JSON only: {{"keywords":["word1","word2", "..."]}}
@@ -255,7 +255,7 @@ Transcript: {transcript}
 
 JSON:"""
         
-        logger.info(f"🎯 Génération mots-clés avec prompt minimaliste ({len(prompt)} caractères)")
+        logger.info(f"ðŸŽ¯ GÃ©nÃ©ration mots-clÃ©s avec prompt minimaliste ({len(prompt)} caractÃ¨res)")
 
         success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
@@ -268,7 +268,7 @@ JSON:"""
         
         keywords = json_data.get("keywords", [])
         if not keywords or not isinstance(keywords, list):
-            logger.warning("⚠️ Aucun mot-clé valide trouvé")
+            logger.warning("âš ï¸ Aucun mot-clÃ© valide trouvÃ©")
             return False, []
         
         # Nettoyage et validation
@@ -292,13 +292,13 @@ JSON:"""
         # Prioritize specificity by length and uniqueness
         clean_keywords.sort(key=lambda k: (-len(k), k))
         
-        logger.info(f"✅ {len(clean_keywords)} mots-clés générés avec succès")
+        logger.info(f"âœ… {len(clean_keywords)} mots-clÃ©s gÃ©nÃ©rÃ©s avec succÃ¨s")
         return True, clean_keywords[:max_keywords]
     
     def generate_title_hashtags(self, transcript: str) -> Tuple[bool, Dict[str, Any]]:
-        """Génération titre + hashtags avec prompt minimaliste"""
+        """GÃ©nÃ©ration titre + hashtags avec prompt minimaliste"""
         
-        # 🎯 PROMPT MINIMALISTE pour titre + hashtags
+        # ðŸŽ¯ PROMPT MINIMALISTE pour titre + hashtags
         prompt = f"""Generate a title and hashtags from this transcript.
 Output JSON only: {{"title": "Title here", "hashtags": ["#tag1", "#tag2", "..."]}}
 
@@ -306,7 +306,7 @@ Transcript: {transcript}
 
 JSON:"""
         
-        logger.info(f"🎯 Génération titre + hashtags avec prompt minimaliste ({len(prompt)} caractères)")
+        logger.info(f"ðŸŽ¯ GÃ©nÃ©ration titre + hashtags avec prompt minimaliste ({len(prompt)} caractÃ¨res)")
         
         success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
@@ -321,7 +321,7 @@ JSON:"""
         hashtags = json_data.get("hashtags", [])
         
         if not title:
-            logger.warning("⚠️ Aucun titre valide trouvé")
+            logger.warning("âš ï¸ Aucun titre valide trouvÃ©")
             return False, {}
         
         # Nettoyage des hashtags
@@ -338,13 +338,13 @@ JSON:"""
             "hashtags": clean_hashtags
         }
         
-        logger.info(f"✅ Titre et {len(clean_hashtags)} hashtags générés avec succès")
+        logger.info(f"âœ… Titre et {len(clean_hashtags)} hashtags gÃ©nÃ©rÃ©s avec succÃ¨s")
         return True, result
     
     def generate_complete_metadata(self, transcript: str) -> Tuple[bool, Dict[str, Any]]:
-        """Génération complète : titre, description, hashtags, mots-clés"""
+        """GÃ©nÃ©ration complÃ¨te : titre, description, hashtags, mots-clÃ©s"""
         
-        # 🎯 PROMPT MINIMALISTE pour métadonnées complètes
+        # ðŸŽ¯ PROMPT MINIMALISTE pour mÃ©tadonnÃ©es complÃ¨tes
         prompt = f"""Generate title, description, hashtags, and keywords from this transcript.
 Output JSON only: {{"title": "Title", "description": "Description", "hashtags": ["#tag1"], "keywords": ["word1"]}}
 
@@ -352,7 +352,7 @@ Transcript: {transcript}
 
 JSON:"""
         
-        logger.info(f"🎯 Génération métadonnées complètes avec prompt minimaliste ({len(prompt)} caractères)")
+        logger.info(f"ðŸŽ¯ GÃ©nÃ©ration mÃ©tadonnÃ©es complÃ¨tes avec prompt minimaliste ({len(prompt)} caractÃ¨res)")
         
         success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
@@ -371,7 +371,7 @@ JSON:"""
         
         # Validation des champs obligatoires
         if not title:
-            logger.warning("⚠️ Aucun titre valide trouvé")
+            logger.warning("âš ï¸ Aucun titre valide trouvÃ©")
             return False, {}
         
         # Nettoyage des hashtags
@@ -383,7 +383,7 @@ JSON:"""
                     clean_tag = f"#{clean_tag}"
                 clean_hashtags.append(clean_tag)
         
-        # Nettoyage des mots-clés
+        # Nettoyage des mots-clÃ©s
         clean_keywords = []
         for kw in keywords:
             if isinstance(kw, str) and kw.strip():
@@ -398,52 +398,52 @@ JSON:"""
             "keywords": clean_keywords
         }
         
-        logger.info(f"✅ Métadonnées complètes générées : titre, description, {len(clean_hashtags)} hashtags, {len(clean_keywords)} mots-clés")
+        logger.info(f"âœ… MÃ©tadonnÃ©es complÃ¨tes gÃ©nÃ©rÃ©es : titre, description, {len(clean_hashtags)} hashtags, {len(clean_keywords)} mots-clÃ©s")
         return True, result
     
     def generate_broll_keywords_and_queries(self, transcript: str, max_keywords: int = 15) -> Tuple[bool, Dict[str, Any]]:
         """
-        🎯 NOUVEAU: Génération spécialisée pour B-roll
+        ðŸŽ¯ NOUVEAU: GÃ©nÃ©ration spÃ©cialisÃ©e pour B-roll
         Produit explicitement broll_keywords + search_queries
         """
         
-        # 🎯 PROMPT OPTIMISÉ pour B-roll hybride (actions + concepts)
+        # ðŸŽ¯ PROMPT OPTIMISÃ‰ pour B-roll hybride (actions + concepts)
         trimmed = transcript[:1500]
-        prompt = f"""Tu es planificatrice B-roll pour un format vertical (TikTok/Shorts, 9:16). À partir du transcript ci-dessous, produis des idées de vidéos libres de droits.
+        prompt = f"""Tu es planificatrice B-roll pour un format vertical (TikTok/Shorts, 9:16). Ã€ partir du transcript ci-dessous, produis des idÃ©es de vidÃ©os libres de droits.
 
 Exigences :
-- Analyse le thème, l’émotion et le rythme : pense en fenêtres de 3 à 6 secondes.
-- Garde uniquement des idées filmables (actions humaines précises, détails d’objet, décors identifiables).
-- Évite les termes creux : people, thing, nice, background, start, generic.
-- 60 %% d’actions humaines (sujet_action_contexte avec underscores) / 40 %% de concepts visuels directs (ex. "brain_scan_monitor").
-- Donne pour chaque idée une requête courte (2 à 4 mots) optimisée pour les APIs vidéo.
+- Analyse le thÃ¨me, lâ€™Ã©motion et le rythme : pense en fenÃªtres de 3 Ã  6 secondes.
+- Garde uniquement des idÃ©es filmables (actions humaines prÃ©cises, dÃ©tails dâ€™objet, dÃ©cors identifiables).
+- Ã‰vite les termes creux : people, thing, nice, background, start, generic.
+- 60 %% dâ€™actions humaines (sujet_action_contexte avec underscores) / 40 %% de concepts visuels directs (ex. "brain_scan_monitor").
+- Donne pour chaque idÃ©e une requÃªte courte (2 Ã  4 mots) optimisÃ©e pour les APIs vidÃ©o.
 - Produis aussi un mapping segmentaire facultatif pour faciliter la synchro.
 
-Réponds uniquement en JSON :
+RÃ©ponds uniquement en JSON :
 {{
   "detected_domain": "...",
-  "context": "résumé en 12 mots max",
+  "context": "rÃ©sumÃ© en 12 mots max",
   "broll_keywords": ["..."],
   "search_queries": ["..."],
   "segment_briefs": [
-    {{"segment_index": 0, "suggested_window_s": 4, "keywords": ["action_précise", "détail_visuel"]}}
+    {{"segment_index": 0, "suggested_window_s": 4, "keywords": ["action_prÃ©cise", "dÃ©tail_visuel"]}}
   ]
 }}
 
-Transcript (tronqué) : {trimmed}
+Transcript (tronquÃ©) : {trimmed}
 JSON:"""
 
-        logger.info(f"🎯 Génération B-roll avec prompt minimaliste ({len(prompt)} caractères)")
+        logger.info(f"ðŸŽ¯ GÃ©nÃ©ration B-roll avec prompt minimaliste ({len(prompt)} caractÃ¨res)")
 
         success, response, error_kind = self._call_llm(prompt, max_tokens=350, json_mode=True, non_stream=True)
         if not success and error_kind in {"timeout", "empty"}:
             if error_kind == "timeout":
                 shorter = trimmed[:600]
                 retry_prompt = prompt.replace(trimmed, shorter)
-                logger.info("⏱️ Retentative LLM B-roll avec transcript raccourci")
+                logger.info("â±ï¸ Retentative LLM B-roll avec transcript raccourci")
                 success, response, error_kind = self._call_llm(retry_prompt, max_tokens=200, timeout=40, json_mode=True, non_stream=True)
             else:
-                logger.info("[LLM] Retentative B-roll après réponse vide")
+                logger.info("[LLM] Retentative B-roll aprÃ¨s rÃ©ponse vide")
                 success, response, error_kind = self._call_llm(prompt, max_tokens=250, json_mode=True, non_stream=True)
         if not success:
             return False, {}
@@ -461,10 +461,10 @@ JSON:"""
         
         # Validation des champs
         if not broll_keywords or not search_queries:
-            logger.warning("⚠️ Champs B-roll manquants dans la réponse")
+            logger.warning("âš ï¸ Champs B-roll manquants dans la rÃ©ponse")
             return False, {}
         
-        # Nettoyage des mots-clés B-roll
+        # Nettoyage des mots-clÃ©s B-roll
         clean_broll_keywords = []
         for kw in broll_keywords:
             if isinstance(kw, str) and kw.strip():
@@ -472,12 +472,12 @@ JSON:"""
                 if len(clean_kw) > 2:
                     clean_broll_keywords.append(clean_kw)
         
-        # Nettoyage des requêtes de recherche
+        # Nettoyage des requÃªtes de recherche
         clean_search_queries = []
         for query in search_queries:
             if isinstance(query, str) and query.strip():
                 clean_query = query.strip()
-                if len(clean_query) <= 30:  # Augmenté pour phrases plus descriptives
+                if len(clean_query) <= 30:  # AugmentÃ© pour phrases plus descriptives
                     clean_search_queries.append(clean_query)
         
         result = {
@@ -487,41 +487,41 @@ JSON:"""
             "search_queries": clean_search_queries[:max_keywords]
         }
         
-        logger.info(f"✅ B-roll généré : {len(clean_broll_keywords)} mots-clés, {len(clean_search_queries)} requêtes")
+        logger.info(f"âœ… B-roll gÃ©nÃ©rÃ© : {len(clean_broll_keywords)} mots-clÃ©s, {len(clean_search_queries)} requÃªtes")
         return True, result
     
     def generate_metadata_with_broll(self, transcript: str) -> Tuple[bool, Dict[str, Any]]:
         """
-        🎯 NOUVEAU: Génération complète avec métadonnées + B-roll
-        Combine toutes les informations nécessaires
+        ðŸŽ¯ NOUVEAU: GÃ©nÃ©ration complÃ¨te avec mÃ©tadonnÃ©es + B-roll
+        Combine toutes les informations nÃ©cessaires
         """
         
-        # 🎯 PROMPT VIRAL pour métadonnées + B-roll
-        prompt = f"""Tu es copywriter growth pour vidéos verticales (TikTok/Shorts).
+        # ðŸŽ¯ PROMPT VIRAL pour mÃ©tadonnÃ©es + B-roll
+        prompt = f"""Tu es copywriter growth pour vidÃ©os verticales (TikTok/Shorts).
 
-Objectif : générer un TITRE + DESCRIPTION qui stoppent le scroll et maximisent la rétention.
+Objectif : gÃ©nÃ©rer un TITRE + DESCRIPTION qui stoppent le scroll et maximisent la rÃ©tention.
 
 Contraintes :
-- Titre : 60 à 70 caractères, commence par un hook (verbe d’action, question ou chiffre) et annonce le bénéfice principal.
-- Description : 3 phrases max. Phrase 1 = bénéfice concret; Phrase 2 = preuve/tip actionnable; Phrase 3 = CTA soft (ex. "Sauvegarde ce clip"). Total ≤ 220 caractères.
-- Ajoute 4 à 6 hashtags pertinents (mix niche + large, sans doublon).
-- Fournis 6 mots-clés SEO en snake_case et 3 requêtes B-roll optimisées pour des banques vidéo.
+- Titre : 60 Ã  70 caractÃ¨res, commence par un hook (verbe dâ€™action, question ou chiffre) et annonce le bÃ©nÃ©fice principal.
+- Description : 3 phrases max. Phrase 1 = bÃ©nÃ©fice concret; Phrase 2 = preuve/tip actionnable; Phrase 3 = CTA soft (ex. "Sauvegarde ce clip"). Total â‰¤ 220 caractÃ¨res.
+- Ajoute 4 Ã  6 hashtags pertinents (mix niche + large, sans doublon).
+- Fournis 6 mots-clÃ©s SEO en snake_case et 3 requÃªtes B-roll optimisÃ©es pour des banques vidÃ©o.
 - Ton positif, pas de clickbait vide, pas de MAJUSCULES abusives.
 
-Réponds uniquement en JSON :
+RÃ©ponds uniquement en JSON :
 {{
     "title": "...",
     "description": "...",
     "hashtags": ["#..."],
     "keywords": ["mot_clef"],
     "broll_keywords": ["visual_word"],
-    "search_queries": ["requête vidéo"]
+    "search_queries": ["requÃªte vidÃ©o"]
 }}
 
 Transcript : {transcript}
 JSON:"""
         
-        logger.info(f"🎯 Génération complète avec B-roll ({len(prompt)} caractères)")
+        logger.info(f"ðŸŽ¯ GÃ©nÃ©ration complÃ¨te avec B-roll ({len(prompt)} caractÃ¨res)")
         
         success, response, _ = self._call_llm(prompt, json_mode=True, non_stream=True)
         if not success:
@@ -542,7 +542,7 @@ JSON:"""
         
         # Validation des champs obligatoires
         if not title:
-            logger.warning("⚠️ Aucun titre valide trouvé")
+            logger.warning("âš ï¸ Aucun titre valide trouvÃ©")
             return False, {}
         
         # Nettoyage des hashtags
@@ -554,7 +554,7 @@ JSON:"""
                     clean_tag = f"#{clean_tag}"
                 clean_hashtags.append(clean_tag)
         
-        # Nettoyage des mots-clés
+        # Nettoyage des mots-clÃ©s
         clean_keywords = []
         for kw in keywords:
             if isinstance(kw, str) and kw.strip():
@@ -562,7 +562,7 @@ JSON:"""
                 if len(clean_kw) > 2:
                     clean_keywords.append(clean_kw)
         
-        # Nettoyage des mots-clés B-roll
+        # Nettoyage des mots-clÃ©s B-roll
         clean_broll_keywords = []
         for kw in broll_keywords:
             if isinstance(kw, str) and kw.strip():
@@ -570,7 +570,7 @@ JSON:"""
                 if len(clean_kw) > 2:
                     clean_broll_keywords.append(clean_kw)
         
-        # Nettoyage des requêtes de recherche
+        # Nettoyage des requÃªtes de recherche
         clean_search_queries = []
         for query in search_queries:
             if isinstance(query, str) and query.strip():
@@ -587,101 +587,102 @@ JSON:"""
             "search_queries": clean_search_queries
         }
         
-        logger.info(f"✅ Métadonnées complètes avec B-roll : titre, description, {len(clean_hashtags)} hashtags, {len(clean_keywords)} mots-clés, {len(clean_broll_keywords)} B-roll, {len(clean_search_queries)} requêtes")
+        logger.info(f"âœ… MÃ©tadonnÃ©es complÃ¨tes avec B-roll : titre, description, {len(clean_hashtags)} hashtags, {len(clean_keywords)} mots-clÃ©s, {len(clean_broll_keywords)} B-roll, {len(clean_search_queries)} requÃªtes")
         return True, result
 
-# === FONCTIONS UTILITAIRES POUR L'INTÉGRATION ===
+# === FONCTIONS UTILITAIRES POUR L'INTÃ‰GRATION ===
 
 def create_optimized_llm(base_url: str = None, model: str = None) -> OptimizedLLM:
-    """Factory pour créer une instance LLM optimisée"""
+    """Factory pour crÃ©er une instance LLM optimisÃ©e"""
     
-    # Détection automatique de l'URL et du modèle
+    # DÃ©tection automatique de l'URL et du modÃ¨le
     if not base_url:
         # Essayer Ollama en premier
         try:
             response = requests.get("http://localhost:11434/api/tags", timeout=5)
             if response.status_code == 200:
                 base_url = "http://localhost:11434"
-                logger.info("✅ Ollama détecté sur localhost:11434")
+                logger.info("âœ… Ollama dÃ©tectÃ© sur localhost:11434")
             else:
-                base_url = "http://localhost:1234"  # LM Studio par défaut
-                logger.info("⚠️ Ollama non disponible, utilisation LM Studio par défaut")
+                base_url = "http://localhost:1234"  # LM Studio par dÃ©faut
+                logger.info("âš ï¸ Ollama non disponible, utilisation LM Studio par dÃ©faut")
         except:
             base_url = "http://localhost:1234"
-            logger.info("⚠️ Aucun LLM local détecté, utilisation LM Studio par défaut")
+            logger.info("âš ï¸ Aucun LLM local dÃ©tectÃ©, utilisation LM Studio par dÃ©faut")
     
     if not model:
-        # Modèle par défaut selon la disponibilité
+        # ModÃ¨le par dÃ©faut selon la disponibilitÃ©
         if "11434" in base_url:  # Ollama
-            model = "gemma3:4b"  # Modèle recommandé
+            model = "gemma3:4b"  # ModÃ¨le recommandÃ©
         else:  # LM Studio
             model = "default"
     
     return OptimizedLLM(base_url, model)
 
 def generate_keywords_for_pipeline(transcript: str, max_keywords: int = 15) -> Tuple[bool, List[str]]:
-    """Fonction utilitaire pour intégration directe dans le pipeline"""
+    """Fonction utilitaire pour intÃ©gration directe dans le pipeline"""
     llm = create_optimized_llm()
     return llm.generate_keywords(transcript, max_keywords)
 
 def generate_metadata_for_pipeline(transcript: str) -> Tuple[bool, Dict[str, Any]]:
-    """Fonction utilitaire pour intégration directe dans le pipeline"""
+    """Fonction utilitaire pour intÃ©gration directe dans le pipeline"""
     llm = create_optimized_llm()
     return llm.generate_complete_metadata(transcript)
 
 def generate_broll_for_pipeline(transcript: str, max_keywords: int = 15) -> Tuple[bool, Dict[str, Any]]:
-    """🎯 NOUVEAU: Fonction utilitaire pour B-roll"""
+    """ðŸŽ¯ NOUVEAU: Fonction utilitaire pour B-roll"""
     llm = create_optimized_llm()
     return llm.generate_broll_keywords_and_queries(transcript, max_keywords)
 
 def generate_complete_with_broll(transcript: str) -> Tuple[bool, Dict[str, Any]]:
-    """🎯 NOUVEAU: Fonction utilitaire pour métadonnées complètes avec B-roll"""
+    """ðŸŽ¯ NOUVEAU: Fonction utilitaire pour mÃ©tadonnÃ©es complÃ¨tes avec B-roll"""
     llm = create_optimized_llm()
     return llm.generate_metadata_with_broll(transcript)
 
 # === TEST RAPIDE ===
 if __name__ == "__main__":
-    print("🧠 Test du système LLM optimisé...")
+    print("ðŸ§  Test du systÃ¨me LLM optimisÃ©...")
     
     # Test avec un transcript simple
     test_transcript = "EMDR therapy utilizes bilateral stimulation to process traumatic memories. The therapist guides the patient through eye movements while recalling distressing events."
     
     llm = create_optimized_llm()
     
-    # Test mots-clés
-    print("\n🎯 Test génération mots-clés...")
+    # Test mots-clÃ©s
+    print("\nðŸŽ¯ Test gÃ©nÃ©ration mots-clÃ©s...")
     success, keywords = llm.generate_keywords(test_transcript, 10)
     if success:
-        print(f"✅ Mots-clés générés: {keywords}")
+        print(f"âœ… Mots-clÃ©s gÃ©nÃ©rÃ©s: {keywords}")
     else:
-        print("❌ Échec génération mots-clés")
+        print("âŒ Ã‰chec gÃ©nÃ©ration mots-clÃ©s")
     
-    # Test métadonnées complètes
-    print("\n🎯 Test génération métadonnées complètes...")
+    # Test mÃ©tadonnÃ©es complÃ¨tes
+    print("\nðŸŽ¯ Test gÃ©nÃ©ration mÃ©tadonnÃ©es complÃ¨tes...")
     success, metadata = llm.generate_complete_metadata(test_transcript)
     if success:
-        print(f"✅ Métadonnées générées:")
+        print(f"âœ… MÃ©tadonnÃ©es gÃ©nÃ©rÃ©es:")
         for key, value in metadata.items():
             print(f"   {key}: {value}")
     else:
-        print("❌ Échec génération métadonnées")
+        print("âŒ Ã‰chec gÃ©nÃ©ration mÃ©tadonnÃ©es")
     
-    # 🎯 NOUVEAU: Test B-roll
-    print("\n🎯 Test génération B-roll...")
+    # ðŸŽ¯ NOUVEAU: Test B-roll
+    print("\nðŸŽ¯ Test gÃ©nÃ©ration B-roll...")
     success, broll_data = llm.generate_broll_keywords_and_queries(test_transcript, 8)
     if success:
-        print(f"✅ B-roll généré:")
-        print(f"   Mots-clés: {broll_data['broll_keywords']}")
-        print(f"   Requêtes: {broll_data['search_queries']}")
+        print(f"âœ… B-roll gÃ©nÃ©rÃ©:")
+        print(f"   Mots-clÃ©s: {broll_data['broll_keywords']}")
+        print(f"   RequÃªtes: {broll_data['search_queries']}")
     else:
-        print("❌ Échec génération B-roll")
+        print("âŒ Ã‰chec gÃ©nÃ©ration B-roll")
     
-    # 🎯 NOUVEAU: Test complet avec B-roll
-    print("\n🎯 Test génération complète avec B-roll...")
+    # ðŸŽ¯ NOUVEAU: Test complet avec B-roll
+    print("\nðŸŽ¯ Test gÃ©nÃ©ration complÃ¨te avec B-roll...")
     success, complete_data = llm.generate_metadata_with_broll(test_transcript)
     if success:
-        print(f"✅ Données complètes générées:")
+        print(f"âœ… DonnÃ©es complÃ¨tes gÃ©nÃ©rÃ©es:")
         for key, value in complete_data.items():
             print(f"   {key}: {value}")
     else:
-        print("❌ Échec génération complète") 
+        print("âŒ Ã‰chec gÃ©nÃ©ration complÃ¨te") 
+

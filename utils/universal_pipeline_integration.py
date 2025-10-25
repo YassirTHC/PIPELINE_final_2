@@ -1,5 +1,6 @@
-# 🚀 INTÉGRATION UNIVERSELLE - REMPLACE COMPLÈTEMENT L'ANCIEN SYSTÈME
-# Pipeline 100% universel : B-roll + métadonnées TikTok/Instagram pour TOUS les domaines
+﻿# -*- coding: utf-8 -*-
+# ðŸš€ INTÃ‰GRATION UNIVERSELLE - REMPLACE COMPLÃˆTEMENT L'ANCIEN SYSTÃˆME
+# Pipeline 100% universel : B-roll + mÃ©tadonnÃ©es TikTok/Instagram pour TOUS les domaines
 
 import logging
 import time
@@ -17,7 +18,7 @@ from utils.universal_broll_generator import (
 logger = logging.getLogger(__name__)
 
 class UniversalPipelineIntegration:
-    """Pipeline universel pour TOUS les domaines - B-roll + métadonnées TikTok/Instagram"""
+    """Pipeline universel pour TOUS les domaines - B-roll + mÃ©tadonnÃ©es TikTok/Instagram"""
     
     def __init__(self):
         self.broll_generator = create_universal_broll_generator()
@@ -25,43 +26,43 @@ class UniversalPipelineIntegration:
         
         # Configuration universelle
         self.config = {
-            'target_keywords': 10,  # 8-12 mots-clés optimaux
+            'target_keywords': 10,  # 8-12 mots-clÃ©s optimaux
             'enable_viral_metadata': True,
             'enable_broll_generation': True,
             'fallback_on_error': True,
             'max_processing_time': 30  # secondes
         }
         
-        logger.info("🚀 Pipeline universel initialisé - Prêt pour TOUS les domaines")
+        logger.info("ðŸš€ Pipeline universel initialisÃ© - PrÃªt pour TOUS les domaines")
 
     def process_video_universal(self, transcript: str, video_id: str = None) -> Dict[str, Any]:
-        """Traitement universel d'une vidéo - fonctionne sur TOUS les domaines"""
+        """Traitement universel d'une vidÃ©o - fonctionne sur TOUS les domaines"""
         start_time = time.time()
         
         try:
-            logger.info(f"🎬 Traitement universel démarré pour {len(transcript)} caractères")
+            logger.info(f"ðŸŽ¬ Traitement universel dÃ©marrÃ© pour {len(transcript)} caractÃ¨res")
             
-            # 1. Génération B-roll universelle
+            # 1. GÃ©nÃ©ration B-roll universelle
             broll_result = self._generate_universal_broll(transcript)
             
-            # 2. Génération métadonnées virales TikTok/Instagram
+            # 2. GÃ©nÃ©ration mÃ©tadonnÃ©es virales TikTok/Instagram
             metadata_result = self._generate_viral_metadata(transcript, broll_result)
             
-            # 3. Assemblage du résultat final
+            # 3. Assemblage du rÃ©sultat final
             final_result = self._assemble_final_result(broll_result, metadata_result, start_time)
             
-            logger.info(f"✅ Traitement universel terminé en {time.time() - start_time:.1f}s")
+            logger.info(f"âœ… Traitement universel terminÃ© en {time.time() - start_time:.1f}s")
             return final_result
             
         except Exception as e:
-            logger.error(f"❌ Erreur traitement universel: {e}")
+            logger.error(f"âŒ Erreur traitement universel: {e}")
             if self.config['fallback_on_error']:
                 return self._generate_fallback_result(transcript, start_time)
             raise
 
     def _generate_universal_broll(self, transcript: str) -> Dict[str, Any]:
-        """Génération B-roll universelle - fonctionne sur TOUS les domaines"""
-        logger.info("🔑 Génération B-roll universelle...")
+        """GÃ©nÃ©ration B-roll universelle - fonctionne sur TOUS les domaines"""
+        logger.info("ðŸ”‘ GÃ©nÃ©ration B-roll universelle...")
         
         try:
             result = self.broll_generator.generate_broll_keywords_universal(
@@ -69,20 +70,20 @@ class UniversalPipelineIntegration:
                 self.config['target_keywords']
             )
             
-            logger.info(f"✅ B-roll universel généré: {len(result['keywords'])} mots-clés")
+            logger.info(f"âœ… B-roll universel gÃ©nÃ©rÃ©: {len(result['keywords'])} mots-clÃ©s")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Erreur génération B-roll: {e}")
-            # Fallback vers mots-clés basiques
+            logger.error(f"âŒ Erreur gÃ©nÃ©ration B-roll: {e}")
+            # Fallback vers mots-clÃ©s basiques
             return self._generate_basic_broll(transcript)
 
     def _generate_viral_metadata(self, transcript: str, broll_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Génération métadonnées virales TikTok/Instagram"""
+        """GÃ©nÃ©ration mÃ©tadonnÃ©es virales TikTok/Instagram"""
         if not self.config['enable_viral_metadata']:
             return {}
             
-        logger.info("📱 Génération métadonnées virales TikTok/Instagram...")
+        logger.info("ðŸ“± GÃ©nÃ©ration mÃ©tadonnÃ©es virales TikTok/Instagram...")
         
         try:
             domain = broll_result.get('domain', 'general')
@@ -92,17 +93,17 @@ class UniversalPipelineIntegration:
                 transcript, domain, keywords
             )
             
-            logger.info(f"✅ Métadonnées virales générées: {result['title'][:50]}...")
+            logger.info(f"âœ… MÃ©tadonnÃ©es virales gÃ©nÃ©rÃ©es: {result['title'][:50]}...")
             return result
             
         except Exception as e:
-            logger.error(f"❌ Erreur métadonnées virales: {e}")
+            logger.error(f"âŒ Erreur mÃ©tadonnÃ©es virales: {e}")
             return self._generate_basic_metadata(transcript)
 
     def _assemble_final_result(self, broll_result: Dict[str, Any], 
                               metadata_result: Dict[str, Any], 
                               start_time: float) -> Dict[str, Any]:
-        """Assemblage du résultat final universel"""
+        """Assemblage du rÃ©sultat final universel"""
         processing_time = time.time() - start_time
         
         return {
@@ -120,7 +121,7 @@ class UniversalPipelineIntegration:
                 'total_keywords': broll_result.get('total_keywords', 0)
             },
             
-            # Métadonnées virales TikTok/Instagram
+            # MÃ©tadonnÃ©es virales TikTok/Instagram
             'metadata': {
                 'title': metadata_result.get('title', ''),
                 'description': metadata_result.get('description', ''),
@@ -140,7 +141,7 @@ class UniversalPipelineIntegration:
         }
 
     def _generate_fallback_result(self, transcript: str, start_time: float) -> Dict[str, Any]:
-        """Résultat de fallback en cas d'erreur"""
+        """RÃ©sultat de fallback en cas d'erreur"""
         processing_time = time.time() - start_time
         
         return {
@@ -176,7 +177,7 @@ class UniversalPipelineIntegration:
         }
 
     def _generate_basic_broll(self, transcript: str) -> Dict[str, Any]:
-        """Génération B-roll basique en cas d'erreur"""
+        """GÃ©nÃ©ration B-roll basique en cas d'erreur"""
         words = transcript.split()[:10]
         basic_keywords = [word.lower() for word in words if len(word) > 3][:8]
         
@@ -190,7 +191,7 @@ class UniversalPipelineIntegration:
         }
 
     def _generate_basic_metadata(self, transcript: str) -> Dict[str, Any]:
-        """Génération métadonnées basiques en cas d'erreur"""
+        """GÃ©nÃ©ration mÃ©tadonnÃ©es basiques en cas d'erreur"""
         return {
             'title': 'Amazing Content - Must See!',
             'description': 'Check out this incredible content!',
@@ -201,17 +202,17 @@ class UniversalPipelineIntegration:
         }
 
 def create_universal_pipeline() -> UniversalPipelineIntegration:
-    """Factory pour créer le pipeline universel"""
+    """Factory pour crÃ©er le pipeline universel"""
     return UniversalPipelineIntegration()
 
 # Test rapide du pipeline universel
 if __name__ == "__main__":
-    print("🧪 TEST DU PIPELINE UNIVERSEL")
+    print("ðŸ§ª TEST DU PIPELINE UNIVERSEL")
     print("=" * 50)
     
     pipeline = create_universal_pipeline()
     
-    # Test avec différents domaines
+    # Test avec diffÃ©rents domaines
     test_cases = [
         ("science", "Research shows that cognitive control and effort are linked to dopamine levels in the brain."),
         ("sport", "Athletes train hard to improve performance. The coach emphasizes dedication and teamwork."),
@@ -220,16 +221,16 @@ if __name__ == "__main__":
     ]
     
     for domain, transcript in test_cases:
-        print(f"\n🎯 TEST: {domain.upper()}")
+        print(f"\nðŸŽ¯ TEST: {domain.upper()}")
         print("-" * 30)
         
         result = pipeline.process_video_universal(transcript)
         
         if result['success']:
-            print(f"✅ Titre: {result['metadata']['title']}")
-            print(f"🔑 B-roll: {result['broll_data']['keywords'][:3]}...")
-            print(f"#️⃣ Hashtags: {result['metadata']['hashtags'][:3]}...")
+            print(f"âœ… Titre: {result['metadata']['title']}")
+            print(f"ðŸ”‘ B-roll: {result['broll_data']['keywords'][:3]}...")
+            print(f"#ï¸âƒ£ Hashtags: {result['metadata']['hashtags'][:3]}...")
         else:
-            print(f"❌ Échec: {result.get('error', 'Unknown error')}")
+            print(f"âŒ Ã‰chec: {result.get('error', 'Unknown error')}")
     
-    print("\n🚀 Pipeline universel testé avec succès!") 
+    print("\nðŸš€ Pipeline universel testÃ© avec succÃ¨s!") 

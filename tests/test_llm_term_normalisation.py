@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import json
 
 import pytest
@@ -41,3 +42,4 @@ def test_concretize_queries_accepts_various_structures(raw, expected_options):
     concrete = _concretize_queries(raw)
     assert any(term in concrete for term in expected_options)
     assert all(isinstance(term, str) and term.strip() for term in concrete)
+

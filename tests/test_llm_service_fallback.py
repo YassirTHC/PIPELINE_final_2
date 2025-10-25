@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import json
 from typing import Any, Dict, Iterable
 
@@ -130,3 +131,4 @@ def test_dynamic_context_uses_non_stream_without_tfidf(monkeypatch, caplog):
     assert result["search_queries"] == ["beta"]
     assert "non-streaming fallback) ok" in caplog.text
     assert "dynamic context fell back to TF-IDF" not in caplog.text
+

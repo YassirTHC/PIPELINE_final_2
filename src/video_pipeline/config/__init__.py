@@ -1,4 +1,5 @@
-﻿import os
+﻿# -*- coding: utf-8 -*-
+import os
 from pathlib import Path
 
 from .settings import (
@@ -82,3 +83,4 @@ __all__ = [
     "print_config", "diag_broll_provider_limits", "resolved_providers", "to_bool",
     "apply_llm_overrides", "get_settings", "set_settings",
 ]
+

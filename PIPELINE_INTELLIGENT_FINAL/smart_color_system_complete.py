@@ -1,6 +1,7 @@
+﻿# -*- coding: utf-8 -*-
 """
-Système de couleurs intelligentes COMPLET pour les sous-titres Hormozi
-Bloque la coloration des mots de liaison et améliore la contextualisation
+SystÃ¨me de couleurs intelligentes COMPLET pour les sous-titres Hormozi
+Bloque la coloration des mots de liaison et amÃ©liore la contextualisation
 """
 
 import random
@@ -8,10 +9,10 @@ from typing import Dict, List, Optional, Tuple
 import re
 
 class SmartColorSystemComplete:
-    """Système de couleurs intelligentes COMPLET avec blocage des mots de liaison"""
+    """SystÃ¨me de couleurs intelligentes COMPLET avec blocage des mots de liaison"""
     
     def __init__(self):
-        # 🚫 MOTS DE LIAISON À BLOQUER (pas de coloration)
+        # ðŸš« MOTS DE LIAISON Ã€ BLOQUER (pas de coloration)
         self.linking_words = {
             'it', 'is', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
             'of', 'with', 'by', 'from', 'up', 'out', 'off', 'over', 'under',
@@ -24,9 +25,9 @@ class SmartColorSystemComplete:
             'they\'re', 'we\'re', 'you\'re', 'he\'s', 'she\'s'
         }
         
-        # 🎨 COULEURS CONTEXTUELLES ENRICHIES (60+ COULEURS)
+        # ðŸŽ¨ COULEURS CONTEXTUELLES ENRICHIES (60+ COULEURS)
         self.context_colors = {
-            # 🧠 COGNITIVE & LEARNING (NOUVEAU - COMPLET)
+            # ðŸ§  COGNITIVE & LEARNING (NOUVEAU - COMPLET)
             'cognitive': {
                 'positive': ['#00CED1', '#20B2AA', '#48D1CC', '#40E0D0', '#7FFFD4'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -98,7 +99,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # 🧬 NEUROSCIENCE & SCIENCE (NOUVEAU - COMPLET)
+            # ðŸ§¬ NEUROSCIENCE & SCIENCE (NOUVEAU - COMPLET)
             'acetylcholine': {
                 'positive': ['#00CED1', '#20B2AA', '#48D1CC', '#40E0D0', '#7FFFD4'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -140,7 +141,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # 🎓 UNIVERSITY & ACADEMIC (NOUVEAU - COMPLET)
+            # ðŸŽ“ UNIVERSITY & ACADEMIC (NOUVEAU - COMPLET)
             'stanford': {
                 'positive': ['#1E90FF', '#4169E1', '#483D8B', '#6A5ACD', '#9370DB'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -167,7 +168,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # 👩‍🎓 FEMALE LEARNING & FRUSTRATION (NOUVEAU - COMPLET)
+            # ðŸ‘©â€ðŸŽ“ FEMALE LEARNING & FRUSTRATION (NOUVEAU - COMPLET)
             'she': {
                 'positive': ['#FF69B4', '#FF1493', '#DC143C', '#FF6347', '#FF4500'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -204,7 +205,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # 🚨 SERVICES D'URGENCE (EXISTANT - AMÉLIORÉ)
+            # ðŸš¨ SERVICES D'URGENCE (EXISTANT - AMÃ‰LIORÃ‰)
             'emergency': {
                 'positive': ['#00BFFF', '#1E90FF', '#4169E1', '#483D8B', '#6A5ACD'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -226,7 +227,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # 💰 FINANCE & BUSINESS (EXISTANT - AMÉLIORÉ)
+            # ðŸ’° FINANCE & BUSINESS (EXISTANT - AMÃ‰LIORÃ‰)
             'money': {
                 'positive': ['#00FF00', '#32CD32', '#00FF7F', '#00CED1', '#20B2AA'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -243,7 +244,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # 🚀 TECHNOLOGY & INNOVATION (EXISTANT - AMÉLIORÉ)
+            # ðŸš€ TECHNOLOGY & INNOVATION (EXISTANT - AMÃ‰LIORÃ‰)
             'technology': {
                 'positive': ['#00FFFF', '#20B2AA', '#00CED1', '#48D1CC', '#40E0D0'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -260,7 +261,7 @@ class SmartColorSystemComplete:
                 'neutral': ['#4682B4', '#5F9EA0', '#708090', '#778899', '#B0C4DE']
             },
             
-            # ❤️ HEALTH & FITNESS (EXISTANT - AMÉLIORÉ)
+            # â¤ï¸ HEALTH & FITNESS (EXISTANT - AMÃ‰LIORÃ‰)
             'health': {
                 'positive': ['#32CD32', '#00FF7F', '#00CED1', '#20B2AA', '#48D1CC'],
                 'negative': ['#FF6347', '#DC143C', '#B22222', '#8B0000', '#DC143C'],
@@ -278,9 +279,9 @@ class SmartColorSystemComplete:
             }
         }
         
-        # 🎯 MAPPING MOT-CLÉ → CONTEXTE (PRIORITÉ MAXIMALE)
+        # ðŸŽ¯ MAPPING MOT-CLÃ‰ â†’ CONTEXTE (PRIORITÃ‰ MAXIMALE)
         self.keyword_context_mapping = {
-            # 🧠 Concepts cognitifs - PRIORITÉ MAXIMALE
+            # ðŸ§  Concepts cognitifs - PRIORITÃ‰ MAXIMALE
             'attention': 'cognitive',
             'thinking': 'cognitive',
             'brain': 'cognitive',
@@ -294,7 +295,7 @@ class SmartColorSystemComplete:
             'challenging': 'cognitive',
             'difficult': 'cognitive',
             
-            # 🧬 Neuroscience - PRIORITÉ MAXIMALE
+            # ðŸ§¬ Neuroscience - PRIORITÃ‰ MAXIMALE
             'acetylcholine': 'neuroscience',
             'norepinephrine': 'neuroscience',
             'synapses': 'neuroscience',
@@ -304,14 +305,14 @@ class SmartColorSystemComplete:
             'studies': 'neuroscience',
             'science': 'neuroscience',
             
-            # 🎓 Université - PRIORITÉ MAXIMALE
+            # ðŸŽ“ UniversitÃ© - PRIORITÃ‰ MAXIMALE
             'stanford': 'university',
             'university': 'university',
             'college': 'university',
             'academic': 'university',
             'education': 'university',
             
-            # 👩‍🎓 Apprentissage féminin - PRIORITÉ MAXIMALE
+            # ðŸ‘©â€ðŸŽ“ Apprentissage fÃ©minin - PRIORITÃ‰ MAXIMALE
             'she': 'female',
             'her': 'female',
             'woman': 'female',
@@ -322,13 +323,13 @@ class SmartColorSystemComplete:
         }
 
     def get_color_for_keyword(self, keyword: str, text: str = "", intensity: float = 1.0) -> str:
-        """Obtient une couleur intelligente pour un mot-clé avec blocage des mots de liaison"""
+        """Obtient une couleur intelligente pour un mot-clÃ© avec blocage des mots de liaison"""
         try:
-            # 🚫 Vérifier si c'est un mot de liaison (bloqué - retourne blanc)
+            # ðŸš« VÃ©rifier si c'est un mot de liaison (bloquÃ© - retourne blanc)
             if keyword.lower() in self.linking_words:
                 return "#FFFFFF"  # Blanc pour les mots de liaison
             
-            # 🎯 Vérifier le mapping spécifique PRIORITAIRE
+            # ðŸŽ¯ VÃ©rifier le mapping spÃ©cifique PRIORITAIRE
             if keyword.lower() in self.keyword_context_mapping:
                 context = self.keyword_context_mapping[keyword.lower()]
                 if context in self.context_colors:
@@ -336,32 +337,32 @@ class SmartColorSystemComplete:
                     if colors:
                         return random.choice(colors)
             
-            # 🔍 Recherche dans le mapping contextuel
+            # ðŸ” Recherche dans le mapping contextuel
             for context, colors_dict in self.context_colors.items():
                 if keyword.lower() in context or context in keyword.lower():
                     colors = colors_dict.get('positive', colors_dict.get('neutral', []))
                     if colors:
-                        # Ajuster l'intensité
+                        # Ajuster l'intensitÃ©
                         adjusted_intensity = min(intensity, 2.0)
                         if adjusted_intensity > 1.5 and colors:
-                            return random.choice(colors[:3])  # Top 3 pour haute intensité
+                            return random.choice(colors[:3])  # Top 3 pour haute intensitÃ©
                         else:
                             return random.choice(colors)
             
-            # 🎯 Recherche par similarité de mots
+            # ðŸŽ¯ Recherche par similaritÃ© de mots
             for context, colors_dict in self.context_colors.items():
                 if any(word in keyword.lower() for word in context.split('_')):
                     colors = colors_dict.get('positive', colors_dict.get('neutral', []))
                     if colors:
                         return random.choice(colors)
             
-            # 🎨 Couleur par défaut (neutre) - AMÉLIORÉE
-            # Utiliser des couleurs différentes selon le mot pour plus de diversité
+            # ðŸŽ¨ Couleur par dÃ©faut (neutre) - AMÃ‰LIORÃ‰E
+            # Utiliser des couleurs diffÃ©rentes selon le mot pour plus de diversitÃ©
             default_colors = [
                 "#4682B4",  # Bleu acier
                 "#20B2AA",  # Vert mer
                 "#DC143C",  # Rouge cramoisi
-                "#FF8C00",  # Orange foncé
+                "#FF8C00",  # Orange foncÃ©
                 "#32CD32",  # Vert lime
                 "#FF1493",  # Rose profond
                 "#00CED1",  # Turquoise
@@ -370,51 +371,51 @@ class SmartColorSystemComplete:
                 "#00FF7F",  # Vert printemps
             ]
             
-            # Sélectionner une couleur basée sur le hash du mot pour la cohérence
+            # SÃ©lectionner une couleur basÃ©e sur le hash du mot pour la cohÃ©rence
             import hashlib
             hash_value = int(hashlib.md5(keyword.lower().encode()).hexdigest(), 16)
             color_index = hash_value % len(default_colors)
             return default_colors[color_index]
             
         except Exception as e:
-            print(f"❌ Erreur get_color_for_keyword: {e}")
-            return "#FFFFFF"  # Blanc par défaut en cas d'erreur
+            print(f"âŒ Erreur get_color_for_keyword: {e}")
+            return "#FFFFFF"  # Blanc par dÃ©faut en cas d'erreur
 
     def get_color_scheme(self, keyword: str, context: str = "", scheme_type: str = "monochromatic") -> List[str]:
-        """Obtient un schéma de couleurs pour un mot-clé"""
+        """Obtient un schÃ©ma de couleurs pour un mot-clÃ©"""
         try:
             base_color = self.get_color_for_keyword(keyword, context)
             if not base_color or base_color == "#FFFFFF":
                 return ["#FFFFFF"]  # Blanc pour les mots de liaison
             
-            # Schémas de couleurs basiques
+            # SchÃ©mas de couleurs basiques
             if scheme_type == "monochromatic":
                 return [base_color, base_color, base_color]
             elif scheme_type == "complementary":
-                # Logique de couleurs complémentaires simplifiée
+                # Logique de couleurs complÃ©mentaires simplifiÃ©e
                 return [base_color, "#FFFFFF", base_color]
             else:
                 return [base_color]
                 
         except Exception as e:
-            print(f"❌ Erreur get_color_scheme: {e}")
+            print(f"âŒ Erreur get_color_scheme: {e}")
             return ["#FFFFFF"]
 
     def adjust_color_intensity(self, color: str, intensity: float) -> str:
-        """Ajuste l'intensité d'une couleur"""
+        """Ajuste l'intensitÃ© d'une couleur"""
         try:
             if not color or color == "#FFFFFF":
                 return "#FFFFFF"  # Garder le blanc pour les mots de liaison
             
-            # Logique d'ajustement d'intensité simplifiée
+            # Logique d'ajustement d'intensitÃ© simplifiÃ©e
             return color
             
         except Exception as e:
-            print(f"❌ Erreur adjust_color_intensity: {e}")
+            print(f"âŒ Erreur adjust_color_intensity: {e}")
             return color
 
     def is_linking_word(self, word: str) -> bool:
-        """Vérifie si un mot est un mot de liaison (bloqué)"""
+        """VÃ©rifie si un mot est un mot de liaison (bloquÃ©)"""
         return word.lower() in self.linking_words
 
 # Instance globale

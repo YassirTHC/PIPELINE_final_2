@@ -1,4 +1,5 @@
-﻿import os, subprocess, sys
+﻿# -*- coding: utf-8 -*-
+import os, subprocess, sys
 def test_llm_paths_and_heuristic():
     env = os.environ.copy()
     env["VP_DEV_TESTS"] = "1"
@@ -10,3 +11,4 @@ def test_llm_paths_and_heuristic():
     assert out.count("Source métadonnées retenue: llm") >= 2
     assert "Auto-generated Clip Title" not in out
     assert "Titre fallback:" not in out
+

@@ -1,6 +1,7 @@
+﻿# -*- coding: utf-8 -*-
 """
-Système d'emojis contextuels COMPLET et PRÉCIS pour les sous-titres Hormozi
-Mapping précis en anglais pour tous les concepts avec détection intelligente
+SystÃ¨me d'emojis contextuels COMPLET et PRÃ‰CIS pour les sous-titres Hormozi
+Mapping prÃ©cis en anglais pour tous les concepts avec dÃ©tection intelligente
 """
 
 import random
@@ -8,389 +9,389 @@ from typing import Dict, List, Optional, Tuple
 import re
 
 class ContextualEmojiSystemComplete:
-    """Système d'emojis intelligents et contextuels COMPLET avec mapping précis"""
+    """SystÃ¨me d'emojis intelligents et contextuels COMPLET avec mapping prÃ©cis"""
     
     def __init__(self):
-        # 🎯 MAPPING SÉMANTIQUE COMPLET ET PRÉCIS (500+ EMOJIS)
+        # ðŸŽ¯ MAPPING SÃ‰MANTIQUE COMPLET ET PRÃ‰CIS (500+ EMOJIS)
         self.semantic_mapping = {
-            # 🧠 COGNITIVE & LEARNING (NOUVEAU - COMPLET)
+            # ðŸ§  COGNITIVE & LEARNING (NOUVEAU - COMPLET)
             'brain': {
-                'positive': ['🧠', '💭', '💡', '🎯', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '💭', '💡', '🎯', '📝', '📚']
+                'positive': ['ðŸ§ ', 'ðŸ’­', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ’­', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸ“', 'ðŸ“š']
             },
             'thinking': {
-                'positive': ['🧠', '💭', '💡', '🎯', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '💭', '💡', '🎯', '📝', '📚']
+                'positive': ['ðŸ§ ', 'ðŸ’­', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ’­', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸ“', 'ðŸ“š']
             },
             'attention': {
-                'positive': ['👁️', '🎯', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👁️', '🎯', '💡', '📝', '📚']
+                'positive': ['ðŸ‘ï¸', 'ðŸŽ¯', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘ï¸', 'ðŸŽ¯', 'ðŸ’¡', 'ðŸ“', 'ðŸ“š']
             },
             'concentration': {
-                'positive': ['👁️', '🎯', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👁️', '🎯', '💡', '📝', '📚']
+                'positive': ['ðŸ‘ï¸', 'ðŸŽ¯', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘ï¸', 'ðŸŽ¯', 'ðŸ’¡', 'ðŸ“', 'ðŸ“š']
             },
             'learning': {
-                'positive': ['📚', '✏️', '🎓', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['📚', '✏️', '🎓', '💡', '📝']
+                'positive': ['ðŸ“š', 'âœï¸', 'ðŸŽ“', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ“š', 'âœï¸', 'ðŸŽ“', 'ðŸ’¡', 'ðŸ“']
             },
             'studying': {
-                'positive': ['📚', '✏️', '🎓', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['📚', '✏️', '🎓', '💡', '📝']
+                'positive': ['ðŸ“š', 'âœï¸', 'ðŸŽ“', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ“š', 'âœï¸', 'ðŸŽ“', 'ðŸ’¡', 'ðŸ“']
             },
             'reading': {
-                'positive': ['📚', '📖', '👓', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['📚', '📖', '👓', '💡', '📝']
+                'positive': ['ðŸ“š', 'ðŸ“–', 'ðŸ‘“', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ“š', 'ðŸ“–', 'ðŸ‘“', 'ðŸ’¡', 'ðŸ“']
             },
             'math': {
-                'positive': ['🔢', '📐', '📏', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🔢', '📐', '📏', '💡', '📝']
+                'positive': ['ðŸ”¢', 'ðŸ“', 'ðŸ“', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ”¢', 'ðŸ“', 'ðŸ“', 'ðŸ’¡', 'ðŸ“']
             },
             'workout': {
-                'positive': ['💪', '🏋️', '🚴', '🏃', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💪', '🏋️', '🚴', '🏃', '🔥']
+                'positive': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸš´', 'ðŸƒ', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸš´', 'ðŸƒ', 'ðŸ”¥']
             },
             'exercise': {
-                'positive': ['💪', '🏋️', '🚴', '🏃', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💪', '🏋️', '🚴', '🏃', '🔥']
+                'positive': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸš´', 'ðŸƒ', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸš´', 'ðŸƒ', 'ðŸ”¥']
             },
             'physical': {
-                'positive': ['💪', '🏋️', '🚴', '🏃', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💪', '🏋️', '🚴', '🏃', '🔥']
+                'positive': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸš´', 'ðŸƒ', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸš´', 'ðŸƒ', 'ðŸ”¥']
             },
             'challenging': {
-                'positive': ['💪', '🏋️', '🎯', '🚀', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💪', '🏋️', '🎯', '🔥']
+                'positive': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸŽ¯', 'ðŸš€', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸŽ¯', 'ðŸ”¥']
             },
             'difficult': {
-                'positive': ['💪', '🏋️', '🎯', '🚀', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💪', '🏋️', '🎯', '🔥']
+                'positive': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸŽ¯', 'ðŸš€', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’ª', 'ðŸ‹ï¸', 'ðŸŽ¯', 'ðŸ”¥']
             },
             
-            # 🧬 NEUROSCIENCE & SCIENCE (NOUVEAU - COMPLET)
+            # ðŸ§¬ NEUROSCIENCE & SCIENCE (NOUVEAU - COMPLET)
             'acetylcholine': {
-                'positive': ['🧠', '🧬', '🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '🧬', '🔬', '💡', '📝']
+                'positive': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'norepinephrine': {
-                'positive': ['🧠', '🧬', '🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '🧬', '🔬', '💡', '📝']
+                'positive': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'synapses': {
-                'positive': ['🧠', '🧬', '🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '🧬', '🔬', '💡', '📝']
+                'positive': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'plasticity': {
-                'positive': ['🧠', '🧬', '🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '🧬', '🔬', '💡', '📝']
+                'positive': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'neuroscience': {
-                'positive': ['🧠', '🧬', '🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🧠', '🧬', '🔬', '💡', '📝']
+                'positive': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ§ ', 'ðŸ§¬', 'ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'research': {
-                'positive': ['🔬', '🧬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🔬', '🧬', '💡', '📝', '📚']
+                'positive': ['ðŸ”¬', 'ðŸ§¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ”¬', 'ðŸ§¬', 'ðŸ’¡', 'ðŸ“', 'ðŸ“š']
             },
             'studies': {
-                'positive': ['🔬', '🧬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🔬', '🧬', '💡', '📝', '📚']
+                'positive': ['ðŸ”¬', 'ðŸ§¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ”¬', 'ðŸ§¬', 'ðŸ’¡', 'ðŸ“', 'ðŸ“š']
             },
             'science': {
-                'positive': ['🔬', '🧬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🔬', '🧬', '💡', '📝', '📚']
+                'positive': ['ðŸ”¬', 'ðŸ§¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ”¬', 'ðŸ§¬', 'ðŸ’¡', 'ðŸ“', 'ðŸ“š']
             },
             
-            # 🎓 UNIVERSITY & ACADEMIC (NOUVEAU - COMPLET)
+            # ðŸŽ“ UNIVERSITY & ACADEMIC (NOUVEAU - COMPLET)
             'stanford': {
-                'positive': ['🎓', '🏛️', '📚', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🎓', '🏛️', '📚', '💡', '📝']
+                'positive': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸ“']
             },
             'university': {
-                'positive': ['🎓', '🏛️', '📚', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🎓', '🏛️', '📚', '💡', '📝']
+                'positive': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸ“']
             },
             'college': {
-                'positive': ['🎓', '🏛️', '📚', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🎓', '🏛️', '📚', '💡', '📝']
+                'positive': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸ“']
             },
             'academic': {
-                'positive': ['🎓', '🏛️', '📚', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🎓', '🏛️', '📚', '💡', '📝']
+                'positive': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸ“']
             },
             'education': {
-                'positive': ['🎓', '🏛️', '📚', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['🎓', '🏛️', '📚', '💡', '📝']
+                'positive': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸŽ“', 'ðŸ›ï¸', 'ðŸ“š', 'ðŸ’¡', 'ðŸ“']
             },
             
-            # 👩‍🎓 FEMALE LEARNING & FRUSTRATION (NOUVEAU - COMPLET)
+            # ðŸ‘©â€ðŸŽ“ FEMALE LEARNING & FRUSTRATION (NOUVEAU - COMPLET)
             'she': {
-                'positive': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '📝']
+                'positive': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'her': {
-                'positive': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '📝']
+                'positive': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'woman': {
-                'positive': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '📝']
+                'positive': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'female': {
-                'positive': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '📝']
+                'positive': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'girl': {
-                'positive': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '🚀', '💪', '🏆', '⭐', '🌟'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['👩‍🎓', '👩‍💼', '👩‍🔬', '💡', '📝']
+                'positive': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ‘©â€ðŸŽ“', 'ðŸ‘©â€ðŸ’¼', 'ðŸ‘©â€ðŸ”¬', 'ðŸ’¡', 'ðŸ“']
             },
             'frustrating': {
-                'positive': ['😤', '💪', '🚀', '🏆', '⭐', '🌟'],
-                'negative': ['😤', '😠', '😡', '🤬', '💔', '😰', '😨', '😱'],
-                'neutral': ['😤', '😠', '😡', '🤬']
+                'positive': ['ðŸ˜¤', 'ðŸ’ª', 'ðŸš€', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜¤', 'ðŸ˜ ', 'ðŸ˜¡', 'ðŸ¤¬', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±'],
+                'neutral': ['ðŸ˜¤', 'ðŸ˜ ', 'ðŸ˜¡', 'ðŸ¤¬']
             },
             'frustration': {
-                'positive': ['😤', '💪', '🚀', '🏆', '⭐', '🌟'],
-                'negative': ['😤', '😠', '😡', '🤬', '💔', '😰', '😨', '😱'],
-                'neutral': ['😤', '😠', '😡', '🤬']
+                'positive': ['ðŸ˜¤', 'ðŸ’ª', 'ðŸš€', 'ðŸ†', 'â­', 'ðŸŒŸ'],
+                'negative': ['ðŸ˜¤', 'ðŸ˜ ', 'ðŸ˜¡', 'ðŸ¤¬', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±'],
+                'neutral': ['ðŸ˜¤', 'ðŸ˜ ', 'ðŸ˜¡', 'ðŸ¤¬']
             },
             
-            # 🚨 SERVICES D'URGENCE (EXISTANT - AMÉLIORÉ)
+            # ðŸš¨ SERVICES D'URGENCE (EXISTANT - AMÃ‰LIORÃ‰)
             'emergency': {
-                'positive': ['🚨', '🚑', '🚒', '👨‍🚒', '👩‍🚒', '👮‍♂️', '👮‍♀️', '🚓', '💙', '🆘'],
-                'negative': ['🚨', '🚑', '🚒', '💔', '😰', '😨', '😱', '⚠️', '🚫'],
-                'neutral': ['🚨', '🚑', '🚒', '👨‍🚒', '👩‍🚒', '👮‍♂️', '👮‍♀️', '🚓', '💙']
+                'positive': ['ðŸš¨', 'ðŸš‘', 'ðŸš’', 'ðŸ‘¨â€ðŸš’', 'ðŸ‘©â€ðŸš’', 'ðŸ‘®â€â™‚ï¸', 'ðŸ‘®â€â™€ï¸', 'ðŸš“', 'ðŸ’™', 'ðŸ†˜'],
+                'negative': ['ðŸš¨', 'ðŸš‘', 'ðŸš’', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±', 'âš ï¸', 'ðŸš«'],
+                'neutral': ['ðŸš¨', 'ðŸš‘', 'ðŸš’', 'ðŸ‘¨â€ðŸš’', 'ðŸ‘©â€ðŸš’', 'ðŸ‘®â€â™‚ï¸', 'ðŸ‘®â€â™€ï¸', 'ðŸš“', 'ðŸ’™']
             },
             'fire': {
-                'positive': ['🔥', '🚒', '👨‍🚒', '👩‍🚒', '💪', '🏆', '💙', '🆘'],
-                'negative': ['🔥', '💔', '😰', '😨', '😱', '⚠️', '🚫'],
-                'neutral': ['🔥', '🚒', '👨‍🚒', '👩‍🚒', '💙']
+                'positive': ['ðŸ”¥', 'ðŸš’', 'ðŸ‘¨â€ðŸš’', 'ðŸ‘©â€ðŸš’', 'ðŸ’ª', 'ðŸ†', 'ðŸ’™', 'ðŸ†˜'],
+                'negative': ['ðŸ”¥', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±', 'âš ï¸', 'ðŸš«'],
+                'neutral': ['ðŸ”¥', 'ðŸš’', 'ðŸ‘¨â€ðŸš’', 'ðŸ‘©â€ðŸš’', 'ðŸ’™']
             },
             'police': {
-                'positive': ['👮‍♂️', '👮‍♀️', '🚓', '💙', '🆘', '💪', '🏆'],
-                'negative': ['👮‍♂️', '👮‍♀️', '🚓', '💔', '😰', '😨', '😱'],
-                'neutral': ['👮‍♂️', '👮‍♀️', '🚓', '💙']
+                'positive': ['ðŸ‘®â€â™‚ï¸', 'ðŸ‘®â€â™€ï¸', 'ðŸš“', 'ðŸ’™', 'ðŸ†˜', 'ðŸ’ª', 'ðŸ†'],
+                'negative': ['ðŸ‘®â€â™‚ï¸', 'ðŸ‘®â€â™€ï¸', 'ðŸš“', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±'],
+                'neutral': ['ðŸ‘®â€â™‚ï¸', 'ðŸ‘®â€â™€ï¸', 'ðŸš“', 'ðŸ’™']
             },
             'ambulance': {
-                'positive': ['🚑', '👨‍⚕️', '👩‍⚕️', '💙', '🆘', '💪', '🏆'],
-                'negative': ['🚑', '💔', '😰', '😨', '😱', '⚠️'],
-                'neutral': ['🚑', '👨‍⚕️', '👩‍⚕️', '💙']
+                'positive': ['ðŸš‘', 'ðŸ‘¨â€âš•ï¸', 'ðŸ‘©â€âš•ï¸', 'ðŸ’™', 'ðŸ†˜', 'ðŸ’ª', 'ðŸ†'],
+                'negative': ['ðŸš‘', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±', 'âš ï¸'],
+                'neutral': ['ðŸš‘', 'ðŸ‘¨â€âš•ï¸', 'ðŸ‘©â€âš•ï¸', 'ðŸ’™']
             },
             
-            # 💰 FINANCE & BUSINESS (EXISTANT - AMÉLIORÉ)
+            # ðŸ’° FINANCE & BUSINESS (EXISTANT - AMÃ‰LIORÃ‰)
             'money': {
-                'positive': ['💰', '💎', '🏆', '📈', '💹', '💵', '🪙', '💲', '🏅', '🥇', '🎯', '🚀', '🔥', '💪', '🎉', '⭐', '🌟', '💫', '✨', '🎊'],
-                'negative': ['📉', '💸', '❌', '💣', '💥', '🛑', '⚠️', '🚫', '💔', '😰', '😨', '😱', '😭', '😢', '😞', '😔', '😟', '😕', '🙁', '☹️'],
-                'neutral': ['💳', '🏦', '📊', '📋', '📝', '📄', '📱', '💻', '📞', '📧', '📨', '📩', '📪', '📫', '📬', '📭', '📮', '📯', '📰', '📱']
+                'positive': ['ðŸ’°', 'ðŸ’Ž', 'ðŸ†', 'ðŸ“ˆ', 'ðŸ’¹', 'ðŸ’µ', 'ðŸª™', 'ðŸ’²', 'ðŸ…', 'ðŸ¥‡', 'ðŸŽ¯', 'ðŸš€', 'ðŸ”¥', 'ðŸ’ª', 'ðŸŽ‰', 'â­', 'ðŸŒŸ', 'ðŸ’«', 'âœ¨', 'ðŸŽŠ'],
+                'negative': ['ðŸ“‰', 'ðŸ’¸', 'âŒ', 'ðŸ’£', 'ðŸ’¥', 'ðŸ›‘', 'âš ï¸', 'ðŸš«', 'ðŸ’”', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ˜±', 'ðŸ˜­', 'ðŸ˜¢', 'ðŸ˜ž', 'ðŸ˜”', 'ðŸ˜Ÿ', 'ðŸ˜•', 'ðŸ™', 'â˜¹ï¸'],
+                'neutral': ['ðŸ’³', 'ðŸ¦', 'ðŸ“Š', 'ðŸ“‹', 'ðŸ“', 'ðŸ“„', 'ðŸ“±', 'ðŸ’»', 'ðŸ“ž', 'ðŸ“§', 'ðŸ“¨', 'ðŸ“©', 'ðŸ“ª', 'ðŸ“«', 'ðŸ“¬', 'ðŸ“­', 'ðŸ“®', 'ðŸ“¯', 'ðŸ“°', 'ðŸ“±']
             },
             'investment': {
-                'positive': ['📈', '💹', '💎', '🏆', '✅', '🌟'],
-                'negative': ['📉', '❌', '💸', '💣', '⚠️'],
-                'neutral': ['📊', '📋', '📝', '📄', '💼']
+                'positive': ['ðŸ“ˆ', 'ðŸ’¹', 'ðŸ’Ž', 'ðŸ†', 'âœ…', 'ðŸŒŸ'],
+                'negative': ['ðŸ“‰', 'âŒ', 'ðŸ’¸', 'ðŸ’£', 'âš ï¸'],
+                'neutral': ['ðŸ“Š', 'ðŸ“‹', 'ðŸ“', 'ðŸ“„', 'ðŸ’¼']
             },
             'business': {
-                'positive': ['💼', '📊', '📈', '💹', '💎', '🏆', '✅', '🌟'],
-                'negative': ['📉', '❌', '💸', '💣', '⚠️'],
-                'neutral': ['💼', '📊', '📋', '📝', '📄']
+                'positive': ['ðŸ’¼', 'ðŸ“Š', 'ðŸ“ˆ', 'ðŸ’¹', 'ðŸ’Ž', 'ðŸ†', 'âœ…', 'ðŸŒŸ'],
+                'negative': ['ðŸ“‰', 'âŒ', 'ðŸ’¸', 'ðŸ’£', 'âš ï¸'],
+                'neutral': ['ðŸ’¼', 'ðŸ“Š', 'ðŸ“‹', 'ðŸ“', 'ðŸ“„']
             },
             
-            # 🚀 TECHNOLOGY & INNOVATION (EXISTANT - AMÉLIORÉ)
+            # ðŸš€ TECHNOLOGY & INNOVATION (EXISTANT - AMÃ‰LIORÃ‰)
             'technology': {
-                'positive': ['💻', '🤖', '🚀', '💡', '💪', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💻', '🤖', '💡', '📝', '📱']
+                'positive': ['ðŸ’»', 'ðŸ¤–', 'ðŸš€', 'ðŸ’¡', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’»', 'ðŸ¤–', 'ðŸ’¡', 'ðŸ“', 'ðŸ“±']
             },
             'innovation': {
-                'positive': ['💡', '🚀', '💪', '🏆', '⭐', '🌟', '🔥', '✨'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💡', '📝', '📱']
+                'positive': ['ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥', 'âœ¨'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’¡', 'ðŸ“', 'ðŸ“±']
             },
             'digital': {
-                'positive': ['💻', '🤖', '🚀', '💡', '💪', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💻', '🤖', '💡', '📝', '📱']
+                'positive': ['ðŸ’»', 'ðŸ¤–', 'ðŸš€', 'ðŸ’¡', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’»', 'ðŸ¤–', 'ðŸ’¡', 'ðŸ“', 'ðŸ“±']
             },
             
-            # ❤️ HEALTH & FITNESS (EXISTANT - AMÉLIORÉ)
+            # â¤ï¸ HEALTH & FITNESS (EXISTANT - AMÃ‰LIORÃ‰)
             'health': {
-                'positive': ['❤️', '💪', '🏃', '🚴', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['❤️', '💪', '🏃', '🚴', '🔥']
+                'positive': ['â¤ï¸', 'ðŸ’ª', 'ðŸƒ', 'ðŸš´', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['â¤ï¸', 'ðŸ’ª', 'ðŸƒ', 'ðŸš´', 'ðŸ”¥']
             },
             'fitness': {
-                'positive': ['💪', '🏃', '🚴', '🏋️', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['💪', '🏃', '🚴', '🏋️', '🔥']
+                'positive': ['ðŸ’ª', 'ðŸƒ', 'ðŸš´', 'ðŸ‹ï¸', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ’ª', 'ðŸƒ', 'ðŸš´', 'ðŸ‹ï¸', 'ðŸ”¥']
             },
             'wellness': {
-                'positive': ['❤️', '💪', '🏃', '🚴', '🏆', '⭐', '🌟', '🔥'],
-                'negative': ['😵', '🤯', '😴', '💤', '😰', '😨'],
-                'neutral': ['❤️', '💪', '🏃', '🚴', '🔥']
+                'positive': ['â¤ï¸', 'ðŸ’ª', 'ðŸƒ', 'ðŸš´', 'ðŸ†', 'â­', 'ðŸŒŸ', 'ðŸ”¥'],
+                'negative': ['ðŸ˜µ', 'ðŸ¤¯', 'ðŸ˜´', 'ðŸ’¤', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['â¤ï¸', 'ðŸ’ª', 'ðŸƒ', 'ðŸš´', 'ðŸ”¥']
             }
         }
         
-        # 🚫 MAPPING SPÉCIFIQUE POUR ÉVITER LES EMOJIS SUR LES MOTS DE LIAISON
+        # ðŸš« MAPPING SPÃ‰CIFIQUE POUR Ã‰VITER LES EMOJIS SUR LES MOTS DE LIAISON
         self.specific_keyword_mapping = {
-            # 🧠 Concepts cognitifs - PRIORITÉ MAXIMALE
-            'attention': '🧠',      # Au lieu de 💰 (argent)
-            'thinking': '🧠',       # Cerveau/pensée
-            'brain': '🧠',          # Cerveau
-            'learning': '📚',       # Apprentissage
-            'studying': '📚',       # Études
-            'reading': '📖',        # Lecture
-            'math': '🔢',           # Mathématiques
-            'workout': '💪',        # Exercice
-            'exercise': '💪',       # Exercice
-            'physical': '💪',       # Physique
-            'challenging': '💪',    # Défi
-            'difficult': '💪',      # Difficile
+            # ðŸ§  Concepts cognitifs - PRIORITÃ‰ MAXIMALE
+            'attention': 'ðŸ§ ',      # Au lieu de ðŸ’° (argent)
+            'thinking': 'ðŸ§ ',       # Cerveau/pensÃ©e
+            'brain': 'ðŸ§ ',          # Cerveau
+            'learning': 'ðŸ“š',       # Apprentissage
+            'studying': 'ðŸ“š',       # Ã‰tudes
+            'reading': 'ðŸ“–',        # Lecture
+            'math': 'ðŸ”¢',           # MathÃ©matiques
+            'workout': 'ðŸ’ª',        # Exercice
+            'exercise': 'ðŸ’ª',       # Exercice
+            'physical': 'ðŸ’ª',       # Physique
+            'challenging': 'ðŸ’ª',    # DÃ©fi
+            'difficult': 'ðŸ’ª',      # Difficile
             
-            # 🧬 Neuroscience - PRIORITÉ MAXIMALE
-            'acetylcholine': '🧠',  # Neurotransmetteur
-            'norepinephrine': '🧠', # Neurotransmetteur
-            'synapses': '🧠',       # Synapses
-            'plasticity': '🧠',     # Plasticité
-            'neuroscience': '🧠',   # Neuroscience
-            'research': '🔬',       # Recherche
-            'studies': '🔬',        # Études
-            'science': '🔬',        # Science
+            # ðŸ§¬ Neuroscience - PRIORITÃ‰ MAXIMALE
+            'acetylcholine': 'ðŸ§ ',  # Neurotransmetteur
+            'norepinephrine': 'ðŸ§ ', # Neurotransmetteur
+            'synapses': 'ðŸ§ ',       # Synapses
+            'plasticity': 'ðŸ§ ',     # PlasticitÃ©
+            'neuroscience': 'ðŸ§ ',   # Neuroscience
+            'research': 'ðŸ”¬',       # Recherche
+            'studies': 'ðŸ”¬',        # Ã‰tudes
+            'science': 'ðŸ”¬',        # Science
             
-            # 🎓 Université - PRIORITÉ MAXIMALE
-            'stanford': '🎓',       # Université Stanford
-            'university': '🎓',     # Université
-            'college': '🎓',        # Collège
-            'academic': '🎓',       # Académique
-            'education': '🎓',      # Éducation
+            # ðŸŽ“ UniversitÃ© - PRIORITÃ‰ MAXIMALE
+            'stanford': 'ðŸŽ“',       # UniversitÃ© Stanford
+            'university': 'ðŸŽ“',     # UniversitÃ©
+            'college': 'ðŸŽ“',        # CollÃ¨ge
+            'academic': 'ðŸŽ“',       # AcadÃ©mique
+            'education': 'ðŸŽ“',      # Ã‰ducation
             
-            # 👩‍🎓 Apprentissage féminin - PRIORITÉ MAXIMALE
-            'she': '👩‍🎓',          # Elle (apprentissage)
-            'her': '👩‍🎓',          # Elle (apprentissage)
-            'woman': '👩‍🎓',        # Femme
-            'female': '👩‍🎓',       # Féminin
+            # ðŸ‘©â€ðŸŽ“ Apprentissage fÃ©minin - PRIORITÃ‰ MAXIMALE
+            'she': 'ðŸ‘©â€ðŸŽ“',          # Elle (apprentissage)
+            'her': 'ðŸ‘©â€ðŸŽ“',          # Elle (apprentissage)
+            'woman': 'ðŸ‘©â€ðŸŽ“',        # Femme
+            'female': 'ðŸ‘©â€ðŸŽ“',       # FÃ©minin
             
-            # 🚀 NOUVEAUX MOTS AJOUTÉS - PRIORITÉ MAXIMALE
-            'speed': '⚡',          # Vitesse (éclair)
-            'ability': '💪',        # Capacité (muscle)
-            'stuff': '📦',          # Choses (boîte)
-            'striking': '👊',       # Frappant (poing)
-            'right': '✅',          # Correct (vérification)
-            'best': '🏆',           # Meilleur (trophée)
-            'growth': '🌱',         # Croissance (plante)
-            'failure': '💥',        # Échec (explosion)
-            'success': '🎯',        # Succès (cible)
-            'brain': '🧠',          # Cerveau
-            'reflexes': '⚡',        # Réflexes (éclair)
-            'punch': '👊',          # Coup de poing
-            'comedy': '🎭',         # Comédie (théâtre)
-            'risk': '🎲',           # Risque (dé)
-            'challenge': '🏔️',      # Défi (montagne)
-            'learning': '📚',       # Apprentissage
-            'improvement': '📈',    # Amélioration
-            'motivation': '🔥',     # Motivation (feu)
-            'strength': '💪',       # Force (muscle)
-            'power': '⚡',          # Pouvoir (éclair)
-            'fertility': '🌱',      # Fertilité (plante qui pousse)
-            'development': '📈',    # Développement (graphique)
+            # ðŸš€ NOUVEAUX MOTS AJOUTÃ‰S - PRIORITÃ‰ MAXIMALE
+            'speed': 'âš¡',          # Vitesse (Ã©clair)
+            'ability': 'ðŸ’ª',        # CapacitÃ© (muscle)
+            'stuff': 'ðŸ“¦',          # Choses (boÃ®te)
+            'striking': 'ðŸ‘Š',       # Frappant (poing)
+            'right': 'âœ…',          # Correct (vÃ©rification)
+            'best': 'ðŸ†',           # Meilleur (trophÃ©e)
+            'growth': 'ðŸŒ±',         # Croissance (plante)
+            'failure': 'ðŸ’¥',        # Ã‰chec (explosion)
+            'success': 'ðŸŽ¯',        # SuccÃ¨s (cible)
+            'brain': 'ðŸ§ ',          # Cerveau
+            'reflexes': 'âš¡',        # RÃ©flexes (Ã©clair)
+            'punch': 'ðŸ‘Š',          # Coup de poing
+            'comedy': 'ðŸŽ­',         # ComÃ©die (thÃ©Ã¢tre)
+            'risk': 'ðŸŽ²',           # Risque (dÃ©)
+            'challenge': 'ðŸ”ï¸',      # DÃ©fi (montagne)
+            'learning': 'ðŸ“š',       # Apprentissage
+            'improvement': 'ðŸ“ˆ',    # AmÃ©lioration
+            'motivation': 'ðŸ”¥',     # Motivation (feu)
+            'strength': 'ðŸ’ª',       # Force (muscle)
+            'power': 'âš¡',          # Pouvoir (Ã©clair)
+            'fertility': 'ðŸŒ±',      # FertilitÃ© (plante qui pousse)
+            'development': 'ðŸ“ˆ',    # DÃ©veloppement (graphique)
             
-            # 🧬 MÉDICAL & SCIENTIFIQUE - NOUVEAU
-            'sperm': '🧬',          # Spermatozoïde
-            'counts': '📊',         # Comptage
-            'microplastics': '🔬',  # Microplastiques
-            'chemicals': '🧪',      # Produits chimiques
-            'pesticides': '☠️',     # Pesticides
-            'herbicides': '🌿',     # Herbicides
-            'endocrine': '⚕️',      # Endocrinien
-            'system': '⚙️',         # Système
-            'children': '👶',       # Enfants
-            'testicles': '🥜',      # Testicules
-            'penis': '🍆',          # Pénis
-            'plastics': '🔄',       # Plastiques
-            'water': '💧',          # Eau
-            'bottles': '🍾',        # Bouteilles
-            'foods': '🍎',          # Aliments
-            'microwave': '📡',      # Micro-ondes
-            'lifestyle': '🏃',      # Mode de vie
-            'sedentary': '🪑',      # Sédentaire
-            'environmental': '🌍',  # Environnemental
+            # ðŸ§¬ MÃ‰DICAL & SCIENTIFIQUE - NOUVEAU
+            'sperm': 'ðŸ§¬',          # SpermatozoÃ¯de
+            'counts': 'ðŸ“Š',         # Comptage
+            'microplastics': 'ðŸ”¬',  # Microplastiques
+            'chemicals': 'ðŸ§ª',      # Produits chimiques
+            'pesticides': 'â˜ ï¸',     # Pesticides
+            'herbicides': 'ðŸŒ¿',     # Herbicides
+            'endocrine': 'âš•ï¸',      # Endocrinien
+            'system': 'âš™ï¸',         # SystÃ¨me
+            'children': 'ðŸ‘¶',       # Enfants
+            'testicles': 'ðŸ¥œ',      # Testicules
+            'penis': 'ðŸ†',          # PÃ©nis
+            'plastics': 'ðŸ”„',       # Plastiques
+            'water': 'ðŸ’§',          # Eau
+            'bottles': 'ðŸ¾',        # Bouteilles
+            'foods': 'ðŸŽ',          # Aliments
+            'microwave': 'ðŸ“¡',      # Micro-ondes
+            'lifestyle': 'ðŸƒ',      # Mode de vie
+            'sedentary': 'ðŸª‘',      # SÃ©dentaire
+            'environmental': 'ðŸŒ',  # Environnemental
             
-            # 🧬 MÉDICAL & SCIENTIFIQUE - NOUVEAUX EMOJIS STRATÉGIQUES
-            'research': '🔬',        # Recherche
-            'laboratory': '🧪',      # Laboratoire
-            'experiment': '⚗️',      # Expérience
-            'discovery': '💡',       # Découverte
-            'innovation': '🚀',      # Innovation
-            'breakthrough': '💥',    # Percée
-            'solution': '✅',        # Solution
-            'prevention': '🛡️',     # Prévention
-            'treatment': '💊',       # Traitement
-            'recovery': '🔄',        # Récupération
-            'wellness': '🌟',        # Bien-être
-            'vitality': '💪',        # Vitalité
-            'immunity': '🛡️',       # Immunité
-            'metabolism': '⚡',      # Métabolisme
-            'hormones': '⚕️',        # Hormones
-            'genes': '🧬',           # Gènes
-            'dna': '🧬',             # ADN
-            'cells': '🔬',           # Cellules
-            'tissue': '🔬',          # Tissus
-            'organ': '❤️',           # Organe
+            # ðŸ§¬ MÃ‰DICAL & SCIENTIFIQUE - NOUVEAUX EMOJIS STRATÃ‰GIQUES
+            'research': 'ðŸ”¬',        # Recherche
+            'laboratory': 'ðŸ§ª',      # Laboratoire
+            'experiment': 'âš—ï¸',      # ExpÃ©rience
+            'discovery': 'ðŸ’¡',       # DÃ©couverte
+            'innovation': 'ðŸš€',      # Innovation
+            'breakthrough': 'ðŸ’¥',    # PercÃ©e
+            'solution': 'âœ…',        # Solution
+            'prevention': 'ðŸ›¡ï¸',     # PrÃ©vention
+            'treatment': 'ðŸ’Š',       # Traitement
+            'recovery': 'ðŸ”„',        # RÃ©cupÃ©ration
+            'wellness': 'ðŸŒŸ',        # Bien-Ãªtre
+            'vitality': 'ðŸ’ª',        # VitalitÃ©
+            'immunity': 'ðŸ›¡ï¸',       # ImmunitÃ©
+            'metabolism': 'âš¡',      # MÃ©tabolisme
+            'hormones': 'âš•ï¸',        # Hormones
+            'genes': 'ðŸ§¬',           # GÃ¨nes
+            'dna': 'ðŸ§¬',             # ADN
+            'cells': 'ðŸ”¬',           # Cellules
+            'tissue': 'ðŸ”¬',          # Tissus
+            'organ': 'â¤ï¸',           # Organe
             
-            # 🧠 COGNITIF & PSYCHOLOGIQUE - NOUVEAUX
-            'memory': '🧠',          # Mémoire
-            'focus': '🎯',           # Concentration
-            'creativity': '🎨',      # Créativité
-            'intelligence': '🧠',    # Intelligence
-            'wisdom': '📚',          # Sagesse
-            'knowledge': '📖',       # Connaissance
-            'understanding': '💭',   # Compréhension
-            'insight': '💡',         # Perspicacité
-            'awareness': '👁️',      # Conscience
-            'mindfulness': '🧘',     # Pleine conscience
+            # ðŸ§  COGNITIF & PSYCHOLOGIQUE - NOUVEAUX
+            'memory': 'ðŸ§ ',          # MÃ©moire
+            'focus': 'ðŸŽ¯',           # Concentration
+            'creativity': 'ðŸŽ¨',      # CrÃ©ativitÃ©
+            'intelligence': 'ðŸ§ ',    # Intelligence
+            'wisdom': 'ðŸ“š',          # Sagesse
+            'knowledge': 'ðŸ“–',       # Connaissance
+            'understanding': 'ðŸ’­',   # ComprÃ©hension
+            'insight': 'ðŸ’¡',         # PerspicacitÃ©
+            'awareness': 'ðŸ‘ï¸',      # Conscience
+            'mindfulness': 'ðŸ§˜',     # Pleine conscience
             
-            # 🏃 PHYSIQUE & PERFORMANCE - NOUVEAUX
-            'endurance': '🏃',       # Endurance
-            'flexibility': '🧘',     # Flexibilité
-            'balance': '⚖️',         # Équilibre
-            'coordination': '🎯',    # Coordination
-            'agility': '⚡',          # Agilité
-            'speed': '🏃',           # Vitesse
-            'precision': '🎯',       # Précision
-            'control': '🎮',         # Contrôle
-            'mastery': '🏆',         # Maîtrise
-            'excellence': '⭐',      # Excellence
+            # ðŸƒ PHYSIQUE & PERFORMANCE - NOUVEAUX
+            'endurance': 'ðŸƒ',       # Endurance
+            'flexibility': 'ðŸ§˜',     # FlexibilitÃ©
+            'balance': 'âš–ï¸',         # Ã‰quilibre
+            'coordination': 'ðŸŽ¯',    # Coordination
+            'agility': 'âš¡',          # AgilitÃ©
+            'speed': 'ðŸƒ',           # Vitesse
+            'precision': 'ðŸŽ¯',       # PrÃ©cision
+            'control': 'ðŸŽ®',         # ContrÃ´le
+            'mastery': 'ðŸ†',         # MaÃ®trise
+            'excellence': 'â­',      # Excellence
             
-            # 🚫 Mots de liaison - BLOQUÉS (pas d'emoji)
+            # ðŸš« Mots de liaison - BLOQUÃ‰S (pas d'emoji)
             'it': '',
             'is': '',
             'the': '',
@@ -522,7 +523,7 @@ class ContextualEmojiSystemComplete:
             'getting': ''
         }
         
-        # 🚫 MOTS DE LIAISON À BLOQUER (pas d'emojis)
+        # ðŸš« MOTS DE LIAISON Ã€ BLOQUER (pas d'emojis)
         self.linking_words = {
             'it', 'is', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
             'of', 'with', 'by', 'from', 'up', 'out', 'off', 'over', 'under',
@@ -533,7 +534,7 @@ class ContextualEmojiSystemComplete:
             'am', 'are', 'was', 'were', 'get', 'gets', 'got', 'getting'
         }
         
-        # 🎯 MODIFICATEURS D'INTENSITÉ SIMPLIFIÉS
+        # ðŸŽ¯ MODIFICATEURS D'INTENSITÃ‰ SIMPLIFIÃ‰S
         self.intensity_modifiers = {
             'very': 1.5,
             'really': 1.5,
@@ -548,174 +549,174 @@ class ContextualEmojiSystemComplete:
             'sort of': 0.6
         }
         
-        # ✨ EMOJIS DE TRANSITION PAR TYPE
+        # âœ¨ EMOJIS DE TRANSITION PAR TYPE
         self.transition_emojis = {
-            'cut': '⚡',
-            'fade': '✨',
-            'zoom': '🔍',
-            'slide': '➡️',
-            'dissolve': '💫',
-            'wipe': '🧹'
+            'cut': 'âš¡',
+            'fade': 'âœ¨',
+            'zoom': 'ðŸ”',
+            'slide': 'âž¡ï¸',
+            'dissolve': 'ðŸ’«',
+            'wipe': 'ðŸ§¹'
         }
 
-        # 🚨 CORRECTION IMMÉDIATE: Mapping spécifique pour les mots problématiques
+        # ðŸš¨ CORRECTION IMMÃ‰DIATE: Mapping spÃ©cifique pour les mots problÃ©matiques
         self.critical_mapping = {
-            # 🏠 FAMILLE & ENVIRONNEMENT
+            # ðŸ  FAMILLE & ENVIRONNEMENT
             'family': {
-                'positive': ['👨‍👩‍👧‍👦', '❤️', '🏠', '💕', '👪'],
-                'negative': ['😔', '💔', '🏚️', '😢', '😞'],
-                'neutral': ['👨‍👩‍👧‍👦', '🏠', '👪']
+                'positive': ['ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦', 'â¤ï¸', 'ðŸ ', 'ðŸ’•', 'ðŸ‘ª'],
+                'negative': ['ðŸ˜”', 'ðŸ’”', 'ðŸšï¸', 'ðŸ˜¢', 'ðŸ˜ž'],
+                'neutral': ['ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦', 'ðŸ ', 'ðŸ‘ª']
             },
             'environment': {
-                'positive': ['🌍', '🌱', '🌳', '🌿', '🏞️'],
-                'negative': ['🏭', '💨', '🌫️', '☁️', '😷'],
-                'neutral': ['🌍', '🏞️', '🌳']
+                'positive': ['ðŸŒ', 'ðŸŒ±', 'ðŸŒ³', 'ðŸŒ¿', 'ðŸžï¸'],
+                'negative': ['ðŸ­', 'ðŸ’¨', 'ðŸŒ«ï¸', 'â˜ï¸', 'ðŸ˜·'],
+                'neutral': ['ðŸŒ', 'ðŸžï¸', 'ðŸŒ³']
             },
             'neighborhood': {
-                'positive': ['🏘️', '🌳', '🚶', '🏠', '🌆'],
-                'negative': ['🚨', '💀', '😱', '🏚️', '💔'],
-                'neutral': ['🏘️', '🏠', '🌆']
+                'positive': ['ðŸ˜ï¸', 'ðŸŒ³', 'ðŸš¶', 'ðŸ ', 'ðŸŒ†'],
+                'negative': ['ðŸš¨', 'ðŸ’€', 'ðŸ˜±', 'ðŸšï¸', 'ðŸ’”'],
+                'neutral': ['ðŸ˜ï¸', 'ðŸ ', 'ðŸŒ†']
             },
             
-            # 🚨 CRIME & VIOLENCE
+            # ðŸš¨ CRIME & VIOLENCE
             'crime': {
-                'positive': ['🚔', '🛡️', '👮', '⚖️', '🔒'],
-                'negative': ['🚨', '💀', '😱', '🔪', '💣'],
-                'neutral': ['🚔', '⚖️', '🔒']
+                'positive': ['ðŸš”', 'ðŸ›¡ï¸', 'ðŸ‘®', 'âš–ï¸', 'ðŸ”’'],
+                'negative': ['ðŸš¨', 'ðŸ’€', 'ðŸ˜±', 'ðŸ”ª', 'ðŸ’£'],
+                'neutral': ['ðŸš”', 'âš–ï¸', 'ðŸ”’']
             },
             'gangs': {
-                'positive': ['🚔', '🛡️', '👮', '⚖️', '🔒'],
-                'negative': ['💀', '😱', '🔪', '💣', '🚨'],
-                'neutral': ['🚔', '⚖️', '🔒']
+                'positive': ['ðŸš”', 'ðŸ›¡ï¸', 'ðŸ‘®', 'âš–ï¸', 'ðŸ”’'],
+                'negative': ['ðŸ’€', 'ðŸ˜±', 'ðŸ”ª', 'ðŸ’£', 'ðŸš¨'],
+                'neutral': ['ðŸš”', 'âš–ï¸', 'ðŸ”’']
             },
             'drugs': {
-                'positive': ['💊', '🏥', '👨‍⚕️', '🩺', '❤️'],
-                'negative': ['💀', '😱', '☠️', '💉', '🚨'],
-                'neutral': ['💊', '🏥', '👨‍⚕️']
+                'positive': ['ðŸ’Š', 'ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º', 'â¤ï¸'],
+                'negative': ['ðŸ’€', 'ðŸ˜±', 'â˜ ï¸', 'ðŸ’‰', 'ðŸš¨'],
+                'neutral': ['ðŸ’Š', 'ðŸ¥', 'ðŸ‘¨â€âš•ï¸']
             },
             
-            # 🏥 SANTÉ & MÉDECINE
+            # ðŸ¥ SANTÃ‰ & MÃ‰DECINE
             'healthcare': {
-                'positive': ['🏥', '👨‍⚕️', '🩺', '💊', '❤️'],
-                'negative': ['😷', '💉', '🏥', '😰', '😨'],
-                'neutral': ['🏥', '👨‍⚕️', '🩺']
+                'positive': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º', 'ðŸ’Š', 'â¤ï¸'],
+                'negative': ['ðŸ˜·', 'ðŸ’‰', 'ðŸ¥', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º']
             },
             'medical': {
-                'positive': ['🏥', '👨‍⚕️', '🩺', '💊', '❤️'],
-                'negative': ['😷', '💉', '🏥', '😰', '😨'],
-                'neutral': ['🏥', '👨‍⚕️', '🩺']
+                'positive': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º', 'ðŸ’Š', 'â¤ï¸'],
+                'negative': ['ðŸ˜·', 'ðŸ’‰', 'ðŸ¥', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º']
             },
             'hurt': {
-                'positive': ['🏥', '👨‍⚕️', '🩺', '💊', '❤️'],
-                'negative': ['😢', '😰', '💔', '😨', '😱'],
-                'neutral': ['🏥', '👨‍⚕️', '🩺']
+                'positive': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º', 'ðŸ’Š', 'â¤ï¸'],
+                'negative': ['ðŸ˜¢', 'ðŸ˜°', 'ðŸ’”', 'ðŸ˜¨', 'ðŸ˜±'],
+                'neutral': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º']
             },
             'operation': {
-                'positive': ['🏥', '👨‍⚕️', '🩺', '💊', '❤️'],
-                'negative': ['😷', '💉', '🏥', '😰', '😨'],
-                'neutral': ['🏥', '👨‍⚕️', '🩺']
+                'positive': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º', 'ðŸ’Š', 'â¤ï¸'],
+                'negative': ['ðŸ˜·', 'ðŸ’‰', 'ðŸ¥', 'ðŸ˜°', 'ðŸ˜¨'],
+                'neutral': ['ðŸ¥', 'ðŸ‘¨â€âš•ï¸', 'ðŸ©º']
             },
             
-            # 🚒 SERVICES D'URGENCE
+            # ðŸš’ SERVICES D'URGENCE
             'fire': {
-                'positive': ['🚒', '👨‍🚒', '🔥', '🛡️', '💪'],
-                'negative': ['🔥', '💀', '😱', '🏚️', '💔'],
-                'neutral': ['🚒', '👨‍🚒', '🔥']
+                'positive': ['ðŸš’', 'ðŸ‘¨â€ðŸš’', 'ðŸ”¥', 'ðŸ›¡ï¸', 'ðŸ’ª'],
+                'negative': ['ðŸ”¥', 'ðŸ’€', 'ðŸ˜±', 'ðŸšï¸', 'ðŸ’”'],
+                'neutral': ['ðŸš’', 'ðŸ‘¨â€ðŸš’', 'ðŸ”¥']
             },
             'department': {
-                'positive': ['🏢', '👨‍💼', '📋', '💼', '🏛️'],
-                'negative': ['😔', '😤', '😒', '😞', '😕'],
-                'neutral': ['🏢', '👨‍💼', '📋']
+                'positive': ['ðŸ¢', 'ðŸ‘¨â€ðŸ’¼', 'ðŸ“‹', 'ðŸ’¼', 'ðŸ›ï¸'],
+                'negative': ['ðŸ˜”', 'ðŸ˜¤', 'ðŸ˜’', 'ðŸ˜ž', 'ðŸ˜•'],
+                'neutral': ['ðŸ¢', 'ðŸ‘¨â€ðŸ’¼', 'ðŸ“‹']
             },
             
-            # 💰 FINANCE & SOCIÉTÉ
+            # ðŸ’° FINANCE & SOCIÃ‰TÃ‰
             'money': {
-                'positive': ['💰', '💵', '💎', '🏆', '⭐'],
-                'negative': ['💸', '😔', '💔', '😢', '😞'],
-                'neutral': ['💰', '💵', '💎']
+                'positive': ['ðŸ’°', 'ðŸ’µ', 'ðŸ’Ž', 'ðŸ†', 'â­'],
+                'negative': ['ðŸ’¸', 'ðŸ˜”', 'ðŸ’”', 'ðŸ˜¢', 'ðŸ˜ž'],
+                'neutral': ['ðŸ’°', 'ðŸ’µ', 'ðŸ’Ž']
             },
             'bankrupt': {
-                'positive': ['💰', '💵', '💎', '🏆', '⭐'],
-                'negative': ['💸', '😔', '💔', '😢', '😞'],
-                'neutral': ['💰', '💵', '💎']
+                'positive': ['ðŸ’°', 'ðŸ’µ', 'ðŸ’Ž', 'ðŸ†', 'â­'],
+                'negative': ['ðŸ’¸', 'ðŸ˜”', 'ðŸ’”', 'ðŸ˜¢', 'ðŸ˜ž'],
+                'neutral': ['ðŸ’°', 'ðŸ’µ', 'ðŸ’Ž']
             },
             'tax': {
-                'positive': ['💰', '💵', '💎', '🏆', '⭐'],
-                'negative': ['💸', '😔', '💔', '😢', '😞'],
-                'neutral': ['💰', '💵', '💎']
+                'positive': ['ðŸ’°', 'ðŸ’µ', 'ðŸ’Ž', 'ðŸ†', 'â­'],
+                'negative': ['ðŸ’¸', 'ðŸ˜”', 'ðŸ’”', 'ðŸ˜¢', 'ðŸ˜ž'],
+                'neutral': ['ðŸ’°', 'ðŸ’µ', 'ðŸ’Ž']
             },
             
-            # 🏛️ POLITIQUE & SOCIÉTÉ
+            # ðŸ›ï¸ POLITIQUE & SOCIÃ‰TÃ‰
             'socialist': {
-                'positive': ['🏛️', '👥', '🤝', '🌍', '❤️'],
-                'negative': ['😔', '😤', '😒', '😞', '😕'],
-                'neutral': ['🏛️', '👥', '🤝']
+                'positive': ['ðŸ›ï¸', 'ðŸ‘¥', 'ðŸ¤', 'ðŸŒ', 'â¤ï¸'],
+                'negative': ['ðŸ˜”', 'ðŸ˜¤', 'ðŸ˜’', 'ðŸ˜ž', 'ðŸ˜•'],
+                'neutral': ['ðŸ›ï¸', 'ðŸ‘¥', 'ðŸ¤']
             },
             'society': {
-                'positive': ['🏛️', '👥', '🤝', '🌍', '❤️'],
-                'negative': ['😔', '😤', '😒', '😞', '😕'],
-                'neutral': ['🏛️', '👥', '🤝']
+                'positive': ['ðŸ›ï¸', 'ðŸ‘¥', 'ðŸ¤', 'ðŸŒ', 'â¤ï¸'],
+                'negative': ['ðŸ˜”', 'ðŸ˜¤', 'ðŸ˜’', 'ðŸ˜ž', 'ðŸ˜•'],
+                'neutral': ['ðŸ›ï¸', 'ðŸ‘¥', 'ðŸ¤']
             },
             'community': {
-                'positive': ['🏛️', '👥', '🤝', '🌍', '❤️'],
-                'negative': ['😔', '😤', '😒', '😞', '😕'],
-                'neutral': ['🏛️', '👥', '🤝']
+                'positive': ['ðŸ›ï¸', 'ðŸ‘¥', 'ðŸ¤', 'ðŸŒ', 'â¤ï¸'],
+                'negative': ['ðŸ˜”', 'ðŸ˜¤', 'ðŸ˜’', 'ðŸ˜ž', 'ðŸ˜•'],
+                'neutral': ['ðŸ›ï¸', 'ðŸ‘¥', 'ðŸ¤']
             }
         }
 
     def get_emoji_for_context(self, keyword: str, text: str = "", sentiment: str = "neutral", intensity: float = 1.0) -> str:
-        """Obtient un emoji contextuel OPTIMISÉ pour un mot-clé"""
+        """Obtient un emoji contextuel OPTIMISÃ‰ pour un mot-clÃ©"""
         try:
             keyword_lower = keyword.lower().strip()
             
-            # 🚫 BLOQUAGE DES MOTS DE LIAISON (AMÉLIORÉ)
+            # ðŸš« BLOQUAGE DES MOTS DE LIAISON (AMÃ‰LIORÃ‰)
             if keyword_lower in self.linking_words:
                 return ""
             
-            # 🚨 PRIORITÉ 0: MAPPING CRITIQUE POUR LES MOTS PROBLÉMATIQUES (NOUVEAU)
+            # ðŸš¨ PRIORITÃ‰ 0: MAPPING CRITIQUE POUR LES MOTS PROBLÃ‰MATIQUES (NOUVEAU)
             if keyword_lower in self.critical_mapping:
                 if sentiment in self.critical_mapping[keyword_lower]:
                     emoji_list = self.critical_mapping[keyword_lower][sentiment]
                     if emoji_list:
-                        # Sélection intelligente basée sur l'intensité
+                        # SÃ©lection intelligente basÃ©e sur l'intensitÃ©
                         if intensity > 1.5:
-                            # Intensité élevée: emojis plus expressifs
-                            high_intensity = [e for e in emoji_list if e in ['🚨', '💀', '😱', '🔥', '💪', '🏆', '⭐', '🌟']]
+                            # IntensitÃ© Ã©levÃ©e: emojis plus expressifs
+                            high_intensity = [e for e in emoji_list if e in ['ðŸš¨', 'ðŸ’€', 'ðŸ˜±', 'ðŸ”¥', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ']]
                             return random.choice(high_intensity) if high_intensity else random.choice(emoji_list)
                         elif intensity < 0.5:
-                            # Intensité faible: emojis plus subtils
-                            low_intensity = [e for e in emoji_list if e in ['💭', '📝', '📚', '🔍', '💡', '🎯', '📊', '📈']]
+                            # IntensitÃ© faible: emojis plus subtils
+                            low_intensity = [e for e in emoji_list if e in ['ðŸ’­', 'ðŸ“', 'ðŸ“š', 'ðŸ”', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸ“Š', 'ðŸ“ˆ']]
                             return random.choice(low_intensity) if low_intensity else random.choice(emoji_list)
                         else:
-                            # Intensité normale: sélection aléatoire
+                            # IntensitÃ© normale: sÃ©lection alÃ©atoire
                             return random.choice(emoji_list)
             
-            # 🎯 PRIORITÉ 1: MAPPING SPÉCIFIQUE DIRECT (NOUVEAU - OPTIMISÉ)
+            # ðŸŽ¯ PRIORITÃ‰ 1: MAPPING SPÃ‰CIFIQUE DIRECT (NOUVEAU - OPTIMISÃ‰)
             if keyword_lower in self.specific_keyword_mapping:
                 emoji = self.specific_keyword_mapping[keyword_lower]
                 if emoji:
                     return emoji
             
-            # 🧠 PRIORITÉ 2: MAPPING SÉMANTIQUE AVANCÉ (NOUVEAU - OPTIMISÉ)
+            # ðŸ§  PRIORITÃ‰ 2: MAPPING SÃ‰MANTIQUE AVANCÃ‰ (NOUVEAU - OPTIMISÃ‰)
             for category, emojis in self.semantic_mapping.items():
                 if keyword_lower in category or any(kw in keyword_lower for kw in category.split('_')):
                     if sentiment in emojis:
                         emoji_list = emojis[sentiment]
                         if emoji_list:
-                            # Sélection intelligente basée sur l'intensité
+                            # SÃ©lection intelligente basÃ©e sur l'intensitÃ©
                             if intensity > 1.5:
-                                # Intensité élevée: emojis plus expressifs
-                                high_intensity = ['🚀', '💥', '🔥', '⚡', '💪', '🏆', '⭐', '🌟']
+                                # IntensitÃ© Ã©levÃ©e: emojis plus expressifs
+                                high_intensity = ['ðŸš€', 'ðŸ’¥', 'ðŸ”¥', 'âš¡', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ']
                                 return random.choice(high_intensity)
                             elif intensity < 0.5:
-                                # Intensité faible: emojis plus subtils
-                                low_intensity = ['💭', '📝', '📚', '🔍', '💡', '🎯', '📊', '📈']
+                                # IntensitÃ© faible: emojis plus subtils
+                                low_intensity = ['ðŸ’­', 'ðŸ“', 'ðŸ“š', 'ðŸ”', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸ“Š', 'ðŸ“ˆ']
                                 return random.choice(low_intensity)
                             else:
-                                # Intensité normale: sélection aléatoire
+                                # IntensitÃ© normale: sÃ©lection alÃ©atoire
                                 return random.choice(emoji_list)
             
-            # 🔍 PRIORITÉ 3: RECHERCHE PARTIELLE INTELLIGENTE (NOUVEAU)
+            # ðŸ” PRIORITÃ‰ 3: RECHERCHE PARTIELLE INTELLIGENTE (NOUVEAU)
             for category, emojis in self.semantic_mapping.items():
                 if any(kw in keyword_lower for kw in category.split('_')):
                     if sentiment in emojis:
@@ -723,26 +724,26 @@ class ContextualEmojiSystemComplete:
                         if emoji_list:
                             return random.choice(emoji_list)
             
-            # 🎨 PRIORITÉ 4: MAPPING GÉNÉRIQUE INTELLIGENT (NOUVEAU)
+            # ðŸŽ¨ PRIORITÃ‰ 4: MAPPING GÃ‰NÃ‰RIQUE INTELLIGENT (NOUVEAU)
             generic_mapping = {
-                'positive': ['✅', '👍', '🎯', '💡', '🚀', '💪', '🏆', '⭐', '🌟', '✨', '💎', '🔥', '⚡'],
-                'negative': ['❌', '👎', '😔', '😢', '😰', '😨', '💔', '💥', '💢', '😤', '😡', '🤬'],
-                'neutral': ['💭', '📝', '📚', '🔍', '💡', '🎯', '📊', '📈', '📋', '📖', '🔎', '💬']
+                'positive': ['âœ…', 'ðŸ‘', 'ðŸŽ¯', 'ðŸ’¡', 'ðŸš€', 'ðŸ’ª', 'ðŸ†', 'â­', 'ðŸŒŸ', 'âœ¨', 'ðŸ’Ž', 'ðŸ”¥', 'âš¡'],
+                'negative': ['âŒ', 'ðŸ‘Ž', 'ðŸ˜”', 'ðŸ˜¢', 'ðŸ˜°', 'ðŸ˜¨', 'ðŸ’”', 'ðŸ’¥', 'ðŸ’¢', 'ðŸ˜¤', 'ðŸ˜¡', 'ðŸ¤¬'],
+                'neutral': ['ðŸ’­', 'ðŸ“', 'ðŸ“š', 'ðŸ”', 'ðŸ’¡', 'ðŸŽ¯', 'ðŸ“Š', 'ðŸ“ˆ', 'ðŸ“‹', 'ðŸ“–', 'ðŸ”Ž', 'ðŸ’¬']
             }
             
             if sentiment in generic_mapping:
                 return random.choice(generic_mapping[sentiment])
             
-            # 🎯 PRIORITÉ 5: EMOJI PAR DÉFAUT INTELLIGENT (NOUVEAU)
-            default_emojis = ['💡', '🎯', '📝', '🔍', '💭', '📚', '📊', '📈', '✨', '🌟']
+            # ðŸŽ¯ PRIORITÃ‰ 5: EMOJI PAR DÃ‰FAUT INTELLIGENT (NOUVEAU)
+            default_emojis = ['ðŸ’¡', 'ðŸŽ¯', 'ðŸ“', 'ðŸ”', 'ðŸ’­', 'ðŸ“š', 'ðŸ“Š', 'ðŸ“ˆ', 'âœ¨', 'ðŸŒŸ']
             return random.choice(default_emojis)
             
         except Exception as e:
-            print(f"❌ Erreur get_emoji_for_context: {e}")
+            print(f"âŒ Erreur get_emoji_for_context: {e}")
             return ""
 
     def get_emoji_sequence(self, keywords: List[str], context: str = "", max_emojis: int = 3) -> List[str]:
-        """Obtient une séquence cohérente d'emojis pour plusieurs mots-clés"""
+        """Obtient une sÃ©quence cohÃ©rente d'emojis pour plusieurs mots-clÃ©s"""
         try:
             emojis = []
             used_categories = set()
@@ -755,7 +756,7 @@ class ContextualEmojiSystemComplete:
                 if emoji:
                     emojis.append(emoji)
                     
-                    # Éviter la répétition de catégories
+                    # Ã‰viter la rÃ©pÃ©tition de catÃ©gories
                     for category in self.semantic_mapping:
                         if keyword.lower() in category or category in keyword.lower():
                             used_categories.add(category)
@@ -764,15 +765,15 @@ class ContextualEmojiSystemComplete:
             return emojis
             
         except Exception as e:
-            print(f"❌ Erreur get_emoji_sequence: {e}")
+            print(f"âŒ Erreur get_emoji_sequence: {e}")
             return []
 
     def get_transition_emoji(self, transition_type: str = "cut") -> str:
         """Obtient un emoji selon le type de transition"""
-        return self.transition_emojis.get(transition_type, "✨")
+        return self.transition_emojis.get(transition_type, "âœ¨")
 
     def is_linking_word(self, word: str) -> bool:
-        """Vérifie si un mot est un mot de liaison (bloqué)"""
+        """VÃ©rifie si un mot est un mot de liaison (bloquÃ©)"""
         return word.lower() in self.linking_words
 
 # Instance globale

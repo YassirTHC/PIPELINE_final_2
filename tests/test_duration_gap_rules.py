@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from types import SimpleNamespace, ModuleType
 import sys
 import importlib
@@ -102,3 +103,4 @@ def test_enforce_broll_schedule_rules_filters_short_and_gap():
     reasons = {drop['reason'] for drop in drops}
     assert 'duration_short' in reasons
     assert 'gap_violation' in reasons
+

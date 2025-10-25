@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """LLM metadata helper built on top of the existing integration stack."""
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ import requests
 
 from pipeline_core.configuration import tfidf_fallback_disabled_from_env
 
-try:  # Optional import – settings layer may not be available in unit stubs
+try:  # Optional import â€“ settings layer may not be available in unit stubs
     from video_pipeline.config import get_settings
 except Exception:  # pragma: no cover - optional dependency
     get_settings = None  # type: ignore[assignment]
@@ -597,8 +598,8 @@ def _sanitize_queries(
 
 SEGMENT_JSON_PROMPT = (
     "You are a JSON API. Return ONLY one JSON object with keys: broll_keywords, queries. "
-    "broll_keywords: 8–12 visual noun phrases (2–3 words), concrete and shootable. "
-    "queries: 8–12 short, filmable search queries (2–4 words), provider-friendly. "
+    "broll_keywords: 8â€“12 visual noun phrases (2â€“3 words), concrete and shootable. "
+    "queries: 8â€“12 short, filmable search queries (2â€“4 words), provider-friendly. "
     "Banned tokens: that, this, it, they, we, you, thing, stuff, very, just, really, "
     "stock, footage, b-roll, broll, roll, cinematic, timelapse, background, background footage. "
     "Segment transcript:\n{segment_text}"
@@ -614,7 +615,7 @@ _QUERY_SYNONYMS: Dict[str, List[str]] = {
 }
 
 def _augment_with_synonyms(queries: Sequence[str], *, max_extra_per: int = 1, limit: int = 12) -> List[str]:
-    """Add 0–1 short synonym per base query from a static table, capped by ``limit``."""
+    """Add 0â€“1 short synonym per base query from a static table, capped by ``limit``."""
 
     out: List[str] = []
     seen: Set[str] = set()
@@ -1330,13 +1331,13 @@ def _build_json_metadata_prompt(transcript: str, *, video_id: Optional[str] = No
 
     video_reference = f"Video ID: {video_id}\n" if video_id else ""
     return (
-        "Tu es un expert des métadonnées pour vidéos courtes (TikTok, Reels, Shorts).\n"
-        "Retourne STRICTEMENT un objet JSON unique avec les clés exactes suivantes :\n"
-        "  \"title\": chaîne accrocheuse en langue source,\n"
-        "  \"description\": texte synthétique en 1 à 2 phrases,\n"
+        "Tu es un expert des mÃ©tadonnÃ©es pour vidÃ©os courtes (TikTok, Reels, Shorts).\n"
+        "Retourne STRICTEMENT un objet JSON unique avec les clÃ©s exactes suivantes :\n"
+        "  \"title\": chaÃ®ne accrocheuse en langue source,\n"
+        "  \"description\": texte synthÃ©tique en 1 Ã  2 phrases,\n"
         "  \"hashtags\": tableau de 5 hashtags pertinents sans doublons,\n"
-        "  \"broll_keywords\": tableau de 6 à 10 mots-clés visuels concrets,\n"
-        "  \"queries\": tableau de 4 à 8 requêtes de recherche prêtes pour des banques d’images/vidéos.\n"
+        "  \"broll_keywords\": tableau de 6 Ã  10 mots-clÃ©s visuels concrets,\n"
+        "  \"queries\": tableau de 4 Ã  8 requÃªtes de recherche prÃªtes pour des banques dâ€™images/vidÃ©os.\n"
         "N'ajoute aucune explication hors JSON.\n\n"
         f"{video_reference}TRANSCRIPT:\n{cleaned}"
     )
@@ -1444,7 +1445,7 @@ def _ollama_generate_json(
 
 def _ollama_generate_sync(endpoint: str, model: str, prompt: str, options: dict) -> str:
     """
-    Fallback non-streaming pour contourner les réponses vides du stream.
+    Fallback non-streaming pour contourner les rÃ©ponses vides du stream.
     Utilise /api/generate avec stream=False et renvoie .strip() du champ 'response'.
     """
 
@@ -2600,37 +2601,37 @@ def _normalise_dynamic_payload(
 def build_dynamic_prompt(transcript_text: str, *, max_len: int = 1800) -> str:
     tx = (transcript_text or "")[:max_len]
     return f"""
-RÔLE
-Tu es planificateur B-roll pour vidéos verticales (TikTok/Shorts, 9:16).
+RÃ”LE
+Tu es planificateur B-roll pour vidÃ©os verticales (TikTok/Shorts, 9:16).
 
 OBJECTIF
-À partir de la transcription, détecte librement le(s) domaine(s) (pas de liste fixe), puis génère :
-1) des mots-clés et phrases-clés visuelles (scènes filmables) utiles aux banques vidéos,
-2) des synonymes/variantes/termes proches pour CHAQUE mot-clé (2–4 max),
-3) des requêtes de recherche (2–4 mots, provider-friendly),
+Ã€ partir de la transcription, dÃ©tecte librement le(s) domaine(s) (pas de liste fixe), puis gÃ©nÃ¨re :
+1) des mots-clÃ©s et phrases-clÃ©s visuelles (scÃ¨nes filmables) utiles aux banques vidÃ©os,
+2) des synonymes/variantes/termes proches pour CHAQUE mot-clÃ© (2â€“4 max),
+3) des requÃªtes de recherche (2â€“4 mots, provider-friendly),
 4) des briefs segmentaires facultatifs.
 
 CONTRAINTES
-- Zéro domaine prédéfini. Déduis librement 1–3 "detected_domains" + confidence (0–1).
-- Évite les anti-termes génériques : people, thing, nice, background, start, generic, template, stock.
-- Priorise des requêtes concrètes et filmables : « sujet_action_contexte », objets précis, lieux identifiables.
-- Fenêtres visuelles recommandées : 3–6 secondes. Format vertical.
-- Si la langue de la transcription n’est pas l’anglais, produis les requêtes en langue d’origine + anglais.
+- ZÃ©ro domaine prÃ©dÃ©fini. DÃ©duis librement 1â€“3 "detected_domains" + confidence (0â€“1).
+- Ã‰vite les anti-termes gÃ©nÃ©riques : people, thing, nice, background, start, generic, template, stock.
+- Priorise des requÃªtes concrÃ¨tes et filmables : Â« sujet_action_contexte Â», objets prÃ©cis, lieux identifiables.
+- FenÃªtres visuelles recommandÃ©es : 3â€“6 secondes. Format vertical.
+- Si la langue de la transcription nâ€™est pas lâ€™anglais, produis les requÃªtes en langue dâ€™origine + anglais.
 
-RÉPONDS UNIQUEMENT EN JSON:
+RÃ‰PONDS UNIQUEMENT EN JSON:
 {{
   "detected_domains": [{{"name": "...", "confidence": 0.0}}],
-  "language": "fr|en|…",
+  "language": "fr|en|â€¦",
   "keywords": ["..."],
   "synonyms": {{ "keyword": ["variante1","variante2"] }},
   "search_queries": ["..."],
   "segment_briefs": [
     {{"segment_index": 0, "window_s": 4, "keywords": ["..."], "queries": ["..."]}}
   ],
-  "notes": "pièges, anti-termes, risques"
+  "notes": "piÃ¨ges, anti-termes, risques"
 }}
 
-TRANSCRIPT (tronqué à 1500–2000 caractères):
+TRANSCRIPT (tronquÃ© Ã  1500â€“2000 caractÃ¨res):
 {tx}
 """
 
@@ -4473,6 +4474,7 @@ def generate_metadata_as_json(
     _remember_last_metadata(queries, broll_keywords)
 
     return result
+
 
 
 

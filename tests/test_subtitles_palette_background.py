@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import numpy as np
 
 from hormozi_subtitles import HormoziSubtitles
@@ -61,3 +62,4 @@ def test_palette_covers_primary_categories():
     for category in required:
         assert category in proc.category_colors
         assert proc.category_colors[category] != '#FFFFFF'
+

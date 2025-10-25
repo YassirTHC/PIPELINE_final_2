@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import json
 import types
 
@@ -64,3 +65,4 @@ def test_metadata_json_ranges_kept(monkeypatch):
     assert set(result["broll_keywords"]) == set(llm_json["broll_keywords"])
     assert len(result["queries"]) == len(llm_json["queries"])
     assert set(result["queries"]) == set(llm_json["queries"])
+

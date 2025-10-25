@@ -1,4 +1,5 @@
-﻿#!/usr/bin/env python3
+﻿# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 """Aggregate pipeline bench results and recommend the strongest Ollama configuration."""
 
 from __future__ import annotations
@@ -363,3 +364,4 @@ def main() -> int:
 
 if __name__ == '__main__':
     sys.exit(main())
+

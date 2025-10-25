@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import pytest
 
 from pipeline_core.configuration import FetcherOrchestratorConfig, ProviderConfig
@@ -50,3 +51,4 @@ def test_cross_provider_dedup_respects_cap(orchestrator):
     snapshot = orchestrator.get_runtime_snapshot()
     provider_states = snapshot.get('provider_states', {})
     assert any(state['reuse_dropped'] >= 1 for state in provider_states.values())
+

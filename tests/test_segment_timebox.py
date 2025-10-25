@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import time as _time
 
 def test_segment_timebox_run_with_timeout_limits_duration():
@@ -14,4 +15,5 @@ def test_segment_timebox_run_with_timeout_limits_duration():
     # Expect None due to timeout and elapsed under ~2 seconds
     assert res is None
     assert elapsed < 2000
+
 

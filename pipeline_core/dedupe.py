@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Deduplication helpers (URL + perceptual hash)."""
 from __future__ import annotations
 
@@ -99,3 +100,4 @@ def compute_phash(preview_or_stream, media_url: Optional[str] = None, timeout_s:
         return _phash_from_image(img)
     except Exception:
         return None
+

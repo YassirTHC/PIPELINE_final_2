@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import json
 import logging
 from pathlib import Path
@@ -242,8 +243,8 @@ def test_tfidf_fallback_scene_prompts_and_accent_normalisation():
 
     service = FallbackOnly(reuse_shared=False)
     transcript = (
-        "Objectif et focus sur la réussite de l'équipe marketing. "
-        "Ils écrivent des objectifs clairs dans un cahier."
+        "Objectif et focus sur la rÃ©ussite de l'Ã©quipe marketing. "
+        "Ils Ã©crivent des objectifs clairs dans un cahier."
     )
     with pytest.raises(DynamicCompletionError) as excinfo:
         service.generate_dynamic_context(transcript)
@@ -283,27 +284,27 @@ def test_force_english_terms_when_language_en():
     payload = json.dumps(
         {
             "language": "en",
-            "keywords": ["récompense", "durée"],
-            "search_queries": ["plan de récompense", "augmentation de durée"],
+            "keywords": ["rÃ©compense", "durÃ©e"],
+            "search_queries": ["plan de rÃ©compense", "augmentation de durÃ©e"],
         }
     )
     service = DummyService([payload, payload, payload])
     result = service.generate_dynamic_context("Une transcription en anglais implicite")
     assert "reward" in result["keywords"]
     assert "duration" in result["keywords"]
-    assert all("récompense" not in q and "durée" not in q for q in result["search_queries"])
+    assert all("rÃ©compense" not in q and "durÃ©e" not in q for q in result["search_queries"])
 
 
 def test_force_english_terms_handles_accented_sequences():
     payload = json.dumps(
         {
             "language": "en",
-            "keywords": ["adrénaline récompense contrôle"],
-            "search_queries": ["adrénaline récompense contrôle processus"],
+            "keywords": ["adrÃ©naline rÃ©compense contrÃ´le"],
+            "search_queries": ["adrÃ©naline rÃ©compense contrÃ´le processus"],
         }
     )
     service = DummyService([payload, payload, payload])
-    result = service.generate_dynamic_context("Adrénaline récompense contrôle")
+    result = service.generate_dynamic_context("AdrÃ©naline rÃ©compense contrÃ´le")
     assert result["keywords"] == ["adrenaline reward control"]
     assert result["search_queries"] == ["adrenaline reward control process"]
 
@@ -380,3 +381,4 @@ def test_readiness_log_includes_chosen_models(monkeypatch, tmp_path, caplog):
 
     assert readiness_log["chosen_text_model"] == "alt-text"
     assert readiness_log["chosen_json_model"] == "json-variant"
+

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import logging
 from pathlib import Path
 
@@ -27,3 +28,4 @@ def test_font_resolution_prefers_montserrat(monkeypatch, caplog):
     resolved_path = subtitles.get_font_path()
     assert resolved_path is not None
     assert "montserrat" in Path(resolved_path).name.lower()
+

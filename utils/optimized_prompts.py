@@ -1,31 +1,31 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🎯 PROMPTS OPTIMISÉS POUR GEMMA3:4B
-Prompts concis et directifs adaptés au modèle léger
+ðŸŽ¯ PROMPTS OPTIMISÃ‰S POUR GEMMA3:4B
+Prompts concis et directifs adaptÃ©s au modÃ¨le lÃ©ger
 """
 
 class OptimizedPrompts:
-    """Prompts optimisés pour gemma3:4b"""
+    """Prompts optimisÃ©s pour gemma3:4b"""
     
     @staticmethod
     def generate_keywords_prompt(transcript: str, max_keywords: int = 15) -> str:
         """
-        Prompt optimisé pour la génération de mots-clés
+        Prompt optimisÃ© pour la gÃ©nÃ©ration de mots-clÃ©s
         
         Args:
             transcript: Transcription du texte
-            max_keywords: Nombre maximum de mots-clés
+            max_keywords: Nombre maximum de mots-clÃ©s
             
         Returns:
-            Prompt optimisé
+            Prompt optimisÃ©
         """
         
         # Prompt ultra-concis et directif
         prompt = f"""Generate {max_keywords} filmable keywords from this transcript.
 Output ONLY valid JSON: {{"keywords":["k1","k2","k3"]}}
 
-Transcript: {transcript[:500]}  # Limité à 500 caractères
+Transcript: {transcript[:500]}  # LimitÃ© Ã  500 caractÃ¨res
 
 JSON:"""
         
@@ -34,19 +34,19 @@ JSON:"""
     @staticmethod
     def generate_title_hashtags_prompt(transcript: str) -> str:
         """
-        Prompt optimisé pour titre + hashtags
+        Prompt optimisÃ© pour titre + hashtags
         
         Args:
             transcript: Transcription du texte
             
         Returns:
-            Prompt optimisé
+            Prompt optimisÃ©
         """
         
         prompt = f"""Generate title and hashtags from transcript.
 Output ONLY valid JSON: {{"title":"Title","hashtags":["#tag1","#tag2"]}}
 
-Transcript: {transcript[:300]}  # Limité à 300 caractères
+Transcript: {transcript[:300]}  # LimitÃ© Ã  300 caractÃ¨res
 
 JSON:"""
         
@@ -55,19 +55,19 @@ JSON:"""
     @staticmethod
     def generate_content_summary_prompt(transcript: str) -> str:
         """
-        Prompt optimisé pour résumé de contenu
+        Prompt optimisÃ© pour rÃ©sumÃ© de contenu
         
         Args:
             transcript: Transcription du texte
             
         Returns:
-            Prompt optimisé
+            Prompt optimisÃ©
         """
         
         prompt = f"""Summarize this content in 2-3 sentences.
 Output ONLY valid JSON: {{"summary":"text"}}
 
-Content: {transcript[:400]}  # Limité à 400 caractères
+Content: {transcript[:400]}  # LimitÃ© Ã  400 caractÃ¨res
 
 JSON:"""
         
@@ -76,18 +76,18 @@ JSON:"""
     @staticmethod
     def get_model_parameters() -> dict:
         """
-        Paramètres optimisés pour gemma3:4b
+        ParamÃ¨tres optimisÃ©s pour gemma3:4b
         
         Returns:
-            Dict des paramètres
+            Dict des paramÃ¨tres
         """
         
         return {
-            "temperature": 0.3,        # Modéré pour la cohérence
-            "max_tokens": 2000,        # Limité pour éviter le markdown
-            "top_p": 0.9,             # Diversité contrôlée
+            "temperature": 0.3,        # ModÃ©rÃ© pour la cohÃ©rence
+            "max_tokens": 2000,        # LimitÃ© pour Ã©viter le markdown
+            "top_p": 0.9,             # DiversitÃ© contrÃ´lÃ©e
             "top_k": 40,              # Limite les choix
-            "repeat_penalty": 1.1,    # Évite la répétition
+            "repeat_penalty": 1.1,    # Ã‰vite la rÃ©pÃ©tition
             "stream": False            # Pas de streaming
         }
     

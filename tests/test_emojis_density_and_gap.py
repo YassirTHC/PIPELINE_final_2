@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from hormozi_subtitles import HormoziSubtitles
 
 
@@ -79,3 +80,4 @@ def test_density_and_gap_are_respected_across_segments():
     for _, emoji in placements1 + placements2:
         assert emoji not in recent[-window:]
         recent.append(emoji)
+

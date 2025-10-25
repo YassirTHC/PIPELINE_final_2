@@ -1,5 +1,6 @@
-# 🚀 SYSTÈME LLM INTÉGRÉ COMPLET - PROMPTS MINIMALISTES + SPÉCIALISATION PIPELINE
-# Architecture basée sur l'analyse brillante de l'utilisateur
+﻿# -*- coding: utf-8 -*-
+# ðŸš€ SYSTÃˆME LLM INTÃ‰GRÃ‰ COMPLET - PROMPTS MINIMALISTES + SPÃ‰CIALISATION PIPELINE
+# Architecture basÃ©e sur l'analyse brillante de l'utilisateur
 
 import logging
 from typing import Dict, List, Optional, Tuple, Any
@@ -20,19 +21,19 @@ logger = logging.getLogger(__name__)
 
 class IntegratedLLMSystem:
     """
-    Système LLM intégré complet :
-    - Prompts minimalistes génériques
-    - Spécialisation intelligente via pipeline
-    - Génération de métadonnées complètes
+    SystÃ¨me LLM intÃ©grÃ© complet :
+    - Prompts minimalistes gÃ©nÃ©riques
+    - SpÃ©cialisation intelligente via pipeline
+    - GÃ©nÃ©ration de mÃ©tadonnÃ©es complÃ¨tes
     """
     
     def __init__(self, base_url: str = None, model: str = None):
         self.llm = create_optimized_llm(base_url, model)
-        logger.info(f"🚀 Système LLM intégré initialisé avec {self.llm.model}")
+        logger.info(f"ðŸš€ SystÃ¨me LLM intÃ©grÃ© initialisÃ© avec {self.llm.model}")
     
     def generate_complete_metadata(self, transcript: str, platform: str = 'tiktok') -> Tuple[bool, Dict[str, Any]]:
         """
-        Génération complète de métadonnées avec spécialisation via pipeline
+        GÃ©nÃ©ration complÃ¨te de mÃ©tadonnÃ©es avec spÃ©cialisation via pipeline
         
         Args:
             transcript: Transcription du contenu
@@ -41,33 +42,33 @@ class IntegratedLLMSystem:
         Returns:
             (success, metadata_dict)
         """
-        logger.info("🎯 Démarrage génération métadonnées complètes...")
+        logger.info("ðŸŽ¯ DÃ©marrage gÃ©nÃ©ration mÃ©tadonnÃ©es complÃ¨tes...")
         
-        # 1. Analyse de la complexité du contenu
+        # 1. Analyse de la complexitÃ© du contenu
         complexity_analysis = analyze_content_complexity(transcript)
         recommended_keywords = complexity_analysis['recommended_keywords']
         
-        logger.info(f"📊 Complexité détectée: {complexity_analysis['complexity_level']}")
-        logger.info(f"🎯 Mots-clés recommandés: {recommended_keywords}")
+        logger.info(f"ðŸ“Š ComplexitÃ© dÃ©tectÃ©e: {complexity_analysis['complexity_level']}")
+        logger.info(f"ðŸŽ¯ Mots-clÃ©s recommandÃ©s: {recommended_keywords}")
         
-        # 2. Génération des métadonnées de base avec prompt minimaliste
-        logger.info("🤖 Génération métadonnées de base avec LLM...")
+        # 2. GÃ©nÃ©ration des mÃ©tadonnÃ©es de base avec prompt minimaliste
+        logger.info("ðŸ¤– GÃ©nÃ©ration mÃ©tadonnÃ©es de base avec LLM...")
         success, base_metadata = self.llm.generate_complete_metadata(transcript)
         
         if not success:
-            logger.error("❌ Échec génération métadonnées de base")
+            logger.error("âŒ Ã‰chec gÃ©nÃ©ration mÃ©tadonnÃ©es de base")
             return False, {}
         
-        # 3. Détection automatique du domaine
-        logger.info("🎯 Détection automatique du domaine...")
+        # 3. DÃ©tection automatique du domaine
+        logger.info("ðŸŽ¯ DÃ©tection automatique du domaine...")
         domain, confidence = detect_content_domain(transcript)
         
-        # 4. Enrichissement avec la spécialisation du domaine
-        logger.info(f"🚀 Enrichissement pour le domaine: {domain} (confiance: {confidence:.2f})")
+        # 4. Enrichissement avec la spÃ©cialisation du domaine
+        logger.info(f"ðŸš€ Enrichissement pour le domaine: {domain} (confiance: {confidence:.2f})")
         enhanced_metadata = enhance_metadata_with_domain(base_metadata, transcript)
         
         # 5. Optimisation pour la plateforme cible
-        logger.info(f"🎯 Optimisation pour {platform}...")
+        logger.info(f"ðŸŽ¯ Optimisation pour {platform}...")
         final_metadata = optimize_for_platform(enhanced_metadata, platform)
         
         # 6. Ajout des informations d'analyse
@@ -80,49 +81,49 @@ class IntegratedLLMSystem:
             'generation_method': 'minimalist_prompt + pipeline_specialization'
         }
         
-        logger.info("✅ Génération métadonnées complètes terminée avec succès")
+        logger.info("âœ… GÃ©nÃ©ration mÃ©tadonnÃ©es complÃ¨tes terminÃ©e avec succÃ¨s")
         return True, final_metadata
     
     def generate_keywords_only(self, transcript: str) -> Tuple[bool, List[str]]:
         """
-        Génération de mots-clés uniquement avec spécialisation via pipeline
+        GÃ©nÃ©ration de mots-clÃ©s uniquement avec spÃ©cialisation via pipeline
         """
-        logger.info("🎯 Génération mots-clés avec spécialisation pipeline...")
+        logger.info("ðŸŽ¯ GÃ©nÃ©ration mots-clÃ©s avec spÃ©cialisation pipeline...")
         
-        # 1. Analyse de la complexité
+        # 1. Analyse de la complexitÃ©
         complexity_analysis = analyze_content_complexity(transcript)
         recommended_count = complexity_analysis['recommended_keywords']
         
-        # 2. Génération de base avec prompt minimaliste
+        # 2. GÃ©nÃ©ration de base avec prompt minimaliste
         success, keywords = self.llm.generate_keywords(transcript, recommended_count)
         
         if not success:
-            logger.error("❌ Échec génération mots-clés de base")
+            logger.error("âŒ Ã‰chec gÃ©nÃ©ration mots-clÃ©s de base")
             return False, []
         
         # 3. Enrichissement via pipeline
         domain, confidence = detect_content_domain(transcript)
         
-        # Créer un dictionnaire temporaire pour l'enrichissement
+        # CrÃ©er un dictionnaire temporaire pour l'enrichissement
         temp_metadata = {'keywords': keywords}
         enhanced_metadata = enhance_metadata_with_domain(temp_metadata, transcript)
         
         final_keywords = enhanced_metadata['keywords']
         
-        logger.info(f"✅ {len(final_keywords)} mots-clés générés avec spécialisation {domain}")
+        logger.info(f"âœ… {len(final_keywords)} mots-clÃ©s gÃ©nÃ©rÃ©s avec spÃ©cialisation {domain}")
         return True, final_keywords
     
     def generate_title_hashtags_only(self, transcript: str, platform: str = 'tiktok') -> Tuple[bool, Dict[str, Any]]:
         """
-        Génération titre + hashtags uniquement avec spécialisation via pipeline
+        GÃ©nÃ©ration titre + hashtags uniquement avec spÃ©cialisation via pipeline
         """
-        logger.info("🎯 Génération titre + hashtags avec spécialisation pipeline...")
+        logger.info("ðŸŽ¯ GÃ©nÃ©ration titre + hashtags avec spÃ©cialisation pipeline...")
         
-        # 1. Génération de base avec prompt minimaliste
+        # 1. GÃ©nÃ©ration de base avec prompt minimaliste
         success, base_metadata = self.llm.generate_title_hashtags(transcript)
         
         if not success:
-            logger.error("❌ Échec génération titre + hashtags de base")
+            logger.error("âŒ Ã‰chec gÃ©nÃ©ration titre + hashtags de base")
             return False, {}
         
         # 2. Enrichissement via pipeline
@@ -142,33 +143,33 @@ class IntegratedLLMSystem:
             'generation_method': 'minimalist_prompt + pipeline_specialization'
         }
         
-        logger.info(f"✅ Titre et {len(final_metadata['hashtags'])} hashtags générés avec spécialisation {domain}")
+        logger.info(f"âœ… Titre et {len(final_metadata['hashtags'])} hashtags gÃ©nÃ©rÃ©s avec spÃ©cialisation {domain}")
         return True, final_metadata
     
     def batch_generate_metadata(self, transcripts: List[str], platform: str = 'tiktok') -> List[Tuple[bool, Dict[str, Any]]]:
         """
-        Génération en lot de métadonnées pour plusieurs transcripts
+        GÃ©nÃ©ration en lot de mÃ©tadonnÃ©es pour plusieurs transcripts
         """
-        logger.info(f"🚀 Génération en lot pour {len(transcripts)} transcripts...")
+        logger.info(f"ðŸš€ GÃ©nÃ©ration en lot pour {len(transcripts)} transcripts...")
         
         results = []
         for i, transcript in enumerate(transcripts):
-            logger.info(f"📝 Traitement transcript {i+1}/{len(transcripts)}...")
+            logger.info(f"ðŸ“ Traitement transcript {i+1}/{len(transcripts)}...")
             
             success, metadata = self.generate_complete_metadata(transcript, platform)
             results.append((success, metadata))
             
             if success:
-                logger.info(f"✅ Transcript {i+1} traité avec succès")
+                logger.info(f"âœ… Transcript {i+1} traitÃ© avec succÃ¨s")
             else:
-                logger.warning(f"⚠️ Transcript {i+1} en échec")
+                logger.warning(f"âš ï¸ Transcript {i+1} en Ã©chec")
         
-        logger.info(f"🎯 Traitement en lot terminé: {sum(1 for s, _ in results if s)}/{len(transcripts)} succès")
+        logger.info(f"ðŸŽ¯ Traitement en lot terminÃ©: {sum(1 for s, _ in results if s)}/{len(transcripts)} succÃ¨s")
         return results
     
     def health_check(self) -> bool:
         """
-        Vérification de la santé du système
+        VÃ©rification de la santÃ© du systÃ¨me
         """
         try:
             # Test simple avec un transcript court
@@ -176,22 +177,22 @@ class IntegratedLLMSystem:
             success, _ = self.llm.generate_keywords(test_transcript, 3)
             return success
         except Exception as e:
-            logger.error(f"❌ Échec health check: {e}")
+            logger.error(f"âŒ Ã‰chec health check: {e}")
             return False
 
-# === FONCTIONS UTILITAIRES POUR INTÉGRATION DIRECTE ===
+# === FONCTIONS UTILITAIRES POUR INTÃ‰GRATION DIRECTE ===
 
 def create_integrated_system(base_url: str = None, model: str = None) -> IntegratedLLMSystem:
-    """Factory pour créer le système intégré"""
+    """Factory pour crÃ©er le systÃ¨me intÃ©grÃ©"""
     return IntegratedLLMSystem(base_url, model)
 
 def generate_metadata_complete(transcript: str, platform: str = 'tiktok') -> Tuple[bool, Dict[str, Any]]:
-    """Fonction utilitaire pour génération complète"""
+    """Fonction utilitaire pour gÃ©nÃ©ration complÃ¨te"""
     system = create_integrated_system()
     return system.generate_complete_metadata(transcript, platform)
 
 def generate_keywords_enhanced(transcript: str) -> Tuple[bool, List[str]]:
-    """Fonction utilitaire pour mots-clés enrichis"""
+    """Fonction utilitaire pour mots-clÃ©s enrichis"""
     system = create_integrated_system()
     return system.generate_keywords_only(transcript)
 
@@ -200,17 +201,17 @@ def generate_title_hashtags_enhanced(transcript: str, platform: str = 'tiktok') 
     system = create_integrated_system()
     return system.generate_title_hashtags_only(transcript, platform)
 
-# === TEST COMPLET DU SYSTÈME ===
+# === TEST COMPLET DU SYSTÃˆME ===
 
 if __name__ == "__main__":
-    print("🚀 Test complet du système LLM intégré...")
+    print("ðŸš€ Test complet du systÃ¨me LLM intÃ©grÃ©...")
     
-    # Test avec différents types de contenu
+    # Test avec diffÃ©rents types de contenu
     test_cases = [
         {
             'transcript': "EMDR therapy utilizes bilateral stimulation to process traumatic memories. The therapist guides the patient through eye movements while recalling distressing events.",
             'expected_domain': 'medical_psychology',
-            'description': 'Contenu médical/psychologique'
+            'description': 'Contenu mÃ©dical/psychologique'
         },
         {
             'transcript': "Start your own business and become a successful entrepreneur. Learn the strategies that top performers use to grow their companies and increase revenue.",
@@ -228,52 +229,52 @@ if __name__ == "__main__":
     
     for i, test_case in enumerate(test_cases):
         print(f"\n{'='*60}")
-        print(f"🧪 TEST {i+1}: {test_case['description']}")
+        print(f"ðŸ§ª TEST {i+1}: {test_case['description']}")
         print(f"{'='*60}")
         
         transcript = test_case['transcript']
         expected_domain = test_case['expected_domain']
         
-        print(f"📝 Transcript: {transcript[:80]}...")
-        print(f"🎯 Domaine attendu: {expected_domain}")
+        print(f"ðŸ“ Transcript: {transcript[:80]}...")
+        print(f"ðŸŽ¯ Domaine attendu: {expected_domain}")
         
-        # Test 1: Mots-clés uniquement
-        print(f"\n🎯 Test 1: Génération mots-clés...")
+        # Test 1: Mots-clÃ©s uniquement
+        print(f"\nðŸŽ¯ Test 1: GÃ©nÃ©ration mots-clÃ©s...")
         success, keywords = system.generate_keywords_only(transcript)
         if success:
-            print(f"✅ Mots-clés générés ({len(keywords)}): {keywords[:5]}...")
+            print(f"âœ… Mots-clÃ©s gÃ©nÃ©rÃ©s ({len(keywords)}): {keywords[:5]}...")
         else:
-            print("❌ Échec génération mots-clés")
+            print("âŒ Ã‰chec gÃ©nÃ©ration mots-clÃ©s")
         
         # Test 2: Titre + hashtags
-        print(f"\n🎯 Test 2: Génération titre + hashtags...")
+        print(f"\nðŸŽ¯ Test 2: GÃ©nÃ©ration titre + hashtags...")
         success, title_data = system.generate_title_hashtags_only(transcript, 'tiktok')
         if success:
-            print(f"✅ Titre: {title_data['title']}")
-            print(f"✅ Hashtags ({len(title_data['hashtags'])}): {title_data['hashtags'][:5]}...")
+            print(f"âœ… Titre: {title_data['title']}")
+            print(f"âœ… Hashtags ({len(title_data['hashtags'])}): {title_data['hashtags'][:5]}...")
         else:
-            print("❌ Échec génération titre + hashtags")
+            print("âŒ Ã‰chec gÃ©nÃ©ration titre + hashtags")
         
-        # Test 3: Métadonnées complètes
-        print(f"\n🎯 Test 3: Génération métadonnées complètes...")
+        # Test 3: MÃ©tadonnÃ©es complÃ¨tes
+        print(f"\nðŸŽ¯ Test 3: GÃ©nÃ©ration mÃ©tadonnÃ©es complÃ¨tes...")
         success, complete_metadata = system.generate_complete_metadata(transcript, 'tiktok')
         if success:
-            print(f"✅ Titre: {complete_metadata['title']}")
-            print(f"✅ Description: {complete_metadata['description'][:50]}...")
-            print(f"✅ Mots-clés: {len(complete_metadata['keywords'])}")
-            print(f"✅ Hashtags: {len(complete_metadata['hashtags'])}")
-            print(f"🎯 Domaine détecté: {complete_metadata['analysis']['domain_detection']['domain']}")
-            print(f"📊 Complexité: {complete_metadata['analysis']['complexity']['complexity_level']}")
+            print(f"âœ… Titre: {complete_metadata['title']}")
+            print(f"âœ… Description: {complete_metadata['description'][:50]}...")
+            print(f"âœ… Mots-clÃ©s: {len(complete_metadata['keywords'])}")
+            print(f"âœ… Hashtags: {len(complete_metadata['hashtags'])}")
+            print(f"ðŸŽ¯ Domaine dÃ©tectÃ©: {complete_metadata['analysis']['domain_detection']['domain']}")
+            print(f"ðŸ“Š ComplexitÃ©: {complete_metadata['analysis']['complexity']['complexity_level']}")
         else:
-            print("❌ Échec génération métadonnées complètes")
+            print("âŒ Ã‰chec gÃ©nÃ©ration mÃ©tadonnÃ©es complÃ¨tes")
     
-    # Test de santé
+    # Test de santÃ©
     print(f"\n{'='*60}")
-    print("🏥 Test de santé du système...")
+    print("ðŸ¥ Test de santÃ© du systÃ¨me...")
     health_ok = system.health_check()
     if health_ok:
-        print("✅ Système en bonne santé")
+        print("âœ… SystÃ¨me en bonne santÃ©")
     else:
-        print("❌ Problème de santé détecté")
+        print("âŒ ProblÃ¨me de santÃ© dÃ©tectÃ©")
     
-    print(f"\n🚀 Test complet terminé !") 
+    print(f"\nðŸš€ Test complet terminÃ© !") 

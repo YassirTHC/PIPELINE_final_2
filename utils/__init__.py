@@ -1,11 +1,12 @@
-# Package utils pour le pipeline vidéo 
+﻿# -*- coding: utf-8 -*-
+# Package utils pour le pipeline vidÃ©o 
 
-# 🧠 Modules LLM intelligents
+# ðŸ§  Modules LLM intelligents
 from .llm_broll_generator import LLMBrollGenerator
 from .llm_metadata_generator import LLMMetadataGenerator
 from .llm_intelligent_pipeline import LLMIntelligentPipeline, create_llm_intelligent_pipeline
 
-# 📊 Utilitaires
+# ðŸ“Š Utilitaires
 from .hash_media import hash_media
 
 __all__ = [

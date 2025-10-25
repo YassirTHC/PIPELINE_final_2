@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from pathlib import Path
 
 import numpy as np
@@ -66,3 +67,4 @@ def test_subtitles_fit_and_stroke(monkeypatch):
         & (output[:, :, 2] < 25)
     ).sum()
     assert dark_pixels > 0
+

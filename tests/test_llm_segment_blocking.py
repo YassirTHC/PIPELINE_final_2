@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import os
 
 import pipeline_core.llm_service as llm_module
@@ -28,3 +29,4 @@ def test_llm_segment_blocking(monkeypatch):
     path_mode, path_reason = llm_module._current_llm_path()
     assert path_mode == "segment_blocking"
     assert path_reason == "flag_disable"
+

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from tests.factories import plan_from_tuples
@@ -27,3 +28,4 @@ def test_broll_no_repeat_window():
         "asset:loop",
     ]
     assert kept[1].start_s - kept[0].start_s >= 6.0
+

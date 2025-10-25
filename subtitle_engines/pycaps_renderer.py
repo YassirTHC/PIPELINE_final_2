@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Local kinetic caption renderer used by the PyCaps engine.
 
 This module provides a small renderer inspired by the public PyCaps project in
@@ -18,9 +19,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 # Import MoviePy depuis l'API stable
 try:
     from moviepy.editor import ColorClip, CompositeVideoClip, TextClip, VideoFileClip
-except Exception:  # compat éventuelle avec environnements atypiques
-    # Dégradé minimal : certains environnements n’exposent pas TextClip si ImageMagick n’est pas configuré.
-    # On importe au moins ce dont on a besoin pour PyCaps; TextClip sera importé à l’usage si nécessaire.
+except Exception:  # compat Ã©ventuelle avec environnements atypiques
+    # DÃ©gradÃ© minimal : certains environnements nâ€™exposent pas TextClip si ImageMagick nâ€™est pas configurÃ©.
+    # On importe au moins ce dont on a besoin pour PyCaps; TextClip sera importÃ© Ã  lâ€™usage si nÃ©cessaire.
     from moviepy.editor import ColorClip, CompositeVideoClip, VideoFileClip
     try:
         from moviepy.editor import TextClip  # lazy compat : ne crashe pas si indisponible
@@ -636,3 +637,4 @@ def render_subtitles_over_video(
 
 
 __all__ = ["CaptionStyle", "render_subtitles_over_video", "THEME_PRESETS"]
+

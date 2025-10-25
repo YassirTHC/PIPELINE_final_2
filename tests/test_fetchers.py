@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import pytest
 
 from pipeline_core.configuration import FetcherOrchestratorConfig, ProviderConfig
@@ -115,3 +116,4 @@ def test_video_providers_allowed_when_images_disabled(monkeypatch, provider_name
 
     assert results == []
     assert provider_calls == [(provider_name, "demo")]
+

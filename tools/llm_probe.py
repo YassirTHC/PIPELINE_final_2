@@ -1,4 +1,5 @@
-﻿#!/usr/bin/env python3
+﻿# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 """Utility to probe Ollama models for JSON strict and text generation behaviour."""
 
 from __future__ import annotations
@@ -340,3 +341,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == '__main__':
     sys.exit(main())
+

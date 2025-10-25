@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from collections import Counter
 from types import SimpleNamespace, ModuleType
 from pathlib import Path
@@ -293,3 +294,4 @@ def test_fallback_selects_candidate_when_min_score_too_high():
     selected = decision_events[0]
     assert selected.get("selected_url") == "https://cdn/fallback.mp4"
     assert selected.get("reject_reasons", {}).get("fallback_low_score") == 1
+

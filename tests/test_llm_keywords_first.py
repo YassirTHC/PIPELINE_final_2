@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import importlib.machinery
 import json
 import logging
@@ -177,7 +178,7 @@ def test_keywords_first_failure_falls_back_to_rich_prompt(monkeypatch):
 
     fallback_payload = {
         "title": "Viral Discipline Hack",
-        "description": "Reward your grind with mini wins ✨ Keep momentum high!",
+        "description": "Reward your grind with mini wins âœ¨ Keep momentum high!",
         "hashtags": [
             "#motivation",
             "#discipline",
@@ -568,4 +569,5 @@ def test_segment_processing_uses_hint_queries_and_logs_candidate_event(monkeypat
     assert any("[BROLL][LLM] segment=0.00-4.00" in line for line in log_lines), "expected LLM hint log"
     assert any("marketing analytics dashboard" in line for line in log_lines)
     assert any("source=llm_segment" in line for line in log_lines)
+
 

@@ -1,4 +1,5 @@
-﻿from types import SimpleNamespace
+﻿# -*- coding: utf-8 -*-
+from types import SimpleNamespace
 
 from pipeline_core.llm_service import LLMMetadataGeneratorService
 
@@ -23,3 +24,4 @@ def test_llm_single_init(monkeypatch):
     assert a is not None and b is not None
     assert calls["init"] == 1
     assert a._get_integration() is b._get_integration()
+

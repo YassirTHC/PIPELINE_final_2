@@ -1,5 +1,6 @@
-# 🚀 GÉNÉRATEUR B-ROLL INTELLIGENT AVEC LLM DIRECT
-# Utilise directement le LLM pour une vraie compréhension contextuelle
+﻿# -*- coding: utf-8 -*-
+# ðŸš€ GÃ‰NÃ‰RATEUR B-ROLL INTELLIGENT AVEC LLM DIRECT
+# Utilise directement le LLM pour une vraie comprÃ©hension contextuelle
 
 import json
 import logging
@@ -10,14 +11,14 @@ import requests
 logger = logging.getLogger(__name__)
 
 class LLMBrollGenerator:
-    """Générateur B-roll intelligent utilisant directement le LLM local"""
+    """GÃ©nÃ©rateur B-roll intelligent utilisant directement le LLM local"""
     
     def __init__(self, model: str = "gemma3:4b", timeout: int = 120):
         self.model = model
         self.timeout = timeout
         self.api_url = "http://localhost:11434/api/generate"
         
-        # 🧠 PROMPT SYSTÈME OPTIMISÉ pour B-roll parfait
+        # ðŸ§  PROMPT SYSTÃˆME OPTIMISÃ‰ pour B-roll parfait
         self.system_prompt = """Generate 8-12 B-roll search keywords optimized for stock footage platforms.
 
 CRITICAL REQUIREMENTS:
@@ -38,7 +39,7 @@ OUTPUT: JSON only with exact format:
 
 Transcript:"""
         
-        # 🚀 PROMPT CONTEXTUEL INTELLIGENT pour modèles 4B
+        # ðŸš€ PROMPT CONTEXTUEL INTELLIGENT pour modÃ¨les 4B
         self.fast_prompt = """Analyze this transcript and generate B-roll keywords that VISUALLY REPRESENT the specific content.
 
 REQUIREMENTS:
@@ -48,34 +49,34 @@ REQUIREMENTS:
 - Each keyword must be searchable on stock footage platforms
 
 EXAMPLES:
-- Transcript: "brain focus, sleep deprivation" → ["person sleeping", "brain scan", "tired person"]
-- Transcript: "panoramic vision, space time" → ["wide landscape view", "time concept", "spatial awareness"]
+- Transcript: "brain focus, sleep deprivation" â†’ ["person sleeping", "brain scan", "tired person"]
+- Transcript: "panoramic vision, space time" â†’ ["wide landscape view", "time concept", "spatial awareness"]
 
 OUTPUT: {"keywords": ["keyword1", "keyword2", "keyword3"]}
 
 Transcript:"""
 
     def generate_broll_keywords(self, transcript: str) -> Dict[str, Any]:
-        """Génère des mots-clés B-roll intelligents avec le LLM"""
+        """GÃ©nÃ¨re des mots-clÃ©s B-roll intelligents avec le LLM"""
         
         try:
-            # 🧠 Choix du prompt selon le modèle
+            # ðŸ§  Choix du prompt selon le modÃ¨le
             if self.model in ["gemma3:4b", "qwen3:4b"]:
-                # Modèles 4B = prompt ultra-optimisé
+                # ModÃ¨les 4B = prompt ultra-optimisÃ©
                 full_prompt = self.fast_prompt + transcript
-                print(f"🧠 [LLM] Prompt ULTRA-OPTIMISÉ pour {self.model}")
+                print(f"ðŸ§  [LLM] Prompt ULTRA-OPTIMISÃ‰ pour {self.model}")
             else:
-                # Modèles plus puissants = prompt complet optimisé
+                # ModÃ¨les plus puissants = prompt complet optimisÃ©
                 full_prompt = self.system_prompt + transcript
-                print(f"🧠 [LLM] Prompt COMPLET OPTIMISÉ pour {self.model}")
+                print(f"ðŸ§  [LLM] Prompt COMPLET OPTIMISÃ‰ pour {self.model}")
             
-            print(f"🧠 [LLM] Génération B-roll intelligente pour {len(transcript)} caractères")
-            print(f"🎯 Modèle: {self.model}")
-            print(f"📝 Taille prompt: {len(full_prompt)} caractères")
+            print(f"ðŸ§  [LLM] GÃ©nÃ©ration B-roll intelligente pour {len(transcript)} caractÃ¨res")
+            print(f"ðŸŽ¯ ModÃ¨le: {self.model}")
+            print(f"ðŸ“ Taille prompt: {len(full_prompt)} caractÃ¨res")
             
             start_time = time.time()
             
-            # 🚀 Appel direct au LLM avec timeout adaptatif
+            # ðŸš€ Appel direct au LLM avec timeout adaptatif
             timeout = min(self.timeout, 60 if self.model in ["gemma3:4b", "qwen3:4b"] else 120)
             
             response = requests.post(
@@ -95,12 +96,12 @@ Transcript:"""
                 result = response.json()
                 llm_response = result.get('response', '').strip()
                 
-                print(f"✅ [LLM] Réponse reçue en {duration:.1f}s")
-                print(f"📝 Taille réponse: {len(llm_response)} caractères")
+                print(f"âœ… [LLM] RÃ©ponse reÃ§ue en {duration:.1f}s")
+                print(f"ðŸ“ Taille rÃ©ponse: {len(llm_response)} caractÃ¨res")
                 
-                # 🔍 Extraction et validation JSON
+                # ðŸ” Extraction et validation JSON
                 try:
-                    # Nettoyer la réponse (enlever markdown, etc.)
+                    # Nettoyer la rÃ©ponse (enlever markdown, etc.)
                     cleaned_response = self._clean_llm_response(llm_response)
                     
                     # Parser le JSON
@@ -109,11 +110,11 @@ Transcript:"""
                     if 'keywords' in parsed_data and isinstance(parsed_data['keywords'], list):
                         keywords = parsed_data['keywords']
                         
-                        # Validation des mots-clés
+                        # Validation des mots-clÃ©s
                         validated_keywords = self._validate_keywords(keywords)
                         
-                        print(f"🎯 [LLM] {len(validated_keywords)} mots-clés B-roll générés")
-                        print(f"🔍 Exemples: {', '.join(validated_keywords[:3])}...")
+                        print(f"ðŸŽ¯ [LLM] {len(validated_keywords)} mots-clÃ©s B-roll gÃ©nÃ©rÃ©s")
+                        print(f"ðŸ” Exemples: {', '.join(validated_keywords[:3])}...")
                         
                         return {
                             'success': True,
@@ -126,26 +127,26 @@ Transcript:"""
                         raise ValueError("Format JSON invalide: 'keywords' manquant")
                         
                 except json.JSONDecodeError as e:
-                    print(f"❌ [LLM] Erreur parsing JSON: {e}")
-                    print(f"📝 Réponse brute: {llm_response[:200]}...")
+                    print(f"âŒ [LLM] Erreur parsing JSON: {e}")
+                    print(f"ðŸ“ RÃ©ponse brute: {llm_response[:200]}...")
                     return self._fallback_generation(transcript, f"Erreur JSON: {e}")
                     
             else:
-                print(f"❌ [LLM] Erreur HTTP: {response.status_code}")
+                print(f"âŒ [LLM] Erreur HTTP: {response.status_code}")
                 return self._fallback_generation(transcript, f"Erreur HTTP: {response.status_code}")
                 
         except requests.exceptions.Timeout:
-            print(f"⏱️ [LLM] Timeout après {timeout}s")
+            print(f"â±ï¸ [LLM] Timeout aprÃ¨s {timeout}s")
             return self._fallback_generation(transcript, f"Timeout LLM ({timeout}s)")
             
         except Exception as e:
-            print(f"❌ [LLM] Erreur générale: {e}")
+            print(f"âŒ [LLM] Erreur gÃ©nÃ©rale: {e}")
             return self._fallback_generation(transcript, f"Erreur: {e}")
     
     def _clean_llm_response(self, response: str) -> str:
-        """Nettoie la réponse du LLM pour extraire le JSON"""
+        """Nettoie la rÃ©ponse du LLM pour extraire le JSON"""
         
-        # Chercher le JSON dans la réponse
+        # Chercher le JSON dans la rÃ©ponse
         start_idx = response.find('{')
         end_idx = response.rfind('}')
         
@@ -153,43 +154,43 @@ Transcript:"""
             json_part = response[start_idx:end_idx + 1]
             return json_part
         
-        # Si pas de JSON trouvé, essayer de nettoyer
+        # Si pas de JSON trouvÃ©, essayer de nettoyer
         cleaned = response.replace('```json', '').replace('```', '').strip()
         return cleaned
     
     def _validate_keywords(self, keywords: List[str]) -> List[str]:
-        """Valide et nettoie les mots-clés générés"""
+        """Valide et nettoie les mots-clÃ©s gÃ©nÃ©rÃ©s"""
         
         validated = []
         
         for keyword in keywords:
             if isinstance(keyword, str) and keyword.strip():
-                # Nettoyer le mot-clé
+                # Nettoyer le mot-clÃ©
                 clean_keyword = keyword.strip()
                 
-                # Éviter les mots-clés trop génériques
+                # Ã‰viter les mots-clÃ©s trop gÃ©nÃ©riques
                 generic_words = ['content', 'media', 'engaging', 'professional', 'interesting', 'video', 'footage']
                 if clean_keyword.lower() not in generic_words:
-                    # Vérifier la longueur (2-5 mots)
+                    # VÃ©rifier la longueur (2-5 mots)
                     word_count = len(clean_keyword.split())
                     if 2 <= word_count <= 5:
                         validated.append(clean_keyword)
         
-        # Garantir au moins 8 mots-clés
+        # Garantir au moins 8 mots-clÃ©s
         if len(validated) < 8:
-            # Ajouter des mots-clés de fallback intelligents
+            # Ajouter des mots-clÃ©s de fallback intelligents
             fallback_keywords = ['person working', 'professional environment', 'modern technology', 'natural landscape', 'urban setting', 'creative process', 'daily activity', 'social interaction']
             for i in range(8 - len(validated)):
                 if fallback_keywords[i] not in validated:
                     validated.append(fallback_keywords[i])
         
-        # Limiter à 12 maximum
+        # Limiter Ã  12 maximum
         return validated[:12]
     
     def _detect_domain_from_keywords(self, keywords: List[str]) -> str:
-        """Détecte le domaine basé sur les mots-clés générés"""
+        """DÃ©tecte le domaine basÃ© sur les mots-clÃ©s gÃ©nÃ©rÃ©s"""
         
-        # Analyse simple basée sur les mots-clés
+        # Analyse simple basÃ©e sur les mots-clÃ©s
         science_words = ['scientist', 'research', 'lab', 'experiment', 'test', 'analysis', 'microscope', 'test tubes']
         sport_words = ['athlete', 'training', 'competition', 'game', 'sport', 'coach', 'team', 'running']
         business_words = ['meeting', 'office', 'business', 'professional', 'corporate', 'handshake', 'presentation']
@@ -209,34 +210,34 @@ Transcript:"""
         elif any(word in keyword_text for word in tech_words):
             return 'technology'
         else:
-            return 'lifestyle'  # Domaine par défaut plus spécifique que "general"
+            return 'lifestyle'  # Domaine par dÃ©faut plus spÃ©cifique que "general"
     
     def _fallback_generation(self, transcript: str, error_reason: str) -> Dict[str, Any]:
-        """Génération de fallback intelligente basée sur le transcript"""
+        """GÃ©nÃ©ration de fallback intelligente basÃ©e sur le transcript"""
         
-        print(f"🔄 [FALLBACK] Génération intelligente de fallback: {error_reason}")
+        print(f"ðŸ”„ [FALLBACK] GÃ©nÃ©ration intelligente de fallback: {error_reason}")
         
-        # Analyse simple du transcript pour extraire des mots-clés
+        # Analyse simple du transcript pour extraire des mots-clÃ©s
         words = transcript.lower().split()
         
         # Filtrer les mots pertinents
         relevant_words = []
         for word in words:
             if len(word) > 3 and word.isalpha():
-                # Éviter les mots trop communs
+                # Ã‰viter les mots trop communs
                 common_words = ['the', 'and', 'that', 'this', 'with', 'from', 'they', 'have', 'been', 'will', 'would', 'could', 'should']
                 if word not in common_words:
                     relevant_words.append(word)
         
-        # Prendre les mots les plus fréquents
+        # Prendre les mots les plus frÃ©quents
         from collections import Counter
         word_counts = Counter(relevant_words)
         top_words = [word for word, _ in word_counts.most_common(10)]
         
-        # Transformer en mots-clés B-roll optimisés
+        # Transformer en mots-clÃ©s B-roll optimisÃ©s
         broll_keywords = []
         for word in top_words[:8]:
-            # Ajouter du contexte pour rendre plus visuel et optimisé
+            # Ajouter du contexte pour rendre plus visuel et optimisÃ©
             if word in ['person', 'people', 'man', 'woman']:
                 broll_keywords.append(f"person {word}ing")
             elif word in ['work', 'study', 'research']:
@@ -248,7 +249,7 @@ Transcript:"""
             else:
                 broll_keywords.append(word)
         
-        print(f"🔄 [FALLBACK] {len(broll_keywords)} mots-clés générés par fallback")
+        print(f"ðŸ”„ [FALLBACK] {len(broll_keywords)} mots-clÃ©s gÃ©nÃ©rÃ©s par fallback")
         
         return {
             'success': True,
@@ -260,5 +261,5 @@ Transcript:"""
         }
 
 def create_llm_broll_generator(model: str = "gemma3:4b") -> LLMBrollGenerator:
-    """Factory pour créer un générateur B-roll LLM"""
+    """Factory pour crÃ©er un gÃ©nÃ©rateur B-roll LLM"""
     return LLMBrollGenerator(model=model) 

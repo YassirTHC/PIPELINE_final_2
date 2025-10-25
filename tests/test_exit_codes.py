@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 
 import run_pipeline
 from pipeline_core.runtime import PipelineResult
@@ -49,4 +50,5 @@ def test_exit_code_export_failure(monkeypatch):
 
     code = run_pipeline.main(["--video", "clip.mp4"])
     assert code == 1
+
 

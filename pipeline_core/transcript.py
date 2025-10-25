@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Transcript analysis helpers for the modular pipeline."""
 from __future__ import annotations
 
@@ -44,3 +45,4 @@ class TranscriptAnalyzer:
                 end = start
             result.append(TranscriptSegment(start=start, end=end, text=text))
         return result
+

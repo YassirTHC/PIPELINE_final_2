@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import pipeline_core.llm_service as llm_module
 from pipeline_core.llm_service import LLMMetadataGeneratorService
 
@@ -27,3 +28,4 @@ def test_metadata_first_queries(monkeypatch):
     assert len(result["queries"]) <= 3
     lowered = {" ".join(q.split()).lower() for q in result["queries"]}
     assert len(lowered) == len(result["queries"])
+

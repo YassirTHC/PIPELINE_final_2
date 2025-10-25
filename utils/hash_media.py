@@ -1,5 +1,6 @@
+﻿# -*- coding: utf-8 -*-
 """
-Module utilitaire pour le hachage des fichiers média
+Module utilitaire pour le hachage des fichiers mÃ©dia
 """
 
 import hashlib
@@ -10,13 +11,13 @@ from typing import Optional
 
 def hash_media(path: str) -> str:
     """
-    Génère un hash SHA-256 d'un fichier média
+    GÃ©nÃ¨re un hash SHA-256 d'un fichier mÃ©dia
     
     Args:
-        path: Chemin vers le fichier média
+        path: Chemin vers le fichier mÃ©dia
         
     Returns:
-        Hash SHA-256 en hexadécimal
+        Hash SHA-256 en hexadÃ©cimal
         
     Raises:
         FileNotFoundError: Si le fichier n'existe pas
@@ -33,7 +34,7 @@ def hash_media(path: str) -> str:
         # Hash SHA-256
         sha256_hash = hashlib.sha256()
         
-        # Lecture par blocs pour éviter la mémoire
+        # Lecture par blocs pour Ã©viter la mÃ©moire
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(chunk)
@@ -47,20 +48,20 @@ def hash_media(path: str) -> str:
 
 def hash_string(text: str) -> str:
     """
-    Génère un hash SHA-256 d'une chaîne de texte
+    GÃ©nÃ¨re un hash SHA-256 d'une chaÃ®ne de texte
     
     Args:
-        text: Texte à hasher
+        text: Texte Ã  hasher
         
     Returns:
-        Hash SHA-256 en hexadécimal
+        Hash SHA-256 en hexadÃ©cimal
     """
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
 def get_file_info(path: str) -> Optional[dict]:
     """
-    Récupère les informations d'un fichier média
+    RÃ©cupÃ¨re les informations d'un fichier mÃ©dia
     
     Args:
         path: Chemin vers le fichier
@@ -84,5 +85,6 @@ def get_file_info(path: str) -> Optional[dict]:
         }
         
     except Exception as e:
-        print(f"⚠️ Erreur lors de la récupération des infos de {path}: {e}")
+        print(f"âš ï¸ Erreur lors de la rÃ©cupÃ©ration des infos de {path}: {e}")
         return None 
+

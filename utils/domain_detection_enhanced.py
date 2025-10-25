@@ -1,5 +1,6 @@
-# 🎯 DÉTECTION DE DOMAINE RENFORCÉE - TF-IDF + SEUILS ADAPTATIFS
-# Remplace la méthode de comptage simple par une approche plus robuste
+﻿# -*- coding: utf-8 -*-
+# ðŸŽ¯ DÃ‰TECTION DE DOMAINE RENFORCÃ‰E - TF-IDF + SEUILS ADAPTATIFS
+# Remplace la mÃ©thode de comptage simple par une approche plus robuste
 
 import re
 import logging
@@ -14,10 +15,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EnhancedDomainDetection:
-    """Détection de domaine renforcée avec TF-IDF et seuils adaptatifs"""
+    """DÃ©tection de domaine renforcÃ©e avec TF-IDF et seuils adaptatifs"""
     
     def __init__(self):
-        # Domaines avec leurs caractéristiques enrichies
+        # Domaines avec leurs caractÃ©ristiques enrichies
         self.domain_patterns = {
             'medical_psychology': {
                 'keywords': [
@@ -27,7 +28,7 @@ class EnhancedDomainDetection:
                 ],
                 'visual_themes': ['medical', 'therapy', 'brain', 'healing', 'professional'],
                 'hashtag_templates': ['#mentalhealth', '#therapy', '#healing', '#psychology', '#wellness'],
-                'confidence_threshold': 0.30  # Seuil ajusté (était 0.35)
+                'confidence_threshold': 0.30  # Seuil ajustÃ© (Ã©tait 0.35)
             },
             'business_entrepreneurship': {
                 'keywords': [
@@ -37,7 +38,7 @@ class EnhancedDomainDetection:
                 ],
                 'visual_themes': ['business', 'office', 'meeting', 'success', 'growth'],
                 'hashtag_templates': ['#entrepreneur', '#business', '#success', '#startup', '#growth'],
-                'confidence_threshold': 0.25  # Seuil ajusté (était 0.30)
+                'confidence_threshold': 0.25  # Seuil ajustÃ© (Ã©tait 0.30)
             },
             'technology_ai': {
                 'keywords': [
@@ -47,7 +48,7 @@ class EnhancedDomainDetection:
                 ],
                 'visual_themes': ['technology', 'digital', 'innovation', 'future', 'automation'],
                 'hashtag_templates': ['#ai', '#technology', '#innovation', '#future', '#digital'],
-                'confidence_threshold': 0.35  # Seuil ajusté (était 0.40)
+                'confidence_threshold': 0.35  # Seuil ajustÃ© (Ã©tait 0.40)
             },
             'lifestyle_wellness': {
                 'keywords': [
@@ -57,7 +58,7 @@ class EnhancedDomainDetection:
                 ],
                 'visual_themes': ['lifestyle', 'wellness', 'fitness', 'nature', 'balance'],
                 'hashtag_templates': ['#lifestyle', '#wellness', '#fitness', '#mindfulness', '#balance'],
-                'confidence_threshold': 0.25  # Seuil ajusté (était 0.35)
+                'confidence_threshold': 0.25  # Seuil ajustÃ© (Ã©tait 0.35)
             },
             'education_learning': {
                 'keywords': [
@@ -67,7 +68,7 @@ class EnhancedDomainDetection:
                 ],
                 'visual_themes': ['education', 'learning', 'study', 'growth', 'development'],
                 'hashtag_templates': ['#education', '#learning', '#growth', '#skills', '#development'],
-                'confidence_threshold': 0.25  # Seuil ajusté (était 0.35)
+                'confidence_threshold': 0.25  # Seuil ajustÃ© (Ã©tait 0.35)
             },
             'finance_investment': {
                 'keywords': [
@@ -77,7 +78,7 @@ class EnhancedDomainDetection:
                 ],
                 'visual_themes': ['finance', 'money', 'investment', 'wealth', 'financial'],
                 'hashtag_templates': ['#finance', '#investment', '#money', '#wealth', '#financial'],
-                'confidence_threshold': 0.30  # Seuil ajusté (était 0.40)
+                'confidence_threshold': 0.30  # Seuil ajustÃ© (Ã©tait 0.40)
             }
         }
         
@@ -89,12 +90,12 @@ class EnhancedDomainDetection:
     def _initialize_tfidf(self):
         """Initialise le vectoriseur TF-IDF avec les domaines"""
         try:
-            # Préparer les textes de référence pour chaque domaine
+            # PrÃ©parer les textes de rÃ©fÃ©rence pour chaque domaine
             domain_texts = []
             domain_names = []
             
             for domain, info in self.domain_patterns.items():
-                # Créer un texte de référence pour chaque domaine
+                # CrÃ©er un texte de rÃ©fÃ©rence pour chaque domaine
                 reference_text = " ".join(info['keywords'])
                 # Ajouter des variations et synonymes
                 reference_text += f" {domain.replace('_', ' ')}"
@@ -102,7 +103,7 @@ class EnhancedDomainDetection:
                 domain_texts.append(reference_text)
                 domain_names.append(domain)
             
-            # Entraîner le vectoriseur TF-IDF
+            # EntraÃ®ner le vectoriseur TF-IDF
             self.vectorizer = TfidfVectorizer(
                 max_features=1000,
                 stop_words='english',
@@ -111,57 +112,57 @@ class EnhancedDomainDetection:
                 max_df=0.95
             )
             
-            # Vectoriser les textes de référence
+            # Vectoriser les textes de rÃ©fÃ©rence
             domain_vectors = self.vectorizer.fit_transform(domain_texts)
             
             # Stocker les vecteurs pour chaque domaine
             for i, domain in enumerate(domain_names):
                 self.domain_vectors[domain] = domain_vectors[i]
             
-            logger.info(f"✅ TF-IDF initialisé avec {len(domain_names)} domaines")
+            logger.info(f"âœ… TF-IDF initialisÃ© avec {len(domain_names)} domaines")
             
         except Exception as e:
-            logger.error(f"❌ Erreur initialisation TF-IDF: {e}")
+            logger.error(f"âŒ Erreur initialisation TF-IDF: {e}")
             self.vectorizer = None
     
     def detect_domain_enhanced(self, transcript: str) -> Tuple[str, float]:
         """
-        Détection de domaine renforcée avec TF-IDF et seuils adaptatifs
+        DÃ©tection de domaine renforcÃ©e avec TF-IDF et seuils adaptatifs
         """
         if not self.vectorizer or not self.domain_vectors:
-            logger.warning("⚠️ TF-IDF non disponible, fallback vers méthode simple")
+            logger.warning("âš ï¸ TF-IDF non disponible, fallback vers mÃ©thode simple")
             return self._detect_domain_simple(transcript)
         
         try:
             # Vectoriser le transcript
             transcript_vector = self.vectorizer.transform([transcript])
             
-            # Calculer les similarités avec tous les domaines
+            # Calculer les similaritÃ©s avec tous les domaines
             similarities = {}
             for domain, domain_vector in self.domain_vectors.items():
                 similarity = cosine_similarity(transcript_vector, domain_vector)[0][0]
                 similarities[domain] = float(similarity)
             
-            # Trouver le domaine avec la plus haute similarité
+            # Trouver le domaine avec la plus haute similaritÃ©
             best_domain = max(similarities, key=similarities.get)
             best_score = similarities[best_domain]
             
-            # Seuil adaptatif basé sur le domaine
+            # Seuil adaptatif basÃ© sur le domaine
             threshold = self.domain_patterns[best_domain]['confidence_threshold']
             
             if best_score >= threshold:
-                logger.info(f"🎯 Domaine détecté (TF-IDF): {best_domain} (confiance: {best_score:.3f})")
+                logger.info(f"ðŸŽ¯ Domaine dÃ©tectÃ© (TF-IDF): {best_domain} (confiance: {best_score:.3f})")
                 return best_domain, best_score
             else:
-                logger.info(f"🎯 Score insuffisant: {best_domain} ({best_score:.3f}) < {threshold}")
+                logger.info(f"ðŸŽ¯ Score insuffisant: {best_domain} ({best_score:.3f}) < {threshold}")
                 return 'generic', best_score
                 
         except Exception as e:
-            logger.error(f"❌ Erreur détection TF-IDF: {e}")
+            logger.error(f"âŒ Erreur dÃ©tection TF-IDF: {e}")
             return self._detect_domain_simple(transcript)
     
     def _detect_domain_simple(self, transcript: str) -> Tuple[str, float]:
-        """Méthode de fallback basée sur le comptage de mots"""
+        """MÃ©thode de fallback basÃ©e sur le comptage de mots"""
         transcript_lower = transcript.lower()
         domain_scores = {}
         
@@ -179,27 +180,27 @@ class EnhancedDomainDetection:
             else:
                 domain_scores[domain] = 0
         
-        # Trouver le domaine avec le score le plus élevé
+        # Trouver le domaine avec le score le plus Ã©levÃ©
         if domain_scores:
             best_domain = max(domain_scores, key=domain_scores.get)
             best_score = domain_scores[best_domain]
             
-            # Seuil de confiance minimum pour la méthode simple
-            if best_score >= 0.10:  # Seuil ajusté (était 0.15)
-                logger.info(f"🎯 Domaine détecté (simple): {best_domain} (confiance: {best_score:.3f})")
+            # Seuil de confiance minimum pour la mÃ©thode simple
+            if best_score >= 0.10:  # Seuil ajustÃ© (Ã©tait 0.15)
+                logger.info(f"ðŸŽ¯ Domaine dÃ©tectÃ© (simple): {best_domain} (confiance: {best_score:.3f})")
                 return best_domain, best_score
             else:
-                logger.info(f"🎯 Score insuffisant (simple): {best_domain} ({best_score:.3f}) < 0.10")
+                logger.info(f"ðŸŽ¯ Score insuffisant (simple): {best_domain} ({best_score:.3f}) < 0.10")
                 return 'generic', 0.0
         else:
             return 'generic', 0.0
     
     def get_domain_info(self, domain: str) -> Dict[str, Any]:
-        """Récupère les informations d'un domaine"""
+        """RÃ©cupÃ¨re les informations d'un domaine"""
         return self.domain_patterns.get(domain, {})
     
     def get_all_domains(self) -> List[str]:
-        """Liste tous les domaines supportés"""
+        """Liste tous les domaines supportÃ©s"""
         return list(self.domain_patterns.keys())
     
     def add_domain(self, name: str, keywords: List[str], visual_themes: List[str], 
@@ -212,9 +213,9 @@ class EnhancedDomainDetection:
             'confidence_threshold': confidence_threshold
         }
         
-        # Réinitialiser TF-IDF avec le nouveau domaine
+        # RÃ©initialiser TF-IDF avec le nouveau domaine
         self._initialize_tfidf()
-        logger.info(f"✅ Nouveau domaine ajouté: {name}")
+        logger.info(f"âœ… Nouveau domaine ajoutÃ©: {name}")
     
     def analyze_domain_distribution(self, transcript: str) -> Dict[str, float]:
         """Analyse la distribution des domaines dans un transcript"""
@@ -239,7 +240,7 @@ class EnhancedDomainDetection:
             return normalized
             
         except Exception as e:
-            logger.error(f"❌ Erreur analyse distribution: {e}")
+            logger.error(f"âŒ Erreur analyse distribution: {e}")
             return {}
 
 # === INSTANCE GLOBALE ===
@@ -247,7 +248,7 @@ enhanced_domain_detection = EnhancedDomainDetection()
 
 # === FONCTIONS UTILITAIRES ===
 def detect_domain_enhanced(transcript: str) -> Tuple[str, float]:
-    """Détection de domaine renforcée"""
+    """DÃ©tection de domaine renforcÃ©e"""
     return enhanced_domain_detection.detect_domain_enhanced(transcript)
 
 def get_domain_info(domain: str) -> Dict[str, Any]:
@@ -260,9 +261,9 @@ def analyze_domain_distribution(transcript: str) -> Dict[str, float]:
 
 # === TEST RAPIDE ===
 if __name__ == "__main__":
-    print("🧪 Test de la détection de domaine renforcée...")
+    print("ðŸ§ª Test de la dÃ©tection de domaine renforcÃ©e...")
     
-    # Test avec différents types de contenu
+    # Test avec diffÃ©rents types de contenu
     test_cases = [
         ("EMDR therapy utilizes bilateral stimulation to process traumatic memories. The therapist guides the patient through eye movements while recalling distressing events.", "medical_psychology"),
         ("Start your own business and become a successful entrepreneur. Learn the strategies that top performers use to grow their companies and increase revenue.", "business_entrepreneurship"),
@@ -273,21 +274,21 @@ if __name__ == "__main__":
     ]
     
     for transcript, expected_domain in test_cases:
-        print(f"\n📝 Test: {transcript[:60]}...")
+        print(f"\nðŸ“ Test: {transcript[:60]}...")
         
-        # Détection renforcée
+        # DÃ©tection renforcÃ©e
         detected_domain, confidence = detect_domain_enhanced(transcript)
-        print(f"🎯 Domaine détecté: {detected_domain} (confiance: {confidence:.3f})")
-        print(f"✅ Attendu: {expected_domain}")
+        print(f"ðŸŽ¯ Domaine dÃ©tectÃ©: {detected_domain} (confiance: {confidence:.3f})")
+        print(f"âœ… Attendu: {expected_domain}")
         
         # Analyse de distribution
         distribution = analyze_domain_distribution(transcript)
-        print(f"📊 Distribution: {dict(list(distribution.items())[:3])}")
+        print(f"ðŸ“Š Distribution: {dict(list(distribution.items())[:3])}")
         
         # Validation
         if detected_domain == expected_domain:
-            print("✅ CORRECT !")
+            print("âœ… CORRECT !")
         else:
-            print("❌ INCORRECT")
+            print("âŒ INCORRECT")
     
-    print("\n�� Test terminé !") 
+    print("\nï¿½ï¿½ Test terminÃ© !") 

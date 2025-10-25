@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import importlib
 import sys
 import types
@@ -51,4 +52,5 @@ def test_segment_terms_dedupes_and_orders_matches():
 
     out = _segment_terms_from_briefs(dyn, 2, 10)
     assert out == ["alpha", "beta", "delta", "gamma", "epsilon"]
+
 

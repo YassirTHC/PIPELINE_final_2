@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import sys
@@ -56,10 +57,10 @@ def test_cli_warns_when_no_broll_inserted(monkeypatch, tmp_path, capsys):
 
     def _fake_banner(count, *, origin="pipeline"):
         if int(count) > 0:
-            return True, f"    ✅ B-roll insérés avec succès ({int(count)})"
+            return True, f"    âœ… B-roll insÃ©rÃ©s avec succÃ¨s ({int(count)})"
         if origin == "pipeline_core":
-            return False, "    ⚠️ Pipeline core: aucun B-roll sélectionné; retour à la vidéo d'origine"
-        return False, "    ⚠️ Aucun B-roll inséré; retour à la vidéo d'origine"
+            return False, "    âš ï¸ Pipeline core: aucun B-roll sÃ©lectionnÃ©; retour Ã  la vidÃ©o d'origine"
+        return False, "    âš ï¸ Aucun B-roll insÃ©rÃ©; retour Ã  la vidÃ©o d'origine"
 
     monkeypatch.setitem(
         sys.modules,
@@ -80,8 +81,8 @@ def test_cli_warns_when_no_broll_inserted(monkeypatch, tmp_path, capsys):
 
     captured = capsys.readouterr().out
 
-    assert "⚠️ Pipeline core: aucun B-roll sélectionné; retour à la vidéo d'origine" in captured
-    assert "B-roll insérés avec succès" not in captured
+    assert "âš ï¸ Pipeline core: aucun B-roll sÃ©lectionnÃ©; retour Ã  la vidÃ©o d'origine" in captured
+    assert "B-roll insÃ©rÃ©s avec succÃ¨s" not in captured
 
 
 def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
@@ -141,7 +142,7 @@ def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
             return self._count
 
     def _fake_banner(count, *, origin="pipeline"):
-        return (int(count) > 0, f"    ✅ B-roll insérés avec succès ({int(count)})")
+        return (int(count) > 0, f"    âœ… B-roll insÃ©rÃ©s avec succÃ¨s ({int(count)})")
 
     monkeypatch.setitem(
         sys.modules,
@@ -162,6 +163,7 @@ def test_cli_reports_success_when_core_inserts(monkeypatch, tmp_path, capsys):
 
     captured = capsys.readouterr().out
 
-    assert "✅ B-roll insérés avec succès (2)" in captured
+    assert "âœ… B-roll insÃ©rÃ©s avec succÃ¨s (2)" in captured
     assert recorded.get("subtitle_src")
     assert Path(recorded["subtitle_src"]).name == "with_broll_core.mp4"
+

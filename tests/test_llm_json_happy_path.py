@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import json
 
 import pytest
@@ -64,3 +65,4 @@ def test_generate_metadata_json_happy_path():
     assert len(result["broll_keywords"]) == 8
     assert result["queries"][0] == "team brainstorming"
     assert len(result["queries"]) == 12
+

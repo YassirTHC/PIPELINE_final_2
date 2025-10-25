@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -120,3 +121,4 @@ def test_core_pipeline_integration_applies_invariants(monkeypatch):
         "asset:unique",
         "asset:repeat",
     ]
+

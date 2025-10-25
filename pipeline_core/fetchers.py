@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Fetching orchestration helpers."""
 from __future__ import annotations
 
@@ -1125,4 +1126,5 @@ def _emit_event(payload: Dict[str, Any]) -> None:
                 handle.write(serialized + "\n")
     except Exception:
         logging.getLogger(__name__).debug('[fetcher] failed to emit event', exc_info=True)
+
 

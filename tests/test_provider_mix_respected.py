@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from typing import List
 
 import pytest
@@ -60,3 +61,4 @@ def test_provider_mix_respected(orchestrator):
     assert provider_mix['pexels'] >= provider_mix['coverr'] >= provider_mix['pixabay']
     # Ensure diversity greater than single provider dominance.
     assert provider_mix['pexels'] < len(candidates)
+

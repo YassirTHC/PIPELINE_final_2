@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from tests.factories import plan_from_tuples
@@ -24,3 +25,4 @@ def test_broll_min_gap_respected():
     assert [clip.asset_id for clip in kept] == ["segment:a", "segment:d"]
     for first, second in zip(kept, kept[1:]):
         assert (second.start_s - first.end_s) >= 1.5 - 1e-6
+

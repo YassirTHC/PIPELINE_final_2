@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from pathlib import Path
@@ -126,3 +127,4 @@ def test_render_with_pycaps_creates_video(monkeypatch, tmp_path):
     assert Path(result_path).exists()
     assert Path(result_path).stat().st_size > 0
     assert recorded["segments"][0]["text"] == "Build momentum fast"
+

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Console logging helpers with emoji-aware formatting."""
 from __future__ import annotations
 
@@ -48,3 +49,4 @@ def get_console_logger(no_emoji: bool = False, name: str = _LOGGER_NAME) -> logg
 
     handler.setFormatter(_build_formatter(not effective_no_emoji))
     return logger
+

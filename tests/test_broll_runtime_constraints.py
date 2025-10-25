@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 from types import SimpleNamespace
 
 import pytest
@@ -72,3 +73,4 @@ def test_runtime_constraints_cooldown_and_no_consecutive():
     first_dup = adjusted[0]
     gap = last_dup.start_s - first_dup.end_s
     assert gap >= 3.0 - 1e-6
+

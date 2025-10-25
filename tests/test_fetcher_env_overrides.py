@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import pytest
 
 from pipeline_core.configuration import FetcherOrchestratorConfig
@@ -115,3 +116,4 @@ def test_fetcher_applies_segment_limit(monkeypatch):
 
     results = orchestrator.fetch_candidates(["demo"])
     assert len(results) == 2
+

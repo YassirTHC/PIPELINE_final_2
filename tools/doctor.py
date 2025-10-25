@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Repository diagnostics utility for environment and bytecode hygiene."""
 from __future__ import annotations
 
@@ -164,7 +165,7 @@ def _format_paths(paths: Sequence[Path], limit: int = 5) -> str:
         return "none"
     items = [str(path) for path in paths[:limit]]
     if len(paths) > limit:
-        items.append(f"… and {len(paths) - limit} more")
+        items.append(f"â€¦ and {len(paths) - limit} more")
     return "\n    " + "\n    ".join(items)
 
 
@@ -257,3 +258,4 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     raise SystemExit(main())
+

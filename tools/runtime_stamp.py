@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 """Runtime diagnostics banner for early import tracing."""
 from __future__ import annotations
 
@@ -118,3 +119,4 @@ def emit_runtime_banner(*, env_keys: Optional[Sequence[str]] = None) -> None:
         metadata['env'] = _collect_env(env_keys)
 
     _LOGGER.info("startup metadata: %s", json.dumps(metadata, sort_keys=True, ensure_ascii=False))
+

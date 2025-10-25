@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 import importlib
 import json
 import os
@@ -71,3 +72,4 @@ def test_import_does_not_load_dotenv():
         sys.modules['run_pipeline'] = original_run_pipeline
     else:
         importlib.import_module('run_pipeline')
+
